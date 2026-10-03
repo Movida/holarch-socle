@@ -295,3 +295,22 @@ test('serveur MCP : outils en lecture, réponses du socle, par le client officie
     assert.equal(e.periode.jours, 7);
   } finally { await client.close(); }
 });
+
+test('serveur web : refuse le DNS rebinding et les écritures venues d’un autre site', async () => {
+  const { creerServeur } = await import('../src/web/serveur.js');
+  const http = await import('node:http');
+  const s = new Socle({ site: 'local', donnees: tmp(), web: { hote: '127.0.0.1' }, tarifs: {}, inventaire: {}, import: {} });
+  s.indexer();
+  const srv = creerServeur(s); await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  const port = srv.address().port;
+  const req = (method, chemin, entetes = {}) => new Promise((ok) => { const r = http.request({ host: '127.0.0.1', port, method, path: chemin, headers: entetes }, (res) => { res.resume(); ok(res.statusCode); }); r.end(); });
+  try {
+    assert.equal(await req('GET', '/api/etat'), 200);
+    assert.equal(await req('GET', '/api/etat', { Host: `localhost:${port}` }), 200);
+    assert.equal(await req('GET', '/api/etat', { Host: 'evil.example' }), 403, 'DNS rebinding');
+    assert.equal(await req('GET', '/api/etat', { Host: `evil.example:${port}` }), 403);
+    assert.equal(await req('POST', '/api/vue?page=test', { Origin: 'http://evil.example' }), 403, 'écriture depuis un autre site');
+    assert.equal(await req('POST', '/api/vue?page=test', { 'Sec-Fetch-Site': 'cross-site' }), 403);
+    assert.equal(await req('POST', '/api/vue?page=test', { Origin: `http://127.0.0.1:${port}` }), 200);
+  } finally { srv.close(); }
+});

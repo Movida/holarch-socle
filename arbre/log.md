@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Sécurité de l'interface** : refus du DNS rebinding (hôte non local) et des écritures venues d'un autre site
+  (origine), relevés par une revue et vérifiés avant correction.
+
 * **Procédure de l'essai sur l'hôte** : `procedure-essai-hote.md`, pour une session lancée dans WSL ; écoute de la
   passerelle limitée à 127.0.0.1 (constat ajouté à l'essai).
 
