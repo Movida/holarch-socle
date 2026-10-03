@@ -172,7 +172,7 @@ test('inventaire Docker : conteneurs et volumes par lâ€™API en lecture, rattachÃ
     { Id: 'a'.repeat(64), Names: ['/boring_yalow'], Image: 'vsc-demo-123', State: 'running', Status: 'Up 2 hours', Created: 1790000000,
       Labels: { 'devcontainer.local_folder': '/home/quelquun/demo', secret: 'SECRET' }, Mounts: [{ Type: 'volume', Name: 'demo-ssh' }, { Type: 'bind', Source: '/x' }] },
     { Id: 'b'.repeat(64), Names: ['/vieux'], Image: 'alpine', State: 'exited', Status: 'Exited (0)', Labels: {}, Mounts: [] }],
-  '/volumes': { Volumes: [{ Name: 'demo-ssh', Driver: 'local' }, { Name: 'oublie', Driver: 'local' }] } };
+  '/volumes': { Volumes: [{ Name: 'demo-ssh', Driver: 'local' }, { Name: 'oublie', Driver: 'local', Labels: null }] } };
   const srv = http.createServer((req, res) => { vus.push(`${req.method} ${req.url}`); res.end(JSON.stringify(api[req.url])); });
   await new Promise((ok) => srv.listen(socket, ok));
   try {

@@ -28,7 +28,8 @@ function lire(cible, chemin) {
 }
 
 // Étiquettes posées par les outils qui créent les conteneurs, et qui disent à quel projet ils appartiennent.
-const projetDe = (l = {}) => (l['devcontainer.local_folder'] ? path.basename(l['devcontainer.local_folder'].replace(/\\/g, '/')) : l['com.docker.compose.project'] || null);
+// L'API rend `Labels: null` pour un objet sans étiquette.
+const projetDe = (l) => (l?.['devcontainer.local_folder'] ? path.basename(l['devcontainer.local_folder'].replace(/\\/g, '/')) : l?.['com.docker.compose.project'] || null);
 
 const fiche = (kind, cle, name, extra) => ({
   id: `holarch:${kind}:${slug(cle)}`, kind, name, provenance: { source: 'inventaire:docker' }, classification: 'internal', ...extra,
