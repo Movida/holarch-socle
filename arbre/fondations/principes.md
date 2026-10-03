@@ -16,7 +16,7 @@ un arbitrage.
 |---|---|---|
 | P1 | **Les contrats sont le produit.** Formats, interfaces et protocoles sont versionnés ; toute implémentation est un adaptateur remplaçable. | contrainte |
 | P2 | **Autour des runtimes, pas à leur place.** Avant d'écrire une brique : un runtime ou un outil existant le fait-il déjà, et bien ? Si oui, on l'adapte et on le gouverne. | contrainte |
-| P3 | **Modulable, configurable, évolutif.** Toute brique est optionnelle ; toute configuration est une donnée portée par un nœud de l'arbre, jamais codée en dur. | contrainte |
+| P3 | **Modulable, configurable, évolutif.** Toute brique est optionnelle ; toute configuration est une donnée, jamais codée en dur : ce qui règle le système (règles, intentions, réglages des briques) est porté par un nœud de l'arbre ; ce qui est propre à une installation (site, chemins, accès, emplacement des données) vit dans la configuration du site, hors dépôt (P7). | contrainte |
 | P4 | **Visible.** Ce qui n'est pas au catalogue n'existe pas ; ce qui n'est pas au journal ne s'est pas passé. | contrainte |
 | P5 | **L'humain décide de l'irréversible.** L'agent écrit des brouillons et consigne les approbations ; approuver n'autorise pas à agir sans une autorisation qui porte sur une version, une destination et des limites. | contrainte |
 | P6 | **Cloisonné.** Une donnée ne sort jamais du contexte et du niveau de classification qui l'autorisent ; le hub l'applique, pas l'agent. | contrainte |

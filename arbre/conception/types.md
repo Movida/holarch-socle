@@ -27,7 +27,7 @@ vérificateur, l'interface) lit ce registre, il ne code aucun type en dur.
 | `experiment` | expérience limitée | `hypothesis` | `tests` |
 | `observation` | constat daté | tout nœud | — |
 | `decision` | décision, transversale | tout nœud | `modifies` si elle change un nœud `stable` |
-| `contract` | contrat versionné | `spec`, `guideline` | — |
+| `contract` | contrat versionné | `guideline`, `need`, `spec`, `contract` | — |
 | `procedure` | procédure (guide d'application d'une règle, mode opératoire) | tout nœud | — |
 
 Types transverses de projet (gabarits partagés par des projets de parents différents, §5.2 de l'architecture) : registre
