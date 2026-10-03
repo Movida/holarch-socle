@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Étape 2, poste personnel** : Claude Desktop appelle HOLARCH en direct (stdio par `wsl.exe`) ; hôte en Node 24 LTS.
+  Reste le site de travail.
+
 * **Après l'essai sur l'hôte** : Q7 résolue (Claude Desktop en paquet MSIX, sous Windows et depuis WSL) ; test visuel qui
   échoue vite sans Chromium au lieu de rester suspendu ; avancement de l'étape 2 aligné sur `passerelle-par-site`.
 

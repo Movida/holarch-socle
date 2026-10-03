@@ -49,8 +49,9 @@ fouiller.
 - **Fait (2026-10-03)** : décision `passerelle-par-site` (pas de passerelle durable sur le poste personnel, clé d'accès
   et protection DNS rebinding au travail) ; configuration de Claude Desktop trouvée aussi en installation MSIX, sous
   Windows et depuis WSL (Q7) ; test visuel qui échoue vite sans Chromium.
-- **À faire, ici** : Claude Desktop branché en direct sur le serveur HOLARCH (entrée stdio par `wsl.exe`, à la place du
-  pont vers la passerelle).
+- **Fait (2026-10-03)** : ici, Claude Desktop branché en direct sur le serveur HOLARCH (entrée stdio par `wsl.exe`, plus
+  de pont vers la passerelle) ; l'hôte passé en Node 24 LTS, sans drapeau ; un appel de Desktop vérifié. Le test visuel
+  reste au conteneur du socle.
 - **À faire, au travail** : site de travail (données, configuration et passerelle dans le profil privé) ; passerelle
   protégée devant les serveurs MCP ; traduction de son journal (`json`) vers `tool.called` ; critère d'usage.
 
