@@ -25,6 +25,9 @@ const DEFAUTS = () => ({
   },
   import: {
     'claude-code-transcriptions': { actif: true, home: path.join(os.homedir(), '.claude'), calme_minutes: 10 },
+    // Journal JSON d'une passerelle agentgateway (site qui fédère des serveurs) : `fichier`, et `nom`, le nom sous
+    // lequel les clients la connaissent (leurs appels à ce serveur ne sont alors pas repris des transcriptions).
+    agentgateway: { actif: false, fichier: null, nom: 'hub' },
   },
   // Grille de tarifs, relevée sur la page officielle du fournisseur : { source, releve, modeles }, où chaque modèle porte
   // { entree, cache_ecrit, cache_ecrit_1h, cache_lu, sortie } en USD par million de tokens (src/tarifs.js).

@@ -318,3 +318,29 @@ test('serveur web : refuse le DNS rebinding et les écritures venues d’un autr
     assert.equal(await req('POST', '/api/vue?page=test', { Origin: `http://127.0.0.1:${port}` }), 200);
   } finally { srv.close(); }
 });
+
+test('import de la passerelle : appels d’outil au format JSON réel, reprise incrémentale, sans doublon avec les transcriptions', async () => {
+  const { default: importerPasserelle, evenementsDe } = await import('../src/import/agentgateway.js');
+  const ligne = (t, cible, outil, http, extra = {}) => JSON.stringify({ level: 'info', time: t, scope: 'request', 'http.method': 'POST', 'http.path': '/mcp', 'http.status': http, protocol: 'mcp', 'mcp.method.name': 'tools/call', 'mcp.target': cible, 'mcp.resource.type': 'tool', 'gen_ai.tool.name': outil, 'mcp.session.id': 'sess-1', duration: '6ms', ...extra });
+  const ev = evenementsDe([ligne('2026-10-01T10:00:00.123456Z', 'demo', 'echo', 200), ligne('2026-10-01T10:00:01Z', 'demo', 'lire', 403),
+    JSON.stringify({ time: '2026-10-01T10:00:02Z', 'mcp.method.name': 'tools/list', 'mcp.target': 'demo' }), 'pas du JSON'], 'hub');
+  assert.deepEqual(ev.map((e) => [e.data.serveur, e.data.outil, e.data.statut, e.data.duree_ms]), [['demo', 'echo', null, 6], ['demo', 'lire', 'refuse', 6]]);
+  for (const e of ev) assert.equal(valider('evenement', { ...e, site: 'local' }), null);
+
+  const donnees = tmp(); const f = path.join(tmp(), 'passerelle.jsonl'); const journal = new Journal(donnees, 'local');
+  fs.writeFileSync(f, `${ligne('2026-10-01T10:00:00Z', 'demo', 'echo', 200)}\n${ligne('2026-10-01T10:00:05Z', 'demo', 'echo', 200).slice(0, 40)}`);
+  assert.equal(importerPasserelle({ fichier: f, nom: 'hub' }, { journal, donnees }).ajoutes, 1, 'la ligne incomplète attend');
+  fs.writeFileSync(f, `${ligne('2026-10-01T10:00:00Z', 'demo', 'echo', 200)}\n${ligne('2026-10-01T10:00:05Z', 'demo', 'echo', 200)}\n`);
+  assert.equal(importerPasserelle({ fichier: f, nom: 'hub' }, { journal, donnees }).ajoutes, 1, 'reprise après la dernière ligne lue');
+  assert.equal(importerPasserelle({ fichier: f, nom: 'hub' }, { journal, donnees }).ajoutes, 0);
+  fs.writeFileSync(f, `${ligne('2026-10-01T11:00:00Z', 'demo', 'echo', 200)}\n`); // rotation : fichier neuf, plus court
+  assert.equal(importerPasserelle({ fichier: f, nom: 'hub' }, { journal, donnees }).ajoutes, 1);
+
+  // Côté transcriptions : un appel au serveur « hub » (la passerelle) n'est pas repris, les autres si.
+  const home = tmp(); const t = path.join(home, 'projects', '-ws-demo', 's5.jsonl');
+  const appel = (id, name, ts) => JSON.stringify({ type: 'assistant', sessionId: 's5', cwd: '/ws/demo', timestamp: ts, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', content: [{ type: 'tool_use', id: `t${id}`, name, input: {} }], usage: { output_tokens: 1 } } });
+  ecrire(t, [appel(1, 'mcp__hub__demo_echo', '2026-10-01T10:00:00Z'), appel(2, 'mcp__autre__lire', '2026-10-01T10:01:00Z')].join('\n') + '\n'); vieillir(t);
+  const j2 = new Journal(tmp(), 'local'); const d2 = tmp();
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal: j2, donnees: d2, passerelles: ['hub'] });
+  assert.deepEqual([...j2.lire()].filter((e) => e.kind === 'tool.called').map((e) => e.data.serveur), ['autre']);
+});

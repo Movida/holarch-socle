@@ -21,6 +21,7 @@ Client : le client MCP officiel (TypeScript v2), en HTTP.
 | Journal | une ligne par appel : serveur (`mcp.target`), outil (`gen_ai.tool.name`), statut, durée, session ; **aucun argument** (vérifié par une chaîne témoin) ; format `json` disponible pour la traduction vers le contrat événement |
 | Panne d'un serveur | par défaut (`failureMode: failClosed`), un seul serveur défaillant fait échouer tout le point d'entrée ; avec **`failureMode: failOpen`**, il est ignoré (avertissement au journal) et les autres restent servis |
 | Ports | ports d'administration fixes (15000, 15020, 15021) : deux instances sur une machine entrent en conflit ; le port de statistiques écoute sur toutes les interfaces |
+| Échec d'un outil | la passerelle répond 200 et journalise `info` même quand l'outil lève une erreur, rend un résultat en erreur ou n'existe pas : elle ne voit que les échecs HTTP (refus, authentification, serveur injoignable) |
 | Adresse d'écoute | la section `binds` employée ici (marquée obsolète par le schéma) écoute sur **toutes les interfaces** ; `gateways` accepte `bindAddress: 127.0.0.1` |
 
 **Retenu pour la configuration du hub.** `gateways` avec `bindAddress: 127.0.0.1` ; `failureMode: failOpen` ; journal

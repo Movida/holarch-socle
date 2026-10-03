@@ -92,11 +92,13 @@ les montre.
 
 ## 5. Journal de la passerelle vers le journal HOLARCH
 
-Écrire, dans le socle (code générique, sans rien du travail), un adaptateur d'import du journal `json` de la
-passerelle vers `tool.called` (serveur, outil, statut, durée, session ; jamais les arguments), idempotent, activé par
-la configuration du site. Le tester sur des lignes **fictives** au format réel. Les appels déjà importés des
-transcriptions de Claude Code ne doivent pas compter deux fois : repérer le doublon (même outil, même instant) ou
-réserver cet import aux clients sans transcription (Desktop), et consigner le choix.
+L'import existe dans le socle (`src/import/agentgateway.js`) : il lit le journal `json` de la passerelle et en tire
+`tool.called` (serveur, outil, code HTTP, durée, session ; jamais les arguments). Dans `holarch/config.yaml` :
+`import.agentgateway: { actif: true, fichier: <journal de la passerelle>, nom: <nom de la passerelle chez les clients> }`.
+La passerelle fait alors foi pour les appels qui la traversent : l'import des transcriptions ne reprend plus les appels
+au serveur `nom`. **Vérifier** : `node bin/holarch.js importer` puis la carte « Appels MCP » montrent les serveurs
+fédérés, pas le nom de la passerelle ; un même appel n'y compte qu'une fois. Limite connue : la passerelle ne voit pas
+l'échec d'un outil, seulement les échecs HTTP.
 
 ## 6. Consigner et ranger
 

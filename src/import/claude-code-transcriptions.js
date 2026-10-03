@@ -92,7 +92,8 @@ function analyser(f) {
   return r;
 }
 
-export default function importerTranscriptions(options, { journal, donnees }) {
+export default function importerTranscriptions(options, { journal, donnees, passerelles = [] }) {
+  const viaPasserelle = new Set(passerelles.map((n) => String(n).replace(/[^A-Za-z0-9_-]/g, '_')));
   const etatF = path.join(donnees, 'import', 'claude-code-transcriptions.json');
   let etat = {}; try { etat = JSON.parse(fs.readFileSync(etatF, 'utf8')); } catch { /* premier import */ }
   const calme = (options.calme_minutes ?? 10) * 60e3;
@@ -124,6 +125,7 @@ export default function importerTranscriptions(options, { journal, donnees }) {
         data: { projet, sous_agent: a.sousAgent, outil: x.outil, origine: x.origine, categorie: x.categorie } });
     }
     for (const x of a.appels.values()) {
+      if (viaPasserelle.has(x.serveur)) continue; // la passerelle le journalise elle-même, avec le vrai serveur et le vrai outil
       evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${f}:appel:${x.cle}`), at: x.at || a.fin, kind: 'tool.called',
         data: { projet, sous_agent: a.sousAgent, serveur: x.serveur, outil: x.outil, statut: x.statut } });
     }

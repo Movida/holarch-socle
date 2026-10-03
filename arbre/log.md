@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Import du journal de la passerelle** : `tool.called` depuis le journal `json` d'agentgateway, la passerelle faisant
+  foi pour les appels qui la traversent ; constat : elle ne voit pas l'échec d'un outil.
+
 * **Procédure du site de travail** : `procedure-site-travail.md` (profil privé, passerelle protégée, clients,
   import du journal de la passerelle), sans rien du travail dans le socle.
 

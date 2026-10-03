@@ -6,10 +6,11 @@ import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
 import { inventorier } from './inventaire/index.js';
 import importerTranscriptions from './import/claude-code-transcriptions.js';
+import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
 import { ulid } from './ulid.js';
 
-export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions };
+export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions, agentgateway: importerPasserelle };
 
 export class Socle {
   constructor(config = chargerConfig()) {
@@ -23,10 +24,14 @@ export class Socle {
 
   importer() {
     const r = {};
+    // Une passerelle active fait foi pour les appels qui la traversent : l'import des transcriptions laisse de côté les
+    // appels au serveur qui la désigne chez les clients, pour ne pas les compter deux fois.
+    const p = this.config.import?.agentgateway;
+    const passerelles = p && p.actif !== false && p.fichier ? [p.nom || 'passerelle'] : [];
     for (const [nom, imp] of Object.entries(IMPORTS)) {
-      const o = this.config.import[nom];
+      const o = this.config.import?.[nom];
       if (!o || o.actif === false) continue;
-      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees });
+      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles });
     }
     return r;
   }
