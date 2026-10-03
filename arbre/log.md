@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Procédure de l'essai sur l'hôte** : `procedure-essai-hote.md`, pour une session lancée dans WSL ; écoute de la
+  passerelle limitée à 127.0.0.1 (constat ajouté à l'essai).
+
 * **Essai d'agentgateway** : fédération, journal sans arguments, `failOpen` contre la panne d'un serveur ; reste
   Desktop et le réseau sur l'hôte (`essai-agentgateway.md`).
 
