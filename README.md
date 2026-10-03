@@ -27,7 +27,11 @@ npm run test:visuel          # interface dans Chromium (préparer : npx playwrig
 
 `node bin/holarch.js mcp` sert en MCP (stdio), en lecture, ce que montre l'interface : état et coûts, catalogue, fiches,
 sessions, consommation, journal, arbre. Dans ce dépôt, Claude Code le trouve dans `.mcp.json` (à approuver au premier
-lancement) ; ailleurs : `claude mcp add holarch -- node <chemin du dépôt>/bin/holarch.js mcp`.
+lancement) ; ailleurs : `claude mcp add holarch -- node <chemin du dépôt>/bin/holarch.js mcp`. Claude Desktop sous Windows,
+avec le dépôt dans WSL : une entrée `holarch` de commande `wsl.exe` et d'arguments
+`["-e", "node", "<chemin du dépôt dans WSL>/bin/holarch.js", "mcp"]` (variable `HOLARCH_HOME` à passer si les données ne
+sont pas à l'emplacement par défaut). Une passerelle qui fédère plusieurs serveurs ne se justifie que là où il y en a à
+fédérer (décision `passerelle-par-site`).
 
 Node.js ≥ 22.5. Les données (catalogue, journal, index) restent dans `~/.holarch`, jamais dans le dépôt ; rien ne
 quitte la machine. Le coût en dollars n'apparaît que si une grille de tarifs, relevée sur la page officielle du

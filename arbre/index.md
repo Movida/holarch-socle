@@ -29,5 +29,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`decisions/2026-10-03-interface-pico.md`](decisions/2026-10-03-interface-pico.md) - l'interface s'appuie sur Pico CSS, servi en local
 - [`decisions/2026-10-03-cloture-etape-1.md`](decisions/2026-10-03-cloture-etape-1.md) - l'étape 1 close sur sa livraison, son critère mesuré en continu
 - [`decisions/2026-10-03-forme-etape-2.md`](decisions/2026-10-03-forme-etape-2.md) - l'étape 2 découpée selon le lieu où chaque partie sert
+- [`decisions/2026-10-03-passerelle-par-site.md`](decisions/2026-10-03-passerelle-par-site.md) - une passerelle protégée là où il y a à fédérer, HOLARCH en direct ailleurs
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre
