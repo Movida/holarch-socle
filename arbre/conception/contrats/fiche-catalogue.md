@@ -3,7 +3,7 @@ type: contract
 title: Contrat — fiche du catalogue
 description: Tout élément en place a une fiche ; ce qui n'est pas au catalogue n'existe pas pour le système.
 status: draft
-version: 0.1.0
+version: 0.2.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
   constrained_by: [/arbre/fondations/principes.md]
@@ -25,6 +25,7 @@ links:
 | `provenance` | `{source, created_by, at}` : d'où vient l'élément (écrit, récolté, importé, généré) |
 | `license`, `shareable` | licence ; `true` si l'élément peut aller dans le socle public |
 | `classification` | niveau effectif (contrat nœud) |
+| `site` | site où l'élément vit, s'il est propre à une machine (hook local, conteneur) ; absent s'il vit dans Git |
 | `location` | où l'élément vit réellement (chemin, URL, conteneur) — une référence, jamais un secret |
 | `usage` | `{count, last_used, cost_usd}`, tenu à jour depuis le journal |
 | `links` | `depends_on`, `realizes` (nœud), `replaces` |
