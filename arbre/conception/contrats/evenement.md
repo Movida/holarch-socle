@@ -1,0 +1,49 @@
+---
+type: contract
+title: Contrat — événement du journal
+description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
+status: draft
+version: 0.1.0
+links:
+  derives_from: [/arbre/besoins/besoins-fondateurs.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md]
+---
+
+# Contrat — événement du journal
+
+## 1. Forme
+
+Une ligne JSON par événement (JSON Lines), en **ajout seul** : un événement ne se modifie ni ne s'efface ; une
+correction est un nouvel événement qui cite le précédent. Exemple fictif :
+
+```json
+{"id":"01J9ZK3Q7M4V8R2T6Y0B5N1C3D","at":"2026-10-03T09:47:51Z","kind":"run.finished","actor":"agent:claude-code/claude-opus-5-5","context":"perso","node":"/perso/demo/projet-x","subject":"holarch:run:projet-x-0007","correlation":"session-9ac9e61a","data":{"status":"delivered","turns":137},"cost":{"usd_list":4.28,"provider":"anthropic","model":"claude-opus-5-5","tokens":{"in":180,"cache_read":8693468,"cache_write":143248,"out":69756}},"classification":"internal"}
+```
+
+## 2. Champs
+
+| Champ | Valeur |
+|---|---|
+| `id` | ULID (triable dans le temps) |
+| `at` | horodatage UTC ISO 8601 |
+| `kind` | famille.verbe : voir §3 |
+| `actor` | contrat acteurs |
+| `context`, `node` | contexte et nœud concernés |
+| `subject` | identifiant du catalogue de l'élément concerné, s'il y en a un |
+| `correlation` | identifiant qui relie les événements d'une même session, exécution ou décision |
+| `data` | contenu propre au `kind` ; jamais un secret ; jamais un contenu au-dessus de la `classification` de l'événement |
+| `cost` | si l'événement coûte : `{usd_list, usd_real?, provider, model, tokens}` |
+| `classification` | niveau de l'événement ; un consommateur ne lit que ce que son niveau autorise |
+
+## 3. Familles (vocabulaire ouvert, extensible par décision)
+
+`session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.called` · `rule.*` (applied,
+violated, derogated, proposed) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
+`element.*` (created, updated, suspended, retired) · `cost.recorded` · `budget.*` (warning, exceeded) · `dream.*`
+(started, proposal, finished) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded).
+
+## 4. Règles
+
+- Toute brique et tout adaptateur émettent leurs événements ; ce qui n'est pas au journal ne s'est pas passé (P4).
+- Le journal se consolide (le rêve) mais ne se réécrit pas : la consolidation produit des résumés, qui sont eux-mêmes
+  des éléments référencés.
