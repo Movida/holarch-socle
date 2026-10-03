@@ -79,7 +79,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await page.goto(racine); await page.waitForSelector('svg.histo');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const nav = await page.$eval('.nav', (n) => n.getBoundingClientRect().top);
-  assert.equal(nav, 0, 'la barre latérale reste en place au défilement');
+  assert.ok(Math.abs(nav) < 1, `la barre latérale reste en place au défilement (décalage ${nav} px, arrondi sous le pixel toléré)`);
 
   assert.equal(await page.getAttribute('.nav a[aria-current="page"]', 'data-vue'), 'tableau');
   await page.click('.barre a.nom:has-text("projet-b")');
