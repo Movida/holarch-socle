@@ -198,6 +198,10 @@ test('inventaire Claude Desktop : serveurs MCP sans arguments ni secrets ; absen
   assert.throws(() => inventaireClaudeDesktop({ config: path.join(tmp(), 'absent.json') }, { site: 'local' }), SourceAbsente);
   assert.equal(emplacementParDefaut('linux', {}), null);
   assert.match(emplacementParDefaut('win32', { APPDATA: 'C:/Users/x/AppData/Roaming' }), /Claude.claude_desktop_config\.json$/);
+  const w = tmp(); const msix = path.join(w, 'Local', 'Packages', 'Claude_abc123', 'LocalCache', 'Roaming', 'Claude', 'claude_desktop_config.json');
+  ecrire(msix, '{}');
+  assert.equal(emplacementParDefaut('win32', { APPDATA: path.join(w, 'Roaming'), LOCALAPPDATA: path.join(w, 'Local') }), msix, 'installation en paquet MSIX');
+  assert.equal(emplacementParDefaut('linux', { WSL_DISTRO_NAME: undefined }), null, 'hors WSL, rien');
 });
 
 test('import : refus d’outil repérés par leur message en tête, origine et outil, jamais le contenu', () => {

@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Après l'essai sur l'hôte** : Q7 résolue (Claude Desktop en paquet MSIX, sous Windows et depuis WSL) ; test visuel qui
+  échoue vite sans Chromium au lieu de rester suspendu ; avancement de l'étape 2 aligné sur `passerelle-par-site`.
+
 * **Essai du hub sur l'hôte** : site `hote` inventorié ; passerelle sur 127.0.0.1, `dnsRebindingProtection` posé
   (hôte ou origine étrangers refusés) ; Claude Desktop par pont stdio appelle HOLARCH ; un conteneur la joint par
   `host.docker.internal` en se présentant `localhost` ; Q7 (Desktop MSIX), `Labels: null` Docker corrigé, Node ≥ 22.13.

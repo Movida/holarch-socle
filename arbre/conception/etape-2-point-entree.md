@@ -5,7 +5,7 @@ description: Un serveur MCP propre à HOLARCH, les appels MCP au journal, et un 
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/decisions/2026-10-03-forme-etape-2.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/fiche-catalogue.md, /arbre/decisions/2026-10-03-cloture-etape-1.md]
+  constrained_by: [/arbre/decisions/2026-10-03-passerelle-par-site.md, /arbre/decisions/2026-10-03-forme-etape-2.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/fiche-catalogue.md, /arbre/decisions/2026-10-03-cloture-etape-1.md]
 ---
 
 # Étape 2 — Un seul point d'entrée
@@ -46,8 +46,13 @@ fouiller.
 - **Fait (2026-10-03)** : essai sur l'hôte WSL (`essai-agentgateway.md`) : site de l'hôte, passerelle sur 127.0.0.1
   seulement, Claude Desktop par pont stdio (`mcp-remote`) qui appelle les outils HOLARCH, accès depuis un conteneur par
   `host.docker.internal` sans ouvrir l'écoute.
-- **À faire** : traduction du journal de la passerelle (format `json`) vers `tool.called` ; lancement durable de la
-  passerelle sur l'hôte ; déploiement sur le site de travail.
+- **Fait (2026-10-03)** : décision `passerelle-par-site` (pas de passerelle durable sur le poste personnel, clé d'accès
+  et protection DNS rebinding au travail) ; configuration de Claude Desktop trouvée aussi en installation MSIX, sous
+  Windows et depuis WSL (Q7) ; test visuel qui échoue vite sans Chromium.
+- **À faire, ici** : Claude Desktop branché en direct sur le serveur HOLARCH (entrée stdio par `wsl.exe`, à la place du
+  pont vers la passerelle).
+- **À faire, au travail** : site de travail (données, configuration et passerelle dans le profil privé) ; passerelle
+  protégée devant les serveurs MCP ; traduction de son journal (`json`) vers `tool.called` ; critère d'usage.
 
 ## Hors périmètre
 

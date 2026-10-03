@@ -19,7 +19,8 @@ const DEFAUTS = () => ({
     arbre: { actif: true, depots: [] },
     // API Docker Engine, en lecture : `hote` (unix:///… ou tcp://…) ; sinon DOCKER_HOST, sinon le socket local.
     docker: { actif: true, hote: null },
-    // Configuration de Claude Desktop : `config` (chemin) ; sinon l'emplacement documenté du système (macOS, Windows).
+    // Configuration de Claude Desktop : `config` (chemin) ; sinon l'emplacement du système (macOS, Windows, paquet MSIX
+    // compris, et depuis WSL).
     'claude-desktop': { actif: true, config: null },
   },
   import: {

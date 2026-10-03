@@ -52,8 +52,13 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   const serveur = creerServeur(s);
   await new Promise((ok) => serveur.listen(0, '127.0.0.1', ok));
   const racine = `http://127.0.0.1:${serveur.address().port}/`;
-  const navigateur = await chromium.launch();
-  t.after(async () => { await navigateur.close(); serveur.close(); });
+  t.after(() => serveur.close()); // dès son ouverture : un échec plus loin ne doit pas laisser le processus suspendu
+  // Sans les bibliothèques système de Chromium, le lancement échouerait au bout de trois minutes : on échoue vite, en
+  // disant quoi installer.
+  const navigateur = await chromium.launch({ timeout: 20000 }).catch((e) => {
+    throw new Error(`Chromium ne démarre pas (${e.message.split('\n')[0]}). Préparer : npx playwright install --with-deps chromium`);
+  });
+  t.after(() => navigateur.close());
   const page = await navigateur.newPage({ viewport: { width: 1280, height: 600 } });
   const erreurs = [];
   page.on('pageerror', (e) => erreurs.push(e.message));
