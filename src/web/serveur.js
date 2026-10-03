@@ -8,7 +8,17 @@ import { fileURLToPath } from 'node:url';
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
 
+// L'interface se charge une fois, au démarrage, avec le code de l'API : les deux viennent toujours de la même version
+// (sans quoi une page récente interroge une API ancienne et casse). Une mise à jour demande de relancer le serveur.
+function chargerInterface() {
+  const fichiers = {};
+  const marcher = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) marcher(p); else fichiers[`/${path.relative(PUBLIC, p).split(path.sep).join('/')}`] = fs.readFileSync(p); } };
+  marcher(PUBLIC);
+  return fichiers;
+}
+
 export function creerServeur(socle) {
+  const INTERFACE = chargerInterface();
   const routes = {
     'GET /api/etat': () => socle.etat(),
     'GET /api/fiches': (u) => socle.fiches({ kind: u.searchParams.get('kind'), q: u.searchParams.get('q') }),
@@ -29,10 +39,10 @@ export function creerServeur(socle) {
         return res.end(corps);
       }
       if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
-      const f = path.join(PUBLIC, u.pathname === '/' ? 'index.html' : path.normalize(u.pathname).replace(/^(\.\.[/\\])+/, ''));
-      if (!f.startsWith(PUBLIC) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('introuvable'); }
-      res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' });
-      fs.createReadStream(f).pipe(res);
+      const cle = u.pathname === '/' ? '/index.html' : u.pathname;
+      if (!Object.hasOwn(INTERFACE, cle)) { res.writeHead(404); return res.end('introuvable'); }
+      res.writeHead(200, { 'content-type': TYPES[path.extname(cle)] || 'application/octet-stream', 'cache-control': 'no-cache' });
+      res.end(INTERFACE[cle]);
     } catch (e) {
       res.writeHead(500, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ erreur: e.message }));
