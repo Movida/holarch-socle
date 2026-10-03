@@ -114,5 +114,13 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.ok(await page.isVisible('text=Enfant fictif'));
   await page.click('details summary .noeud', { position: { x: 4, y: 8 } });
   assert.ok(!(await page.isVisible('text=Enfant fictif')), 'un nœud parent se replie');
+  await page.click('button[data-replier="0"]');
+  assert.ok(await page.isVisible('text=Enfant fictif'), 'tout déplier');
+  await ouvrir('#/arbre?statut=stable', 'details summary');
+  assert.ok(await page.isVisible('text=Racine fictive') && !(await page.isVisible('text=Enfant fictif')), 'filtre stable');
+  await ouvrir('#/journal', '.evenement');
+  assert.ok(!(await page.textContent('main')).includes('ui.viewed'), 'pages consultées hors du flux par défaut');
+  await ouvrir('', 'svg.histo');
+  assert.doesNotMatch(await page.textContent('body'), /Interface ouverte 0 jour/, 'la page en cours est comptée');
   assert.deepEqual(erreurs, []);
 });

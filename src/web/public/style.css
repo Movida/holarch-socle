@@ -63,6 +63,7 @@ main a.puce:hover { text-decoration: none; }
 a.puce:hover, .puce.actif { border-color: var(--accent); color: var(--accent); background: var(--accent-doux); }
 .badge { display: inline-block; padding: .05rem .5rem; border-radius: 6px; font-size: .72rem; font-weight: 600; background: var(--surface-2); color: var(--doux); white-space: nowrap; }
 .badge.ok { background: var(--ok-doux); color: var(--ok); } .badge.alerte { background: var(--alerte-doux); color: var(--alerte); }
+.alerte-texte { color: var(--alerte); }
 .badge.accent { background: var(--accent-doux); color: var(--accent); }
 /* une teinte par famille d'événements : session, outil (le refus en attention), élément du catalogue ; coût et inventaire neutres */
 .badge.fam-session { background: var(--accent-doux); color: var(--accent); } .badge.fam-cost { background: var(--surface-2); color: var(--texte); }
@@ -120,6 +121,9 @@ dl.champs dt { color: var(--doux); font-size: .8rem; font-weight: 400; } dl.cham
 .arbre .noeud { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
 .arbre .noeud .t { font-weight: 600; color: var(--texte); } .arbre a.t:hover { color: var(--accent); }
 .arbre .noeud .d { color: var(--doux); font-size: .8rem; flex-basis: 100%; }
+.arbre summary .noeud .d { padding-left: calc(12px + .5rem); } /* la description s'aligne sous le titre, pas sous le chevron */
+.arbre li.attenue > .noeud, .arbre li.attenue > details > summary .noeud { opacity: .5; }
+.outils button.replier { width: auto; margin: 0; padding: .3rem .7rem; font-size: .8rem; }
 
 /* ---- journal */
 .evenement { display: grid; grid-template-columns: 150px 170px 1fr; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid var(--bord); font-size: .88rem; }

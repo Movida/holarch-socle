@@ -6,7 +6,7 @@ import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
 import { inventorier } from './inventaire/index.js';
 import importerTranscriptions from './import/claude-code-transcriptions.js';
-import { tarifsConfigures } from './tarifs.js';
+import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
 import { ulid } from './ulid.js';
 
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions };
@@ -65,6 +65,8 @@ export class Socle {
         jours,
         sessions: q("SELECT COUNT(DISTINCT correlation) n FROM evenements WHERE kind='session.finished' AND json_extract(data,'$.sous_agent')=0 AND at>=?", d)[0].n,
         tokens: q("SELECT SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd FROM evenements WHERE kind='cost.recorded' AND at>=?", d)[0],
+        // Coût liste par type de tokens : ce qui pèse (souvent la relecture du cache) se voit.
+        cout_par_type: this.coutParType(d),
         // Tokens dont le modèle n'a pas de tarif : leur coût reste inconnu, et le total affiché est partiel.
         sans_tarif: q("SELECT model, SUM(tok_out) sortie FROM evenements WHERE kind='cost.recorded' AND usd IS NULL AND at>=? GROUP BY model ORDER BY sortie DESC", d),
         // Usage de l'interface : jours où elle a été ouverte, pages consultées.
@@ -85,6 +87,16 @@ export class Socle {
       memoires_doubles: q("SELECT name, COUNT(*) n, group_concat(coalesce(json_extract(json,'$.attributes.projet'), json_extract(json,'$.attributes.projet_claude')), ', ') projets FROM fiches WHERE kind='memory' GROUP BY name, coalesce(description,'') HAVING n>1 ORDER BY n DESC"),
       projets_sales: q("SELECT name, json_extract(json,'$.attributes.fichiers_modifies') n FROM fiches WHERE kind='project' AND n>0 ORDER BY n DESC"),
     };
+  }
+
+  coutParType(depuis) {
+    const t = this.config.tarifs; const r = { entree: 0, cache_ecrit: 0, cache_lu: 0, sortie: 0 };
+    for (const m of this.index.requete("SELECT model, SUM(tok_in) i, SUM(tok_cache_write) cw, SUM(tok_cache_write_1h) h, SUM(tok_cache_read) cr, SUM(tok_out) o FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY model", depuis)) {
+      if (!modeleTarife(t, m.model)) continue;
+      r.entree += prix(t, m.model, { in: m.i }); r.cache_ecrit += prix(t, m.model, { cache_write: m.cw, cache_write_1h: m.h });
+      r.cache_lu += prix(t, m.model, { cache_read: m.cr }); r.sortie += prix(t, m.model, { out: m.o });
+    }
+    return r;
   }
 
   fiches({ kind = null, q = null } = {}) {
@@ -123,15 +135,17 @@ export class Socle {
   }
 
   consommation({ jours = 30, par = 'projet' } = {}) {
-    const col = { projet: 'projet', modele: 'model', jour: 'substr(at,1,10)' }[par] || 'projet';
+    // Par modèle : un identifiant passé par un intermédiaire (anthropic/…) se range avec son modèle de base ; `via` le compte.
+    const col = { projet: 'projet', modele: "CASE WHEN model LIKE 'anthropic/%' THEN substr(model, 11) ELSE model END", jour: 'substr(at,1,10)' }[par] || 'projet';
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
-    return this.index.requete(`SELECT ${col} cle, SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd, COUNT(*) n
+    return this.index.requete(`SELECT ${col} cle, SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd, COUNT(*) n, SUM(model LIKE 'anthropic/%') via
       FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY cle ORDER BY ${par === 'jour' ? 'cle' : 'sortie DESC'}`, depuis);
   }
 
-  evenements({ kind = null, session = null, limite = 200 } = {}) {
+  evenements({ kind = null, session = null, sauf = null, limite = 200 } = {}) {
     const p = []; let sql = 'SELECT id, at, kind, actor, site, subject, correlation, data, model, tok_out, usd FROM evenements WHERE 1=1';
     if (kind) { sql += ' AND kind LIKE ?'; p.push(`${kind}%`); }
+    if (sauf) { sql += ' AND kind NOT LIKE ?'; p.push(`${sauf}.%`); }
     // Une session et ses sous-agents (corrélation « session » ou « session:… »).
     if (session) { sql += " AND (correlation=? OR correlation LIKE ? || ':%')"; p.push(session, session); }
     return this.index.requete(`${sql} ORDER BY at DESC LIMIT ?`, ...p, Math.min(+limite || 200, 2000)).map((e) => ({ ...e, data: JSON.parse(e.data) }));

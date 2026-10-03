@@ -2,6 +2,10 @@
 
 ## 2026-10-03
 
+* **Interface, quatrième revue** : la page en cours compte dans l'usage, une navigation dépassée n'écrase plus la
+  page, modèles regroupés (intermédiaire signalé), coût « équivalent API » détaillé par type de tokens, taux d'échec MCP,
+  outils refusés vers le Journal, `ui.viewed` hors du flux par défaut, Arbre filtrable et repliable d'un geste.
+
 * **Sécurité de l'interface** : refus du DNS rebinding (hôte non local) et des écritures venues d'un autre site
   (origine), relevés par une revue et vérifiés avant correction.
 
