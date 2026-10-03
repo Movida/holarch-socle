@@ -15,7 +15,8 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`besoins/besoins-fondateurs.md`](besoins/besoins-fondateurs.md) - les quatre besoins d'où part le système
 - [`conception/types.md`](conception/types.md) - le registre des types de nœuds
 - [`conception/contrats/index.md`](conception/contrats/index.md) - les contrats : nœud, règle, fiche du catalogue, événement du journal
-- [`conception/etape-1-voir.md`](conception/etape-1-voir.md) - étape 1 : catalogue, journal et interface en lecture
+- [`conception/etape-1-voir.md`](conception/etape-1-voir.md) - étape 1 : catalogue, journal et interface en lecture (close)
+- [`conception/etape-2-point-entree.md`](conception/etape-2-point-entree.md) - étape 2 : serveur MCP de HOLARCH, appels MCP au journal, hub de fédération
 - [`decisions/2026-10-03-fondation.md`](decisions/2026-10-03-fondation.md) - les décisions fondatrices
 - [`decisions/2026-10-03-synchronisation.md`](decisions/2026-10-03-synchronisation.md) - ce qui se synchronise entre local et serveur, et qui fait foi
 - [`decisions/2026-10-03-cout-liste.md`](decisions/2026-10-03-cout-liste.md) - le coût liste, calculé à la lecture depuis une grille datée et citée
@@ -25,5 +26,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`decisions/2026-10-03-identite-projets.md`](decisions/2026-10-03-identite-projets.md) - un projet garde son identité quand il change de place
 - [`decisions/2026-10-03-interface-pico.md`](decisions/2026-10-03-interface-pico.md) - l'interface s'appuie sur Pico CSS, servi en local
 - [`decisions/2026-10-03-cloture-etape-1.md`](decisions/2026-10-03-cloture-etape-1.md) - l'étape 1 close sur sa livraison, son critère mesuré en continu
+- [`decisions/2026-10-03-forme-etape-2.md`](decisions/2026-10-03-forme-etape-2.md) - l'étape 2 découpée selon le lieu où chaque partie sert
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre

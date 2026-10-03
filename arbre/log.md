@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Ouverture de l'étape 2** : recherche des passerelles MCP existantes ; décision `forme-etape-2` (serveur HOLARCH,
+  appels MCP au journal, agentgateway après essai ; critère par lieu) ; spécification `etape-2-point-entree.md`.
+
 * **Clôture de l'étape 1** : close sur sa livraison (décision `cloture-etape-1`) ; pages consultées au journal
   (`ui.viewed`, contrat événement 0.6.0) ; critère d'usage ouvert, mesuré en continu.
 
