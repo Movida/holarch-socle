@@ -14,6 +14,8 @@ function chargerInterface() {
   const fichiers = {};
   const marcher = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) marcher(p); else fichiers[`/${path.relative(PUBLIC, p).split(path.sep).join('/')}`] = fs.readFileSync(p); } };
   marcher(PUBLIC);
+  // Système de design (Pico CSS, décision interface) : servi depuis le paquet installé, jamais depuis un réseau.
+  fichiers['/vendor/pico.css'] = fs.readFileSync(fileURLToPath(import.meta.resolve('@picocss/pico/css/pico.violet.min.css')));
   return fichiers;
 }
 

@@ -1,124 +1,135 @@
+/* Couche propre à HOLARCH, posée sur Pico CSS (décision interface) : Pico donne la typographie, les couleurs, les
+   tableaux, les boutons, les champs, les thèmes clair et sombre ; ici, la mise en page et les composants du tableau de
+   bord (tuiles, barres, histogramme, arbre, journal), exprimés avec les variables de Pico. */
 :root {
-  --fond: #f6f6f9; --surface: #ffffff; --surface-2: #f0f0f5; --bord: #e3e3ec; --texte: #1c1c28; --doux: #63637a;
-  --accent: #5b5bd6; --accent-doux: #ececfc; --ok: #1f8a5b; --ok-doux: #e3f5ec; --alerte: #b5651d; --alerte-doux: #fbf0e4; --info: #0b7285; --info-doux: #e0f3f6;
-  --danger: #c0392b; --danger-doux: #fbe9e7; --ombre: 0 1px 2px rgba(20, 20, 40, .06), 0 4px 16px rgba(20, 20, 40, .05);
-  --rayon: 12px; --police: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  color-scheme: light;
+  --pico-font-size: 93.75%; /* fixe : Pico agrandit le texte sur grand écran, un tableau de bord dense ne le veut pas */
+  --pico-line-height: 1.5;
+  --fond: var(--pico-background-color); --surface: var(--pico-card-background-color); --texte: var(--pico-color);
+  --doux: var(--pico-muted-color); --bord: var(--pico-muted-border-color); --accent: var(--pico-primary);
+  --accent-doux: var(--pico-primary-focus); --surface-2: var(--pico-card-sectioning-background-color);
+  /* teintes de sens que Pico n'a pas : succès, attention, information (contraste vérifié dans les deux thèmes) */
+  --ok: #1f8a5b; --ok-doux: #e3f5ec; --alerte: #a55a15; --alerte-doux: #fbf0e4; --info: #0b7285; --info-doux: #e0f3f6;
+  --mono: var(--pico-font-family-monospace);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --fond: #121219; --surface: #1b1b25; --surface-2: #23232f; --bord: #2e2e3d; --texte: #ececf3; --doux: #9a9ab0;
-    --accent: #8b8bf0; --accent-doux: #2a2a4a; --ok: #4cc38a; --ok-doux: #1b3329; --alerte: #e6a35c; --alerte-doux: #3a2c1c; --info: #5cc8d8; --info-doux: #16323a;
-    --danger: #ef6f60; --danger-doux: #3d2220; --ombre: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
-    color-scheme: dark;
-  }
+  :root { --ok: #4cc38a; --ok-doux: #1b3329; --alerte: #e6a35c; --alerte-doux: #3a2c1c; --info: #5cc8d8; --info-doux: #16323a; }
 }
-* { box-sizing: border-box; }
-html, body { margin: 0; }
-body { min-height: 100vh; } /* pas de hauteur fixe : elle bornerait la zone où la barre latérale reste collée */
-body { font: 14px/1.5 var(--police); background: var(--fond); color: var(--texte); display: grid; grid-template-columns: 232px 1fr; }
+
+/* ---- mise en page : barre latérale fixe, contenu à droite */
+body { min-height: 100vh; display: grid; grid-template-columns: 232px 1fr; } /* pas de hauteur fixe : elle bornerait la zone où la barre latérale reste collée */
 /* la colonne de la barre latérale garde son fond sur toute la hauteur de la page, pas seulement celle de l'écran */
 @media (min-width: 901px) { body { background: linear-gradient(to right, var(--surface) 231px, var(--bord) 231px 232px, var(--fond) 232px); } }
-a { color: var(--accent); text-decoration: none; }
-button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--bord); background: var(--surface); color: var(--texte); padding: 7px 12px; }
-button:hover { border-color: var(--accent); }
-button.primaire { background: var(--accent); color: white; border-color: var(--accent); }
-
-.nav { position: sticky; top: 0; height: 100vh; align-self: start; box-sizing: border-box; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 20px 14px; background: var(--surface); border-right: 1px solid var(--bord); }
-.marque { display: flex; align-items: center; gap: 10px; color: var(--texte); font-weight: 700; letter-spacing: .08em; padding: 4px 8px; }
+.nav { position: sticky; top: 0; height: 100vh; align-self: start; box-sizing: border-box; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem; padding: 1.25rem .875rem; background: var(--surface); border-right: 1px solid var(--bord); }
+.marque { display: flex; align-items: center; gap: .6rem; color: var(--texte); font-weight: 700; letter-spacing: .08em; padding: .25rem .5rem; text-decoration: none; }
 .marque svg { width: 28px; height: 28px; }
 .marque .m1 { fill: var(--accent); } .marque .m2 { fill: none; stroke: white; stroke-width: 2.5; } .marque .m3 { fill: white; }
-.nav nav { display: flex; flex-direction: column; gap: 2px; }
-.nav nav a { color: var(--doux); padding: 8px 10px; border-radius: 8px; font-weight: 500; }
+.nav nav { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.nav nav a { color: var(--doux); padding: .5rem .65rem; border-radius: var(--pico-border-radius); font-weight: 500; text-decoration: none; margin: 0; }
 .nav nav a:hover { background: var(--surface-2); color: var(--texte); }
 .nav nav a.actif { background: var(--accent-doux); color: var(--accent); }
-.nav .pied { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
-.discret { color: var(--doux); font-size: 12px; }
+.nav .pied { margin-top: auto; display: flex; flex-direction: column; gap: .5rem; }
+.nav .pied button { width: 100%; margin: 0; padding: .45rem .75rem; }
+body > main { padding: 1.75rem 2rem 4rem; max-width: 1280px; width: 100%; min-width: 0; box-sizing: border-box; } /* min-width : un tableau large défile dans sa carte, pas la page */
 
-main { padding: 28px 32px 64px; max-width: 1280px; width: 100%; min-width: 0; box-sizing: border-box; } /* min-width : un tableau large défile dans sa carte, pas la page */
-h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -.01em; }
-h2 { font-size: 15px; margin: 0 0 12px; }
-.sous-titre { color: var(--doux); margin: 0 0 22px; }
-.grille { display: grid; gap: 16px; }
+/* ---- textes */
+main a { text-decoration: none; } main a:hover { text-decoration: underline; }
+h1 { --pico-font-size: 1.5rem; margin: 0 0 .25rem; }
+h2 { --pico-font-size: 1rem; margin: 0 0 .75rem; }
+.sous-titre { color: var(--doux); margin: 0 0 1.4rem; }
+.discret { color: var(--doux); font-size: .82rem; }
+.mono { font-family: var(--mono); font-size: .82rem; }
+.vide { color: var(--doux); padding: 1.5rem; text-align: center; }
+.chargement { color: var(--doux); }
+
+/* ---- cartes et grilles */
+.grille { display: grid; gap: 1rem; }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.carte { background: var(--surface); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 18px; box-shadow: var(--ombre); min-width: 0; }
-.tuile .valeur { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
-.tuile .libelle { color: var(--doux); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
-.tuile .note { color: var(--doux); font-size: 12px; margin-top: 4px; }
-.section { margin-top: 16px; }
+.section { margin-top: 1rem; }
+.carte { background: var(--surface); border-radius: var(--pico-border-radius); padding: 1.1rem 1.2rem; box-shadow: var(--pico-card-box-shadow); min-width: 0; }
+.tuile .valeur { font-size: 1.75rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+.tuile .libelle { color: var(--doux); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+.tuile .note { color: var(--doux); font-size: .8rem; margin-top: .25rem; }
+.entete { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+/* Pico dessine tout role=group en barre de boutons pleine largeur : le sélecteur de période garde ses puces */
+.entete .puces[role=group] { display: flex; width: auto; margin: 0; box-shadow: none; gap: .4rem; }
+.entete .puces[role=group] > a.puce { flex: none; border-radius: 999px; margin: 0; }
 
-.puces { display: flex; flex-wrap: wrap; gap: 6px; }
-.puce { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--texte); font-size: 12px; border: 1px solid transparent; }
+/* ---- puces (filtres) et badges */
+.puces { display: flex; flex-wrap: wrap; gap: .4rem; }
+.puce { display: inline-flex; align-items: center; gap: .4rem; padding: .2rem .65rem; border-radius: 999px; background: var(--surface-2); color: var(--texte); font-size: .8rem; border: 1px solid transparent; text-decoration: none; }
+main a.puce:hover { text-decoration: none; }
 .puce b { font-weight: 600; }
 a.puce:hover, .puce.actif { border-color: var(--accent); color: var(--accent); background: var(--accent-doux); }
-.badge { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--doux); white-space: nowrap; }
+.badge { display: inline-block; padding: .05rem .5rem; border-radius: 6px; font-size: .72rem; font-weight: 600; background: var(--surface-2); color: var(--doux); white-space: nowrap; }
 .badge.ok { background: var(--ok-doux); color: var(--ok); } .badge.alerte { background: var(--alerte-doux); color: var(--alerte); }
 .badge.accent { background: var(--accent-doux); color: var(--accent); }
 /* une teinte par famille d'événements : session, coût, outil (refus), élément du catalogue ; l'inventaire reste neutre */
 .badge.fam-session { background: var(--accent-doux); color: var(--accent); } .badge.fam-cost { background: var(--info-doux); color: var(--info); }
 .badge.fam-tool { background: var(--alerte-doux); color: var(--alerte); } .badge.fam-element { background: var(--ok-doux); color: var(--ok); }
-table.triable th:not([data-sens])::after { content: ' ↕'; font-size: 9px; opacity: .4; }
-tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surface-2); }
-.barre a.nom { color: var(--texte); } .barre a.nom:hover { color: var(--accent); }
 
-.barres { display: flex; flex-direction: column; gap: 8px; }
-.barre { display: grid; grid-template-columns: 160px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
-.barre .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ---- barres horizontales et histogramme */
+.barres { display: flex; flex-direction: column; gap: .5rem; }
+.barre { display: grid; grid-template-columns: 160px 1fr 90px; gap: .65rem; align-items: center; font-size: .88rem; }
+.barre .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--texte); }
+.barre a.nom:hover { color: var(--accent); }
 .barre .piste { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
-.histo rect.nul { opacity: .35; }
-.histo a:hover rect { opacity: .8; }
-.entete { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.axe { display: flex; justify-content: space-between; font-size: 11px; color: var(--doux); margin-top: 4px; font-variant-numeric: tabular-nums; }
-table.triable th { cursor: pointer; user-select: none; }
-table.triable th[data-sens=asc]::after { content: ' ▲'; font-size: 9px; } table.triable th[data-sens=desc]::after { content: ' ▼'; font-size: 9px; }
 .barre .rempli { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
 .barre .chiffre { text-align: right; color: var(--doux); font-variant-numeric: tabular-nums; }
 svg.histo { width: 100%; height: 140px; display: block; }
 svg.histo rect { fill: var(--accent); } svg.histo rect:hover { fill: var(--ok); }
-svg.histo text { fill: var(--doux); font-size: 10px; }
+.histo rect.nul { opacity: .35; } .histo a:hover rect { opacity: .8; }
+.axe { display: flex; justify-content: space-between; font-size: .72rem; color: var(--doux); margin-top: .25rem; font-variant-numeric: tabular-nums; }
 
-.outils { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-input[type=search], select { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--bord); background: var(--surface); color: var(--texte); min-width: 220px; }
-.tableau { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--bord); white-space: nowrap; }
-td { padding: 9px 10px; border-bottom: 1px solid var(--bord); vertical-align: top; }
-tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surface-2); }
+/* ---- outils (recherche, sélecteurs) et tableaux : Pico les dessine, on les resserre */
+.outils { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; margin-bottom: .9rem; }
+.outils input, .outils select { width: auto; min-width: 320px; margin: 0; padding-top: .4rem; padding-bottom: .4rem; height: auto; }
+.tableau { overflow-x: auto; padding: .4rem .6rem; }
+.tableau table { margin: 0; }
+.carte table { font-size: .875rem; }
+.carte th, .carte td { background: transparent; padding: .5rem .6rem; }
+td.date { white-space: nowrap; }
+th { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); font-weight: 600; white-space: nowrap; }
+td { vertical-align: top; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-td .desc { color: var(--doux); font-size: 12px; max-width: 520px; }
-.mono { font-family: var(--mono); font-size: 12px; }
-.vide { color: var(--doux); padding: 24px; text-align: center; }
+td .desc { color: var(--doux); font-size: .8rem; max-width: 520px; }
+table.triable th { cursor: pointer; user-select: none; }
+table.triable th:not([data-sens])::after { content: ' ↕'; font-size: 9px; opacity: .4; }
+table.triable th[data-sens=asc]::after { content: ' ▲'; font-size: 9px; } table.triable th[data-sens=desc]::after { content: ' ▼'; font-size: 9px; }
+tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surface-2); }
 
-.tiroir { position: fixed; inset: 0 0 0 auto; width: min(560px, 100vw); background: var(--surface); border-left: 1px solid var(--bord); box-shadow: -8px 0 32px rgba(0, 0, 0, .15); padding: 22px; overflow-y: auto; z-index: 10; }
-.tiroir .fermer { float: right; }
-dl.champs { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin: 14px 0; }
-dl.champs dt { color: var(--doux); font-size: 12px; } dl.champs dd { margin: 0; word-break: break-word; }
-pre { background: var(--surface-2); padding: 12px; border-radius: 8px; overflow-x: auto; font: 12px/1.5 var(--mono); }
+/* ---- tiroir de détail d'une fiche */
+.tiroir { position: fixed; inset: 0 0 0 auto; width: min(560px, 100vw); background: var(--surface); border-left: 1px solid var(--bord); box-shadow: -8px 0 32px rgba(0, 0, 0, .15); padding: 1.4rem; overflow-y: auto; z-index: 10; }
+.tiroir .fermer { float: right; padding: .35rem .75rem; }
+dl.champs { display: grid; grid-template-columns: 130px 1fr; gap: .4rem .75rem; margin: .9rem 0; }
+dl.champs dt { color: var(--doux); font-size: .8rem; font-weight: 400; } dl.champs dd { margin: 0; word-break: break-word; }
+.tiroir pre { font-size: .78rem; }
 
+/* ---- arbre repliable (details/summary, sans l'habillage d'accordéon de Pico) */
 .arbre ul { list-style: none; margin: 0; padding-left: 22px; border-left: 1px solid var(--bord); }
-.arbre ul ul > li, .arbre details > ul > li { position: relative; }
+.arbre > ul { padding-left: 0; border-left: none; }
+.arbre li { margin: .35rem 0; list-style: none; padding: 0; }
+.arbre details { margin: 0; padding: 0; border: 0; }
+.arbre details > ul > li { position: relative; }
 .arbre details > ul > li::before { content: ''; position: absolute; left: -22px; top: .85em; width: 16px; border-top: 1px solid var(--bord); }
-.arbre summary { cursor: pointer; list-style: none; } .arbre summary::-webkit-details-marker { display: none; }
+.arbre summary { cursor: pointer; list-style: none; padding: 0; margin: 0; line-height: inherit; color: inherit; }
+.arbre summary::after, .arbre summary::-webkit-details-marker { display: none; }
 .arbre summary .noeud::before { content: '▾'; color: var(--doux); width: 12px; display: inline-block; }
 .arbre details:not([open]) > summary .noeud::before { content: '▸'; }
 .arbre li.feuille > .noeud { padding-left: 20px; }
-.arbre a.t { color: var(--texte); } .arbre a.t:hover { color: var(--accent); }
-.arbre > ul { padding-left: 0; border-left: none; }
-.arbre li { margin: 6px 0; }
-.arbre .noeud { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.arbre .noeud .t { font-weight: 600; }
-.arbre .noeud .d { color: var(--doux); font-size: 12px; flex-basis: 100%; }
+.arbre .noeud { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
+.arbre .noeud .t { font-weight: 600; color: var(--texte); } .arbre a.t:hover { color: var(--accent); }
+.arbre .noeud .d { color: var(--doux); font-size: .8rem; flex-basis: 100%; }
 
-.evenement { display: grid; grid-template-columns: 150px 170px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--bord); font-size: 13px; }
-.chargement { color: var(--doux); }
+/* ---- journal */
+.evenement { display: grid; grid-template-columns: 150px 170px 1fr; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid var(--bord); font-size: .88rem; }
 
 @media (max-width: 900px) {
   body { grid-template-columns: 1fr; }
-  .nav { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px 16px; }
+  .nav { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: .65rem 1rem; }
   .nav nav { flex-direction: row; flex-wrap: wrap; } .nav .pied { margin: 0 0 0 auto; flex-direction: row; align-items: center; }
-  main { padding: 18px 16px 48px; }
+  .nav .pied button { width: auto; }
+  body > main { padding: 1.1rem 1rem 3rem; }
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g2 { grid-template-columns: 1fr; }
   .barre { grid-template-columns: 110px 1fr 70px; } .evenement { grid-template-columns: 1fr; gap: 2px; }
 }

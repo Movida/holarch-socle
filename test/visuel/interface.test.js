@@ -65,6 +65,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   };
 
   await ouvrir('', 'svg.histo');
+  assert.equal((await page.request.get(`${racine}vendor/pico.css`)).status(), 200, 'système de design servi en local');
   const largeurs = await page.$$eval('.barre .rempli', (els) => els.map((e) => e.getBoundingClientRect().width));
   assert.ok(largeurs.length > 0 && largeurs.every((l) => l > 0), `barres de progression : ${largeurs}`);
   assert.equal(await page.$$eval('svg.histo rect', (r) => r.length), 30, 'un rectangle par jour, jours vides compris');

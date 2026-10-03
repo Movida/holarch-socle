@@ -5,7 +5,7 @@ description: Catalogue et journal alimentés par l'existant, et une interface we
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-sources-hote.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md]
+  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-sources-hote.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-interface-pico.md]
 ---
 
 # Étape 1 — Voir
@@ -38,6 +38,7 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 | JSON Schema pour les contrats | neutre vis-à-vis du langage : le contrat survit à l'implémentation | — |
 | JSON Lines + SQLite | journal lisible et fusionnable, index sans serveur | volume ou accès concurrent au-delà d'un poste |
 | Interface en HTML, CSS et JavaScript sans framework | aucune chaîne de construction, durable | une interface qui devient une application riche (étape 5 et au-delà) |
+| Pico CSS pour le look, servi en local (décision `interface-pico`) | un système de design entretenu par d'autres (P2), du CSS seul sur du HTML sémantique | des composants que du CSS seul ne donne pas |
 | Configuration en YAML | lisible et éditable à la main | — |
 | Playwright (Chromium), test visuel séparé (`npm run test:visuel`) | voit ce que la lecture du code ne voit pas (une barre de 0 px, une barre latérale qui part) ; hors de `npm test`, qui reste sans navigateur | un test visuel qui ne trouve plus rien pendant plusieurs étapes |
 
@@ -62,6 +63,7 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 - **Fait (2026-10-03)** : navigation pour creuser (projet ou modèle vers ses sessions, session vers ses événements,
   alerte vers les fiches, refus par origine), Journal filtrable par session avec une teinte par famille, Arbre
   repliable, Catalogue triable, `aria-current`, page Sessions sans débordement.
+- **Fait (2026-10-03)** : interface sur Pico CSS (décision `interface-pico`), vérifiée dans les deux thèmes.
 - **Reste, dans cet ordre** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
      relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).

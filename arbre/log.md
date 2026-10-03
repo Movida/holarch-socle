@@ -2,6 +2,8 @@
 
 ## 2026-10-03
 
+* **Système de design** : interface sur Pico CSS, servi en local (décision `interface-pico`).
+
 * **Interface, troisième revue** : liens pour creuser d'une vue à l'autre, Journal par session et par famille, Arbre
   repliable, Catalogue triable, débordement de Sessions ; mémoires en lien plus comptées deux fois.
 
