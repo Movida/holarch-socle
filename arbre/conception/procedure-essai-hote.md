@@ -54,7 +54,11 @@ contient des fiches `container`, `volume` et, s'il y en a, des `connector` de po
 - avec le client MCP officiel (`@modelcontextprotocol/client`, transport HTTP), la liste d'outils contient `holarch_*` et
   `demo_echo`, et `holarch_etat` répond ;
 - un appel à `demo_echo` avec une chaîne témoin : le journal de la passerelle montre serveur et outil, **jamais** la
-  chaîne.
+  chaîne ;
+- **DNS rebinding** : une requête au point d'entrée avec `Host: evil.example` et `Origin: http://evil.example` doit être
+  refusée. Si elle passe, une page web ordinaire pourrait appeler les outils fédérés : chercher dans le schéma la
+  politique qui restreint hôte ou origine (ou exige une clé), la poser, revérifier ; sinon **arrêt** et le dire à
+  l'humain avant d'aller plus loin.
 
 ## 3. Claude Desktop par un pont stdio
 
