@@ -7,11 +7,11 @@ ce qu'ils apprennent soit conservé, vérifié et partagé entre vos projets, et
 HOLARCH ne refait pas l'orchestration d'agents : les runtimes existants le font et évoluent plus vite que n'importe quel
 projet. Il apporte ce qu'aucun d'eux ne fournit d'une session, d'un projet ou d'un outil à l'autre.
 
-> **Statut : étape 1 — Voir**, en cours. L'architecture est approuvée ; les contrats événement, fiche du catalogue et
-> acteurs aussi ; nœud et règle sont en brouillon (`arbre/`). Ce qui marche : inventaire de ce qui est en place
-> (Claude Code, dépôts Git, arbre HOLARCH, conteneurs et volumes Docker, serveurs MCP de Claude Desktop), import du
-> journal depuis les transcriptions Claude Code, coût liste, interface web en lecture. Étape 2 en cours : HOLARCH
-> servi en MCP aux agents.
+> **Statut : étape 2 — Un seul point d'entrée**, en cours ; l'étape 1 (Voir) est close. Les fondations et les
+> contrats événement, fiche du catalogue et acteurs sont approuvés ; nœud et règle restent en brouillon (`arbre/`).
+> Ce qui marche : inventaire de ce qui est en place (Claude Code et ses connecteurs, dépôts Git, arbre HOLARCH,
+> conteneurs et volumes Docker, serveurs MCP de Claude Desktop), journal importé des transcriptions Claude Code
+> (sessions, coûts, refus, appels MCP), coût liste, interface web, et HOLARCH servi en MCP aux agents.
 
 ## Essayer
 

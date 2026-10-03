@@ -64,9 +64,9 @@ a.puce:hover, .puce.actif { border-color: var(--accent); color: var(--accent); b
 .badge { display: inline-block; padding: .05rem .5rem; border-radius: 6px; font-size: .72rem; font-weight: 600; background: var(--surface-2); color: var(--doux); white-space: nowrap; }
 .badge.ok { background: var(--ok-doux); color: var(--ok); } .badge.alerte { background: var(--alerte-doux); color: var(--alerte); }
 .badge.accent { background: var(--accent-doux); color: var(--accent); }
-/* une teinte par famille d'événements : session, coût, outil (refus), élément du catalogue ; l'inventaire reste neutre */
-.badge.fam-session { background: var(--accent-doux); color: var(--accent); } .badge.fam-cost { background: var(--info-doux); color: var(--info); }
-.badge.fam-tool { background: var(--alerte-doux); color: var(--alerte); } .badge.fam-element { background: var(--ok-doux); color: var(--ok); }
+/* une teinte par famille d'événements : session, outil (le refus en attention), élément du catalogue ; coût et inventaire neutres */
+.badge.fam-session { background: var(--accent-doux); color: var(--accent); } .badge.fam-cost { background: var(--surface-2); color: var(--texte); }
+.badge.fam-tool { background: var(--info-doux); color: var(--info); } .badge.fam-tool.refus { background: var(--alerte-doux); color: var(--alerte); } .badge.fam-element { background: var(--ok-doux); color: var(--ok); }
 
 /* ---- barres horizontales et histogramme */
 .barres { display: flex; flex-direction: column; gap: .5rem; }

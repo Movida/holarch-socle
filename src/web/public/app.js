@@ -43,6 +43,7 @@ async function tableau(params) {
   }).join('')}</svg><div class="axe">${[0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1].map((i) => `<span>${jj(plage[i])}</span>`).join('')}</div>` : '<div class="vide">Aucune activité importée.</div>';
   const maxP = Math.max(1, ...projets.map((p) => p.sortie || 0));
   const absentes = e.dernier_inventaire?.absentes || [];
+  const maxM = Math.max(1, ...p.mcp.map((m) => m.n));
   const refus = p.refus.par_origine; const maxR = Math.max(1, ...refus.map((r) => r.n));
   return `
     <div class="entete"><h1>Tableau de bord</h1><div class="puces" role="group" aria-label="Période">${PERIODES.map((j) => `<a class="puce ${j === n ? 'actif' : ''}" href="#/?jours=${j}">${j} j</a>`).join('')}</div></div>
@@ -61,7 +62,9 @@ async function tableau(params) {
     <div class="carte tableau section"><table class="triable"><thead><tr><th>Modèle, ${n} j</th><th class="num">Entrée</th><th class="num">Cache écrit</th><th class="num">Cache lu</th><th class="num">Sortie</th><th class="num" data-sens="desc">Coût liste</th></tr></thead><tbody>
       ${[...modeles].sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1)).map((m) => `<tr><td class="mono"><a href="#/sessions?modele=${encodeURIComponent(m.cle || '')}" title="Sessions qui ont utilisé ce modèle">${h(m.cle)}</a></td>${num(m.entree, abr(m.entree))}${num(m.cache_ecrit, abr(m.cache_ecrit))}${num(m.cache_lu, abr(m.cache_lu))}${num(m.sortie, abr(m.sortie))}${num(m.usd, m.usd == null ? '<span class="discret">sans tarif</span>' : usd(m.usd))}</tr>`).join('') || '<tr><td colspan="6" class="vide">Rien sur la période.</td></tr>'}
     </tbody></table></div>
-    <div class="section">
+    <div class="grille g2 section">
+      <div class="carte"><h2>Appels MCP, ${n} j</h2>${p.mcp.length ? `<div class="barres">${p.mcp.map((m) => `
+        <div class="barre"><a class="nom" href="#/journal?kind=tool.called&serveur=${encodeURIComponent(m.cle || '')}" title="${h(m.cle)}">${h(m.cle)}</a><span class="piste"><span class="rempli" style="width:${(m.n / maxM) * 100}%"></span></span><span class="chiffre"${m.echecs ? ` title="${nf.format(m.echecs)} refusé(s) ou en erreur"` : ''}>${nf.format(m.n)}</span></div>`).join('')}</div>` : '<div class="discret">Aucun appel MCP sur la période.</div>'}</div>
       <div class="carte"><h2>Refus d’outil, ${n} j</h2>${refus.length ? `<div class="barres">${refus.map((r) => `
         <div class="barre"><a class="nom" href="#/journal?kind=tool.denied&origine=${encodeURIComponent(r.cle || '')}">${h(ORIGINES[r.cle] || r.cle)}</a><span class="piste"><span class="rempli" style="width:${(r.n / maxR) * 100}%"></span></span><span class="chiffre">${nf.format(r.n)}</span></div>`).join('')}</div>
         <p class="discret">Outils les plus refusés : ${p.refus.par_outil.map((o) => `${h(o.cle || '?')} (${nf.format(o.n)})`).join(', ')}</p>` : '<div class="discret">Aucun refus sur la période.</div>'}</div>
@@ -104,15 +107,15 @@ async function sessions(params) {
 }
 
 async function journal(params) {
-  const kind = params.get('kind') || ''; const session = params.get('session') || ''; const origine = params.get('origine') || '';
-  const ev = (await api(`/api/evenements?${new URLSearchParams({ limite: 300, ...(kind && { kind }), ...(session && { session }) })}`)).filter((e) => !origine || e.data?.origine === origine);
+  const kind = params.get('kind') || ''; const session = params.get('session') || ''; const origine = params.get('origine') || ''; const serveur = params.get('serveur') || '';
+  const ev = (await api(`/api/evenements?${new URLSearchParams({ limite: 300, ...(kind && { kind }), ...(session && { session }) })}`)).filter((e) => (!origine || e.data?.origine === origine) && (!serveur || e.data?.serveur === serveur));
   const garder = (k) => `#/journal?${new URLSearchParams({ ...(k && { kind: k }), ...(session && { session }) })}`;
   const familles = ['session', 'cost', 'tool', 'element', 'inventory', 'ui'];
   return `
     <h1>Journal</h1>
     <p class="sous-titre">Les 300 derniers événements. Ce qui n’est pas au journal ne s’est pas passé.</p>
-    <div class="outils"><div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="${garder('')}">Tout</a>${familles.map((f) => `<a class="puce ${f === kind ? 'actif' : ''}" href="${garder(f)}">${f}</a>`).join('')}${session ? `<a class="puce actif" href="#/journal${kind ? `?kind=${kind}` : ''}" title="Retirer le filtre">session ${h(session.slice(0, 8))} ✕</a>` : ''}${origine ? `<a class="puce actif" href="#/journal?kind=tool.denied" title="Retirer le filtre">${h(ORIGINES[origine] || origine)} ✕</a>` : ''}</div></div>
-    <div class="carte">${ev.map((e) => `<div class="evenement"><span title="${h(e.at)}">${h(date(e.at))}</span><span><span class="badge fam-${h(e.kind.split('.')[0])}">${h(e.kind)}</span></span><span>${e.subject?.startsWith('holarch:') ? `<a href="#" data-fiche="${h(e.subject)}">${h(e.data?.projet || e.subject)}</a>` : h(e.data?.projet || e.subject || '')}${e.correlation && !session ? ` <a class="discret" href="#/journal?session=${encodeURIComponent(e.correlation.split(':')[0])}" title="Tous les événements de cette session">session</a>` : ''}${e.data?.outil ? ` · ${h(e.data.outil)}` : ''}${e.data?.origine ? ` · ${h(ORIGINES[e.data.origine] || e.data.origine)}` : ''} <span class="discret">${h(e.actor)}${e.tok_out ? ` · ${abr(e.tok_out)} tokens de sortie` : ''}${e.data?.fiches != null ? ` · ${e.data.fiches} fiches` : ''}</span></span></div>`).join('') || '<div class="vide">Journal vide.</div>'}</div>`;
+    <div class="outils"><div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="${garder('')}">Tout</a>${familles.map((f) => `<a class="puce ${f === kind ? 'actif' : ''}" href="${garder(f)}">${f}</a>`).join('')}${session ? `<a class="puce actif" href="#/journal${kind ? `?kind=${kind}` : ''}" title="Retirer le filtre">session ${h(session.slice(0, 8))} ✕</a>` : ''}${origine ? `<a class="puce actif" href="#/journal?kind=tool.denied" title="Retirer le filtre">${h(ORIGINES[origine] || origine)} ✕</a>` : ''}${serveur ? `<a class="puce actif" href="#/journal?kind=tool.called" title="Retirer le filtre">${h(serveur)} ✕</a>` : ''}</div></div>
+    <div class="carte">${ev.map((e) => `<div class="evenement"><span title="${h(e.at)}">${h(date(e.at))}</span><span><span class="badge fam-${h(e.kind.split('.')[0])}${e.kind === 'tool.denied' ? ' refus' : ''}">${h(e.kind)}</span></span><span>${e.subject?.startsWith('holarch:') ? `<a href="#" data-fiche="${h(e.subject)}">${h(e.data?.projet || e.subject)}</a>` : h(e.data?.projet || e.subject || '')}${e.correlation && !session ? ` <a class="discret" href="#/journal?session=${encodeURIComponent(e.correlation.split(':')[0])}" title="Tous les événements de cette session">session</a>` : ''}${e.data?.serveur ? ` · ${h(e.data.serveur)}` : ''}${e.data?.outil ? ` · ${h(e.data.outil)}` : ''}${e.data?.statut && e.data.statut !== 'ok' ? ` · ${h(e.data.statut)}` : ''}${e.data?.origine ? ` · ${h(ORIGINES[e.data.origine] || e.data.origine)}` : ''} <span class="discret">${h(e.actor)}${e.tok_out ? ` · ${abr(e.tok_out)} tokens de sortie` : ''}${e.data?.fiches != null ? ` · ${e.data.fiches} fiches` : ''}</span></span></div>`).join('') || '<div class="vide">Journal vide.</div>'}</div>`;
 }
 
 async function arbre() {

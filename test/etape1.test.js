@@ -220,6 +220,31 @@ test('import : refus d’outil repérés par leur message en tête, origine et o
   assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees }).fichiers_lus, 0);
 });
 
+test('import et inventaire : appels MCP au journal sans arguments, usage porté par les fiches des connecteurs', async () => {
+  const home = tmp(); const donnees = tmp();
+  const f = path.join(home, 'projects', '-ws-demo', 's4.jsonl');
+  const appel = (id, name, ts) => JSON.stringify({ type: 'assistant', sessionId: 's4', cwd: '/ws/demo', timestamp: ts, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', content: [{ type: 'tool_use', id: `t${id}`, name, input: { q: 'SECRET' } }], usage: { output_tokens: 1 } } });
+  const resultat = (id, contenu, erreur, ts) => JSON.stringify({ type: 'user', sessionId: 's4', timestamp: ts, message: { content: [{ type: 'tool_result', tool_use_id: `t${id}`, is_error: erreur, content: contenu }] } });
+  ecrire(f, [
+    appel(1, 'mcp__claude_ai_Gmail__search_threads', '2026-10-01T10:00:00Z'), resultat(1, 'réponse PRIVEE', false, '2026-10-01T10:00:01Z'),
+    appel(2, 'mcp__serveur_local__lire', '2026-10-01T10:01:00Z'), resultat(2, 'échec', true, '2026-10-01T10:01:01Z'),
+    appel(3, 'Bash', '2026-10-01T10:02:00Z'),
+  ].join('\n') + '\n'); vieillir(f);
+  const journal = new Journal(donnees, 'local');
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees });
+  const appels = [...journal.lire()].filter((e) => e.kind === 'tool.called');
+  assert.deepEqual(appels.map((e) => [e.data.serveur, e.data.outil, e.data.statut]), [['claude_ai_Gmail', 'search_threads', 'ok'], ['serveur_local', 'lire', 'erreur']]);
+  assert.ok(!JSON.stringify(appels).includes('SECRET') && !JSON.stringify(appels).includes('PRIVEE'));
+  const cfg = path.join(home, 'config.json');
+  ecrire(cfg, JSON.stringify({ claudeAiMcpEverConnected: ['claude.ai Gmail', 'claude.ai Drive'] }));
+  const appelsMcp = new Map([['claude_ai_Gmail', { count: 3, last_used: '2026-10-01T10:00:00Z' }], ['serveur_local', { count: 1, last_used: '2026-10-01T10:01:00Z' }]]);
+  const fiches = inventaireClaudeCode({ home, config: cfg }, { site: 'local', depots: [], appelsMcp }).filter((x) => x.kind === 'connector');
+  const par = (n) => fiches.find((x) => x.name === n);
+  assert.equal(par('claude.ai Gmail').usage.count, 3); assert.equal(par('claude.ai Drive').usage, undefined);
+  assert.equal(par('serveur_local').attributes.portee, 'vu');
+  for (const x of fiches) assert.equal(valider('fiche', x), null, x.id);
+});
+
 test('socle : chaîne complète vers les lectures de l’interface, sources absentes signalées à part', async () => {
   const donnees = tmp(); const home = tmp();
   const s = new Socle({ site: 'local', donnees, web: {}, tarifs: {}, inventaire: { 'claude-code': { home, config: path.join(home, 'absent.json') }, 'depots-git': { racines: [], profondeur: 1 }, arbre: { depots: [] },

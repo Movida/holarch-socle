@@ -31,6 +31,7 @@ function donneesFictives() {
   // Des jours sans activité au milieu de la plage : l'histogramme doit les montrer à zéro.
   [[1, 0, 'projet-a', 9e5], [2, 2, 'projet-b', 3e6], [3, 9, 'projet-a', 4e5], [4, 20, 'projet-c', 2e5], [5, 2, 'projet-c', 1e5, 'modele-sans-tarif']]
     .forEach(([n, j, p, o, m]) => session(n, j, p, o, m));
+  ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'a'), at: il_y_a(2, 10), kind: 'tool.called', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', serveur: 'holarch', outil: 'etat', statut: 'ok' } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'r'), at: il_y_a(2, 10), kind: 'tool.denied', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', outil: 'Bash', origine: 'regle' } });
   s.journal.ajouter(ev);
   const fiche = (kind, nom, extra = {}) => ({ id: `holarch:${kind}:${nom}`, kind, name: nom, status: 'active', provenance: { source: 'test' }, ...extra });
@@ -72,6 +73,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.equal(await page.$$eval('.axe span', (r) => r.length), 4);
   assert.match(await page.textContent('.tuile:last-child .note'), /hors 1 modèle sans tarif/);
   assert.match(await page.textContent('body'), /mémoire en 2 exemplaires/);
+  assert.match(await page.textContent('body'), /Appels MCP, 30 j[\s\S]*holarch/);
   assert.equal(await page.$eval('table.triable tbody tr td', (td) => td.textContent), 'modele-a', 'modèles triés par coût');
   await page.click('.entete .puce:has-text("7 j")');
   await page.waitForFunction(() => document.querySelectorAll('svg.histo rect').length === 7);

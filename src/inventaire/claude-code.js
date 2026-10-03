@@ -38,6 +38,9 @@ function hooks(settings, fichier, portee, projet, site) {
   })));
 }
 
+// Nom d'un serveur tel qu'il apparaît dans les outils (mcp__<serveur>__<outil>) : « claude.ai Gmail » → claude_ai_Gmail.
+export const cleServeur = (nom) => String(nom).replace(/[^A-Za-z0-9_-]/g, '_');
+
 /** Serveurs MCP d'un fichier de configuration (forme `mcpServers`, commune à Claude Code et Claude Desktop). */
 export function mcp(serveurs, fichier, portee, projet, site, source) {
   return Object.entries(serveurs || {}).map(([nom, s]) => fiche('connector', `mcp/${portee}/${projet || 'utilisateur'}/${nom}`, nom, {
@@ -100,6 +103,12 @@ export default function inventaireClaudeCode(options, ctx) {
     out.push(...mcp(cfg.mcpServers, config, 'utilisateur', null, site));
     for (const [p, v] of Object.entries(cfg.projects || {})) out.push(...mcp(v.mcpServers, config, 'local', path.basename(p), site));
   }
+  // Connecteurs claude.ai : distants, gérés par le compte, absents des fichiers de configuration ; Claude Code n'en
+  // garde localement que les noms déjà utilisés. Les appels au journal complètent : tout serveur appelé a sa fiche.
+  for (const nom of cfg?.claudeAiMcpEverConnected || []) {
+    out.push(fiche('connector', `mcp/claude.ai/${nom}`, nom, { description: 'connecteur claude.ai (distant, géré par le compte)', location: 'claude.ai', site,
+      attributes: { portee: 'claude.ai', projet: null, transport: 'http', distant: true } }));
+  }
   for (const depot of ctx.depots || []) {
     const nom = path.basename(depot);
     out.push(...skills(path.join(depot, '.claude', 'skills'), 'projet', nom, site));
@@ -108,6 +117,18 @@ export default function inventaireClaudeCode(options, ctx) {
     out.push(...hooks(lireJson(s), s, 'projet', nom, site));
     out.push(...mcp(lireJson(path.join(depot, '.mcp.json'))?.mcpServers, path.join(depot, '.mcp.json'), 'projet', nom, site));
     out.push(...consignes(path.join(depot, 'CLAUDE.md'), 'projet', nom, site));
+  }
+  const appels = ctx.appelsMcp || new Map();
+  const vus = new Set();
+  for (const f of out) {
+    if (f.kind !== 'connector') continue;
+    const u = appels.get(cleServeur(f.name));
+    if (u) { f.usage = { count: u.count, last_used: u.last_used, cost_usd: null }; vus.add(cleServeur(f.name)); }
+  }
+  for (const [serveur, u] of appels) {
+    if (vus.has(serveur)) continue;
+    out.push(fiche('connector', `mcp/vu/${serveur}`, serveur, { description: 'serveur MCP vu dans les appels ; sa configuration n’est pas sur ce site', site,
+      usage: { count: u.count, last_used: u.last_used, cost_usd: null }, attributes: { portee: 'vu', projet: null, transport: null } }));
   }
   return out;
 }

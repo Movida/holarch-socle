@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Appels MCP au journal** : `tool.called` importé des transcriptions, connecteurs claude.ai et serveurs appelés au
+  catalogue avec leur usage, carte au tableau de bord.
+
 * **Serveur MCP de HOLARCH** : sept outils en lecture sur le SDK officiel v2, `holarch mcp`, `.mcp.json`.
 
 * **Ouverture de l'étape 2** : recherche des passerelles MCP existantes ; décision `forme-etape-2` (serveur HOLARCH,

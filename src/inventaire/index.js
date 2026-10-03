@@ -12,7 +12,15 @@ import { ulid } from '../ulid.js';
 export const ADAPTATEURS = { 'depots-git': depotsGit, 'claude-code': claudeCode, arbre, docker, 'claude-desktop': claudeDesktop };
 
 export async function inventorier(config, { catalogue, journal }) {
-  const ctx = { site: config.site, depots: [] };
+  // Usage des serveurs MCP, tiré des appels au journal : les adaptateurs le portent sur les fiches des connecteurs.
+  const appelsMcp = new Map();
+  for (const e of journal.lire()) {
+    if (e.kind !== 'tool.called' || !e.data?.serveur) continue;
+    const u = appelsMcp.get(e.data.serveur) || { count: 0, last_used: null };
+    u.count++; if (!u.last_used || e.at > u.last_used) u.last_used = e.at;
+    appelsMcp.set(e.data.serveur, u);
+  }
+  const ctx = { site: config.site, depots: [], appelsMcp };
   const fiches = []; const erreurs = []; const absentes = [];
   for (const [nom, adaptateur] of Object.entries(ADAPTATEURS)) {
     const opts = config.inventaire[nom];

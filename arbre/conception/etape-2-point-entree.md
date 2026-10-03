@@ -38,7 +38,11 @@ fouiller.
 - **Fait (2026-10-03)** : serveur MCP de HOLARCH sur le SDK officiel v2, en stdio (`holarch mcp`) : sept outils en
   lecture (`etat`, `catalogue`, `fiche`, `sessions`, `consommation`, `journal`, `arbre`), réponses bornées ; déclaré au
   projet (`.mcp.json`) ; testé de bout en bout par le client officiel (18 tests).
-- **À faire, dans cet ordre** : 2. appels MCP au journal ; 3. essai d'agentgateway, puis site de travail.
+- **Fait (2026-10-03)** : appels MCP au journal (`tool.called` : serveur, outil, issue ; jamais les arguments ni la
+  réponse), importés des transcriptions ; connecteurs claude.ai au catalogue (noms gardés par Claude Code) et tout
+  serveur appelé, avec son usage ; carte « Appels MCP » au tableau de bord, Journal filtrable par serveur ; 19 tests.
+- **À faire** : 3. essai d'agentgateway (serveur HOLARCH, serveur de démonstration, Desktop par pont stdio, accès depuis
+  un conteneur), puis site de travail.
 
 ## Hors périmètre
 

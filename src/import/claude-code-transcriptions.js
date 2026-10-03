@@ -1,6 +1,7 @@
 // Import des transcriptions Claude Code (~/.claude/projects/<projet>/<session>.jsonl, sous-agents compris) vers le
 // journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas depuis le dernier import),
-// tool.denied (refus d'outil : origine et outil, jamais le contenu).
+// tool.denied (refus d'outil : origine et outil, jamais le contenu), tool.called (appel d'un outil MCP : serveur, outil,
+// issue ; jamais les arguments ni la réponse).
 // Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
 // Le coût en USD ne se calcule pas ici mais à la lecture, depuis la grille de tarifs configurée (src/tarifs.js).
 import fs from 'node:fs';
@@ -9,8 +10,9 @@ import { ulid } from '../ulid.js';
 
 const IGNORER_MODELES = new Set(['<synthetic>']);
 // Version de l'état d'import : un fichier lu par une version antérieure est relu une fois, et l'écart des cumuls devient
-// un événement complémentaire (v2 : part de l'écriture de cache à une heure, `cache_write_1h` ; v3 : refus d'outil).
-const VERSION_ETAT = 3;
+// un événement complémentaire (v2 : part de l'écriture de cache à une heure, `cache_write_1h` ; v3 : refus d'outil ;
+// v4 : appels MCP).
+const VERSION_ETAT = 4;
 
 // Refus d'outil : un résultat en erreur dont le texte COMMENCE par l'un de ces messages (décision refus). Un texte qui
 // les cite ailleurs, une recherche par exemple, n'est pas un refus.
@@ -45,7 +47,7 @@ function fichiers(home) {
 }
 
 function analyser(f) {
-  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
+  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], appels: new Map(), sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
   const outils = {};
   const vus = new Set();
   for (const ligne of fs.readFileSync(f, 'utf8').split('\n')) {
@@ -58,12 +60,22 @@ function analyser(f) {
     if (e.type === 'user' && typeof e.message?.content === 'string') r.invites++;
     if (e.type === 'user' && Array.isArray(e.message?.content)) {
       for (const x of e.message.content) {
-        if (x?.type !== 'tool_result' || !x.is_error) continue;
-        const o = origineRefus(texteDe(x.content));
+        if (x?.type !== 'tool_result') continue;
+        const o = x.is_error ? origineRefus(texteDe(x.content)) : null;
         if (o) r.refus.push({ ...o, at: e.timestamp, cle: x.tool_use_id, outil: outils[x.tool_use_id] || null });
+        const appel = r.appels.get(x.tool_use_id);
+        if (appel) appel.statut = o ? 'refuse' : x.is_error ? 'erreur' : 'ok';
       }
     }
-    if (e.type === 'assistant' && Array.isArray(e.message?.content)) for (const x of e.message.content) if (x?.type === 'tool_use') outils[x.id] = x.name;
+    if (e.type === 'assistant' && Array.isArray(e.message?.content)) {
+      for (const x of e.message.content) {
+        if (x?.type !== 'tool_use') continue;
+        outils[x.id] = x.name;
+        // Un outil MCP se nomme mcp__<serveur>__<outil> : seuls le serveur et l'outil sont gardés.
+        const [pre, serveur, ...reste] = String(x.name || '').split('__');
+        if (pre === 'mcp' && serveur && reste.length && !r.appels.has(x.id)) r.appels.set(x.id, { at: e.timestamp, cle: x.id, serveur, outil: reste.join('__'), statut: null });
+      }
+    }
     if (e.type !== 'assistant' || !e.message?.usage) continue;
     const cle = `${e.message.id || ''}:${e.requestId || ''}`;
     if (vus.has(cle)) continue;
@@ -110,6 +122,10 @@ export default function importerTranscriptions(options, { journal, donnees }) {
     for (const x of a.refus) {
       evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${f}:refus:${x.cle}`), at: x.at || a.fin, kind: 'tool.denied',
         data: { projet, sous_agent: a.sousAgent, outil: x.outil, origine: x.origine, categorie: x.categorie } });
+    }
+    for (const x of a.appels.values()) {
+      evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${f}:appel:${x.cle}`), at: x.at || a.fin, kind: 'tool.called',
+        data: { projet, sous_agent: a.sousAgent, serveur: x.serveur, outil: x.outil, statut: x.statut } });
     }
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
     evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:end:${a.fin}`), at: a.fin, kind: 'session.finished',

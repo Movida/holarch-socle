@@ -72,6 +72,8 @@ export class Socle {
           jours_actifs: q("SELECT COUNT(DISTINCT substr(at,1,10)) n FROM evenements WHERE kind='ui.viewed' AND at>=?", d)[0].n,
           pages: q("SELECT json_extract(data,'$.page') cle, COUNT(*) n FROM evenements WHERE kind='ui.viewed' AND at>=? GROUP BY cle ORDER BY n DESC", d),
         },
+        // Appels MCP par serveur (dont ceux au serveur holarch : le critère d'usage de l'étape 2 ici).
+        mcp: q("SELECT json_extract(data,'$.serveur') cle, COUNT(*) n, SUM(json_extract(data,'$.statut')<>'ok') echecs FROM evenements WHERE kind='tool.called' AND at>=? GROUP BY cle ORDER BY n DESC", d),
         refus: {
           par_origine: q("SELECT json_extract(data,'$.origine') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC", d),
           par_outil: q("SELECT json_extract(data,'$.outil') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC LIMIT 8", d),
