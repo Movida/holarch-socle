@@ -15,6 +15,10 @@ const DEFAUTS = () => ({
     'claude-code': { actif: true, home: path.join(os.homedir(), '.claude'), config: path.join(os.homedir(), '.claude.json') },
     'depots-git': { actif: true, racines: [os.homedir()], profondeur: 3, ignorer: ['node_modules', '.cache', '.npm', '.local'] },
     arbre: { actif: true, depots: [] },
+    // API Docker Engine, en lecture : `hote` (unix:///… ou tcp://…) ; sinon DOCKER_HOST, sinon le socket local.
+    docker: { actif: true, hote: null },
+    // Configuration de Claude Desktop : `config` (chemin) ; sinon l'emplacement documenté du système (macOS, Windows).
+    'claude-desktop': { actif: true, config: null },
   },
   import: {
     'claude-code-transcriptions': { actif: true, home: path.join(os.homedir(), '.claude'), calme_minutes: 10 },

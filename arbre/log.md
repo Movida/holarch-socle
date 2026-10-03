@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Sources de l'hôte** : adaptateurs Docker et Claude Desktop ; décision `2026-10-03-sources-hote.md` en brouillon
+  (kinds `container` et `volume`) ; Q6 ouverte.
+
 * **Approbations** : contrats événement, fiche du catalogue et acteurs, décision coût liste ; Q1 résolue
   (`decisions/2026-10-03-classification.md`) ; Q5 reportée à la première clé `config` d'un nœud.
 

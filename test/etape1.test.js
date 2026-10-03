@@ -13,6 +13,10 @@ import { trouverDepots } from '../src/inventaire/depots-git.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
 import { Socle } from '../src/socle.js';
 import { prix } from '../src/tarifs.js';
+import http from 'node:http';
+import inventaireDocker from '../src/inventaire/docker.js';
+import inventaireClaudeDesktop, { emplacementParDefaut } from '../src/inventaire/claude-desktop.js';
+import { SourceAbsente } from '../src/inventaire/source.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
@@ -115,11 +119,47 @@ test('import : cache à une heure ventilé, mode rapide à part, complément pou
   assert.equal(importerTranscriptions(opts, { journal, donnees }).fichiers_lus, 0);
 });
 
-test('socle : chaîne complète vers les lectures de l’interface', () => {
+test('inventaire Docker : conteneurs et volumes par l’API en lecture, rattachés au projet, sans secrets', async () => {
+  const socket = path.join(tmp(), 'docker.sock'); const vus = [];
+  const api = { '/containers/json?all=1': [
+    { Id: 'a'.repeat(64), Names: ['/boring_yalow'], Image: 'vsc-demo-123', State: 'running', Status: 'Up 2 hours', Created: 1790000000,
+      Labels: { 'devcontainer.local_folder': '/home/quelquun/demo', secret: 'SECRET' }, Mounts: [{ Type: 'volume', Name: 'demo-ssh' }, { Type: 'bind', Source: '/x' }] },
+    { Id: 'b'.repeat(64), Names: ['/vieux'], Image: 'alpine', State: 'exited', Status: 'Exited (0)', Labels: {}, Mounts: [] }],
+  '/volumes': { Volumes: [{ Name: 'demo-ssh', Driver: 'local' }, { Name: 'oublie', Driver: 'local' }] } };
+  const srv = http.createServer((req, res) => { vus.push(`${req.method} ${req.url}`); res.end(JSON.stringify(api[req.url])); });
+  await new Promise((ok) => srv.listen(socket, ok));
+  try {
+    const fiches = await inventaireDocker({ hote: `unix://${socket}` }, { site: 'local' });
+    const par = (n) => fiches.find((f) => f.name === n);
+    assert.equal(par('boring_yalow').attributes.projet, 'demo'); assert.equal(par('boring_yalow').status, 'active');
+    assert.equal(par('vieux').status, 'suspended');
+    assert.deepEqual(par('demo-ssh').attributes.conteneurs, ['boring_yalow']); assert.equal(par('oublie').attributes.orphelin, true);
+    assert.ok(!JSON.stringify(fiches).includes('SECRET'));
+    assert.ok(vus.every((v) => v.startsWith('GET ')));
+    for (const f of fiches) assert.equal(valider('fiche', f), null, f.id);
+  } finally { srv.close(); }
+  await assert.rejects(inventaireDocker({ hote: `unix://${path.join(tmp(), 'absent.sock')}` }, { site: 'local' }), SourceAbsente);
+});
+
+test('inventaire Claude Desktop : serveurs MCP sans arguments ni secrets ; absente là où rien n’est documenté', () => {
+  const f = path.join(tmp(), 'claude_desktop_config.json');
+  ecrire(f, JSON.stringify({ mcpServers: { fichiers: { command: '/usr/bin/npx', args: ['--token', 'SECRET'], env: { K: 'SECRET' } }, distant: { type: 'http', url: 'https://u:SECRET@mcp.exemple.test/x?cle=SECRET' } } }));
+  const fiches = inventaireClaudeDesktop({ config: f }, { site: 'local' });
+  assert.deepEqual(fiches.map((x) => x.name).sort(), ['distant', 'fichiers']);
+  assert.ok(!JSON.stringify(fiches).includes('SECRET'));
+  assert.ok(fiches.every((x) => x.provenance.source === 'inventaire:claude-desktop' && valider('fiche', x) === null));
+  assert.throws(() => inventaireClaudeDesktop({ config: path.join(tmp(), 'absent.json') }, { site: 'local' }), SourceAbsente);
+  assert.equal(emplacementParDefaut('linux', {}), null);
+  assert.match(emplacementParDefaut('win32', { APPDATA: 'C:/Users/x/AppData/Roaming' }), /Claude.claude_desktop_config\.json$/);
+});
+
+test('socle : chaîne complète vers les lectures de l’interface, sources absentes signalées à part', async () => {
   const donnees = tmp(); const home = tmp();
-  const s = new Socle({ site: 'local', donnees, web: {}, tarifs: {}, inventaire: { 'claude-code': { home, config: path.join(home, 'absent.json') }, 'depots-git': { racines: [], profondeur: 1 }, arbre: { depots: [] } }, import: { 'claude-code-transcriptions': { home, calme_minutes: 0 } } });
-  const r = s.rafraichir();
+  const s = new Socle({ site: 'local', donnees, web: {}, tarifs: {}, inventaire: { 'claude-code': { home, config: path.join(home, 'absent.json') }, 'depots-git': { racines: [], profondeur: 1 }, arbre: { depots: [] },
+    docker: { hote: `unix://${path.join(home, 'absent.sock')}` }, 'claude-desktop': { config: path.join(home, 'absent-desktop.json') } }, import: { 'claude-code-transcriptions': { home, calme_minutes: 0 } } });
+  const r = await s.rafraichir();
   assert.equal(r.inventaire.erreurs.length, 0);
+  assert.deepEqual(r.inventaire.absentes.map((a) => a.split(' : ')[0]), ['docker', 'claude-desktop']);
   const e = s.etat();
   assert.equal(e.site, 'local'); assert.ok(e.evenements >= 1);
   assert.deepEqual(s.sessions(), []);

@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enTete, lireJson, liste, mtimeIso, premiereLigne, slug, urlSure } from './outils.js';
 
-const fiche = (kind, cle, name, extra) => ({
+const fiche = (kind, cle, name, extra, source = 'inventaire:claude-code') => ({
   id: `holarch:${kind}:${slug(cle)}`, kind, name: String(name), status: 'active',
-  provenance: { source: 'inventaire:claude-code' }, classification: 'internal', ...extra,
+  provenance: { source }, classification: 'internal', ...extra,
 });
 
 function skills(dossier, portee, projet, site) {
@@ -38,10 +38,11 @@ function hooks(settings, fichier, portee, projet, site) {
   })));
 }
 
-function mcp(serveurs, fichier, portee, projet, site) {
+/** Serveurs MCP d'un fichier de configuration (forme `mcpServers`, commune à Claude Code et Claude Desktop). */
+export function mcp(serveurs, fichier, portee, projet, site, source) {
   return Object.entries(serveurs || {}).map(([nom, s]) => fiche('connector', `mcp/${portee}/${projet || 'utilisateur'}/${nom}`, nom, {
     description: s.url ? `MCP ${s.type || 'http'} ${urlSure(s.url)}` : `MCP stdio : ${path.basename(String(s.command || '?'))}`,
-    location: fichier, site, attributes: { portee, projet, transport: s.type || (s.url ? 'http' : 'stdio') } }));
+    location: fichier, site, attributes: { portee, projet, transport: s.type || (s.url ? 'http' : 'stdio') } }, source));
 }
 
 function consignes(f, portee, projet, site) {

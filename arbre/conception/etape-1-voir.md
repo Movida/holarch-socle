@@ -5,7 +5,7 @@ description: Catalogue et journal alimentés par l'existant, et une interface we
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md]
+  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-sources-hote.md]
 ---
 
 # Étape 1 — Voir
@@ -46,9 +46,11 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 - **Fait (2026-10-03)** : tarifs — grille officielle relevée et citée dans la configuration du site, coût liste
   calculé à l'indexation (tableau de bord, par modèle, par session, `holarch etat`), écriture de cache à une heure
   ventilée, mode rapide à part, compléments pour l'historique déjà importé ; 11 tests.
+- **Fait (2026-10-03)** : adaptateurs Docker (conteneurs, volumes, par l'API en lecture) et Claude Desktop (serveurs
+  MCP) ; une source absente est signalée à part ; inventaire asynchrone ; 13 tests. Décision `sources-hote` en brouillon.
 - **Reste, dans cet ordre** :
-  1. **Adaptateurs d'inventaire** : conteneurs et volumes Docker ; serveurs MCP de Claude Desktop (sa configuration
-     côté hôte) ; serveurs MCP conteneurisés déclarés par l'utilisateur.
+  1. **Câbler l'accès en lecture** du conteneur du socle (proxy Docker filtrant, montage de la configuration de
+     Claude Desktop), après approbation de la décision `sources-hote`.
   2. **Relecture et approbation des contrats** : événement, fiche et acteurs approuvés le 2026-10-03 ; nœud et règle
      attendent d'avoir été exercés (règle à l'étape 3).
   3. **Critère d'usage** observé sur une semaine (l'utilisateur ouvre l'interface plutôt que de demander), puis

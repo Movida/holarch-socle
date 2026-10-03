@@ -18,7 +18,7 @@ export class Socle {
     this.index = new Index(config.donnees);
   }
 
-  inventaire() { return inventorier(this.config, { catalogue: this.catalogue, journal: this.journal }); }
+  async inventaire() { return inventorier(this.config, { catalogue: this.catalogue, journal: this.journal }); }
 
   importer() {
     const r = {};
@@ -32,7 +32,7 @@ export class Socle {
 
   indexer() { return this.index.reconstruire({ evenements: this.journal.lire(), fiches: this.catalogue.lire(), tarifs: this.config.tarifs }); }
 
-  rafraichir() { const inventaire = this.inventaire(); const imports = this.importer(); const index = this.indexer(); return { inventaire, imports, index }; }
+  async rafraichir() { const inventaire = await this.inventaire(); const imports = this.importer(); const index = this.indexer(); return { inventaire, imports, index }; }
 
   // ---------- lectures ----------
   etat() {

@@ -22,7 +22,7 @@ const socle = () => new Socle(chargerConfig());
 
 switch (cmd) {
   case 'init': console.log(ecrireConfigExemple() ? `configuration écrite : ${accueil()}/config.yaml` : 'configuration déjà présente'); break;
-  case 'inventaire': { const s = socle(); const r = s.inventaire(); s.indexer(); afficher(json ? r : `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}`); break; }
+  case 'inventaire': { const s = socle(); const r = await s.inventaire(); s.indexer(); afficher(json ? r : `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}`); break; }
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : Object.entries(r).map(([k, v]) => `${k} : ${v.fichiers_lus} fichier(s) lu(s), ${v.ajoutes} événement(s) ajouté(s), ${v.ignores} déjà connu(s), ${v.refuses} refusé(s), ${v.en_cours_ignores} session(s) en cours laissée(s) pour plus tard`).join('\n')); break; }
   case 'indexer': afficher(socle().indexer()); break;
   case 'etat': { const s = socle(); s.indexer(); const e = s.etat(); if (json) { afficher(e); break; }
@@ -32,7 +32,7 @@ switch (cmd) {
     if (e.tarifs_configures) console.log(`tarifs : grille du ${e.tarifs.releve ?? '?'} (${e.tarifs.source ?? 'source non citée'})${e.sans_tarif_30j.length ? ` ; sans tarif sur 30 j : ${e.sans_tarif_30j.map((m) => m.model).join(', ')}` : ''}`);
     break; }
   case 'voir': {
-    const s = socle(); const r = s.rafraichir();
+    const s = socle(); const r = await s.rafraichir();
     console.log(`rafraîchi : ${r.inventaire.fiches} fiches, ${r.index.evenements} événements`);
     const { hote } = s.config.web;
     const i = args.indexOf('--port'); const port = i >= 0 ? +args[i + 1] : s.config.web.port;

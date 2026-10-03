@@ -9,7 +9,7 @@ const depuis = (iso) => { if (!iso) return '—'; const s = (Date.now() - Date.p
 const duree = (s) => (s == null ? '—' : s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${String(Math.round((s % 3600) / 60)).padStart(2, '0')}`);
 const api = async (p, o) => { const r = await fetch(p, o); if (!r.ok) throw new Error(`${p} : ${r.status}`); return r.json(); };
 
-const TYPES = { memory: 'Mémoires', skill: 'Skills', hook: 'Hooks', project: 'Projets', node: 'Nœuds de l’arbre', instructions: 'Consignes', connector: 'Connecteurs', plugin: 'Plugins', plugin_marketplace: 'Marketplaces', agent_profile: 'Agents', rule: 'Règles' };
+const TYPES = { memory: 'Mémoires', skill: 'Skills', hook: 'Hooks', project: 'Projets', node: 'Nœuds de l’arbre', instructions: 'Consignes', connector: 'Connecteurs', plugin: 'Plugins', plugin_marketplace: 'Marketplaces', agent_profile: 'Agents', rule: 'Règles', container: 'Conteneurs', volume: 'Volumes Docker' };
 const type = (k) => TYPES[k] || k;
 
 // ---------------------------------------------------------------- vues
@@ -27,6 +27,7 @@ async function tableau() {
     return `<rect x="${i * larg + larg * 0.12}" y="${38 - hauteur}" width="${larg * 0.76}" height="${hauteur}" rx="0.4"><title>${h(j.cle)} : ${h(abr(j.sortie))} tokens de sortie</title></rect>`;
   }).join('')}</svg>` : '<div class="vide">Aucune activité importée.</div>';
   const maxP = Math.max(1, ...projets.map((p) => p.sortie || 0));
+  const absentes = e.dernier_inventaire?.absentes || [];
   return `
     <h1>Tableau de bord</h1>
     <p class="sous-titre">Ce qui est en place et ce qui s’est passé sur ce site.${e.dernier_inventaire ? ` Dernier inventaire ${h(depuis(e.dernier_inventaire.at))}.` : ''}</p>
@@ -46,7 +47,7 @@ async function tableau() {
     </tbody></table></div>
     <div class="grille g2 section">
       <div class="carte"><h2>Catalogue</h2><div class="puces">${e.fiches_par_type.map((f) => `<a class="puce" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${nf.format(f.n)}</b> ${h(type(f.kind))}</a>`).join('')}</div></div>
-      <div class="carte"><h2>À regarder</h2>${e.projets_sales.length ? `<div class="barres">${e.projets_sales.map((p) => `<div><span class="badge alerte">${nf.format(p.n)} fichier(s) non commité(s)</span> ${h(p.name)}</div>`).join('')}</div>` : '<div class="discret">Rien à signaler.</div>'}</div>
+      <div class="carte"><h2>À regarder</h2>${e.projets_sales.length || absentes.length ? `<div class="barres">${e.projets_sales.map((p) => `<div><span class="badge alerte">${nf.format(p.n)} fichier(s) non commité(s)</span> ${h(p.name)}</div>`).join('')}${absentes.map((a) => `<div><span class="badge">non vu sur ce site</span> ${h(a)}</div>`).join('')}</div>` : '<div class="discret">Rien à signaler.</div>'}</div>
     </div>`;
 }
 

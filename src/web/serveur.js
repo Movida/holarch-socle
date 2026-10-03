@@ -19,12 +19,12 @@ export function creerServeur(socle) {
     'GET /api/arbre': () => socle.arbre(),
     'POST /api/rafraichir': () => socle.rafraichir(),
   };
-  return http.createServer((req, res) => {
+  return http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://local');
     const route = routes[`${req.method} ${u.pathname}`];
     try {
       if (route) {
-        const corps = JSON.stringify(route(u) ?? null);
+        const corps = JSON.stringify((await route(u)) ?? null);
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(corps);
       }

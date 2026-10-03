@@ -20,5 +20,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`decisions/2026-10-03-synchronisation.md`](decisions/2026-10-03-synchronisation.md) - ce qui se synchronise entre local et serveur, et qui fait foi
 - [`decisions/2026-10-03-cout-liste.md`](decisions/2026-10-03-cout-liste.md) - le coût liste, calculé à la lecture depuis une grille datée et citée
 - [`decisions/2026-10-03-classification.md`](decisions/2026-10-03-classification.md) - une classification ne peut que se durcir en descendant
+- [`decisions/2026-10-03-sources-hote.md`](decisions/2026-10-03-sources-hote.md) - Docker et Claude Desktop lus par des interfaces standard, en lecture seule
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre

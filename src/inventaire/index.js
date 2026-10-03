@@ -1,19 +1,23 @@
 // Inventaire : exécute les adaptateurs actifs dans l'ordre (les dépôts d'abord, que les suivants réutilisent), puis
-// remplace l'instantané du catalogue du site et journalise ce qui est apparu ou a disparu.
+// remplace l'instantané du catalogue du site et journalise ce qui est apparu ou a disparu. Une source absente de cette
+// machine se signale à part (`absentes`) : ce n'est pas une erreur, mais l'inventaire ne la tait pas.
 import depotsGit from './depots-git.js';
 import claudeCode from './claude-code.js';
 import arbre from './arbre.js';
+import docker from './docker.js';
+import claudeDesktop from './claude-desktop.js';
+import { SourceAbsente } from './source.js';
 import { ulid } from '../ulid.js';
 
-export const ADAPTATEURS = { 'depots-git': depotsGit, 'claude-code': claudeCode, arbre };
+export const ADAPTATEURS = { 'depots-git': depotsGit, 'claude-code': claudeCode, arbre, docker, 'claude-desktop': claudeDesktop };
 
-export function inventorier(config, { catalogue, journal }) {
+export async function inventorier(config, { catalogue, journal }) {
   const ctx = { site: config.site, depots: [] };
-  const fiches = []; const erreurs = [];
+  const fiches = []; const erreurs = []; const absentes = [];
   for (const [nom, adaptateur] of Object.entries(ADAPTATEURS)) {
     const opts = config.inventaire[nom];
     if (!opts || opts.actif === false) continue;
-    try { fiches.push(...adaptateur(opts, ctx)); } catch (e) { erreurs.push(`${nom} : ${e.message}`); }
+    try { fiches.push(...await adaptateur(opts, ctx)); } catch (e) { (e instanceof SourceAbsente ? absentes : erreurs).push(`${nom} : ${e.message}`); }
   }
   const r = catalogue.remplacer(fiches);
   const maintenant = Date.now(); const at = new Date(maintenant).toISOString();
@@ -21,7 +25,7 @@ export function inventorier(config, { catalogue, journal }) {
   journal.ajouter([
     ...r.apparues.map((s) => ev('element.created', s)),
     ...r.disparues.map((s) => ev('element.retired', s)),
-    { ...ev('inventory.finished', null), data: { fiches: r.fiches, apparues: r.apparues.length, disparues: r.disparues.length, refusees: r.refusees.length, erreurs } },
+    { ...ev('inventory.finished', null), data: { fiches: r.fiches, apparues: r.apparues.length, disparues: r.disparues.length, refusees: r.refusees.length, erreurs, absentes } },
   ]);
-  return { ...r, erreurs };
+  return { ...r, erreurs, absentes };
 }
