@@ -37,10 +37,16 @@ const fusion = (a, b) => {
 };
 const developper = (v) => (typeof v === 'string' && v.startsWith('~') ? path.join(os.homedir(), v.slice(1)) : Array.isArray(v) ? v.map(developper) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, developper(x)])) : v);
 
-export function chargerConfig(fichier = path.join(accueil(), 'config.yaml')) {
-  let utilisateur = {};
-  if (fs.existsSync(fichier)) utilisateur = YAML.parse(fs.readFileSync(fichier, 'utf8')) || {};
-  return developper(fusion(DEFAUTS(), utilisateur));
+const lireYaml = (f) => (fs.existsSync(f) ? YAML.parse(fs.readFileSync(f, 'utf8')) || {} : {});
+
+// Plusieurs sites peuvent partager un même répertoire de données (décision sources de l'hôte) : `config.yaml` porte ce
+// qui est commun (tarifs…), `config.<site>.yaml` ce qui est propre au site. Le site vient de HOLARCH_SITE, sinon de
+// `config.yaml`.
+export function chargerConfig(fichier = path.join(accueil(), 'config.yaml'), site = process.env.HOLARCH_SITE) {
+  const commune = lireYaml(fichier);
+  const nom = site || commune.site || DEFAUTS().site;
+  const propre = lireYaml(path.join(path.dirname(fichier), `config.${nom}.yaml`));
+  return developper({ ...fusion(fusion(DEFAUTS(), commune), propre), site: nom });
 }
 
 export function ecrireConfigExemple(fichier = path.join(accueil(), 'config.yaml')) {
@@ -54,6 +60,7 @@ inventaire:
     racines: ["~"]        # répertoires où chercher des dépôts Git (guillemets : en YAML, ~ seul vaut null)
   arbre:
     depots: []            # dépôts qui portent un arbre HOLARCH (dossier arbre/)
+# Un autre site qui partage ce répertoire (HOLARCH_SITE=<nom>) lit aussi config.<nom>.yaml, qui l'emporte sur ce fichier.
 # tarifs:                 # à relever sur la grille officielle du fournisseur, jamais de mémoire
 #   source: https://…     # page relevée
 #   releve: AAAA-MM-JJ    # date du relevé

@@ -95,6 +95,18 @@ test('import des transcriptions : sessions et tokens, dédoublonnage des message
   assert.equal([...journal.lire()].filter((e) => e.kind === 'session.started').length, 1);
 });
 
+test('configuration : commune, puis propre au site, le site venant de HOLARCH_SITE ou du fichier commun', async () => {
+  const { chargerConfig } = await import('../src/config.js');
+  const d = tmp(); const f = path.join(d, 'config.yaml');
+  ecrire(f, 'site: local\ntarifs: { releve: 2026-10-03 }\n');
+  ecrire(path.join(d, 'config.hote.yaml'), 'inventaire:\n  claude-code: { actif: false }\n  docker: { hote: unix:///run/docker.sock }\n');
+  const local = chargerConfig(f, undefined); const hote = chargerConfig(f, 'hote');
+  assert.equal(local.site, 'local'); assert.equal(local.inventaire['claude-code'].actif, true);
+  assert.equal(hote.site, 'hote'); assert.equal(hote.inventaire['claude-code'].actif, false);
+  assert.equal(hote.inventaire.docker.hote, 'unix:///run/docker.sock'); assert.equal(hote.inventaire.docker.actif, true);
+  assert.equal(hote.tarifs.releve, '2026-10-03');
+});
+
 test('tarifs : coût liste linéaire, écriture de cache à une heure, modèle sans tarif inconnu', () => {
   const grille = { modeles: { m: { entree: 4, cache_ecrit: 5, cache_ecrit_1h: 8, cache_lu: 0.2, sortie: 20 } } };
   assert.equal(prix(grille, 'm', { in: 1e6, cache_write: 3e6, cache_write_1h: 2e6, cache_read: 1e7, out: 1e5 }), 4 + 5 + 16 + 2 + 2);
