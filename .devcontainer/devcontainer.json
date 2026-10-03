@@ -9,7 +9,9 @@
   ],
   "forwardPorts": [4280],
   "portsAttributes": { "4280": { "label": "HOLARCH — interface", "onAutoForward": "notify" } },
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && bash .devcontainer/deploy-keys.sh origin",
+  // Tout ce que le dépôt vérifie s'installe ici, pour qu'une reconstruction ne perde rien : dépendances, puis Chromium
+  // et ses bibliothèques système pour le test visuel (npm run test:visuel).
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin",
   "remoteEnv": { "ANTHROPIC_API_KEY": "", "HOLARCH_HOME": "/home/vscode/.claude/holarch" },
   "customizations": { "vscode": { "extensions": ["anthropic.claude-code"] } }
 }

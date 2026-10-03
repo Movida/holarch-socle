@@ -18,6 +18,8 @@ projet. Il apporte ce qu'aucun d'eux ne fournit d'une session, d'un projet ou d'
 npm install
 node bin/holarch.js init     # configuration d'exemple dans ~/.holarch/config.yaml (répertoire : HOLARCH_HOME)
 node bin/holarch.js voir     # inventaire + import, puis http://127.0.0.1:4280
+npm test                     # tests, sans navigateur
+npm run test:visuel          # interface dans Chromium (préparer : npx playwright install --with-deps chromium)
 ```
 
 Node.js ≥ 22.5. Les données (catalogue, journal, index) restent dans `~/.holarch`, jamais dans le dépôt ; rien ne
