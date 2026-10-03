@@ -4,10 +4,10 @@ title: Contrat — fiche du catalogue
 description: Tout élément en place a une fiche ; ce qui n'est pas au catalogue n'existe pas pour le système.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
-version: 0.2.0
+version: 0.3.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-03-sources-hote.md]
 ---
 
 # Contrat — fiche du catalogue
@@ -17,7 +17,7 @@ links:
 | Champ | Valeur |
 |---|---|
 | `id` | `holarch:<kind>:<slug>`, unique et stable |
-| `kind` | `rule` · `procedure` · `skill` · `hook` · `agent_profile` · `model_profile` · `knowledge_base` · `project` · `node` · `run` · `budget` · `connector` · `context` · `adapter` · `brick` · `idea` · `memory` (note de mémoire d'un outil) · `instructions` (fichier de consignes d'un outil, `CLAUDE.md`…) · `plugin` · `plugin_marketplace` (extensible par décision) |
+| `kind` | `rule` · `procedure` · `skill` · `hook` · `agent_profile` · `model_profile` · `knowledge_base` · `project` · `node` · `run` · `budget` · `connector` · `context` · `adapter` · `brick` · `idea` · `memory` (note de mémoire d'un outil) · `instructions` (fichier de consignes d'un outil, `CLAUDE.md`…) · `plugin` · `plugin_marketplace` · `container` (conteneur, actif s'il tourne) · `volume` (volume de conteneurs) (extensible par décision) |
 | `name`, `description` | texte court |
 | `version` | semver, si l'élément est versionné |
 | `node` | nœud de l'arbre auquel l'élément est attaché (portée) |

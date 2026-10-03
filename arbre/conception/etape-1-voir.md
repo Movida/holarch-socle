@@ -50,7 +50,7 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
   MCP) ; une source absente est signalée à part ; inventaire asynchrone ; 13 tests. Décision `sources-hote` en brouillon.
 - **Reste, dans cet ordre** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
-     relevé régulier ; après approbation de la décision `sources-hote`. Configuration par site faite (14 tests).
+     relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).
   2. **Relecture et approbation des contrats** : événement, fiche et acteurs approuvés le 2026-10-03 ; nœud et règle
      attendent d'avoir été exercés (règle à l'étape 3).
   3. **Critère d'usage** observé sur une semaine (l'utilisateur ouvre l'interface plutôt que de demander), puis

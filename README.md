@@ -7,9 +7,10 @@ ce qu'ils apprennent soit conservé, vérifié et partagé entre vos projets, et
 HOLARCH ne refait pas l'orchestration d'agents : les runtimes existants le font et évoluent plus vite que n'importe quel
 projet. Il apporte ce qu'aucun d'eux ne fournit d'une session, d'un projet ou d'un outil à l'autre.
 
-> **Statut : étape 1 — Voir**, en cours. L'architecture est approuvée ; les contrats sont en brouillon (`arbre/`).
-> Ce qui marche : inventaire de ce qui est en place (Claude Code, dépôts Git, arbre HOLARCH), import du journal depuis
-> les transcriptions Claude Code, interface web en lecture.
+> **Statut : étape 1 — Voir**, en cours. L'architecture est approuvée ; les contrats événement, fiche du catalogue et
+> acteurs aussi ; nœud et règle sont en brouillon (`arbre/`). Ce qui marche : inventaire de ce qui est en place
+> (Claude Code, dépôts Git, arbre HOLARCH, conteneurs et volumes Docker, serveurs MCP de Claude Desktop), import du
+> journal depuis les transcriptions Claude Code, coût liste, interface web en lecture.
 
 ## Essayer
 
@@ -20,8 +21,21 @@ node bin/holarch.js voir     # inventaire + import, puis http://127.0.0.1:4280
 ```
 
 Node.js ≥ 22.5. Les données (catalogue, journal, index) restent dans `~/.holarch`, jamais dans le dépôt ; rien ne
-quitte la machine. Le coût en dollars n'apparaît que si des tarifs sont renseignés dans la configuration : aucun tarif
-n'est inventé.
+quitte la machine. Le coût en dollars n'apparaît que si une grille de tarifs, relevée sur la page officielle du
+fournisseur, est renseignée dans la configuration : aucun tarif n'est inventé.
+
+### Dans un conteneur de développement
+
+Un conteneur ne voit ni Docker ni Claude Desktop, et ne doit pas recevoir le socket Docker. HOLARCH tourne alors aussi
+sur l'hôte, comme un second site qui partage le répertoire de données et n'inventorie que ce que l'hôte voit
+(décision [`sources-hote`](arbre/decisions/2026-10-03-sources-hote.md)) :
+
+```bash
+# sur l'hôte, avec HOLARCH_HOME pointant vers le répertoire de données monté dans le conteneur
+HOLARCH_SITE=hote node bin/holarch.js inventaire    # lit config.yaml, puis config.hote.yaml
+```
+
+`config.hote.yaml` désactive ce que le conteneur relève déjà ; l'interface du conteneur montre l'union des sites.
 
 ## L'idée en une image
 
@@ -53,7 +67,7 @@ Le détail : [`docs/architecture.md`](docs/architecture.md).
 |---|---|
 | `docs/architecture.md` | l'architecture macro, de laquelle tout dérive |
 | `arbre/` | l'arbre du système lui-même, écrit avec sa propre méthode (fondations, besoins, conception, décisions) |
-| `arbre/conception/contrats/` | les contrats en brouillon : nœud, règle, fiche du catalogue, événement du journal |
+| `arbre/conception/contrats/` | les contrats : nœud, règle, fiche du catalogue, événement du journal, acteurs |
 | `src/`, `bin/`, `test/` | l'implémentation de l'étape en cours (`arbre/conception/etape-1-voir.md`) |
 | `CLAUDE.md` | consignes pour une session d'agent dans ce dépôt |
 

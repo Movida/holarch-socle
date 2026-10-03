@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Movida/holarch-socle/contrats/fiche/0.2.0",
-  "title": "Fiche du catalogue (contrat 0.2.0, arbre/conception/contrats/fiche-catalogue.md)",
+  "$id": "https://github.com/Movida/holarch-socle/contrats/fiche/0.3.0",
+  "title": "Fiche du catalogue (contrat 0.3.0, arbre/conception/contrats/fiche-catalogue.md)",
   "type": "object",
   "required": ["id", "kind", "name", "status", "provenance"],
   "additionalProperties": false,
