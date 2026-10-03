@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Essai d'agentgateway** : fédération, journal sans arguments, `failOpen` contre la panne d'un serveur ; reste
+  Desktop et le réseau sur l'hôte (`essai-agentgateway.md`).
+
 * **Appels MCP au journal** : `tool.called` importé des transcriptions, connecteurs claude.ai et serveurs appelés au
   catalogue avec leur usage, carte au tableau de bord.
 

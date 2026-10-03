@@ -41,8 +41,10 @@ fouiller.
 - **Fait (2026-10-03)** : appels MCP au journal (`tool.called` : serveur, outil, issue ; jamais les arguments ni la
   réponse), importés des transcriptions ; connecteurs claude.ai au catalogue (noms gardés par Claude Code) et tout
   serveur appelé, avec son usage ; carte « Appels MCP » au tableau de bord, Journal filtrable par serveur ; 19 tests.
-- **À faire** : 3. essai d'agentgateway (serveur HOLARCH, serveur de démonstration, Desktop par pont stdio, accès depuis
-  un conteneur), puis site de travail.
+- **Fait (2026-10-03)** : essai d'agentgateway dans un conteneur (`essai-agentgateway.md`) : fédération, journal sans
+  arguments et tolérance aux pannes (`failOpen`) vérifiés.
+- **À faire, sur l'hôte et au travail** : Desktop par pont stdio ; accès depuis un conteneur à une passerelle dans WSL ;
+  traduction du journal de la passerelle (format `json`) vers `tool.called` ; déploiement sur le site de travail.
 
 ## Hors périmètre
 
