@@ -5,7 +5,7 @@ description: Catalogue et journal alimentés par l'existant, et une interface we
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-sources-hote.md]
+  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-sources-hote.md, /arbre/decisions/2026-10-03-refus.md]
 ---
 
 # Étape 1 — Voir
@@ -20,7 +20,8 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
    projet), dépôts Git sous des racines configurées, l'arbre HOLARCH lui-même. Aucun contenu sensible n'est copié :
    une fiche porte une référence (`location`), un nom, une description, des mesures.
 2. **Import du journal** : des adaptateurs d'import, idempotents. Premier : les transcriptions Claude Code → événements
-   `session.started`, `session.finished`, `cost.recorded` (tokens par modèle). Le coût en USD se calcule à la lecture,
+   `session.started`, `session.finished`, `cost.recorded` (tokens par modèle), `tool.denied` (refus d'outil, origine et
+   outil, sans contenu). Le coût en USD se calcule à la lecture,
    seulement depuis une grille de tarifs configurée, relevée et citée — aucun tarif n'est inventé (décision coût liste).
 3. **Stockage** : journal en JSON Lines par site et par mois, en ajout seul (le contrat) ; un index SQLite reconstruit
    depuis le journal et l'inventaire, jetable. Données dans un répertoire de travail hors dépôt (`~/.holarch` par
@@ -48,6 +49,8 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
   ventilée, mode rapide à part, compléments pour l'historique déjà importé ; 11 tests.
 - **Fait (2026-10-03)** : adaptateurs Docker (conteneurs, volumes, par l'API en lecture) et Claude Desktop (serveurs
   MCP) ; une source absente est signalée à part ; inventaire asynchrone ; 13 tests. Décision `sources-hote` en brouillon.
+- **Fait (2026-10-03)** : refus d'outil au journal (décision `refus`) : tableau de bord par origine et par outil,
+  colonne des sessions, famille du journal ; 15 tests. Nœuds de base approuvés.
 - **Reste, dans cet ordre** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
      relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).

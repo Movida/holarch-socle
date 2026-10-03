@@ -2,7 +2,8 @@
 type: manifesto
 title: Manifeste
 description: Pourquoi HOLARCH existe, ce qu'il doit être et ce qu'il refuse d'être.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ça me va » (avis rendu point par point)" }
 links:
   derives_from: [/arbre/index.md]
   supported_by: [/docs/architecture.md]

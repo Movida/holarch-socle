@@ -2,7 +2,8 @@
 type: contract
 title: Registre des types de nœuds
 description: Les types de nœuds de l'arbre, leurs parents admis et leurs liens obligatoires. Extensible par décision.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ça me va » (avis rendu point par point)" }
 version: 0.1.0
 links:
   derives_from: [/arbre/conception/contrats/noeud.md]

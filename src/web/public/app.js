@@ -11,6 +11,7 @@ const api = async (p, o) => { const r = await fetch(p, o); if (!r.ok) throw new 
 
 const TYPES = { memory: 'Mémoires', skill: 'Skills', hook: 'Hooks', project: 'Projets', node: 'Nœuds de l’arbre', instructions: 'Consignes', connector: 'Connecteurs', plugin: 'Plugins', plugin_marketplace: 'Marketplaces', agent_profile: 'Agents', rule: 'Règles', container: 'Conteneurs', volume: 'Volumes Docker' };
 const type = (k) => TYPES[k] || k;
+const ORIGINES = { humain: 'Par vous', classifieur: 'Classifieur (mode auto)', regle: 'Règle de permission', securite: 'Contrôle de sécurité', hook: 'Hook' };
 
 // ---------------------------------------------------------------- vues
 async function tableau() {
@@ -28,6 +29,7 @@ async function tableau() {
   }).join('')}</svg>` : '<div class="vide">Aucune activité importée.</div>';
   const maxP = Math.max(1, ...projets.map((p) => p.sortie || 0));
   const absentes = e.dernier_inventaire?.absentes || [];
+  const refus = e.refus_30j.par_origine; const maxR = Math.max(1, ...refus.map((r) => r.n));
   return `
     <h1>Tableau de bord</h1>
     <p class="sous-titre">Ce qui est en place et ce qui s’est passé sur ce site.${e.dernier_inventaire ? ` Dernier inventaire ${h(depuis(e.dernier_inventaire.at))}.` : ''}</p>
@@ -45,6 +47,11 @@ async function tableau() {
     <div class="carte tableau section"><table><thead><tr><th>Modèle, 30 j</th><th class="num">Entrée</th><th class="num">Cache écrit</th><th class="num">Cache lu</th><th class="num">Sortie</th><th class="num">Coût liste</th></tr></thead><tbody>
       ${modeles.map((m) => `<tr><td class="mono">${h(m.cle)}</td><td class="num">${abr(m.entree)}</td><td class="num">${abr(m.cache_ecrit)}</td><td class="num">${abr(m.cache_lu)}</td><td class="num">${abr(m.sortie)}</td><td class="num">${m.usd == null ? '<span class="discret">sans tarif</span>' : usd(m.usd)}</td></tr>`).join('') || '<tr><td colspan="6" class="vide">Rien sur la période.</td></tr>'}
     </tbody></table></div>
+    <div class="section">
+      <div class="carte"><h2>Refus d’outil, 30 j</h2>${refus.length ? `<div class="barres">${refus.map((r) => `
+        <div class="barre"><span class="nom">${h(ORIGINES[r.cle] || r.cle)}</span><span class="piste"><span class="rempli" style="width:${(r.n / maxR) * 100}%"></span></span><span class="chiffre">${nf.format(r.n)}</span></div>`).join('')}</div>
+        <p class="discret">Outils les plus refusés : ${e.refus_30j.par_outil.map((o) => `${h(o.cle || '?')} (${nf.format(o.n)})`).join(', ')}</p>` : '<div class="discret">Aucun refus sur la période.</div>'}</div>
+    </div>
     <div class="grille g2 section">
       <div class="carte"><h2>Catalogue</h2><div class="puces">${e.fiches_par_type.map((f) => `<a class="puce" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${nf.format(f.n)}</b> ${h(type(f.kind))}</a>`).join('')}</div></div>
       <div class="carte"><h2>À regarder</h2>${e.projets_sales.length || absentes.length ? `<div class="barres">${e.projets_sales.map((p) => `<div><span class="badge alerte">${nf.format(p.n)} fichier(s) non commité(s)</span> ${h(p.name)}</div>`).join('')}${absentes.map((a) => `<div><span class="badge">non vu sur ce site</span> ${h(a)}</div>`).join('')}</div>` : '<div class="discret">Rien à signaler.</div>'}</div>
@@ -75,15 +82,15 @@ async function sessions(params) {
     <h1>Sessions</h1>
     <p class="sous-titre">Sessions Claude Code des 90 derniers jours, sous-agents rattachés à leur session.</p>
     <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length})</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select></div>
-    <div class="carte tableau"><table><thead><tr><th>Fin</th><th>Projet</th><th class="num">Durée</th><th class="num">Tours</th><th class="num">Sous-agents</th><th class="num">Sortie</th><th class="num">Cache lu</th><th class="num">Coût</th><th>Modèle</th></tr></thead><tbody>
-      ${liste.map((s) => `<tr><td title="${h(s.session)}">${h(date(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td><td class="num">${h(duree(s.data.duree_s))}</td><td class="num">${nf.format(s.data.tours || 0)}</td><td class="num">${s.sous_agents || ''}</td><td class="num">${abr(s.sortie)}</td><td class="num">${abr(s.cache_lu)}</td><td class="num">${usd(s.usd)}</td><td class="mono desc">${h((s.data.modeles || []).join(', '))}</td></tr>`).join('') || '<tr><td colspan="9" class="vide">Aucune session.</td></tr>'}
+    <div class="carte tableau"><table><thead><tr><th>Fin</th><th>Projet</th><th class="num">Durée</th><th class="num">Tours</th><th class="num">Sous-agents</th><th class="num">Refus</th><th class="num">Sortie</th><th class="num">Cache lu</th><th class="num">Coût</th><th>Modèle</th></tr></thead><tbody>
+      ${liste.map((s) => `<tr><td title="${h(s.session)}">${h(date(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td><td class="num">${h(duree(s.data.duree_s))}</td><td class="num">${nf.format(s.data.tours || 0)}</td><td class="num">${s.sous_agents || ''}</td><td class="num">${s.refus || ''}</td><td class="num">${abr(s.sortie)}</td><td class="num">${abr(s.cache_lu)}</td><td class="num">${usd(s.usd)}</td><td class="mono desc">${h((s.data.modeles || []).join(', '))}</td></tr>`).join('') || '<tr><td colspan="10" class="vide">Aucune session.</td></tr>'}
     </tbody></table></div>`;
 }
 
 async function journal(params) {
   const kind = params.get('kind') || '';
   const ev = await api(`/api/evenements?limite=300${kind ? `&kind=${encodeURIComponent(kind)}` : ''}`);
-  const familles = ['session', 'cost', 'element', 'inventory'];
+  const familles = ['session', 'cost', 'tool', 'element', 'inventory'];
   return `
     <h1>Journal</h1>
     <p class="sous-titre">Les 300 derniers événements. Ce qui n’est pas au journal ne s’est pas passé.</p>

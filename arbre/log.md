@@ -2,6 +2,10 @@
 
 ## 2026-10-03
 
+* **Refus et approbations** : refus d'outil au journal (`tool.denied`, contrat événement 0.4.0, décision `refus`) ;
+  manifeste, principes, besoins fondateurs, registre des types et décision `sources-hote` approuvés, avis rendus point
+  par point.
+
 * **Relecture des nœuds de base** : registre des types aligné sur l'arbre réel (un contrat dérive aussi d'un besoin ou
   d'un contrat) ; P3 distingue la configuration du système (arbre) de celle d'une installation (site, hors dépôt).
 * **Approbation** : décision `sources-hote` ; contrat fiche du catalogue 0.3.0 (kinds `container`, `volume`).

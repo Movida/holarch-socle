@@ -2,7 +2,8 @@
 type: principles
 title: Principes
 description: Les contraintes qui s'imposent à toute conception de HOLARCH, et les préférences qui l'orientent.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ça me va » (avis rendu point par point)" }
 links:
   derives_from: [/arbre/fondations/manifeste.md]
 ---

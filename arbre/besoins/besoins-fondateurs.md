@@ -2,7 +2,8 @@
 type: need
 title: Besoins fondateurs
 description: Les quatre besoins observés d'où part HOLARCH, chacun avec ce qui montrerait qu'il est servi.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ça me va » (avis rendu point par point)" }
 links:
   derives_from: [/arbre/fondations/manifeste.md]
   constrained_by: [/arbre/fondations/principes.md]

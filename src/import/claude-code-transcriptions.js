@@ -1,5 +1,6 @@
 // Import des transcriptions Claude Code (~/.claude/projects/<projet>/<session>.jsonl, sous-agents compris) vers le
-// journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas depuis le dernier import).
+// journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas depuis le dernier import),
+// tool.denied (refus d'outil : origine et outil, jamais le contenu).
 // Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
 // Le coût en USD ne se calcule pas ici mais à la lecture, depuis la grille de tarifs configurée (src/tarifs.js).
 import fs from 'node:fs';
@@ -8,8 +9,25 @@ import { ulid } from '../ulid.js';
 
 const IGNORER_MODELES = new Set(['<synthetic>']);
 // Version de l'état d'import : un fichier lu par une version antérieure est relu une fois, et l'écart des cumuls devient
-// un événement complémentaire (v2 : part de l'écriture de cache à une heure, `cache_write_1h`).
-const VERSION_ETAT = 2;
+// un événement complémentaire (v2 : part de l'écriture de cache à une heure, `cache_write_1h` ; v3 : refus d'outil).
+const VERSION_ETAT = 3;
+
+// Refus d'outil : un résultat en erreur dont le texte COMMENCE par l'un de ces messages (décision refus). Un texte qui
+// les cite ailleurs, une recherche par exemple, n'est pas un refus.
+const REFUS = [
+  ['classifieur', /^Permission for this action was denied by the Claude Code auto mode classifier\.(?: Reason: \[([^\]]{1,60})\])?/],
+  ['regle', /^Permission to use \w+ /],
+  ['regle', /^<tool_use_error>File is in a directory that is denied by your permission settings/],
+  ['humain', /^The user doesn't want to proceed with this tool use/],
+  ['securite', /^Permission for this command was denied by a built-in Claude Code safety check/],
+  ['hook', /^\w+:\w+ hook error:/],
+];
+export function origineRefus(texte) {
+  const t = String(texte || '').trimStart();
+  for (const [origine, motif] of REFUS) { const m = t.match(motif); if (m) return { origine, categorie: m[1] || null }; }
+  return null;
+}
+const texteDe = (c) => (Array.isArray(c) ? c.map((x) => x?.text || '').join(' ') : c);
 
 function fichiers(home) {
   const projets = path.join(home, 'projects');
@@ -27,7 +45,8 @@ function fichiers(home) {
 }
 
 function analyser(f) {
-  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
+  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
+  const outils = {};
   const vus = new Set();
   for (const ligne of fs.readFileSync(f, 'utf8').split('\n')) {
     if (!ligne) continue;
@@ -37,6 +56,14 @@ function analyser(f) {
     if (e.cwd && !r.cwd) r.cwd = e.cwd;
     if (e.gitBranch && !r.branche) r.branche = e.gitBranch;
     if (e.type === 'user' && typeof e.message?.content === 'string') r.invites++;
+    if (e.type === 'user' && Array.isArray(e.message?.content)) {
+      for (const x of e.message.content) {
+        if (x?.type !== 'tool_result' || !x.is_error) continue;
+        const o = origineRefus(texteDe(x.content));
+        if (o) r.refus.push({ ...o, at: e.timestamp, cle: x.tool_use_id, outil: outils[x.tool_use_id] || null });
+      }
+    }
+    if (e.type === 'assistant' && Array.isArray(e.message?.content)) for (const x of e.message.content) if (x?.type === 'tool_use') outils[x.id] = x.name;
     if (e.type !== 'assistant' || !e.message?.usage) continue;
     const cle = `${e.message.id || ''}:${e.requestId || ''}`;
     if (vus.has(cle)) continue;
@@ -77,6 +104,10 @@ export default function importerTranscriptions(options, { journal, donnees }) {
       if (Object.values(delta).every((v) => v <= 0)) continue;
       evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:${m}:${t.out}:${t.cache_read}:${t.cache_write_1h}`), at: a.fin, kind: 'cost.recorded',
         data: { projet, sous_agent: a.sousAgent }, cost: { provider: 'anthropic', model: m, usd_list: null, tokens: delta } });
+    }
+    for (const x of a.refus) {
+      evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${f}:refus:${x.cle}`), at: x.at || a.fin, kind: 'tool.denied',
+        data: { projet, sous_agent: a.sousAgent, outil: x.outil, origine: x.origine, categorie: x.categorie } });
     }
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
     evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:end:${a.fin}`), at: a.fin, kind: 'session.finished',

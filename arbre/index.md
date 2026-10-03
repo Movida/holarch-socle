@@ -21,5 +21,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`decisions/2026-10-03-cout-liste.md`](decisions/2026-10-03-cout-liste.md) - le coût liste, calculé à la lecture depuis une grille datée et citée
 - [`decisions/2026-10-03-classification.md`](decisions/2026-10-03-classification.md) - une classification ne peut que se durcir en descendant
 - [`decisions/2026-10-03-sources-hote.md`](decisions/2026-10-03-sources-hote.md) - Docker et Claude Desktop lus par des interfaces standard, en lecture seule
+- [`decisions/2026-10-03-refus.md`](decisions/2026-10-03-refus.md) - les refus d'outil au journal, avec leur origine et sans leur contenu
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre

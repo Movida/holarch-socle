@@ -165,6 +165,26 @@ test('inventaire Claude Desktop : serveurs MCP sans arguments ni secrets ; absen
   assert.match(emplacementParDefaut('win32', { APPDATA: 'C:/Users/x/AppData/Roaming' }), /Claude.claude_desktop_config\.json$/);
 });
 
+test('import : refus d’outil repérés par leur message en tête, origine et outil, jamais le contenu', () => {
+  const home = tmp(); const donnees = tmp();
+  const f = path.join(home, 'projects', '-ws-demo', 's3.jsonl');
+  const appel = (id, name, ts) => JSON.stringify({ type: 'assistant', sessionId: 's3', cwd: '/ws/demo', timestamp: ts, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', content: [{ type: 'tool_use', id: `t${id}`, name }], usage: { output_tokens: 1 } } });
+  const resultat = (id, contenu, ts, erreur = true) => JSON.stringify({ type: 'user', sessionId: 's3', timestamp: ts, message: { content: [{ type: 'tool_result', tool_use_id: `t${id}`, is_error: erreur, content: contenu }] } });
+  ecrire(f, [
+    appel(1, 'Bash', '2026-10-01T10:00:00Z'), resultat(1, 'Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Unauthorized Persistence]. rm -rf /secret', '2026-10-01T10:00:01Z'),
+    appel(2, 'Edit', '2026-10-01T10:01:00Z'), resultat(2, [{ type: 'text', text: "The user doesn't want to proceed with this tool use. /chemin/prive" }], '2026-10-01T10:01:01Z'),
+    appel(3, 'Bash', '2026-10-01T10:02:00Z'), resultat(3, 'PreToolUse:Bash hook error: [garde] non', '2026-10-01T10:02:01Z'),
+    appel(4, 'Bash', '2026-10-01T10:03:00Z'), resultat(4, '80 Permission for this action was denied by the Claude Code auto mode classifier', '2026-10-01T10:03:01Z'),
+    appel(5, 'Bash', '2026-10-01T10:04:00Z'), resultat(5, 'Permission to use Bash has been denied.', '2026-10-01T10:04:01Z', false),
+  ].join('\n') + '\n'); vieillir(f);
+  const journal = new Journal(donnees, 'local');
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees });
+  const refus = [...journal.lire()].filter((e) => e.kind === 'tool.denied');
+  assert.deepEqual(refus.map((e) => [e.data.outil, e.data.origine, e.data.categorie]), [['Bash', 'classifieur', 'Unauthorized Persistence'], ['Edit', 'humain', null], ['Bash', 'hook', null]]);
+  assert.ok(!JSON.stringify(refus).includes('secret') && !JSON.stringify(refus).includes('prive'));
+  assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees }).fichiers_lus, 0);
+});
+
 test('socle : chaîne complète vers les lectures de l’interface, sources absentes signalées à part', async () => {
   const donnees = tmp(); const home = tmp();
   const s = new Socle({ site: 'local', donnees, web: {}, tarifs: {}, inventaire: { 'claude-code': { home, config: path.join(home, 'absent.json') }, 'depots-git': { racines: [], profondeur: 1 }, arbre: { depots: [] },

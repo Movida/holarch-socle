@@ -3,7 +3,7 @@ type: decision
 title: Les sources de l'hôte, lues par des interfaces standard, en lecture seule
 description: Comment l'inventaire voit Docker et Claude Desktop, qu'il tourne sur la machine ou dans un conteneur ; ajoute les kinds container et volume au catalogue.
 status: stable
-approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « prends les meilleures décisions et on avance »" }
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ça me va » (avis rendu point par point)" }
 links:
   derives_from: [/arbre/conception/etape-1-voir.md]
   constrained_by: [/arbre/decisions/2026-10-03-synchronisation.md]
