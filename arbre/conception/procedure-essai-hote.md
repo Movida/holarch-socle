@@ -18,7 +18,7 @@ tout ce que l'agent écrit dans l'arbre reste `draft`, aucune approbation consig
 - **Lieu** : dans WSL, sur l'hôte, **pas dans un conteneur** ; dans le clone hôte du dépôt (celui que monte le conteneur
   de développement du socle). Vérifier : `grep -qi microsoft /proc/version` vrai, `/.dockerenv` absent,
   `git remote -v` désigne le dépôt du socle.
-- **Prérequis** : Node ≥ 22.5 ; `npm ci` ; Docker Desktop avec l'intégration WSL (`docker version` répond).
+- **Prérequis** : Node ≥ 22.13 (22.5 à 22.12 : `--experimental-sqlite`) ; `npm ci` ; Docker Desktop avec l'intégration WSL (`docker version` répond).
 - **Données** : `HOLARCH_HOME=$HOME/.claude/holarch`, le répertoire déjà partagé avec les conteneurs. Ne pas en créer un
   autre.
 - **Fichiers temporaires** (binaire, configuration de la passerelle, scripts d'essai) : hors du dépôt, par exemple

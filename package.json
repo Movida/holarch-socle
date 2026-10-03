@@ -8,7 +8,7 @@
     "holarch": "bin/holarch.js"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.13"
   },
   "scripts": {
     "test": "node --test --no-warnings test/*.test.js",
