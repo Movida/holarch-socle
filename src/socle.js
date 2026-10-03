@@ -57,6 +57,8 @@ export class Socle {
         par_origine: q("SELECT json_extract(data,'$.origine') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC", depuis(30)),
         par_outil: q("SELECT json_extract(data,'$.outil') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC LIMIT 8", depuis(30)),
       },
+      // Mémoires identiques (même nom et même description) dans plusieurs projets : copie oubliée ou savoir à remonter.
+      memoires_doubles: q("SELECT name, COUNT(*) n, group_concat(coalesce(json_extract(json,'$.attributes.projet'), json_extract(json,'$.attributes.projet_claude')), ', ') projets FROM fiches WHERE kind='memory' GROUP BY name, coalesce(description,'') HAVING n>1 ORDER BY n DESC"),
       projets_sales: q("SELECT name, json_extract(json,'$.attributes.fichiers_modifies') n FROM fiches WHERE kind='project' AND n>0 ORDER BY n DESC"),
     };
   }

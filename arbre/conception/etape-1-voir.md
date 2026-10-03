@@ -39,6 +39,7 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 | JSON Lines + SQLite | journal lisible et fusionnable, index sans serveur | volume ou accès concurrent au-delà d'un poste |
 | Interface en HTML, CSS et JavaScript sans framework | aucune chaîne de construction, durable | une interface qui devient une application riche (étape 5 et au-delà) |
 | Configuration en YAML | lisible et éditable à la main | — |
+| Playwright (Chromium), test visuel séparé (`npm run test:visuel`) | voit ce que la lecture du code ne voit pas (une barre de 0 px, une barre latérale qui part) ; hors de `npm test`, qui reste sans navigateur | un test visuel qui ne trouve plus rien pendant plusieurs étapes |
 
 ## Avancement
 
@@ -51,6 +52,9 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
   MCP) ; une source absente est signalée à part ; inventaire asynchrone ; 13 tests. Décision `sources-hote` en brouillon.
 - **Fait (2026-10-03)** : refus d'outil au journal (décision `refus`) : tableau de bord par origine et par outil,
   colonne des sessions, famille du journal ; 15 tests. Nœuds de base approuvés.
+- **Fait (2026-10-03)** : revue de l'interface : histogramme sur 30 jours avec dates et barres vers les sessions du
+  jour, tableaux triables (modèles par coût), statut d'arbre des nœuds au catalogue, mémoires en double signalées,
+  sources non vues sorties de « À regarder », vue précédente affichée pendant le rechargement ; test visuel.
 - **Reste, dans cet ordre** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
      relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).

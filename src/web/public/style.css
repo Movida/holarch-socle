@@ -18,6 +18,8 @@
 html, body { margin: 0; }
 body { min-height: 100vh; } /* pas de hauteur fixe : elle bornerait la zone où la barre latérale reste collée */
 body { font: 14px/1.5 var(--police); background: var(--fond); color: var(--texte); display: grid; grid-template-columns: 232px 1fr; }
+/* la colonne de la barre latérale garde son fond sur toute la hauteur de la page, pas seulement celle de l'écran */
+@media (min-width: 901px) { body { background: linear-gradient(to right, var(--surface) 231px, var(--bord) 231px 232px, var(--fond) 232px); } }
 a { color: var(--accent); text-decoration: none; }
 button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--bord); background: var(--surface); color: var(--texte); padding: 7px 12px; }
 button:hover { border-color: var(--accent); }
@@ -59,6 +61,11 @@ a.puce:hover, .puce.actif { border-color: var(--accent); color: var(--accent); b
 .barre { display: grid; grid-template-columns: 160px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
 .barre .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .barre .piste { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.histo rect.nul { opacity: .35; }
+.histo a:hover rect { opacity: .8; }
+.axe { display: flex; justify-content: space-between; font-size: 11px; color: var(--doux); margin-top: 4px; font-variant-numeric: tabular-nums; }
+table.triable th { cursor: pointer; user-select: none; }
+table.triable th[data-sens=asc]::after { content: ' ▲'; font-size: 9px; } table.triable th[data-sens=desc]::after { content: ' ▼'; font-size: 9px; }
 .barre .rempli { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
 .barre .chiffre { text-align: right; color: var(--doux); font-variant-numeric: tabular-nums; }
 svg.histo { width: 100%; height: 140px; display: block; }

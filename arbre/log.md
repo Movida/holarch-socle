@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Interface, seconde revue** : histogramme daté, tris, doublons de mémoires, statut d'arbre au catalogue ; test
+  visuel Playwright (`npm run test:visuel`).
+
 * **Revue de l'interface** : barres de progression et barre latérale réparées, guillemet des hooks, descriptions
   coupées à la fin d'un mot avec « … », milliards en « Md », projet réel des mémoires (lu dans les transcriptions).
 
