@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Procédure du site de travail** : `procedure-site-travail.md` (profil privé, passerelle protégée, clients,
+  import du journal de la passerelle), sans rien du travail dans le socle.
+
 * **Étape 2, poste personnel** : Claude Desktop appelle HOLARCH en direct (stdio par `wsl.exe`) ; hôte en Node 24 LTS.
   Reste le site de travail.
 

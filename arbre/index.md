@@ -19,6 +19,7 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`conception/etape-2-point-entree.md`](conception/etape-2-point-entree.md) - étape 2 : serveur MCP de HOLARCH, appels MCP au journal, hub de fédération
 - [`conception/essai-agentgateway.md`](conception/essai-agentgateway.md) - ce que l'essai d'agentgateway a montré, ce qui reste à essayer sur l'hôte
 - [`conception/procedure-essai-hote.md`](conception/procedure-essai-hote.md) - mode opératoire de l'essai du hub sur l'hôte, pour une session d'agent
+- [`conception/procedure-site-travail.md`](conception/procedure-site-travail.md) - mode opératoire du site de travail et de sa passerelle protégée, pour une session d'agent
 - [`decisions/2026-10-03-fondation.md`](decisions/2026-10-03-fondation.md) - les décisions fondatrices
 - [`decisions/2026-10-03-synchronisation.md`](decisions/2026-10-03-synchronisation.md) - ce qui se synchronise entre local et serveur, et qui fait foi
 - [`decisions/2026-10-03-cout-liste.md`](decisions/2026-10-03-cout-liste.md) - le coût liste, calculé à la lecture depuis une grille datée et citée

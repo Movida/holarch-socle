@@ -52,7 +52,7 @@ fouiller.
 - **Fait (2026-10-03)** : ici, Claude Desktop branché en direct sur le serveur HOLARCH (entrée stdio par `wsl.exe`, plus
   de pont vers la passerelle) ; l'hôte passé en Node 24 LTS, sans drapeau ; un appel de Desktop vérifié. Le test visuel
   reste au conteneur du socle.
-- **À faire, au travail** : site de travail (données, configuration et passerelle dans le profil privé) ; passerelle
+- **À faire, au travail** (procédure `procedure-site-travail.md`) : site de travail (données, configuration et passerelle dans le profil privé) ; passerelle
   protégée devant les serveurs MCP ; traduction de son journal (`json`) vers `tool.called` ; critère d'usage.
 
 ## Hors périmètre
