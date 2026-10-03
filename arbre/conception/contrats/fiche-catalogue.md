@@ -2,7 +2,8 @@
 type: contract
 title: Contrat — fiche du catalogue
 description: Tout élément en place a une fiche ; ce qui n'est pas au catalogue n'existe pas pour le système.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
 version: 0.2.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]

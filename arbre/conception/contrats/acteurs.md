@@ -2,7 +2,8 @@
 type: contract
 title: Contrat — acteurs
 description: Comment un acteur (humain, agent, brique du système) est désigné partout où une action, une approbation ou un événement est attribué.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
 version: 0.1.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]

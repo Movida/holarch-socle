@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Approbations** : contrats événement, fiche du catalogue et acteurs, décision coût liste ; Q1 résolue
+  (`decisions/2026-10-03-classification.md`) ; Q5 reportée à la première clé `config` d'un nœud.
+
 * **Tarifs** : grille officielle relevée et citée (configuration du site, hors dépôt) ; coût liste calculé à
   l'indexation ; `cache_write_1h` dans le contrat événement (0.3.0) ; décision `2026-10-03-cout-liste.md` en brouillon.
 

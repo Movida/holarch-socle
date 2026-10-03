@@ -49,7 +49,8 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 - **Reste, dans cet ordre** :
   1. **Adaptateurs d'inventaire** : conteneurs et volumes Docker ; serveurs MCP de Claude Desktop (sa configuration
      côté hôte) ; serveurs MCP conteneurisés déclarés par l'utilisateur.
-  2. **Relecture et approbation des contrats** (nœud, règle, fiche, événement, acteurs) par l'utilisateur.
+  2. **Relecture et approbation des contrats** : événement, fiche et acteurs approuvés le 2026-10-03 ; nœud et règle
+     attendent d'avoir été exercés (règle à l'étape 3).
   3. **Critère d'usage** observé sur une semaine (l'utilisateur ouvre l'interface plutôt que de demander), puis
      ouverture de l'étape 2 (hub MCP).
 - **Plus tard, quand le besoin se présente** : grille de tarifs versionnée par date au premier changement de tarif.

@@ -2,7 +2,8 @@
 type: contract
 title: Contrat — événement du journal
 description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
 version: 0.3.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]

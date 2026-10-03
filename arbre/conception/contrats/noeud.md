@@ -6,7 +6,7 @@ status: draft
 version: 0.1.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md]
+  constrained_by: [/arbre/decisions/2026-10-03-classification.md, /arbre/fondations/principes.md]
 ---
 
 # Contrat — nœud de l'arbre
@@ -68,5 +68,5 @@ Les liens sont des chemins absolus depuis la racine du dépôt de l'arbre, ou de
 La **vue effective** d'un nœud est l'ensemble calculé, chaque valeur avec sa provenance. Une contrainte héritée n'a pas
 à être redéclarée dans `constrained_by`.
 
-`[À COMPLÉTER : héritage d'une classification — peut-on la relâcher plus bas (public sous confidential) ? Proposition :
-non, une classification ne peut que se durcir en descendant.]`
+Une `classification` ne peut que **se durcir** en descendant : un nœud ne déclare jamais un niveau plus ouvert que
+celui qu'il hérite (décision classification). Un contenu plus ouvert que sa branche change de place dans l'arbre.

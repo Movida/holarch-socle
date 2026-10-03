@@ -2,7 +2,8 @@
 type: decision
 title: Coût liste calculé à la lecture, depuis une grille datée et citée
 description: Où et comment le socle chiffre ce que consomment les agents, sans inventer de tarif ni réécrire le journal.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
 links:
   derives_from: [/arbre/conception/etape-1-voir.md]
   modifies: [/arbre/conception/contrats/evenement.md]
