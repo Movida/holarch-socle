@@ -70,7 +70,8 @@ async function tableau(params) {
       <div class="carte"><h2>Catalogue</h2><div class="puces">${e.fiches_par_type.map((f) => `<a class="puce" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${nf.format(f.n)}</b> ${h(type(f.kind))}</a>`).join('')}</div>
         ${absentes.length ? `<p class="discret" title="${h(absentes.join('\n'))}">Non vu sur ce site : ${h(absentes.map((a) => a.split(' : ')[0]).join(', '))}</p>` : ''}</div>
       <div class="carte"><h2>À regarder</h2>${e.projets_sales.length || e.memoires_doubles.length ? `<div class="barres">${e.projets_sales.map((p) => `<div><span class="badge alerte">${nf.format(p.n)} fichier(s) non commité(s)</span> <a href="#/catalogue?kind=project&q=${encodeURIComponent(p.name)}">${h(p.name)}</a></div>`).join('')}${e.memoires_doubles.map((m) => `<div title="${h(m.projets || '')}"><span class="badge alerte">mémoire en ${m.n} exemplaires</span> <a href="#/catalogue?kind=memory&q=${encodeURIComponent(m.name)}">${h(m.name)}</a></div>`).join('')}</div>` : '<div class="discret">Rien à signaler.</div>'}</div>
-    </div>`;
+    </div>
+    <p class="discret section">Interface ouverte ${nf.format(p.ui.jours_actifs)} jour${p.ui.jours_actifs > 1 ? 's' : ''} sur ${n}${p.ui.pages.length ? ` · ${p.ui.pages.map((x) => `${h(x.cle)} ${nf.format(x.n)}`).join(', ')}` : ''}.</p>`;
 }
 
 async function catalogue(params) {
@@ -106,7 +107,7 @@ async function journal(params) {
   const kind = params.get('kind') || ''; const session = params.get('session') || ''; const origine = params.get('origine') || '';
   const ev = (await api(`/api/evenements?${new URLSearchParams({ limite: 300, ...(kind && { kind }), ...(session && { session }) })}`)).filter((e) => !origine || e.data?.origine === origine);
   const garder = (k) => `#/journal?${new URLSearchParams({ ...(k && { kind: k }), ...(session && { session }) })}`;
-  const familles = ['session', 'cost', 'tool', 'element', 'inventory'];
+  const familles = ['session', 'cost', 'tool', 'element', 'inventory', 'ui'];
   return `
     <h1>Journal</h1>
     <p class="sous-titre">Les 300 derniers événements. Ce qui n’est pas au journal ne s’est pas passé.</p>
@@ -168,7 +169,12 @@ async function router() {
   document.querySelectorAll('.nav nav a').forEach((a) => { const actif = a.dataset.vue === nom; a.classList.toggle('actif', actif); if (actif) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   // La dernière version de la vue s'affiche tout de suite, puis se remplace par les données fraîches.
   $('#vue').innerHTML = DERNIERES[location.hash] || '<p class="chargement">Chargement…</p>';
-  try { const html = await vue(new URLSearchParams(qs || '')); DERNIERES[location.hash] = html; $('#vue').innerHTML = html; } catch (e) { $('#vue').innerHTML = `<div class="carte"><b>Erreur</b> : ${h(e.message)}</div>`; }
+  try {
+    const html = await vue(new URLSearchParams(qs || '')); DERNIERES[location.hash] = html; $('#vue').innerHTML = html;
+    // La page consultée va au journal (mesure du critère d'usage) ; un échec ne gêne pas la lecture.
+    const jours = new URLSearchParams(qs || '').get('jours');
+    api(`/api/vue?${new URLSearchParams({ page: nom, ...(nom === 'tableau' && { jours: jours || 30 }) })}`, { method: 'POST' }).catch(() => {});
+  } catch (e) { $('#vue').innerHTML = `<div class="carte"><b>Erreur</b> : ${h(e.message)}</div>`; }
   triables();
   const rech = $('#recherche');
   if (rech) rech.onchange = () => { const p = new URLSearchParams(qs || ''); rech.value ? p.set('q', rech.value) : p.delete('q'); location.hash = `#/catalogue?${p}`; };

@@ -30,6 +30,7 @@ export function creerServeur(socle) {
     'GET /api/evenements': (u) => socle.evenements({ kind: u.searchParams.get('kind'), session: u.searchParams.get('session'), limite: u.searchParams.get('limite') }),
     'GET /api/arbre': () => socle.arbre(),
     'POST /api/rafraichir': () => socle.rafraichir(),
+    'POST /api/vue': (u) => socle.noterVue({ page: u.searchParams.get('page'), jours: u.searchParams.get('jours') }),
   };
   return http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://local');

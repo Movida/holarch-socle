@@ -50,7 +50,7 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
   calculé à l'indexation (tableau de bord, par modèle, par session, `holarch etat`), écriture de cache à une heure
   ventilée, mode rapide à part, compléments pour l'historique déjà importé ; 11 tests.
 - **Fait (2026-10-03)** : adaptateurs Docker (conteneurs, volumes, par l'API en lecture) et Claude Desktop (serveurs
-  MCP) ; une source absente est signalée à part ; inventaire asynchrone ; 13 tests. Décision `sources-hote` en brouillon.
+  MCP) ; une source absente est signalée à part ; inventaire asynchrone ; 13 tests. Décision `sources-hote` (approuvée ensuite).
 - **Fait (2026-10-03)** : refus d'outil au journal (décision `refus`) : tableau de bord par origine et par outil,
   colonne des sessions, famille du journal ; 15 tests. Nœuds de base approuvés.
 - **Fait (2026-10-03)** : revue de l'interface : histogramme sur 30 jours avec dates et barres vers les sessions du
@@ -64,13 +64,15 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
   alerte vers les fiches, refus par origine), Journal filtrable par session avec une teinte par famille, Arbre
   repliable, Catalogue triable, `aria-current`, page Sessions sans débordement.
 - **Fait (2026-10-03)** : interface sur Pico CSS (décision `interface-pico`), vérifiée dans les deux thèmes.
-- **Reste, dans cet ordre** :
+- **Fait (2026-10-03)** : pages consultées au journal (`ui.viewed`), usage de l'interface au tableau de bord.
+- **Clôture (2026-10-03)** : étape close sur sa livraison (décision `cloture-etape-1`) ; le critère d'usage reste
+  ouvert, mesuré en continu, à revoir au plus tard à la clôture de l'étape 2.
+- **Reste, hors clôture** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
      relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).
   2. **Relecture et approbation des contrats** : événement, fiche et acteurs approuvés le 2026-10-03 ; nœud et règle
      attendent d'avoir été exercés (règle à l'étape 3).
-  3. **Critère d'usage** observé sur une semaine (l'utilisateur ouvre l'interface plutôt que de demander), puis
-     ouverture de l'étape 2 (hub MCP).
+  3. **Critère d'usage** : mesuré en continu (`ui.viewed`), revu au plus tard à la clôture de l'étape 2.
 - **Plus tard, quand le besoin se présente** : grille de tarifs versionnée par date au premier changement de tarif.
 
 ## Hors périmètre

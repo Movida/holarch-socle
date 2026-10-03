@@ -21,9 +21,19 @@ export class Index {
       CREATE TABLE fiches (id TEXT PRIMARY KEY, kind TEXT, name TEXT, description TEXT, node TEXT, context TEXT,
         status TEXT, site TEXT, location TEXT, json TEXT);
       CREATE INDEX ev_kind ON evenements(kind, at); CREATE INDEX ev_corr ON evenements(correlation);`);
-    const ie = db.prepare('INSERT OR IGNORE INTO evenements VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     let n = 0;
     db.exec('BEGIN');
+    n = this.inserer(evenements, tarifs);
+    const iff = db.prepare('INSERT OR REPLACE INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?)');
+    for (const f of fiches) iff.run(f.id, f.kind, f.name, f.description ?? null, f.node ?? null, f.context ?? null, f.status, f.site ?? null, f.location ?? null, JSON.stringify(f));
+    db.exec('COMMIT');
+    return { evenements: n, fiches: fiches.length };
+  }
+
+  // Ajoute des événements à l'index sans le reconstruire (ceux que le serveur écrit lui-même, comme ui.viewed).
+  inserer(evenements, tarifs) {
+    const ie = this.db.prepare('INSERT OR IGNORE INTO evenements VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    let n = 0;
     for (const e of evenements) {
       const t = (e.cost && e.cost.tokens) || {};
       ie.run(e.id, e.at, e.kind, e.actor, e.site, e.context ?? null, e.node ?? null, e.subject ?? null, e.correlation ?? null,
@@ -31,10 +41,7 @@ export class Index {
         t.cache_write ?? null, t.cache_read ?? null, t.out ?? null, e.data?.projet ?? null, t.cache_write_1h ?? null);
       n++;
     }
-    const iff = db.prepare('INSERT OR REPLACE INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?)');
-    for (const f of fiches) iff.run(f.id, f.kind, f.name, f.description ?? null, f.node ?? null, f.context ?? null, f.status, f.site ?? null, f.location ?? null, JSON.stringify(f));
-    db.exec('COMMIT');
-    return { evenements: n, fiches: fiches.length };
+    return n;
   }
 
   requete(sql, ...params) { return this.db.prepare(sql).all(...params); }

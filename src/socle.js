@@ -7,6 +7,7 @@ import { Index } from './stockage/index.js';
 import { inventorier } from './inventaire/index.js';
 import importerTranscriptions from './import/claude-code-transcriptions.js';
 import { tarifsConfigures } from './tarifs.js';
+import { ulid } from './ulid.js';
 
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions };
 
@@ -34,6 +35,16 @@ export class Socle {
 
   async rafraichir() { const inventaire = await this.inventaire(); const imports = this.importer(); const index = this.indexer(); return { inventaire, imports, index }; }
 
+  // Une page de l'interface consultée : la mesure du critère d'usage de l'étape 1 (décision ouverture de l'étape 2).
+  noterVue({ page, jours = null }) {
+    if (!/^[a-z]{1,30}$/.test(String(page))) return { ajoute: 0 };
+    const at = new Date().toISOString();
+    const e = { id: ulid(Date.parse(at)), at, kind: 'ui.viewed', actor: `human:${this.config.humain || 'local'}`, data: { page, ...(jours && { jours: +jours }) }, classification: 'internal' };
+    const r = this.journal.ajouter([e]);
+    if (r.ajoutes) this.index.inserer([{ ...e, site: this.config.site }], this.config.tarifs);
+    return { ajoute: r.ajoutes };
+  }
+
   // ---------- lectures ----------
   // État du site, et ce qui s'est passé sur une période (`jours`) : tout ce que montre le tableau de bord.
   etat({ jours = 30 } = {}) {
@@ -56,6 +67,11 @@ export class Socle {
         tokens: q("SELECT SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd FROM evenements WHERE kind='cost.recorded' AND at>=?", d)[0],
         // Tokens dont le modèle n'a pas de tarif : leur coût reste inconnu, et le total affiché est partiel.
         sans_tarif: q("SELECT model, SUM(tok_out) sortie FROM evenements WHERE kind='cost.recorded' AND usd IS NULL AND at>=? GROUP BY model ORDER BY sortie DESC", d),
+        // Usage de l'interface : jours où elle a été ouverte, pages consultées.
+        ui: {
+          jours_actifs: q("SELECT COUNT(DISTINCT substr(at,1,10)) n FROM evenements WHERE kind='ui.viewed' AND at>=?", d)[0].n,
+          pages: q("SELECT json_extract(data,'$.page') cle, COUNT(*) n FROM evenements WHERE kind='ui.viewed' AND at>=? GROUP BY cle ORDER BY n DESC", d),
+        },
         refus: {
           par_origine: q("SELECT json_extract(data,'$.origine') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC", d),
           par_outil: q("SELECT json_extract(data,'$.outil') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC LIMIT 8", d),

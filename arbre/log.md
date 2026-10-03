@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Clôture de l'étape 1** : close sur sa livraison (décision `cloture-etape-1`) ; pages consultées au journal
+  (`ui.viewed`, contrat événement 0.6.0) ; critère d'usage ouvert, mesuré en continu.
+
 * **Système de design** : interface sur Pico CSS, servi en local (décision `interface-pico`).
 
 * **Interface, troisième revue** : liens pour creuser d'une vue à l'autre, Journal par session et par famille, Arbre

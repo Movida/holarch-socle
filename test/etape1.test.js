@@ -245,5 +245,8 @@ test('socle : le coût se calcule à l’indexation depuis la grille, sans réé
   assert.equal(e.tarifs.releve, '2026-10-03');
   assert.deepEqual(e.periode.sans_tarif.map((m) => m.model), ['inconnu']);
   assert.equal(e.periode.tokens.usd, 2); assert.equal(s.etat({ jours: 7 }).periode.jours, 7);
-  assert.ok([...s.journal.lire()].every((x) => x.cost.usd_list === null));
+  assert.equal(s.noterVue({ page: 'sessions' }).ajoute, 1); assert.equal(s.noterVue({ page: '../x' }).ajoute, 0);
+  assert.deepEqual([s.etat().periode.ui.jours_actifs, s.etat().periode.ui.pages[0].cle], [1, 'sessions']);
+  assert.equal([...s.journal.lire()].find((x) => x.kind === 'ui.viewed').actor, 'human:local');
+  assert.ok([...s.journal.lire()].filter((x) => x.kind === 'cost.recorded').every((x) => x.cost.usd_list === null));
 });

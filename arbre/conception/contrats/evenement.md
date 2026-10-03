@@ -4,10 +4,10 @@ title: Contrat — événement du journal
 description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
-version: 0.5.0
+version: 0.6.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md]
 ---
 
 # Contrat — événement du journal
@@ -43,7 +43,7 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 `session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.*` (called, denied) · `rule.*` (applied,
 violated, derogated, proposed) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
 `element.*` (created, updated, moved, suspended, retired) · `cost.recorded` · `budget.*` (warning, exceeded) · `dream.*`
-(started, proposal, finished) · `inventory.finished` · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded).
+(started, proposal, finished) · `inventory.finished` · `ui.viewed` (page de l'interface consultée) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded).
 
 ## 4. Règles
 

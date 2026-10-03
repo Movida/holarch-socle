@@ -9,6 +9,8 @@ export const accueil = () => process.env.HOLARCH_HOME || path.join(os.homedir(),
 
 const DEFAUTS = () => ({
   site: 'local',
+  // Identifiant de la personne qui utilise ce site (contrat acteurs : jamais un nom ni un courriel).
+  humain: 'auteur',
   donnees: accueil(),
   web: { hote: '127.0.0.1', port: 4280 },
   inventaire: {

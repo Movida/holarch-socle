@@ -24,5 +24,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`decisions/2026-10-03-refus.md`](decisions/2026-10-03-refus.md) - les refus d'outil au journal, avec leur origine et sans leur contenu
 - [`decisions/2026-10-03-identite-projets.md`](decisions/2026-10-03-identite-projets.md) - un projet garde son identité quand il change de place
 - [`decisions/2026-10-03-interface-pico.md`](decisions/2026-10-03-interface-pico.md) - l'interface s'appuie sur Pico CSS, servi en local
+- [`decisions/2026-10-03-cloture-etape-1.md`](decisions/2026-10-03-cloture-etape-1.md) - l'étape 1 close sur sa livraison, son critère mesuré en continu
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre
