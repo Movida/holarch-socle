@@ -25,7 +25,7 @@ export function creerServeur(socle) {
     'GET /api/fiche': (u) => socle.fiche(u.searchParams.get('id')),
     'GET /api/sessions': (u) => socle.sessions({ jours: +(u.searchParams.get('jours') || 30), projet: u.searchParams.get('projet') }),
     'GET /api/consommation': (u) => socle.consommation({ jours: +(u.searchParams.get('jours') || 30), par: u.searchParams.get('par') || 'projet' }),
-    'GET /api/evenements': (u) => socle.evenements({ kind: u.searchParams.get('kind'), limite: u.searchParams.get('limite') }),
+    'GET /api/evenements': (u) => socle.evenements({ kind: u.searchParams.get('kind'), session: u.searchParams.get('session'), limite: u.searchParams.get('limite') }),
     'GET /api/arbre': () => socle.arbre(),
     'POST /api/rafraichir': () => socle.rafraichir(),
   };

@@ -37,7 +37,7 @@ async function tableau(params) {
   const max = Math.max(1, ...jours.map((j) => j.sortie || 0));
   const larg = 100 / plage.length;
   const histo = jours.length ? `<svg class="histo" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Tokens de sortie par jour, ${n} jours">${plage.map((d, i) => {
-    const sortie = parJour[d]?.sortie || 0; const hauteur = sortie ? Math.max(0.5, (sortie / max) * 36) : 0.3;
+    const sortie = parJour[d]?.sortie || 0; const hauteur = sortie ? Math.max(1.5, (sortie / max) * 36) : 0.3;
     return `<a href="#/sessions?jour=${d}"><rect class="${sortie ? '' : 'nul'}" x="${i * larg + larg * 0.12}" y="${38 - hauteur}" width="${larg * 0.76}" height="${hauteur}" rx="0.4"><title>${jj(d)} : ${h(abr(sortie))} tokens de sortie${sortie ? ' — voir les sessions' : ''}</title></rect></a>`;
   }).join('')}</svg><div class="axe">${[0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1].map((i) => `<span>${jj(plage[i])}</span>`).join('')}</div>` : '<div class="vide">Aucune activité importée.</div>';
   const maxP = Math.max(1, ...projets.map((p) => p.sortie || 0));
@@ -53,22 +53,22 @@ async function tableau(params) {
       <div class="carte tuile"><div class="libelle">Coût, ${n} j</div><div class="valeur">${h(cout)}</div><div class="note"${bulleCout ? ` title="${h(bulleCout)}"` : ''}>${h(noteCout)}</div></div>
     </div>
     <div class="grille g2 section">
-      <div class="carte"><h2>Activité — tokens de sortie par jour, ${n} j</h2>${histo}</div>
+      <div class="carte"><h2>Activité — tokens de sortie par jour, ${n} j${jours.length ? ` <span class="discret">· pic ${h(abr(max))}</span>` : ''}</h2>${histo}</div>
       <div class="carte"><h2>Projets les plus actifs, ${n} j</h2><div class="barres">${projets.slice(0, 8).map((p) => `
-        <div class="barre"><span class="nom" title="${h(p.cle)}">${h(p.cle || '(sans projet)')}</span><span class="piste"><span class="rempli" style="width:${((p.sortie || 0) / maxP) * 100}%"></span></span><span class="chiffre"${p.usd != null ? ` title="${h(usd(p.usd))}"` : ''}>${abr(p.sortie)}</span></div>`).join('') || '<div class="vide">Rien sur la période.</div>'}</div></div>
+        <div class="barre"><a class="nom" title="Sessions de ${h(p.cle || '(sans projet)')}" href="#/sessions?projet=${encodeURIComponent(p.cle || '')}">${h(p.cle || '(sans projet)')}</a><span class="piste"><span class="rempli" style="width:${((p.sortie || 0) / maxP) * 100}%"></span></span><span class="chiffre"${p.usd != null ? ` title="${h(usd(p.usd))}"` : ''}>${abr(p.sortie)}</span></div>`).join('') || '<div class="vide">Rien sur la période.</div>'}</div></div>
     </div>
     <div class="carte tableau section"><table class="triable"><thead><tr><th>Modèle, ${n} j</th><th class="num">Entrée</th><th class="num">Cache écrit</th><th class="num">Cache lu</th><th class="num">Sortie</th><th class="num" data-sens="desc">Coût liste</th></tr></thead><tbody>
-      ${[...modeles].sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1)).map((m) => `<tr><td class="mono">${h(m.cle)}</td>${num(m.entree, abr(m.entree))}${num(m.cache_ecrit, abr(m.cache_ecrit))}${num(m.cache_lu, abr(m.cache_lu))}${num(m.sortie, abr(m.sortie))}${num(m.usd, m.usd == null ? '<span class="discret">sans tarif</span>' : usd(m.usd))}</tr>`).join('') || '<tr><td colspan="6" class="vide">Rien sur la période.</td></tr>'}
+      ${[...modeles].sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1)).map((m) => `<tr><td class="mono"><a href="#/sessions?modele=${encodeURIComponent(m.cle || '')}" title="Sessions qui ont utilisé ce modèle">${h(m.cle)}</a></td>${num(m.entree, abr(m.entree))}${num(m.cache_ecrit, abr(m.cache_ecrit))}${num(m.cache_lu, abr(m.cache_lu))}${num(m.sortie, abr(m.sortie))}${num(m.usd, m.usd == null ? '<span class="discret">sans tarif</span>' : usd(m.usd))}</tr>`).join('') || '<tr><td colspan="6" class="vide">Rien sur la période.</td></tr>'}
     </tbody></table></div>
     <div class="section">
       <div class="carte"><h2>Refus d’outil, ${n} j</h2>${refus.length ? `<div class="barres">${refus.map((r) => `
-        <div class="barre"><span class="nom">${h(ORIGINES[r.cle] || r.cle)}</span><span class="piste"><span class="rempli" style="width:${(r.n / maxR) * 100}%"></span></span><span class="chiffre">${nf.format(r.n)}</span></div>`).join('')}</div>
+        <div class="barre"><a class="nom" href="#/journal?kind=tool.denied&origine=${encodeURIComponent(r.cle || '')}">${h(ORIGINES[r.cle] || r.cle)}</a><span class="piste"><span class="rempli" style="width:${(r.n / maxR) * 100}%"></span></span><span class="chiffre">${nf.format(r.n)}</span></div>`).join('')}</div>
         <p class="discret">Outils les plus refusés : ${p.refus.par_outil.map((o) => `${h(o.cle || '?')} (${nf.format(o.n)})`).join(', ')}</p>` : '<div class="discret">Aucun refus sur la période.</div>'}</div>
     </div>
     <div class="grille g2 section">
       <div class="carte"><h2>Catalogue</h2><div class="puces">${e.fiches_par_type.map((f) => `<a class="puce" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${nf.format(f.n)}</b> ${h(type(f.kind))}</a>`).join('')}</div>
         ${absentes.length ? `<p class="discret" title="${h(absentes.join('\n'))}">Non vu sur ce site : ${h(absentes.map((a) => a.split(' : ')[0]).join(', '))}</p>` : ''}</div>
-      <div class="carte"><h2>À regarder</h2>${e.projets_sales.length || e.memoires_doubles.length ? `<div class="barres">${e.projets_sales.map((p) => `<div><span class="badge alerte">${nf.format(p.n)} fichier(s) non commité(s)</span> ${h(p.name)}</div>`).join('')}${e.memoires_doubles.map((m) => `<div title="${h(m.projets || '')}"><span class="badge alerte">mémoire en ${m.n} exemplaires</span> ${h(m.name)}</div>`).join('')}</div>` : '<div class="discret">Rien à signaler.</div>'}</div>
+      <div class="carte"><h2>À regarder</h2>${e.projets_sales.length || e.memoires_doubles.length ? `<div class="barres">${e.projets_sales.map((p) => `<div><span class="badge alerte">${nf.format(p.n)} fichier(s) non commité(s)</span> <a href="#/catalogue?kind=project&q=${encodeURIComponent(p.name)}">${h(p.name)}</a></div>`).join('')}${e.memoires_doubles.map((m) => `<div title="${h(m.projets || '')}"><span class="badge alerte">mémoire en ${m.n} exemplaires</span> <a href="#/catalogue?kind=memory&q=${encodeURIComponent(m.name)}">${h(m.name)}</a></div>`).join('')}</div>` : '<div class="discret">Rien à signaler.</div>'}</div>
     </div>`;
 }
 
@@ -82,34 +82,35 @@ async function catalogue(params) {
       <input type="search" id="recherche" placeholder="Nom, description, chemin…" title="Rechercher un nom, une description ou un chemin" value="${h(q)}">
       <div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="#/catalogue">Tout</a>${e.fiches_par_type.map((f) => `<a class="puce ${f.kind === kind ? 'actif' : ''}" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${f.n}</b> ${h(type(f.kind))}</a>`).join('')}</div>
     </div>
-    <div class="carte tableau"><table><thead><tr><th>Nom</th><th>Type</th><th>Où</th><th>Statut</th></tr></thead><tbody>
+    <div class="carte tableau"><table class="triable"><thead><tr><th>Nom</th><th>Type</th><th>Où</th><th>Statut</th></tr></thead><tbody>
       ${fiches.map((f) => `<tr class="cliquable" data-fiche="${h(f.id)}"><td><div>${h(f.name)}</div><div class="desc">${h(f.description || '')}</div></td><td><span class="badge">${h(type(f.kind))}</span></td><td class="mono desc">${h(f.attributes?.projet || f.attributes?.projet_claude || f.attributes?.depot || '')}</td><td><span class="badge ${statut(f) === 'active' || statut(f) === 'stable' ? 'ok' : statut(f) === 'proposed' || statut(f) === 'draft' ? 'accent' : ''}">${h(statut(f))}</span></td></tr>`).join('') || '<tr><td colspan="4" class="vide">Aucun élément.</td></tr>'}
     </tbody></table></div>`;
 }
 
 async function sessions(params) {
-  const projet = params.get('projet') || ''; const jour = params.get('jour') || '';
+  const projet = params.get('projet') || ''; const jour = params.get('jour') || ''; const modele = params.get('modele') || '';
   const toutes = await api('/api/sessions?jours=90');
   const projets = [...new Set(toutes.map((s) => s.data.projet).filter(Boolean))].sort();
-  const liste = toutes.filter((s) => (!projet || s.data.projet === projet) && (!jour || s.fin.slice(0, 10) === jour));
+  const liste = toutes.filter((s) => (!projet || s.data.projet === projet) && (!jour || s.fin.slice(0, 10) === jour) && (!modele || (s.data.modeles || []).includes(modele)));
   return `
     <h1>Sessions</h1>
     <p class="sous-titre">Sessions Claude Code des 90 derniers jours, sous-agents rattachés à leur session.</p>
-    <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length} sur 90 j)</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select>${jour ? `<a class="puce actif" href="#/sessions" title="Retirer le filtre">${jj(jour)} ✕</a>` : ''}</div>
+    <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length} sur 90 j)</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select>${jour ? `<a class="puce actif" href="#/sessions${projet ? `?projet=${encodeURIComponent(projet)}` : ''}" title="Retirer le filtre">${jj(jour)} ✕</a>` : ''}${modele ? `<a class="puce actif" href="#/sessions" title="Retirer le filtre">${h(modele)} ✕</a>` : ''}</div>
     <div class="carte tableau"><table class="triable"><thead><tr><th>Fin</th><th>Projet</th><th class="num">Durée</th><th class="num">Tours</th><th class="num">Sous-agents</th><th class="num">Refus</th><th class="num">Sortie</th><th class="num">Cache lu</th><th class="num">Coût</th><th class="num" title="Coût de la session (sous-agents compris) divisé par ses tours : il monte quand chaque tour relit un long contexte">Coût / tour</th><th>Modèle</th></tr></thead><tbody>
-      ${liste.map((s) => `<tr><td title="${h(s.session)}" data-v="${Date.parse(s.fin)}">${h(date(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td>${num(s.data.duree_s, h(duree(s.data.duree_s)))}${num(s.data.tours || 0, nf.format(s.data.tours || 0))}${num(s.sous_agents || 0, s.sous_agents || '')}${num(s.refus || 0, s.refus || '')}${num(s.sortie, abr(s.sortie))}${num(s.cache_lu, abr(s.cache_lu))}${num(s.usd, usd(s.usd))}${(() => { const pt = s.usd != null && s.tours_total ? s.usd / s.tours_total : null; return `<td class="num" data-v="${pt ?? -1}"${s.tours_total ? ` title="contexte relu en moyenne : ${h(abr(Math.round((s.cache_lu || 0) / s.tours_total)))} tokens par tour"` : ''}>${pt == null ? '—' : `${pt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`}</td>`; })()}<td class="mono desc">${h((s.data.modeles || []).join(', '))}</td></tr>`).join('') || '<tr><td colspan="11" class="vide">Aucune session.</td></tr>'}
+      ${liste.map((s) => `<tr class="cliquable" data-lien="#/journal?session=${encodeURIComponent(s.session)}" title="Voir les événements de la session"><td data-v="${Date.parse(s.fin)}">${h(date(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td>${num(s.data.duree_s, h(duree(s.data.duree_s)))}${num(s.data.tours || 0, nf.format(s.data.tours || 0))}${num(s.sous_agents || 0, s.sous_agents || '')}${num(s.refus || 0, s.refus || '')}${num(s.sortie, abr(s.sortie))}${num(s.cache_lu, abr(s.cache_lu))}${num(s.usd, usd(s.usd))}${(() => { const pt = s.usd != null && s.tours_total ? s.usd / s.tours_total : null; return `<td class="num" data-v="${pt ?? -1}"${s.tours_total ? ` title="contexte relu en moyenne : ${h(abr(Math.round((s.cache_lu || 0) / s.tours_total)))} tokens par tour"` : ''}>${pt == null ? '—' : `${pt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`}</td>`; })()}<td class="mono desc">${h((s.data.modeles || []).join(', '))}</td></tr>`).join('') || '<tr><td colspan="11" class="vide">Aucune session.</td></tr>'}
     </tbody></table></div>`;
 }
 
 async function journal(params) {
-  const kind = params.get('kind') || '';
-  const ev = await api(`/api/evenements?limite=300${kind ? `&kind=${encodeURIComponent(kind)}` : ''}`);
+  const kind = params.get('kind') || ''; const session = params.get('session') || ''; const origine = params.get('origine') || '';
+  const ev = (await api(`/api/evenements?${new URLSearchParams({ limite: 300, ...(kind && { kind }), ...(session && { session }) })}`)).filter((e) => !origine || e.data?.origine === origine);
+  const garder = (k) => `#/journal?${new URLSearchParams({ ...(k && { kind: k }), ...(session && { session }) })}`;
   const familles = ['session', 'cost', 'tool', 'element', 'inventory'];
   return `
     <h1>Journal</h1>
     <p class="sous-titre">Les 300 derniers événements. Ce qui n’est pas au journal ne s’est pas passé.</p>
-    <div class="outils"><div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="#/journal">Tout</a>${familles.map((f) => `<a class="puce ${f === kind ? 'actif' : ''}" href="#/journal?kind=${f}">${f}</a>`).join('')}</div></div>
-    <div class="carte">${ev.map((e) => `<div class="evenement"><span title="${h(e.at)}">${h(date(e.at))}</span><span><span class="badge accent">${h(e.kind)}</span></span><span>${h(e.data?.projet || e.subject || '')} <span class="discret">${h(e.actor)}${e.tok_out ? ` · ${abr(e.tok_out)} tokens de sortie` : ''}${e.data?.fiches != null ? ` · ${e.data.fiches} fiches` : ''}</span></span></div>`).join('') || '<div class="vide">Journal vide.</div>'}</div>`;
+    <div class="outils"><div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="${garder('')}">Tout</a>${familles.map((f) => `<a class="puce ${f === kind ? 'actif' : ''}" href="${garder(f)}">${f}</a>`).join('')}${session ? `<a class="puce actif" href="#/journal${kind ? `?kind=${kind}` : ''}" title="Retirer le filtre">session ${h(session.slice(0, 8))} ✕</a>` : ''}${origine ? `<a class="puce actif" href="#/journal?kind=tool.denied" title="Retirer le filtre">${h(ORIGINES[origine] || origine)} ✕</a>` : ''}</div></div>
+    <div class="carte">${ev.map((e) => `<div class="evenement"><span title="${h(e.at)}">${h(date(e.at))}</span><span><span class="badge fam-${h(e.kind.split('.')[0])}">${h(e.kind)}</span></span><span>${e.subject?.startsWith('holarch:') ? `<a href="#" data-fiche="${h(e.subject)}">${h(e.data?.projet || e.subject)}</a>` : h(e.data?.projet || e.subject || '')}${e.correlation && !session ? ` <a class="discret" href="#/journal?session=${encodeURIComponent(e.correlation.split(':')[0])}" title="Tous les événements de cette session">session</a>` : ''}${e.data?.outil ? ` · ${h(e.data.outil)}` : ''}${e.data?.origine ? ` · ${h(ORIGINES[e.data.origine] || e.data.origine)}` : ''} <span class="discret">${h(e.actor)}${e.tok_out ? ` · ${abr(e.tok_out)} tokens de sortie` : ''}${e.data?.fiches != null ? ` · ${e.data.fiches} fiches` : ''}</span></span></div>`).join('') || '<div class="vide">Journal vide.</div>'}</div>`;
 }
 
 async function arbre() {
@@ -120,7 +121,10 @@ async function arbre() {
   for (const n of noeuds) {
     if (n.parent && parChemin.has(n.parent) && n.parent !== n.chemin) { if (!enfants.has(n.parent)) enfants.set(n.parent, []); enfants.get(n.parent).push(n); } else racines.push(n);
   }
-  const rendre = (n) => `<li><div class="noeud" data-fiche="${h(n.id)}" style="cursor:pointer"><span class="t">${h(n.titre)}</span><span class="badge">${h(n.type)}</span><span class="badge ${n.statut === 'stable' ? 'ok' : 'accent'}">${h(n.statut || '—')}</span>${n.version ? `<span class="badge">${h(n.version)}</span>` : ''}<span class="d">${h(n.description || '')}</span></div>${enfants.has(n.chemin) ? `<ul>${enfants.get(n.chemin).map(rendre).join('')}</ul>` : ''}</li>`;
+  const tete = (n) => `<div class="noeud"><a class="t" href="#" data-fiche="${h(n.id)}">${h(n.titre)}</a><span class="badge">${h(n.type)}</span><span class="badge ${n.statut === 'stable' ? 'ok' : 'accent'}">${h(n.statut || '—')}</span>${n.version ? `<span class="badge">${h(n.version)}</span>` : ''}<span class="d">${h(n.description || '')}</span></div>`;
+  const rendre = (n) => (enfants.has(n.chemin)
+    ? `<li><details open><summary>${tete(n)}</summary><ul>${enfants.get(n.chemin).map(rendre).join('')}</ul></details></li>`
+    : `<li class="feuille">${tete(n)}</li>`);
   const parDepot = Map.groupBy ? Map.groupBy(racines, (n) => n.depot) : new Map([[null, racines]]);
   return `
     <h1>Arbre</h1>
@@ -160,7 +164,7 @@ const VUES = { '': ['tableau', tableau], catalogue: ['catalogue', catalogue], se
 async function router() {
   const [chemin, qs] = location.hash.replace(/^#\/?/, '').split('?');
   const [nom, vue] = VUES[chemin] || VUES[''];
-  document.querySelectorAll('.nav nav a').forEach((a) => a.classList.toggle('actif', a.dataset.vue === nom));
+  document.querySelectorAll('.nav nav a').forEach((a) => { const actif = a.dataset.vue === nom; a.classList.toggle('actif', actif); if (actif) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   // La dernière version de la vue s'affiche tout de suite, puis se remplace par les données fraîches.
   $('#vue').innerHTML = DERNIERES[location.hash] || '<p class="chargement">Chargement…</p>';
   try { const html = await vue(new URLSearchParams(qs || '')); DERNIERES[location.hash] = html; $('#vue').innerHTML = html; } catch (e) { $('#vue').innerHTML = `<div class="carte"><b>Erreur</b> : ${h(e.message)}</div>`; }
@@ -170,7 +174,12 @@ async function router() {
   const pr = $('#projet');
   if (pr) pr.onchange = () => { location.hash = pr.value ? `#/sessions?projet=${encodeURIComponent(pr.value)}` : '#/sessions'; };
 }
-document.addEventListener('click', (ev) => { const el = ev.target.closest('[data-fiche]'); if (el) ouvrirFiche(el.dataset.fiche); });
+document.addEventListener('click', (ev) => {
+  const f = ev.target.closest('[data-fiche]');
+  if (f) { ev.preventDefault(); ouvrirFiche(f.dataset.fiche); return; }
+  const l = ev.target.closest('[data-lien]');
+  if (l && !ev.target.closest('a')) location.hash = l.dataset.lien;
+});
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') $('#tiroir').hidden = true; });
 $('#rafraichir').onclick = async (ev) => {
   const b = ev.currentTarget; b.disabled = true; b.textContent = 'Rafraîchissement…';

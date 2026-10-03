@@ -58,6 +58,7 @@ test('inventaire Claude Code : skills, hooks, MCP sans arguments ni secrets, mé
   ecrire(path.join(home, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\ndescription: Une skill fictive.\n---\n');
   ecrire(path.join(home, 'settings.json'), JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node "/x/garde.js" --secret=abc' }] }] } }));
   ecrire(path.join(home, 'projects', '-p', 'memory', 'note.md'), '---\nname: note\ndescription: Une note.\nmetadata:\n  type: feedback\n---\ncontenu privé');
+  fs.mkdirSync(path.join(home, 'projects', '-ancien')); fs.symlinkSync('../-p/memory', path.join(home, 'projects', '-ancien', 'memory'));
   ecrire(cfg, JSON.stringify({ mcpServers: { api: { command: '/usr/bin/serveur', args: ['--token', 'SECRET'], env: { K: 'SECRET' } } }, oauthAccount: { email: 'x@y' } }));
   const fiches = inventaireClaudeCode({ home, config: cfg }, { site: 'local', depots: [] });
   const par = (k) => fiches.filter((f) => f.kind === k);
@@ -66,6 +67,7 @@ test('inventaire Claude Code : skills, hooks, MCP sans arguments ni secrets, mé
   const { premiereLigne } = await import('../src/inventaire/outils.js');
   assert.equal(premiereLigne('la clé vit seulement ici', 16), 'la clé vit…');
   assert.equal(par('memory')[0].attributes.type, 'feedback');
+  assert.equal(par('memory').length, 1, 'un dossier de mémoire en lien n’est pas compté deux fois');
   assert.ok(!JSON.stringify(fiches).includes('SECRET') && !JSON.stringify(fiches).includes('abc') && !JSON.stringify(fiches).includes('contenu privé') && !JSON.stringify(fiches).includes('x@y'));
   for (const f of fiches) assert.equal(valider('fiche', f), null, f.id);
 });

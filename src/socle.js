@@ -111,9 +111,11 @@ export class Socle {
       FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY cle ORDER BY ${par === 'jour' ? 'cle' : 'sortie DESC'}`, depuis);
   }
 
-  evenements({ kind = null, limite = 200 } = {}) {
-    const p = []; let sql = 'SELECT id, at, kind, actor, site, subject, correlation, data, model, tok_out, usd FROM evenements';
-    if (kind) { sql += ' WHERE kind LIKE ?'; p.push(`${kind}%`); }
+  evenements({ kind = null, session = null, limite = 200 } = {}) {
+    const p = []; let sql = 'SELECT id, at, kind, actor, site, subject, correlation, data, model, tok_out, usd FROM evenements WHERE 1=1';
+    if (kind) { sql += ' AND kind LIKE ?'; p.push(`${kind}%`); }
+    // Une session et ses sous-agents (corrélation « session » ou « session:… »).
+    if (session) { sql += " AND (correlation=? OR correlation LIKE ? || ':%')"; p.push(session, session); }
     return this.index.requete(`${sql} ORDER BY at DESC LIMIT ?`, ...p, Math.min(+limite || 200, 2000)).map((e) => ({ ...e, data: JSON.parse(e.data) }));
   }
 

@@ -59,6 +59,9 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
   `identite-projets`) ; prix liste d'un modèle passé par un intermédiaire (`anthropic/…`) ; coût par tour des
   sessions ; période du tableau de bord au choix (7, 30, 90 jours) ; interface servie depuis la version chargée au
   démarrage du serveur ; 17 tests et le test visuel.
+- **Fait (2026-10-03)** : navigation pour creuser (projet ou modèle vers ses sessions, session vers ses événements,
+  alerte vers les fiches, refus par origine), Journal filtrable par session avec une teinte par famille, Arbre
+  repliable, Catalogue triable, `aria-current`, page Sessions sans débordement.
 - **Reste, dans cet ordre** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
      relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).

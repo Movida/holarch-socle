@@ -39,6 +39,8 @@ function donneesFictives() {
     fiche('memory', 'note-a', { description: 'Même note.', attributes: { projet: 'projet-a' } }),
     fiche('memory', 'note-a-bis', { name: 'note-a', description: 'Même note.', attributes: { projet: 'projet-b' } }),
     fiche('node', 'arbre/contrat', { name: 'Contrat fictif', status: 'proposed', node: '/arbre/contrat.md', attributes: { type: 'contract', statut: 'draft' } }),
+    fiche('node', 'arbre/racine', { name: 'Racine fictive', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'stable', depot: 'demo' } }),
+    fiche('node', 'arbre/enfant', { name: 'Enfant fictif', node: '/arbre/enfant.md', links: { derives_from: ['/arbre/index.md'] }, attributes: { type: 'need', statut: 'draft', depot: 'demo' } }),
   ]);
   s.indexer();
   return s;
@@ -78,6 +80,16 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   const nav = await page.$eval('.nav', (n) => n.getBoundingClientRect().top);
   assert.equal(nav, 0, 'la barre latérale reste en place au défilement');
 
+  assert.equal(await page.getAttribute('.nav a[aria-current="page"]', 'data-vue'), 'tableau');
+  await page.click('.barre a.nom:has-text("projet-b")');
+  await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=projet-b'));
+  await page.waitForSelector('table.triable tbody tr.cliquable');
+  assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 1, 'sessions du projet');
+  await page.click('table.triable tbody tr.cliquable td:nth-child(2)');
+  await page.waitForFunction(() => location.hash.startsWith('#/journal?session=session-2'));
+  await page.waitForSelector('.evenement .badge.fam-tool');
+  assert.ok((await page.$$eval('.evenement', (e) => e.length)) >= 4, 'événements de la session, refus compris');
+
   await ouvrir('#/catalogue', 'table tbody tr');
   assert.match(await page.textContent('tr[data-fiche="holarch:node:arbre/contrat"]'), /draft/);
 
@@ -89,7 +101,15 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await ouvrir(`#/sessions?jour=${il_y_a(2).slice(0, 10)}`, 'table.triable tbody tr');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'filtre par jour');
 
+  await page.setViewportSize({ width: 1100, height: 600 });
+  await ouvrir('#/sessions', 'table.triable tbody tr');
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'la page Sessions ne déborde pas en largeur');
+
   await ouvrir('#/journal', '.evenement');
-  await ouvrir('#/arbre', 'main');
+  assert.ok((await page.$$eval('.evenement .badge', (b) => new Set(b.map((x) => x.className)).size)) >= 3, 'une teinte par famille');
+  await ouvrir('#/arbre', 'details summary');
+  assert.ok(await page.isVisible('text=Enfant fictif'));
+  await page.click('details summary .noeud', { position: { x: 4, y: 8 } });
+  assert.ok(!(await page.isVisible('text=Enfant fictif')), 'un nœud parent se replie');
   assert.deepEqual(erreurs, []);
 });

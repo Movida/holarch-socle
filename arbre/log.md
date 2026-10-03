@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Interface, troisième revue** : liens pour creuser d'une vue à l'autre, Journal par session et par famille, Arbre
+  repliable, Catalogue triable, débordement de Sessions ; mémoires en lien plus comptées deux fois.
+
 * **Identité et coûts** : projets identifiés par leur premier commit, `element.moved` (contrat événement 0.5.0,
   décision `identite-projets`) ; prix liste des identifiants `anthropic/…` ; coût par tour ; période au choix.
 

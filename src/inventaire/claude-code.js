@@ -67,7 +67,9 @@ function memoires(home, site) {
   const projets = path.join(home, 'projects');
   return liste(projets, (d) => d.isDirectory()).flatMap((d) => {
     const m = path.join(projets, d.name, 'memory');
-    if (!fs.existsSync(m)) return [];
+    // Un dossier de mémoire qui n'est qu'un lien (ancienne clé de projet renvoyant à la nouvelle) est déjà inventorié à sa
+    // vraie place : le compter deux fois créerait de faux doublons.
+    try { if (fs.lstatSync(m).isSymbolicLink()) return []; } catch { return []; }
     const cwd = repertoireDe(path.join(projets, d.name));
     return liste(m, (x) => x.isFile() && x.name.endsWith('.md') && x.name !== 'MEMORY.md').map((x) => {
       const f = path.join(m, x.name); const h = enTete(f);

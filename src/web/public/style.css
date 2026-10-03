@@ -1,6 +1,6 @@
 :root {
   --fond: #f6f6f9; --surface: #ffffff; --surface-2: #f0f0f5; --bord: #e3e3ec; --texte: #1c1c28; --doux: #63637a;
-  --accent: #5b5bd6; --accent-doux: #ececfc; --ok: #1f8a5b; --ok-doux: #e3f5ec; --alerte: #b5651d; --alerte-doux: #fbf0e4;
+  --accent: #5b5bd6; --accent-doux: #ececfc; --ok: #1f8a5b; --ok-doux: #e3f5ec; --alerte: #b5651d; --alerte-doux: #fbf0e4; --info: #0b7285; --info-doux: #e0f3f6;
   --danger: #c0392b; --danger-doux: #fbe9e7; --ombre: 0 1px 2px rgba(20, 20, 40, .06), 0 4px 16px rgba(20, 20, 40, .05);
   --rayon: 12px; --police: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
@@ -9,7 +9,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --fond: #121219; --surface: #1b1b25; --surface-2: #23232f; --bord: #2e2e3d; --texte: #ececf3; --doux: #9a9ab0;
-    --accent: #8b8bf0; --accent-doux: #2a2a4a; --ok: #4cc38a; --ok-doux: #1b3329; --alerte: #e6a35c; --alerte-doux: #3a2c1c;
+    --accent: #8b8bf0; --accent-doux: #2a2a4a; --ok: #4cc38a; --ok-doux: #1b3329; --alerte: #e6a35c; --alerte-doux: #3a2c1c; --info: #5cc8d8; --info-doux: #16323a;
     --danger: #ef6f60; --danger-doux: #3d2220; --ombre: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
     color-scheme: dark;
   }
@@ -36,7 +36,7 @@ button.primaire { background: var(--accent); color: white; border-color: var(--a
 .nav .pied { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
 .discret { color: var(--doux); font-size: 12px; }
 
-main { padding: 28px 32px 64px; max-width: 1280px; width: 100%; }
+main { padding: 28px 32px 64px; max-width: 1280px; width: 100%; min-width: 0; box-sizing: border-box; } /* min-width : un tableau large défile dans sa carte, pas la page */
 h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -.01em; }
 h2 { font-size: 15px; margin: 0 0 12px; }
 .sous-titre { color: var(--doux); margin: 0 0 22px; }
@@ -56,6 +56,12 @@ a.puce:hover, .puce.actif { border-color: var(--accent); color: var(--accent); b
 .badge { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--doux); white-space: nowrap; }
 .badge.ok { background: var(--ok-doux); color: var(--ok); } .badge.alerte { background: var(--alerte-doux); color: var(--alerte); }
 .badge.accent { background: var(--accent-doux); color: var(--accent); }
+/* une teinte par famille d'événements : session, coût, outil (refus), élément du catalogue ; l'inventaire reste neutre */
+.badge.fam-session { background: var(--accent-doux); color: var(--accent); } .badge.fam-cost { background: var(--info-doux); color: var(--info); }
+.badge.fam-tool { background: var(--alerte-doux); color: var(--alerte); } .badge.fam-element { background: var(--ok-doux); color: var(--ok); }
+table.triable th:not([data-sens])::after { content: ' ↕'; font-size: 9px; opacity: .4; }
+tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surface-2); }
+.barre a.nom { color: var(--texte); } .barre a.nom:hover { color: var(--accent); }
 
 .barres { display: flex; flex-direction: column; gap: 8px; }
 .barre { display: grid; grid-template-columns: 160px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
@@ -91,7 +97,14 @@ dl.champs { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; marg
 dl.champs dt { color: var(--doux); font-size: 12px; } dl.champs dd { margin: 0; word-break: break-word; }
 pre { background: var(--surface-2); padding: 12px; border-radius: 8px; overflow-x: auto; font: 12px/1.5 var(--mono); }
 
-.arbre ul { list-style: none; margin: 0; padding-left: 20px; border-left: 1px dashed var(--bord); }
+.arbre ul { list-style: none; margin: 0; padding-left: 22px; border-left: 1px solid var(--bord); }
+.arbre ul ul > li, .arbre details > ul > li { position: relative; }
+.arbre details > ul > li::before { content: ''; position: absolute; left: -22px; top: .85em; width: 16px; border-top: 1px solid var(--bord); }
+.arbre summary { cursor: pointer; list-style: none; } .arbre summary::-webkit-details-marker { display: none; }
+.arbre summary .noeud::before { content: '▾'; color: var(--doux); width: 12px; display: inline-block; }
+.arbre details:not([open]) > summary .noeud::before { content: '▸'; }
+.arbre li.feuille > .noeud { padding-left: 20px; }
+.arbre a.t { color: var(--texte); } .arbre a.t:hover { color: var(--accent); }
 .arbre > ul { padding-left: 0; border-left: none; }
 .arbre li { margin: 6px 0; }
 .arbre .noeud { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
