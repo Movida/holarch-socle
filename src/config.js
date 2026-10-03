@@ -19,9 +19,10 @@ const DEFAUTS = () => ({
   import: {
     'claude-code-transcriptions': { actif: true, home: path.join(os.homedir(), '.claude'), calme_minutes: 10 },
   },
-  // Tarifs en USD par million de tokens, par identifiant de modèle : { entree, cache_ecrit, cache_lu, sortie }.
+  // Grille de tarifs, relevée sur la page officielle du fournisseur : { source, releve, modeles }, où chaque modèle porte
+  // { entree, cache_ecrit, cache_ecrit_1h, cache_lu, sortie } en USD par million de tokens (src/tarifs.js).
   // Vide par défaut : aucun tarif n'est inventé ; sans tarif, le coût reste inconnu et seuls les tokens sont comptés.
-  tarifs: {},
+  tarifs: { source: null, releve: null, modeles: {} },
 });
 
 const fusion = (a, b) => {
@@ -49,8 +50,11 @@ inventaire:
     racines: ["~"]        # répertoires où chercher des dépôts Git (guillemets : en YAML, ~ seul vaut null)
   arbre:
     depots: []            # dépôts qui portent un arbre HOLARCH (dossier arbre/)
-# tarifs:                 # USD par million de tokens, à renseigner depuis la grille officielle du fournisseur
-#   claude-opus-5-5: { entree: 0, cache_ecrit: 0, cache_lu: 0, sortie: 0 }
+# tarifs:                 # à relever sur la grille officielle du fournisseur, jamais de mémoire
+#   source: https://…     # page relevée
+#   releve: AAAA-MM-JJ    # date du relevé
+#   modeles:              # USD par million de tokens ; « <modèle>:rapide » pour le mode rapide
+#     <modele>: { entree: 0, cache_ecrit: 0, cache_ecrit_1h: 0, cache_lu: 0, sortie: 0 }
 `);
   return true;
 }

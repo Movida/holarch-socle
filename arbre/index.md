@@ -18,5 +18,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`conception/etape-1-voir.md`](conception/etape-1-voir.md) - étape 1 : catalogue, journal et interface en lecture
 - [`decisions/2026-10-03-fondation.md`](decisions/2026-10-03-fondation.md) - les décisions fondatrices
 - [`decisions/2026-10-03-synchronisation.md`](decisions/2026-10-03-synchronisation.md) - ce qui se synchronise entre local et serveur, et qui fait foi
+- [`decisions/2026-10-03-cout-liste.md`](decisions/2026-10-03-cout-liste.md) - le coût liste, calculé à la lecture depuis une grille datée et citée
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre

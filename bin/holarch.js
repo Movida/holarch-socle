@@ -29,6 +29,7 @@ switch (cmd) {
     console.log(`site ${e.site} · ${e.evenements} événements · sessions ${e.sessions.total} (dont ${e.sessions.sept_jours} sur 7 jours)`);
     console.log(`catalogue : ${e.fiches_par_type.map((f) => `${f.kind} ${f.n}`).join(' · ')}`);
     for (const t of e.tokens) console.log(`${t.jours} j : sortie ${t.sortie ?? 0} tokens, cache lu ${t.cache_lu ?? 0}${t.usd != null ? `, ${t.usd.toFixed(2)} USD liste` : e.tarifs_configures ? '' : ' (coût inconnu : aucun tarif configuré)'}`);
+    if (e.tarifs_configures) console.log(`tarifs : grille du ${e.tarifs.releve ?? '?'} (${e.tarifs.source ?? 'source non citée'})${e.sans_tarif_30j.length ? ` ; sans tarif sur 30 j : ${e.sans_tarif_30j.map((m) => m.model).join(', ')}` : ''}`);
     break; }
   case 'voir': {
     const s = socle(); const r = s.rafraichir();

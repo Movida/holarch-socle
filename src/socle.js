@@ -6,6 +6,7 @@ import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
 import { inventorier } from './inventaire/index.js';
 import importerTranscriptions from './import/claude-code-transcriptions.js';
+import { tarifsConfigures } from './tarifs.js';
 
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions };
 
@@ -24,12 +25,12 @@ export class Socle {
     for (const [nom, imp] of Object.entries(IMPORTS)) {
       const o = this.config.import[nom];
       if (!o || o.actif === false) continue;
-      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, tarifs: this.config.tarifs });
+      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees });
     }
     return r;
   }
 
-  indexer() { return this.index.reconstruire({ evenements: this.journal.lire(), fiches: this.catalogue.lire() }); }
+  indexer() { return this.index.reconstruire({ evenements: this.journal.lire(), fiches: this.catalogue.lire(), tarifs: this.config.tarifs }); }
 
   rafraichir() { const inventaire = this.inventaire(); const imports = this.importer(); const index = this.indexer(); return { inventaire, imports, index }; }
 
@@ -40,7 +41,10 @@ export class Socle {
     return {
       site: this.config.site,
       donnees: this.config.donnees,
-      tarifs_configures: Object.keys(this.config.tarifs || {}).length,
+      tarifs_configures: tarifsConfigures(this.config.tarifs),
+      tarifs: { source: this.config.tarifs?.source ?? null, releve: this.config.tarifs?.releve ?? null },
+      // Tokens dont le modèle n'a pas de tarif : leur coût reste inconnu, et le total affiché est partiel.
+      sans_tarif_30j: this.index.requete("SELECT model, SUM(tok_out) sortie FROM evenements WHERE kind='cost.recorded' AND usd IS NULL AND at>=? GROUP BY model ORDER BY sortie DESC", depuis(30)),
       fiches_par_type: q('SELECT kind, COUNT(*) n FROM fiches GROUP BY kind ORDER BY n DESC'),
       dernier_inventaire: q("SELECT at, data FROM evenements WHERE kind='inventory.finished' ORDER BY at DESC LIMIT 1").map((r) => ({ at: r.at, ...JSON.parse(r.data) }))[0] || null,
       sessions: {

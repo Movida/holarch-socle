@@ -12,6 +12,7 @@ import inventaireClaudeCode from '../src/inventaire/claude-code.js';
 import { trouverDepots } from '../src/inventaire/depots-git.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
 import { Socle } from '../src/socle.js';
+import { prix } from '../src/tarifs.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
@@ -77,17 +78,41 @@ test('import des transcriptions : sessions et tokens, dédoublonnage des message
   vieillir(f);
   const journal = new Journal(donnees, 'local');
   const opts = { home, calme_minutes: 10 };
-  const r1 = importerTranscriptions(opts, { journal, donnees, tarifs: { 'modele-x': { entree: 0, cache_ecrit: 0, cache_lu: 0, sortie: 1e6 } } });
+  const r1 = importerTranscriptions(opts, { journal, donnees });
   assert.equal(r1.ajoutes, 3);
   const cout = [...journal.lire()].find((e) => e.kind === 'cost.recorded');
-  assert.equal(cout.cost.tokens.out, 12); assert.equal(cout.cost.usd_list, 12);
-  assert.equal(importerTranscriptions(opts, { journal, donnees, tarifs: {} }).fichiers_lus, 0);
+  assert.equal(cout.cost.tokens.out, 12); assert.equal(cout.cost.usd_list, null);
+  assert.equal(importerTranscriptions(opts, { journal, donnees }).fichiers_lus, 0);
   fs.appendFileSync(f, msg(3, 4, '2026-10-01T11:00:00Z') + '\n'); vieillir(f);
-  const r3 = importerTranscriptions(opts, { journal, donnees, tarifs: {} });
+  const r3 = importerTranscriptions(opts, { journal, donnees });
   assert.equal(r3.ajoutes, 2);
   const couts = [...journal.lire()].filter((e) => e.kind === 'cost.recorded');
   assert.equal(couts.reduce((a, e) => a + e.cost.tokens.out, 0), 16);
   assert.equal([...journal.lire()].filter((e) => e.kind === 'session.started').length, 1);
+});
+
+test('tarifs : coût liste linéaire, écriture de cache à une heure, modèle sans tarif inconnu', () => {
+  const grille = { modeles: { m: { entree: 4, cache_ecrit: 5, cache_ecrit_1h: 8, cache_lu: 0.2, sortie: 20 } } };
+  assert.equal(prix(grille, 'm', { in: 1e6, cache_write: 3e6, cache_write_1h: 2e6, cache_read: 1e7, out: 1e5 }), 4 + 5 + 16 + 2 + 2);
+  const a = { in: 10, cache_write: 1000, cache_write_1h: 0, out: 7 }; const b = { cache_write: 0, cache_write_1h: 1000 };
+  assert.equal(prix(grille, 'm', a) + prix(grille, 'm', b), prix(grille, 'm', { in: 10, cache_write: 1000, cache_write_1h: 1000, out: 7 }));
+  assert.equal(prix(grille, 'autre', a), null); assert.equal(prix({}, 'm', a), null);
+});
+
+test('import : cache à une heure ventilé, mode rapide à part, complément pour un fichier lu par une version antérieure', () => {
+  const home = tmp(); const donnees = tmp();
+  const f = path.join(home, 'projects', '-ws-demo', 's2.jsonl');
+  const msg = (id, speed) => JSON.stringify({ type: 'assistant', sessionId: 's2', cwd: '/ws/demo', timestamp: `2026-10-01T10:0${id}:00Z`, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', usage: { input_tokens: 1, cache_creation_input_tokens: 30, cache_creation: { ephemeral_5m_input_tokens: 10, ephemeral_1h_input_tokens: 20 }, output_tokens: 5, speed } } });
+  ecrire(f, [msg(1, 'standard'), msg(2, 'fast')].join('\n') + '\n'); vieillir(f);
+  const journal = new Journal(donnees, 'local'); const opts = { home, calme_minutes: 10 };
+  // État laissé par la version 1 de l'import : cumuls sans `cache_write_1h`, sans numéro de version.
+  ecrire(path.join(donnees, 'import', 'claude-code-transcriptions.json'), JSON.stringify({ [f]: { taille: fs.statSync(f).size, session: true,
+    cumuls: { 'modele-x': { in: 1, cache_write: 30, cache_read: 0, out: 5 }, 'modele-x:rapide': { in: 1, cache_write: 30, cache_read: 0, out: 5 } } } }));
+  importerTranscriptions(opts, { journal, donnees });
+  const couts = [...journal.lire()].filter((e) => e.kind === 'cost.recorded');
+  assert.deepEqual(couts.map((e) => e.cost.model).sort(), ['modele-x', 'modele-x:rapide']);
+  for (const e of couts) assert.deepEqual(e.cost.tokens, { in: 0, cache_write: 0, cache_write_1h: 20, cache_read: 0, out: 0 });
+  assert.equal(importerTranscriptions(opts, { journal, donnees }).fichiers_lus, 0);
 });
 
 test('socle : chaîne complète vers les lectures de l’interface', () => {
@@ -98,4 +123,19 @@ test('socle : chaîne complète vers les lectures de l’interface', () => {
   const e = s.etat();
   assert.equal(e.site, 'local'); assert.ok(e.evenements >= 1);
   assert.deepEqual(s.sessions(), []);
+});
+
+test('socle : le coût se calcule à l’indexation depuis la grille, sans réécrire le journal', () => {
+  const donnees = tmp();
+  const at = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  const cout = (model, tokens) => ({ id: ulid(Date.parse(at), model), at, kind: 'cost.recorded', actor: 'agent:claude-code/m', correlation: 's', data: {}, cost: { provider: 'anthropic', model, usd_list: null, tokens } });
+  const tarifs = { source: 'https://exemple.test/tarifs', releve: '2026-10-03', modeles: { m: { entree: 0, cache_ecrit: 0, cache_ecrit_1h: 0, cache_lu: 0, sortie: 10 } } };
+  const s = new Socle({ site: 'local', donnees, web: {}, tarifs, inventaire: {}, import: {} });
+  s.journal.ajouter([cout('m', { out: 2e5 }), cout('inconnu', { out: 1 })]);
+  s.indexer();
+  const e = s.etat();
+  assert.equal(e.tokens.find((t) => t.jours === 30).usd, 2);
+  assert.equal(e.tarifs.releve, '2026-10-03');
+  assert.deepEqual(e.sans_tarif_30j.map((m) => m.model), ['inconnu']);
+  assert.ok([...s.journal.lire()].every((x) => x.cost.usd_list === null));
 });

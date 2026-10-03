@@ -1,11 +1,15 @@
 // Import des transcriptions Claude Code (~/.claude/projects/<projet>/<session>.jsonl, sous-agents compris) vers le
 // journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas depuis le dernier import).
 // Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
+// Le coût en USD ne se calcule pas ici mais à la lecture, depuis la grille de tarifs configurée (src/tarifs.js).
 import fs from 'node:fs';
 import path from 'node:path';
 import { ulid } from '../ulid.js';
 
 const IGNORER_MODELES = new Set(['<synthetic>']);
+// Version de l'état d'import : un fichier lu par une version antérieure est relu une fois, et l'écart des cumuls devient
+// un événement complémentaire (v2 : part de l'écriture de cache à une heure, `cache_write_1h`).
+const VERSION_ETAT = 2;
 
 function fichiers(home) {
   const projets = path.join(home, 'projects');
@@ -37,22 +41,19 @@ function analyser(f) {
     const cle = `${e.message.id || ''}:${e.requestId || ''}`;
     if (vus.has(cle)) continue;
     vus.add(cle);
-    const m = e.message.model || 'inconnu';
-    if (IGNORER_MODELES.has(m)) continue;
+    const u = e.message.usage;
+    if (IGNORER_MODELES.has(e.message.model)) continue;
+    // Le mode rapide est facturé à part : ses tokens se comptent sous « <modèle>:rapide », qui a sa propre ligne de tarif.
+    const m = (e.message.model || 'inconnu') + (u.speed === 'fast' ? ':rapide' : '');
     r.tours++;
-    const u = e.message.usage; const t = (r.modeles[m] ||= { in: 0, cache_write: 0, cache_read: 0, out: 0 });
+    const t = (r.modeles[m] ||= { in: 0, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 0 });
     t.in += u.input_tokens || 0; t.cache_write += u.cache_creation_input_tokens || 0; t.cache_read += u.cache_read_input_tokens || 0; t.out += u.output_tokens || 0;
+    t.cache_write_1h += u.cache_creation?.ephemeral_1h_input_tokens || 0;
   }
   return r;
 }
 
-const usd = (tarifs, modele, t) => {
-  const p = tarifs?.[modele];
-  if (!p) return null;
-  return Math.round(((t.in * (p.entree || 0)) + (t.cache_write * (p.cache_ecrit || 0)) + (t.cache_read * (p.cache_lu || 0)) + (t.out * (p.sortie || 0))) / 1e4) / 100;
-};
-
-export default function importerTranscriptions(options, { journal, donnees, tarifs }) {
+export default function importerTranscriptions(options, { journal, donnees }) {
   const etatF = path.join(donnees, 'import', 'claude-code-transcriptions.json');
   let etat = {}; try { etat = JSON.parse(fs.readFileSync(etatF, 'utf8')); } catch { /* premier import */ }
   const calme = (options.calme_minutes ?? 10) * 60e3;
@@ -60,10 +61,10 @@ export default function importerTranscriptions(options, { journal, donnees, tari
   for (const f of fichiers(options.home)) {
     const st = fs.statSync(f);
     const prec = etat[f];
-    if (prec && prec.taille === st.size) continue;
+    if (prec && prec.taille === st.size && prec.v === VERSION_ETAT) continue;
     if (Date.now() - st.mtimeMs < calme) { enCours++; continue; }
     const a = analyser(f); lus++;
-    if (!a.session || !a.debut) { etat[f] = { taille: st.size, cumuls: {}, session: false }; continue; }
+    if (!a.session || !a.debut) { etat[f] = { v: VERSION_ETAT, taille: st.size, cumuls: {}, session: false }; continue; }
     const principal = Object.entries(a.modeles).sort((x, y) => y[1].out - x[1].out)[0]?.[0] || 'inconnu';
     const actor = `agent:claude-code/${principal}`;
     const projet = a.cwd ? path.basename(a.cwd) : null;
@@ -71,16 +72,16 @@ export default function importerTranscriptions(options, { journal, donnees, tari
     const base = { actor, correlation: corr, classification: 'internal' };
     if (!prec?.session) evenements.push({ ...base, id: ulid(Date.parse(a.debut), `${f}:start`), at: a.debut, kind: 'session.started', data: { projet, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null } });
     for (const [m, t] of Object.entries(a.modeles)) {
-      const avant = prec?.cumuls?.[m] || { in: 0, cache_write: 0, cache_read: 0, out: 0 };
+      const avant = prec?.cumuls?.[m] || {};
       const delta = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v - (avant[k] || 0)]));
       if (Object.values(delta).every((v) => v <= 0)) continue;
-      evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:${m}:${t.out}:${t.cache_read}`), at: a.fin, kind: 'cost.recorded',
-        data: { projet, sous_agent: a.sousAgent }, cost: { provider: 'anthropic', model: m, usd_list: usd(tarifs, m, delta), tokens: delta } });
+      evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:${m}:${t.out}:${t.cache_read}:${t.cache_write_1h}`), at: a.fin, kind: 'cost.recorded',
+        data: { projet, sous_agent: a.sousAgent }, cost: { provider: 'anthropic', model: m, usd_list: null, tokens: delta } });
     }
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
     evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:end:${a.fin}`), at: a.fin, kind: 'session.finished',
       data: { projet, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null, tours: a.tours, invites: a.invites, duree_s: duree, modeles: Object.keys(a.modeles) } });
-    etat[f] = { taille: st.size, cumuls: a.modeles, session: true };
+    etat[f] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
   }
   const r = journal.ajouter(evenements);
   fs.mkdirSync(path.dirname(etatF), { recursive: true });

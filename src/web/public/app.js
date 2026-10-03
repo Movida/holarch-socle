@@ -14,10 +14,12 @@ const type = (k) => TYPES[k] || k;
 
 // ---------------------------------------------------------------- vues
 async function tableau() {
-  const [e, jours, projets] = await Promise.all([api('/api/etat'), api('/api/consommation?par=jour&jours=30'), api('/api/consommation?par=projet&jours=30')]);
+  const [e, jours, projets, modeles] = await Promise.all([api('/api/etat'), api('/api/consommation?par=jour&jours=30'), api('/api/consommation?par=projet&jours=30'), api('/api/consommation?par=modele&jours=30')]);
   const t7 = e.tokens.find((t) => t.jours === 7) || {}; const t30 = e.tokens.find((t) => t.jours === 30) || {};
   const total = e.fiches_par_type.reduce((a, f) => a + f.n, 0);
   const cout = e.tarifs_configures ? usd(t30.usd) : 'inconnu';
+  const partiel = e.sans_tarif_30j.length ? ` · hors ${e.sans_tarif_30j.map((m) => m.model).join(', ')}` : '';
+  const noteCout = e.tarifs_configures ? `tarif liste${e.tarifs.releve ? `, grille du ${e.tarifs.releve}` : ''}${partiel}` : 'aucun tarif configuré';
   const max = Math.max(1, ...jours.map((j) => j.sortie || 0));
   const larg = 100 / Math.max(jours.length, 1);
   const histo = jours.length ? `<svg class="histo" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Tokens de sortie par jour">${jours.map((j, i) => {
@@ -32,13 +34,16 @@ async function tableau() {
       <div class="carte tuile"><div class="libelle">Éléments en place</div><div class="valeur">${nf.format(total)}</div><div class="note">${e.fiches_par_type.length} types</div></div>
       <div class="carte tuile"><div class="libelle">Sessions sur 7 jours</div><div class="valeur">${nf.format(e.sessions.sept_jours)}</div><div class="note">${nf.format(e.sessions.total)} au total</div></div>
       <div class="carte tuile"><div class="libelle">Tokens de sortie, 7 j</div><div class="valeur">${abr(t7.sortie)}</div><div class="note">cache lu : ${abr(t7.cache_lu)}</div></div>
-      <div class="carte tuile"><div class="libelle">Coût, 30 j</div><div class="valeur">${h(cout)}</div><div class="note">${e.tarifs_configures ? 'tarif liste' : 'aucun tarif configuré'}</div></div>
+      <div class="carte tuile"><div class="libelle">Coût, 30 j</div><div class="valeur">${h(cout)}</div><div class="note"${e.tarifs.source ? ` title="${h(e.tarifs.source)}"` : ''}>${h(noteCout)}</div></div>
     </div>
     <div class="grille g2 section">
       <div class="carte"><h2>Activité — tokens de sortie par jour, 30 j</h2>${histo}</div>
       <div class="carte"><h2>Projets les plus actifs, 30 j</h2><div class="barres">${projets.slice(0, 8).map((p) => `
-        <div class="barre"><span class="nom" title="${h(p.cle)}">${h(p.cle || '(sans projet)')}</span><span class="piste"><span class="rempli" style="width:${((p.sortie || 0) / maxP) * 100}%"></span></span><span class="chiffre">${abr(p.sortie)}</span></div>`).join('') || '<div class="vide">Rien sur la période.</div>'}</div></div>
+        <div class="barre"><span class="nom" title="${h(p.cle)}">${h(p.cle || '(sans projet)')}</span><span class="piste"><span class="rempli" style="width:${((p.sortie || 0) / maxP) * 100}%"></span></span><span class="chiffre"${p.usd != null ? ` title="${h(usd(p.usd))}"` : ''}>${abr(p.sortie)}</span></div>`).join('') || '<div class="vide">Rien sur la période.</div>'}</div></div>
     </div>
+    <div class="carte tableau section"><table><thead><tr><th>Modèle, 30 j</th><th class="num">Entrée</th><th class="num">Cache écrit</th><th class="num">Cache lu</th><th class="num">Sortie</th><th class="num">Coût liste</th></tr></thead><tbody>
+      ${modeles.map((m) => `<tr><td class="mono">${h(m.cle)}</td><td class="num">${abr(m.entree)}</td><td class="num">${abr(m.cache_ecrit)}</td><td class="num">${abr(m.cache_lu)}</td><td class="num">${abr(m.sortie)}</td><td class="num">${m.usd == null ? '<span class="discret">sans tarif</span>' : usd(m.usd)}</td></tr>`).join('') || '<tr><td colspan="6" class="vide">Rien sur la période.</td></tr>'}
+    </tbody></table></div>
     <div class="grille g2 section">
       <div class="carte"><h2>Catalogue</h2><div class="puces">${e.fiches_par_type.map((f) => `<a class="puce" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${nf.format(f.n)}</b> ${h(type(f.kind))}</a>`).join('')}</div></div>
       <div class="carte"><h2>À regarder</h2>${e.projets_sales.length ? `<div class="barres">${e.projets_sales.map((p) => `<div><span class="badge alerte">${nf.format(p.n)} fichier(s) non commité(s)</span> ${h(p.name)}</div>`).join('')}</div>` : '<div class="discret">Rien à signaler.</div>'}</div>

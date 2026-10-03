@@ -5,7 +5,7 @@ description: Catalogue et journal alimentés par l'existant, et une interface we
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md]
+  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md]
 ---
 
 # Étape 1 — Voir
@@ -20,8 +20,8 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
    projet), dépôts Git sous des racines configurées, l'arbre HOLARCH lui-même. Aucun contenu sensible n'est copié :
    une fiche porte une référence (`location`), un nom, une description, des mesures.
 2. **Import du journal** : des adaptateurs d'import, idempotents. Premier : les transcriptions Claude Code → événements
-   `session.started`, `session.finished`, `cost.recorded` (tokens par modèle ; coût en USD seulement si une table de
-   tarifs est configurée — aucun tarif n'est inventé).
+   `session.started`, `session.finished`, `cost.recorded` (tokens par modèle). Le coût en USD se calcule à la lecture,
+   seulement depuis une grille de tarifs configurée, relevée et citée — aucun tarif n'est inventé (décision coût liste).
 3. **Stockage** : journal en JSON Lines par site et par mois, en ajout seul (le contrat) ; un index SQLite reconstruit
    depuis le journal et l'inventaire, jetable. Données dans un répertoire de travail hors dépôt (`~/.holarch` par
    défaut, configurable) : rien de personnel n'entre dans le dépôt public.
@@ -43,14 +43,16 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 
 - **Fait (2026-10-03)** : inventaire (Claude Code, dépôts Git, arbre), import des transcriptions Claude Code, journal et
   index, interface web en lecture (tableau de bord, catalogue, sessions, journal, arbre), ligne de commande, 8 tests.
+- **Fait (2026-10-03)** : tarifs — grille officielle relevée et citée dans la configuration du site, coût liste
+  calculé à l'indexation (tableau de bord, par modèle, par session, `holarch etat`), écriture de cache à une heure
+  ventilée, mode rapide à part, compléments pour l'historique déjà importé ; 11 tests.
 - **Reste, dans cet ordre** :
-  1. **Tarifs** : relever la grille officielle du fournisseur (page de tarifs, datée et citée), l'inscrire dans la
-     configuration du profil, afficher le coût liste ; jamais un tarif de mémoire.
-  2. **Adaptateurs d'inventaire** : conteneurs et volumes Docker ; serveurs MCP de Claude Desktop (sa configuration
+  1. **Adaptateurs d'inventaire** : conteneurs et volumes Docker ; serveurs MCP de Claude Desktop (sa configuration
      côté hôte) ; serveurs MCP conteneurisés déclarés par l'utilisateur.
-  3. **Relecture et approbation des contrats** (nœud, règle, fiche, événement, acteurs) par l'utilisateur.
-  4. **Critère d'usage** observé sur une semaine (l'utilisateur ouvre l'interface plutôt que de demander), puis
+  2. **Relecture et approbation des contrats** (nœud, règle, fiche, événement, acteurs) par l'utilisateur.
+  3. **Critère d'usage** observé sur une semaine (l'utilisateur ouvre l'interface plutôt que de demander), puis
      ouverture de l'étape 2 (hub MCP).
+- **Plus tard, quand le besoin se présente** : grille de tarifs versionnée par date au premier changement de tarif.
 
 ## Hors périmètre
 
