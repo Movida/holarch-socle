@@ -43,8 +43,11 @@ fouiller.
   serveur appelé, avec son usage ; carte « Appels MCP » au tableau de bord, Journal filtrable par serveur ; 19 tests.
 - **Fait (2026-10-03)** : essai d'agentgateway dans un conteneur (`essai-agentgateway.md`) : fédération, journal sans
   arguments et tolérance aux pannes (`failOpen`) vérifiés.
-- **À faire, sur l'hôte et au travail** : Desktop par pont stdio ; accès depuis un conteneur à une passerelle dans WSL ;
-  traduction du journal de la passerelle (format `json`) vers `tool.called` ; déploiement sur le site de travail.
+- **Fait (2026-10-03)** : essai sur l'hôte WSL (`essai-agentgateway.md`) : site de l'hôte, passerelle sur 127.0.0.1
+  seulement, Claude Desktop par pont stdio (`mcp-remote`) qui appelle les outils HOLARCH, accès depuis un conteneur par
+  `host.docker.internal` sans ouvrir l'écoute.
+- **À faire** : traduction du journal de la passerelle (format `json`) vers `tool.called` ; lancement durable de la
+  passerelle sur l'hôte ; déploiement sur le site de travail.
 
 ## Hors périmètre
 

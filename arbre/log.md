@@ -2,6 +2,10 @@
 
 ## 2026-10-03
 
+* **Essai du hub sur l'hôte** : site `hote` inventorié ; passerelle sur 127.0.0.1, `dnsRebindingProtection` posé
+  (hôte ou origine étrangers refusés) ; Claude Desktop par pont stdio appelle HOLARCH ; un conteneur la joint par
+  `host.docker.internal` en se présentant `localhost` ; Q7 (Desktop MSIX), `Labels: null` Docker corrigé, Node ≥ 22.13.
+
 * **Interface, quatrième revue** : la page en cours compte dans l'usage, une navigation dépassée n'écrase plus la
   page, modèles regroupés (intermédiaire signalé), coût « équivalent API » détaillé par type de tokens, taux d'échec MCP,
   outils refusés vers le Journal, `ui.viewed` hors du flux par défaut, Arbre filtrable et repliable d'un geste.
