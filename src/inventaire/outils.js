@@ -33,6 +33,10 @@ export function urlSure(u) {
 
 export const mtimeIso = (f) => { try { return fs.statSync(f).mtime.toISOString(); } catch { return null; } };
 
-export const premiereLigne = (t, n = 160) => (t ? String(t).split('\n').find((l) => l.trim())?.trim().slice(0, n) ?? null : null);
+export const premiereLigne = (t, n = 160) => {
+  const l = t ? String(t).split('\n').find((x) => x.trim())?.trim() : null;
+  if (!l) return null;
+  return l.length <= n ? l : `${l.slice(0, n - 1).replace(/\s+\S*$/, '')}…`; // coupe à la fin d'un mot, et le dit
+};
 
 export const relatif = (base, p) => path.relative(base, p) || '.';

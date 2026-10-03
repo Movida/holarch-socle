@@ -15,14 +15,15 @@
   }
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; }
+body { min-height: 100vh; } /* pas de hauteur fixe : elle bornerait la zone où la barre latérale reste collée */
 body { font: 14px/1.5 var(--police); background: var(--fond); color: var(--texte); display: grid; grid-template-columns: 232px 1fr; }
 a { color: var(--accent); text-decoration: none; }
 button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--bord); background: var(--surface); color: var(--texte); padding: 7px 12px; }
 button:hover { border-color: var(--accent); }
 button.primaire { background: var(--accent); color: white; border-color: var(--accent); }
 
-.nav { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 18px; padding: 20px 14px; background: var(--surface); border-right: 1px solid var(--bord); }
+.nav { position: sticky; top: 0; height: 100vh; align-self: start; box-sizing: border-box; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 20px 14px; background: var(--surface); border-right: 1px solid var(--bord); }
 .marque { display: flex; align-items: center; gap: 10px; color: var(--texte); font-weight: 700; letter-spacing: .08em; padding: 4px 8px; }
 .marque svg { width: 28px; height: 28px; }
 .marque .m1 { fill: var(--accent); } .marque .m2 { fill: none; stroke: white; stroke-width: 2.5; } .marque .m3 { fill: white; }
@@ -58,7 +59,7 @@ a.puce:hover, .puce.actif { border-color: var(--accent); color: var(--accent); b
 .barre { display: grid; grid-template-columns: 160px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
 .barre .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .barre .piste { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
-.barre .rempli { height: 100%; background: var(--accent); border-radius: 4px; }
+.barre .rempli { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
 .barre .chiffre { text-align: right; color: var(--doux); font-variant-numeric: tabular-nums; }
 svg.histo { width: 100%; height: 140px; display: block; }
 svg.histo rect { fill: var(--accent); } svg.histo rect:hover { fill: var(--ok); }

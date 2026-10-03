@@ -2,7 +2,7 @@
 const $ = (s) => document.querySelector(s);
 const h = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = new Intl.NumberFormat('fr-FR');
-const abr = (n) => { if (n == null) return '—'; const a = Math.abs(n); return a >= 1e9 ? `${(n / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} G` : a >= 1e6 ? `${(n / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} M` : a >= 1e4 ? `${Math.round(n / 1e3)} k` : nf.format(n); };
+const abr = (n) => { if (n == null) return '—'; const a = Math.abs(n); return a >= 1e9 ? `${(n / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Md` : a >= 1e6 ? `${(n / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} M` : a >= 1e4 ? `${Math.round(n / 1e3)} k` : nf.format(n); };
 const usd = (n) => (n == null ? '—' : `${n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`);
 const date = (iso) => (iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const depuis = (iso) => { if (!iso) return '—'; const s = (Date.now() - Date.parse(iso)) / 1000; return s < 90 ? 'à l’instant' : s < 5400 ? `il y a ${Math.round(s / 60)} min` : s < 129600 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
@@ -65,7 +65,7 @@ async function catalogue(params) {
     <h1>Catalogue</h1>
     <p class="sous-titre">Tout ce qui est en place. Ce qui n’y figure pas n’existe pas pour le système.</p>
     <div class="outils">
-      <input type="search" id="recherche" placeholder="Rechercher un nom, une description, un chemin…" value="${h(q)}">
+      <input type="search" id="recherche" placeholder="Nom, description, chemin…" title="Rechercher un nom, une description ou un chemin" value="${h(q)}">
       <div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="#/catalogue">Tout</a>${e.fiches_par_type.map((f) => `<a class="puce ${f.kind === kind ? 'actif' : ''}" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${f.n}</b> ${h(type(f.kind))}</a>`).join('')}</div>
     </div>
     <div class="carte tableau"><table><thead><tr><th>Nom</th><th>Type</th><th>Où</th><th>Statut</th></tr></thead><tbody>
@@ -81,7 +81,7 @@ async function sessions(params) {
   return `
     <h1>Sessions</h1>
     <p class="sous-titre">Sessions Claude Code des 90 derniers jours, sous-agents rattachés à leur session.</p>
-    <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length})</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select></div>
+    <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length} sur 90 j)</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select></div>
     <div class="carte tableau"><table><thead><tr><th>Fin</th><th>Projet</th><th class="num">Durée</th><th class="num">Tours</th><th class="num">Sous-agents</th><th class="num">Refus</th><th class="num">Sortie</th><th class="num">Cache lu</th><th class="num">Coût</th><th>Modèle</th></tr></thead><tbody>
       ${liste.map((s) => `<tr><td title="${h(s.session)}">${h(date(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td><td class="num">${h(duree(s.data.duree_s))}</td><td class="num">${nf.format(s.data.tours || 0)}</td><td class="num">${s.sous_agents || ''}</td><td class="num">${s.refus || ''}</td><td class="num">${abr(s.sortie)}</td><td class="num">${abr(s.cache_lu)}</td><td class="num">${usd(s.usd)}</td><td class="mono desc">${h((s.data.modeles || []).join(', '))}</td></tr>`).join('') || '<tr><td colspan="10" class="vide">Aucune session.</td></tr>'}
     </tbody></table></div>`;

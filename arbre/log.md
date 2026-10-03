@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Revue de l'interface** : barres de progression et barre latérale réparées, guillemet des hooks, descriptions
+  coupées à la fin d'un mot avec « … », milliards en « Md », projet réel des mémoires (lu dans les transcriptions).
+
 * **Refus et approbations** : refus d'outil au journal (`tool.denied`, contrat événement 0.4.0, décision `refus`) ;
   manifeste, principes, besoins fondateurs, registre des types et décision `sources-hote` approuvés, avis rendus point
   par point.

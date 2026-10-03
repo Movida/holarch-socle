@@ -53,16 +53,18 @@ test('catalogue : instantané par site, apparitions et disparitions', () => {
   assert.deepEqual(r.disparues, ['holarch:skill:a']); assert.equal(r.refusees.length, 1); assert.equal(c.lire().length, 1);
 });
 
-test('inventaire Claude Code : skills, hooks, MCP sans arguments ni secrets, mémoires', () => {
+test('inventaire Claude Code : skills, hooks, MCP sans arguments ni secrets, mémoires', async () => {
   const home = tmp(); const cfg = path.join(home, '..', `${path.basename(home)}.json`);
   ecrire(path.join(home, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\ndescription: Une skill fictive.\n---\n');
-  ecrire(path.join(home, 'settings.json'), JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node /x/garde.js --secret=abc' }] }] } }));
+  ecrire(path.join(home, 'settings.json'), JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'node "/x/garde.js" --secret=abc' }] }] } }));
   ecrire(path.join(home, 'projects', '-p', 'memory', 'note.md'), '---\nname: note\ndescription: Une note.\nmetadata:\n  type: feedback\n---\ncontenu privé');
   ecrire(cfg, JSON.stringify({ mcpServers: { api: { command: '/usr/bin/serveur', args: ['--token', 'SECRET'], env: { K: 'SECRET' } } }, oauthAccount: { email: 'x@y' } }));
   const fiches = inventaireClaudeCode({ home, config: cfg }, { site: 'local', depots: [] });
   const par = (k) => fiches.filter((f) => f.kind === k);
   assert.equal(par('skill')[0].description, 'Une skill fictive.');
   assert.equal(par('hook')[0].description, 'command : garde.js');
+  const { premiereLigne } = await import('../src/inventaire/outils.js');
+  assert.equal(premiereLigne('la clé vit seulement ici', 16), 'la clé vit…');
   assert.equal(par('memory')[0].attributes.type, 'feedback');
   assert.ok(!JSON.stringify(fiches).includes('SECRET') && !JSON.stringify(fiches).includes('abc') && !JSON.stringify(fiches).includes('contenu privé') && !JSON.stringify(fiches).includes('x@y'));
   for (const f of fiches) assert.equal(valider('fiche', f), null, f.id);

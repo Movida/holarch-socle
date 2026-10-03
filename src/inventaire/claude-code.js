@@ -32,7 +32,7 @@ function hooks(settings, fichier, portee, projet, site) {
   const h = (settings && settings.hooks) || {};
   return Object.entries(h).flatMap(([evt, groupes]) => (Array.isArray(groupes) ? groupes : []).flatMap((g, i) => (g.hooks || []).map((x, j) => {
     const cmd = String(x.command || x.type || '');
-    const exe = cmd.split(/\s+/).find((t) => /[/.]/.test(t) && !t.startsWith('-')) || cmd.split(/\s+/)[0];
+    const exe = (cmd.split(/\s+/).find((t) => /[/.]/.test(t) && !t.startsWith('-')) || cmd.split(/\s+/)[0]).replace(/^["']+|["';]+$/g, '');
     return fiche('hook', `${portee}/${projet || 'utilisateur'}/${evt}/${i}/${j}`, `${evt}${g.matcher ? ` · ${g.matcher}` : ''}`, {
       description: `${x.type || 'command'} : ${path.basename(exe || '')}`, location: fichier, site, attributes: { portee, projet, evenement: evt, matcher: g.matcher || null } });
   })));
@@ -52,16 +52,29 @@ function consignes(f, portee, projet, site) {
     description: `${lignes} lignes`, location: f, site, attributes: { portee, projet, lignes, modifie: mtimeIso(f) } })];
 }
 
+// Le dossier d'un projet Claude Code encode son répertoire de travail (`/` devient `-`), ce qui ne se décode pas sans
+// ambiguïté : le vrai répertoire se lit dans une transcription du même dossier.
+function repertoireDe(dossier) {
+  for (const x of liste(dossier, (e) => e.isFile() && e.name.endsWith('.jsonl'))) {
+    let t = ''; try { const fd = fs.openSync(path.join(dossier, x.name), 'r'); const b = Buffer.alloc(65536); t = b.toString('utf8', 0, fs.readSync(fd, b, 0, b.length, 0)); fs.closeSync(fd); } catch { continue; }
+    const m = t.match(/"cwd":"((?:[^"\\]|\\.)*)"/);
+    if (m) return JSON.parse(`"${m[1]}"`);
+  }
+  return null;
+}
+
 function memoires(home, site) {
   const projets = path.join(home, 'projects');
   return liste(projets, (d) => d.isDirectory()).flatMap((d) => {
     const m = path.join(projets, d.name, 'memory');
+    if (!fs.existsSync(m)) return [];
+    const cwd = repertoireDe(path.join(projets, d.name));
     return liste(m, (x) => x.isFile() && x.name.endsWith('.md') && x.name !== 'MEMORY.md').map((x) => {
       const f = path.join(m, x.name); const h = enTete(f);
       const type = h.type || h.metadata?.type || null;
       return fiche('memory', `${d.name}/${x.name}`, h.name || x.name.replace(/\.md$/, ''), {
         description: premiereLigne(h.description, 240), location: f, site,
-        attributes: { projet_claude: d.name, type, modifie: mtimeIso(f) } });
+        attributes: { projet: cwd ? path.basename(cwd) : null, projet_claude: d.name, type, modifie: mtimeIso(f) } });
     });
   });
 }
