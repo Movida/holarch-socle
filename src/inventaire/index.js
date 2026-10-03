@@ -25,7 +25,8 @@ export async function inventorier(config, { catalogue, journal }) {
   journal.ajouter([
     ...r.apparues.map((s) => ev('element.created', s)),
     ...r.disparues.map((s) => ev('element.retired', s)),
-    { ...ev('inventory.finished', null), data: { fiches: r.fiches, apparues: r.apparues.length, disparues: r.disparues.length, refusees: r.refusees.length, erreurs, absentes } },
+    ...r.deplacees.map((d) => ({ ...ev('element.moved', d.id), data: { de: d.de, vers: d.vers } })),
+    { ...ev('inventory.finished', null), data: { fiches: r.fiches, apparues: r.apparues.length, disparues: r.disparues.length, deplacees: r.deplacees.length, refusees: r.refusees.length, erreurs, absentes } },
   ]);
   return { ...r, erreurs, absentes };
 }

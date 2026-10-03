@@ -73,7 +73,13 @@ export class Socle {
   fiche(id) {
     const r = this.index.requete('SELECT json FROM fiches WHERE id=?', id)[0];
     if (!r) return null;
-    return { fiche: JSON.parse(r.json), evenements: this.index.requete('SELECT * FROM evenements WHERE subject=? ORDER BY at DESC LIMIT 50', id) };
+    // L'historique suit les ré-identifications : les événements des identifiants précédents de l'élément en font partie.
+    const ids = [id];
+    for (let i = 0; i < 20; i++) {
+      const p = this.index.requete("SELECT json_extract(data,'$.de.id') ancien FROM evenements WHERE kind='element.moved' AND subject=? AND json_extract(data,'$.de.id')<>subject", ids[ids.length - 1])[0]?.ancien;
+      if (!p || ids.includes(p)) break; ids.push(p);
+    }
+    return { fiche: JSON.parse(r.json), evenements: this.index.requete(`SELECT * FROM evenements WHERE subject IN (${ids.map(() => '?').join(',')}) ORDER BY at DESC LIMIT 50`, ...ids) };
   }
 
   sessions({ jours = 30, projet = null } = {}) {

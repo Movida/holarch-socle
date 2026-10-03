@@ -76,6 +76,34 @@ test('dépôts Git : trouvés sous les racines, ~ non cité compris comme le ré
   assert.doesNotThrow(() => trouverDepots({ racines: [null], profondeur: 0 }));
 });
 
+test('dépôts Git : identifiés par leur premier commit, stables quand ils changent de chemin ; clones départagés', async () => {
+  const { default: inventaireDepots } = await import('../src/inventaire/depots-git.js');
+  const { spawnSync } = await import('node:child_process');
+  const g = (d, ...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.test', ...a], { encoding: 'utf8' });
+  const r = tmp(); const a = path.join(r, 'a'); fs.mkdirSync(a);
+  g(a, 'init', '-q'); g(a, 'commit', '-q', '--allow-empty', '-m', 'premier');
+  fs.mkdirSync(path.join(r, 'vide')); g(path.join(r, 'vide'), 'init', '-q');
+  const id = (fiches, nom) => fiches.find((f) => f.name === nom).id;
+  const f1 = inventaireDepots({ racines: [r], profondeur: 2 }, { site: 'local' });
+  assert.match(id(f1, 'a'), /^holarch:project:[0-9a-f]{12}$/);
+  assert.match(id(f1, 'vide'), /vide$/);
+  fs.renameSync(a, path.join(r, 'a-deplace'));
+  assert.equal(id(inventaireDepots({ racines: [r], profondeur: 2 }, { site: 'local' }), 'a-deplace'), id(f1, 'a'));
+  spawnSync('git', ['clone', '-q', path.join(r, 'a-deplace'), path.join(r, 'clone')]);
+  const f3 = inventaireDepots({ racines: [r], profondeur: 2 }, { site: 'local' });
+  assert.notEqual(id(f3, 'clone'), id(f3, 'a-deplace')); assert.ok(id(f3, 'clone').startsWith(id(f1, 'a')));
+});
+
+test('catalogue : déplacement et ré-identification deviennent element.moved, pas une disparition', () => {
+  const c = new Catalogue(tmp(), 'local');
+  const f = (id, location) => ({ id, kind: 'project', name: 'p', status: 'active', provenance: { source: 't' }, location });
+  c.remplacer([f('holarch:project:/ancien/chemin', '/ancien/chemin'), f('holarch:project:abc', '/x')]);
+  const r = c.remplacer([f('holarch:project:123', '/ancien/chemin'), f('holarch:project:abc', '/y')]);
+  assert.deepEqual([r.apparues, r.disparues], [[], []]);
+  assert.deepEqual(r.deplacees.map((d) => [d.de.id, d.id, d.de.location, d.vers.location]).sort(), [
+    ['holarch:project:/ancien/chemin', 'holarch:project:123', '/ancien/chemin', '/ancien/chemin'], ['holarch:project:abc', 'holarch:project:abc', '/x', '/y']]);
+});
+
 test('import des transcriptions : sessions et tokens, dédoublonnage des messages, deltas rejouables', () => {
   const home = tmp(); const donnees = tmp();
   const f = path.join(home, 'projects', '-ws-demo', 's1.jsonl');

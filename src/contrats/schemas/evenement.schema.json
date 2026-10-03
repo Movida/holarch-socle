@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Movida/holarch-socle/contrats/evenement/0.4.0",
-  "title": "Événement du journal (contrat 0.4.0, arbre/conception/contrats/evenement.md)",
+  "$id": "https://github.com/Movida/holarch-socle/contrats/evenement/0.5.0",
+  "title": "Événement du journal (contrat 0.5.0, arbre/conception/contrats/evenement.md)",
   "type": "object",
   "required": ["id", "at", "kind", "actor", "site"],
   "additionalProperties": false,

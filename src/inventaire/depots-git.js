@@ -20,9 +20,23 @@ export function trouverDepots({ racines = [], profondeur = 3, ignorer = [] }) {
   return [...trouves].sort();
 }
 
+// Identité d'un dépôt : son premier commit (le plus ancien s'il y a plusieurs racines), qui ne change ni avec le
+// chemin ni avec le remote. Sans commit, le chemin. Deux clones du même dépôt sur un site se départagent par leur chemin.
+export function racine(d) {
+  const r = (git(d, ['log', '--max-parents=0', '--format=%ct %H', 'HEAD']) || '').split('\n').filter(Boolean).sort();
+  return r.length ? r[0].split(' ')[1].slice(0, 12) : null;
+}
+
+function identifiants(depots) {
+  const r = depots.map((d) => ({ d, racine: racine(d) }));
+  const n = {}; for (const x of r) if (x.racine) n[x.racine] = (n[x.racine] || 0) + 1;
+  return new Map(r.map((x) => [x.d, `holarch:project:${!x.racine ? slug(x.d) : n[x.racine] > 1 ? `${x.racine}:${slug(x.d)}` : x.racine}`]));
+}
+
 export default function inventaireDepots(options, ctx) {
   const depots = trouverDepots(options);
   ctx.depots = depots;
+  const ids = identifiants(depots);
   return depots.map((d) => {
     const remotes = (git(d, ['remote', '-v']) || '').split('\n').filter((l) => l.endsWith('(fetch)'))
       .map((l) => { const [nom, url] = l.split(/\s+/); return { nom, url: urlSure(url) }; });
@@ -30,7 +44,7 @@ export default function inventaireDepots(options, ctx) {
     const [date, sujet] = dernier ? dernier.split('\t') : [null, null];
     const modifies = (git(d, ['status', '--porcelain']) || '').split('\n').filter(Boolean).length;
     return {
-      id: `holarch:project:${slug(d)}`, kind: 'project', name: path.basename(d),
+      id: ids.get(d), kind: 'project', name: path.basename(d),
       description: sujet ? `dernier commit : ${sujet.slice(0, 120)}` : null, status: 'active',
       provenance: { source: 'inventaire:depots-git' }, classification: 'internal', site: ctx.site, location: d,
       usage: { count: 0, last_used: date || null, cost_usd: null },

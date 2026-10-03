@@ -22,9 +22,27 @@ export class Catalogue {
     fs.mkdirSync(this.dossier, { recursive: true });
     const precedent = this.lire({ site: this.site });
     fs.writeFileSync(path.join(this.dossier, `${this.site}.json`), JSON.stringify({ site: this.site, at: new Date().toISOString(), fiches: valides }, null, 1));
-    const avant = new Set(precedent.map((f) => f.id));
-    const apres = new Set(valides.map((f) => f.id));
-    return { fiches: valides.length, refusees, apparues: [...apres].filter((i) => !avant.has(i)), disparues: [...avant].filter((i) => !apres.has(i)) };
+    // Un élément qui change d'emplacement garde son identifiant : c'est un déplacement, pas une disparition suivie d'une
+    // création. Un identifiant qui disparaît pendant qu'un autre apparaît au même emplacement, pour le même kind, est le
+    // même élément ré-identifié (migration d'un schéma d'identifiants). Les deux deviennent `element.moved`.
+    const avant = new Map(precedent.map((f) => [f.id, f]));
+    const apres = new Map(valides.map((f) => [f.id, f]));
+    const deplacees = [];
+    for (const [id, f] of apres) {
+      const p = avant.get(id);
+      if (p && p.location && f.location && p.location !== f.location) deplacees.push({ id, de: { id, location: p.location }, vers: { id, location: f.location } });
+    }
+    let apparues = [...apres.keys()].filter((i) => !avant.has(i)); let disparues = [...avant.keys()].filter((i) => !apres.has(i));
+    const parEmplacement = new Map(disparues.filter((i) => avant.get(i).location).map((i) => [`${avant.get(i).kind} ${avant.get(i).location}`, i]));
+    for (const id of apparues) {
+      const f = apres.get(id); const ancien = f.location && parEmplacement.get(`${f.kind} ${f.location}`);
+      if (!ancien) continue;
+      deplacees.push({ id, de: { id: ancien, location: f.location }, vers: { id, location: f.location } });
+      parEmplacement.delete(`${f.kind} ${f.location}`);
+    }
+    const reidentifies = new Set(deplacees.filter((d) => d.de.id !== d.id).flatMap((d) => [d.id, d.de.id]));
+    apparues = apparues.filter((i) => !reidentifies.has(i)); disparues = disparues.filter((i) => !reidentifies.has(i));
+    return { fiches: valides.length, refusees, apparues, disparues, deplacees };
   }
 
   lire({ site = null } = {}) {
