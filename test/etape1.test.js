@@ -143,6 +143,9 @@ test('tarifs : coût liste linéaire, écriture de cache à une heure, modèle s
   const a = { in: 10, cache_write: 1000, cache_write_1h: 0, out: 7 }; const b = { cache_write: 0, cache_write_1h: 1000 };
   assert.equal(prix(grille, 'm', a) + prix(grille, 'm', b), prix(grille, 'm', { in: 10, cache_write: 1000, cache_write_1h: 1000, out: 7 }));
   assert.equal(prix(grille, 'autre', a), null); assert.equal(prix({}, 'm', a), null);
+  const g2 = { modeles: { 'claude-x-1': { sortie: 10 } } };
+  assert.equal(prix(g2, 'anthropic/claude-x-1', { out: 1e6 }), 10);
+  assert.equal(prix(g2, 'autre/claude-x-1', { out: 1e6 }), null); assert.equal(prix(g2, 'x', { out: 1e6 }), null);
 });
 
 test('import : cache à une heure ventilé, mode rapide à part, complément pour un fichier lu par une version antérieure', () => {
@@ -238,6 +241,7 @@ test('socle : le coût se calcule à l’indexation depuis la grille, sans réé
   const e = s.etat();
   assert.equal(e.tokens.find((t) => t.jours === 30).usd, 2);
   assert.equal(e.tarifs.releve, '2026-10-03');
-  assert.deepEqual(e.sans_tarif_30j.map((m) => m.model), ['inconnu']);
+  assert.deepEqual(e.periode.sans_tarif.map((m) => m.model), ['inconnu']);
+  assert.equal(e.periode.tokens.usd, 2); assert.equal(s.etat({ jours: 7 }).periode.jours, 7);
   assert.ok([...s.journal.lire()].every((x) => x.cost.usd_list === null));
 });

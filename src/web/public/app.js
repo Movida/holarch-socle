@@ -20,48 +20,50 @@ const statut = (f) => (f.kind === 'node' && f.attributes?.statut) || f.status;
 const ORIGINES = { humain: 'Par vous', classifieur: 'Classifieur (mode auto)', regle: 'Règle de permission', securite: 'Contrôle de sécurité', hook: 'Hook' };
 
 // ---------------------------------------------------------------- vues
-async function tableau() {
-  const [e, jours, projets, modeles] = await Promise.all([api('/api/etat'), api('/api/consommation?par=jour&jours=30'), api('/api/consommation?par=projet&jours=30'), api('/api/consommation?par=modele&jours=30')]);
-  const t7 = e.tokens.find((t) => t.jours === 7) || {}; const t30 = e.tokens.find((t) => t.jours === 30) || {};
+const PERIODES = [7, 30, 90];
+async function tableau(params) {
+  const n = PERIODES.includes(+params.get('jours')) ? +params.get('jours') : 30;
+  const [e, jours, projets, modeles] = await Promise.all([api(`/api/etat?jours=${n}`), api(`/api/consommation?par=jour&jours=${n}`), api(`/api/consommation?par=projet&jours=${n}`), api(`/api/consommation?par=modele&jours=${n}`)]);
+  const p = e.periode; const t = p.tokens;
   const total = e.fiches_par_type.reduce((a, f) => a + f.n, 0);
-  const cout = e.tarifs_configures ? usd(t30.usd) : 'inconnu';
-  const sansTarif = e.sans_tarif_30j.map((m) => m.model);
+  const cout = e.tarifs_configures ? usd(t.usd) : 'inconnu';
+  const sansTarif = p.sans_tarif.map((m) => m.model);
   const partiel = sansTarif.length ? ` · hors ${sansTarif.length} modèle${sansTarif.length > 1 ? 's' : ''} sans tarif` : '';
   const noteCout = e.tarifs_configures ? `tarif liste${e.tarifs.releve ? `, grille du ${e.tarifs.releve}` : ''}${partiel}` : 'aucun tarif configuré';
   const bulleCout = [e.tarifs.source && `Grille : ${e.tarifs.source}`, sansTarif.length && `Sans tarif : ${sansTarif.join(', ')}`].filter(Boolean).join('\n');
-  // Toute la plage de 30 jours (dates UTC, comme le regroupement côté serveur) : un jour sans activité vaut zéro.
+  // Toute la plage (dates UTC, comme le regroupement côté serveur) : un jour sans activité vaut zéro.
   const parJour = Object.fromEntries(jours.map((j) => [j.cle, j]));
-  const plage = Array.from({ length: 30 }, (_, i) => new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10));
+  const plage = Array.from({ length: n }, (_, i) => new Date(Date.now() - (n - 1 - i) * 864e5).toISOString().slice(0, 10));
   const max = Math.max(1, ...jours.map((j) => j.sortie || 0));
   const larg = 100 / plage.length;
-  const histo = jours.length ? `<svg class="histo" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Tokens de sortie par jour, 30 jours">${plage.map((d, i) => {
+  const histo = jours.length ? `<svg class="histo" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Tokens de sortie par jour, ${n} jours">${plage.map((d, i) => {
     const sortie = parJour[d]?.sortie || 0; const hauteur = sortie ? Math.max(0.5, (sortie / max) * 36) : 0.3;
     return `<a href="#/sessions?jour=${d}"><rect class="${sortie ? '' : 'nul'}" x="${i * larg + larg * 0.12}" y="${38 - hauteur}" width="${larg * 0.76}" height="${hauteur}" rx="0.4"><title>${jj(d)} : ${h(abr(sortie))} tokens de sortie${sortie ? ' — voir les sessions' : ''}</title></rect></a>`;
-  }).join('')}</svg><div class="axe">${[0, 10, 20, 29].map((i) => `<span>${jj(plage[i])}</span>`).join('')}</div>` : '<div class="vide">Aucune activité importée.</div>';
+  }).join('')}</svg><div class="axe">${[0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1].map((i) => `<span>${jj(plage[i])}</span>`).join('')}</div>` : '<div class="vide">Aucune activité importée.</div>';
   const maxP = Math.max(1, ...projets.map((p) => p.sortie || 0));
   const absentes = e.dernier_inventaire?.absentes || [];
-  const refus = e.refus_30j.par_origine; const maxR = Math.max(1, ...refus.map((r) => r.n));
+  const refus = p.refus.par_origine; const maxR = Math.max(1, ...refus.map((r) => r.n));
   return `
-    <h1>Tableau de bord</h1>
-    <p class="sous-titre">Ce qui est en place et ce qui s’est passé sur ce site.${e.dernier_inventaire ? ` Dernier inventaire ${h(depuis(e.dernier_inventaire.at))}.` : ''}</p>
+    <div class="entete"><h1>Tableau de bord</h1><div class="puces" role="group" aria-label="Période">${PERIODES.map((j) => `<a class="puce ${j === n ? 'actif' : ''}" href="#/?jours=${j}">${j} j</a>`).join('')}</div></div>
+    <p class="sous-titre">Ce qui est en place, et ce qui s’est passé sur ce site ces ${n} derniers jours.${e.dernier_inventaire ? ` Dernier inventaire ${h(depuis(e.dernier_inventaire.at))}.` : ''}</p>
     <div class="grille g4">
       <div class="carte tuile"><div class="libelle">Éléments en place</div><div class="valeur">${nf.format(total)}</div><div class="note">${e.fiches_par_type.length} types</div></div>
-      <div class="carte tuile"><div class="libelle">Sessions sur 7 jours</div><div class="valeur">${nf.format(e.sessions.sept_jours)}</div><div class="note">${nf.format(e.sessions.total)} au total</div></div>
-      <div class="carte tuile"><div class="libelle">Tokens de sortie, 7 j</div><div class="valeur">${abr(t7.sortie)}</div><div class="note">cache lu : ${abr(t7.cache_lu)}</div></div>
-      <div class="carte tuile"><div class="libelle">Coût, 30 j</div><div class="valeur">${h(cout)}</div><div class="note"${bulleCout ? ` title="${h(bulleCout)}"` : ''}>${h(noteCout)}</div></div>
+      <div class="carte tuile"><div class="libelle">Sessions, ${n} j</div><div class="valeur">${nf.format(p.sessions)}</div><div class="note">${nf.format(e.sessions.total)} au total</div></div>
+      <div class="carte tuile"><div class="libelle">Tokens de sortie, ${n} j</div><div class="valeur">${abr(t.sortie)}</div><div class="note">cache lu : ${abr(t.cache_lu)}</div></div>
+      <div class="carte tuile"><div class="libelle">Coût, ${n} j</div><div class="valeur">${h(cout)}</div><div class="note"${bulleCout ? ` title="${h(bulleCout)}"` : ''}>${h(noteCout)}</div></div>
     </div>
     <div class="grille g2 section">
-      <div class="carte"><h2>Activité — tokens de sortie par jour, 30 j</h2>${histo}</div>
-      <div class="carte"><h2>Projets les plus actifs, 30 j</h2><div class="barres">${projets.slice(0, 8).map((p) => `
+      <div class="carte"><h2>Activité — tokens de sortie par jour, ${n} j</h2>${histo}</div>
+      <div class="carte"><h2>Projets les plus actifs, ${n} j</h2><div class="barres">${projets.slice(0, 8).map((p) => `
         <div class="barre"><span class="nom" title="${h(p.cle)}">${h(p.cle || '(sans projet)')}</span><span class="piste"><span class="rempli" style="width:${((p.sortie || 0) / maxP) * 100}%"></span></span><span class="chiffre"${p.usd != null ? ` title="${h(usd(p.usd))}"` : ''}>${abr(p.sortie)}</span></div>`).join('') || '<div class="vide">Rien sur la période.</div>'}</div></div>
     </div>
-    <div class="carte tableau section"><table class="triable"><thead><tr><th>Modèle, 30 j</th><th class="num">Entrée</th><th class="num">Cache écrit</th><th class="num">Cache lu</th><th class="num">Sortie</th><th class="num" data-sens="desc">Coût liste</th></tr></thead><tbody>
+    <div class="carte tableau section"><table class="triable"><thead><tr><th>Modèle, ${n} j</th><th class="num">Entrée</th><th class="num">Cache écrit</th><th class="num">Cache lu</th><th class="num">Sortie</th><th class="num" data-sens="desc">Coût liste</th></tr></thead><tbody>
       ${[...modeles].sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1)).map((m) => `<tr><td class="mono">${h(m.cle)}</td>${num(m.entree, abr(m.entree))}${num(m.cache_ecrit, abr(m.cache_ecrit))}${num(m.cache_lu, abr(m.cache_lu))}${num(m.sortie, abr(m.sortie))}${num(m.usd, m.usd == null ? '<span class="discret">sans tarif</span>' : usd(m.usd))}</tr>`).join('') || '<tr><td colspan="6" class="vide">Rien sur la période.</td></tr>'}
     </tbody></table></div>
     <div class="section">
-      <div class="carte"><h2>Refus d’outil, 30 j</h2>${refus.length ? `<div class="barres">${refus.map((r) => `
+      <div class="carte"><h2>Refus d’outil, ${n} j</h2>${refus.length ? `<div class="barres">${refus.map((r) => `
         <div class="barre"><span class="nom">${h(ORIGINES[r.cle] || r.cle)}</span><span class="piste"><span class="rempli" style="width:${(r.n / maxR) * 100}%"></span></span><span class="chiffre">${nf.format(r.n)}</span></div>`).join('')}</div>
-        <p class="discret">Outils les plus refusés : ${e.refus_30j.par_outil.map((o) => `${h(o.cle || '?')} (${nf.format(o.n)})`).join(', ')}</p>` : '<div class="discret">Aucun refus sur la période.</div>'}</div>
+        <p class="discret">Outils les plus refusés : ${p.refus.par_outil.map((o) => `${h(o.cle || '?')} (${nf.format(o.n)})`).join(', ')}</p>` : '<div class="discret">Aucun refus sur la période.</div>'}</div>
     </div>
     <div class="grille g2 section">
       <div class="carte"><h2>Catalogue</h2><div class="puces">${e.fiches_par_type.map((f) => `<a class="puce" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${nf.format(f.n)}</b> ${h(type(f.kind))}</a>`).join('')}</div>
@@ -94,8 +96,8 @@ async function sessions(params) {
     <h1>Sessions</h1>
     <p class="sous-titre">Sessions Claude Code des 90 derniers jours, sous-agents rattachés à leur session.</p>
     <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length} sur 90 j)</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select>${jour ? `<a class="puce actif" href="#/sessions" title="Retirer le filtre">${jj(jour)} ✕</a>` : ''}</div>
-    <div class="carte tableau"><table class="triable"><thead><tr><th>Fin</th><th>Projet</th><th class="num">Durée</th><th class="num">Tours</th><th class="num">Sous-agents</th><th class="num">Refus</th><th class="num">Sortie</th><th class="num">Cache lu</th><th class="num">Coût</th><th>Modèle</th></tr></thead><tbody>
-      ${liste.map((s) => `<tr><td title="${h(s.session)}" data-v="${Date.parse(s.fin)}">${h(date(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td>${num(s.data.duree_s, h(duree(s.data.duree_s)))}${num(s.data.tours || 0, nf.format(s.data.tours || 0))}${num(s.sous_agents || 0, s.sous_agents || '')}${num(s.refus || 0, s.refus || '')}${num(s.sortie, abr(s.sortie))}${num(s.cache_lu, abr(s.cache_lu))}${num(s.usd, usd(s.usd))}<td class="mono desc">${h((s.data.modeles || []).join(', '))}</td></tr>`).join('') || '<tr><td colspan="10" class="vide">Aucune session.</td></tr>'}
+    <div class="carte tableau"><table class="triable"><thead><tr><th>Fin</th><th>Projet</th><th class="num">Durée</th><th class="num">Tours</th><th class="num">Sous-agents</th><th class="num">Refus</th><th class="num">Sortie</th><th class="num">Cache lu</th><th class="num">Coût</th><th class="num" title="Coût de la session (sous-agents compris) divisé par ses tours : il monte quand chaque tour relit un long contexte">Coût / tour</th><th>Modèle</th></tr></thead><tbody>
+      ${liste.map((s) => `<tr><td title="${h(s.session)}" data-v="${Date.parse(s.fin)}">${h(date(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td>${num(s.data.duree_s, h(duree(s.data.duree_s)))}${num(s.data.tours || 0, nf.format(s.data.tours || 0))}${num(s.sous_agents || 0, s.sous_agents || '')}${num(s.refus || 0, s.refus || '')}${num(s.sortie, abr(s.sortie))}${num(s.cache_lu, abr(s.cache_lu))}${num(s.usd, usd(s.usd))}${(() => { const pt = s.usd != null && s.tours_total ? s.usd / s.tours_total : null; return `<td class="num" data-v="${pt ?? -1}"${s.tours_total ? ` title="contexte relu en moyenne : ${h(abr(Math.round((s.cache_lu || 0) / s.tours_total)))} tokens par tour"` : ''}>${pt == null ? '—' : `${pt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`}</td>`; })()}<td class="mono desc">${h((s.data.modeles || []).join(', '))}</td></tr>`).join('') || '<tr><td colspan="11" class="vide">Aucune session.</td></tr>'}
     </tbody></table></div>`;
 }
 

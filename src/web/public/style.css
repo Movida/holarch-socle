@@ -63,6 +63,7 @@ a.puce:hover, .puce.actif { border-color: var(--accent); color: var(--accent); b
 .barre .piste { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
 .histo rect.nul { opacity: .35; }
 .histo a:hover rect { opacity: .8; }
+.entete { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .axe { display: flex; justify-content: space-between; font-size: 11px; color: var(--doux); margin-top: 4px; font-variant-numeric: tabular-nums; }
 table.triable th { cursor: pointer; user-select: none; }
 table.triable th[data-sens=asc]::after { content: ' ▲'; font-size: 9px; } table.triable th[data-sens=desc]::after { content: ' ▼'; font-size: 9px; }

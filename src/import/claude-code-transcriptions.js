@@ -103,7 +103,9 @@ export default function importerTranscriptions(options, { journal, donnees }) {
       const delta = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v - (avant[k] || 0)]));
       if (Object.values(delta).every((v) => v <= 0)) continue;
       evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:${m}:${t.out}:${t.cache_read}:${t.cache_write_1h}`), at: a.fin, kind: 'cost.recorded',
-        data: { projet, sous_agent: a.sousAgent }, cost: { provider: 'anthropic', model: m, usd_list: null, tokens: delta } });
+        // Un identifiant préfixé (`fournisseur/modèle`) est passé par un intermédiaire, qui facture lui-même.
+        data: { projet, sous_agent: a.sousAgent, ...(m.includes('/') && { via: 'intermediaire' }) },
+        cost: { provider: m.includes('/') ? m.split('/')[0] : 'anthropic', model: m, usd_list: null, tokens: delta } });
     }
     for (const x of a.refus) {
       evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${f}:refus:${x.cle}`), at: x.at || a.fin, kind: 'tool.denied',

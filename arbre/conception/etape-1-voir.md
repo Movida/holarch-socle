@@ -5,7 +5,7 @@ description: Catalogue et journal alimentés par l'existant, et une interface we
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-sources-hote.md, /arbre/decisions/2026-10-03-refus.md]
+  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-sources-hote.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md]
 ---
 
 # Étape 1 — Voir
@@ -55,6 +55,10 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 - **Fait (2026-10-03)** : revue de l'interface : histogramme sur 30 jours avec dates et barres vers les sessions du
   jour, tableaux triables (modèles par coût), statut d'arbre des nœuds au catalogue, mémoires en double signalées,
   sources non vues sorties de « À regarder », vue précédente affichée pendant le rechargement ; test visuel.
+- **Fait (2026-10-03)** : identité des projets par leur premier commit et `element.moved` (décision
+  `identite-projets`) ; prix liste d'un modèle passé par un intermédiaire (`anthropic/…`) ; coût par tour des
+  sessions ; période du tableau de bord au choix (7, 30, 90 jours) ; interface servie depuis la version chargée au
+  démarrage du serveur ; 17 tests et le test visuel.
 - **Reste, dans cet ordre** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
      relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).

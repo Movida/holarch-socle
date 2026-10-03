@@ -26,10 +26,10 @@ switch (cmd) {
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : Object.entries(r).map(([k, v]) => `${k} : ${v.fichiers_lus} fichier(s) lu(s), ${v.ajoutes} événement(s) ajouté(s), ${v.ignores} déjà connu(s), ${v.refuses} refusé(s), ${v.en_cours_ignores} session(s) en cours laissée(s) pour plus tard`).join('\n')); break; }
   case 'indexer': afficher(socle().indexer()); break;
   case 'etat': { const s = socle(); s.indexer(); const e = s.etat(); if (json) { afficher(e); break; }
-    console.log(`site ${e.site} · ${e.evenements} événements · sessions ${e.sessions.total} (dont ${e.sessions.sept_jours} sur 7 jours)`);
+    console.log(`site ${e.site} · ${e.evenements} événements · sessions ${e.sessions.total} (dont ${e.periode.sessions} sur ${e.periode.jours} jours)`);
     console.log(`catalogue : ${e.fiches_par_type.map((f) => `${f.kind} ${f.n}`).join(' · ')}`);
     for (const t of e.tokens) console.log(`${t.jours} j : sortie ${t.sortie ?? 0} tokens, cache lu ${t.cache_lu ?? 0}${t.usd != null ? `, ${t.usd.toFixed(2)} USD liste` : e.tarifs_configures ? '' : ' (coût inconnu : aucun tarif configuré)'}`);
-    if (e.tarifs_configures) console.log(`tarifs : grille du ${e.tarifs.releve ?? '?'} (${e.tarifs.source ?? 'source non citée'})${e.sans_tarif_30j.length ? ` ; sans tarif sur 30 j : ${e.sans_tarif_30j.map((m) => m.model).join(', ')}` : ''}`);
+    if (e.tarifs_configures) console.log(`tarifs : grille du ${e.tarifs.releve ?? '?'} (${e.tarifs.source ?? 'source non citée'})${e.periode.sans_tarif.length ? ` ; sans tarif sur ${e.periode.jours} j : ${e.periode.sans_tarif.map((m) => m.model).join(', ')}` : ''}`);
     break; }
   case 'voir': {
     const s = socle(); const r = await s.rafraichir();

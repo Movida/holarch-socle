@@ -2,6 +2,9 @@
 
 ## 2026-10-03
 
+* **Identité et coûts** : projets identifiés par leur premier commit, `element.moved` (contrat événement 0.5.0,
+  décision `identite-projets`) ; prix liste des identifiants `anthropic/…` ; coût par tour ; période au choix.
+
 * **Interface, seconde revue** : histogramme daté, tris, doublons de mémoires, statut d'arbre au catalogue ; test
   visuel Playwright (`npm run test:visuel`).
 

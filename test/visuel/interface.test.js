@@ -70,6 +70,10 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.match(await page.textContent('.tuile:last-child .note'), /hors 1 modèle sans tarif/);
   assert.match(await page.textContent('body'), /mémoire en 2 exemplaires/);
   assert.equal(await page.$eval('table.triable tbody tr td', (td) => td.textContent), 'modele-a', 'modèles triés par coût');
+  await page.click('.entete .puce:has-text("7 j")');
+  await page.waitForFunction(() => document.querySelectorAll('svg.histo rect').length === 7);
+  assert.match(await page.textContent('.tuile:nth-child(2) .libelle'), /7 j/);
+  await page.goto(racine); await page.waitForSelector('svg.histo');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const nav = await page.$eval('.nav', (n) => n.getBoundingClientRect().top);
   assert.equal(nav, 0, 'la barre latérale reste en place au défilement');
@@ -81,6 +85,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await page.click('table.triable th:nth-child(9)'); // premier clic : du plus grand au plus petit
   const couts = await page.$$eval('table.triable tbody tr td:nth-child(9)', (td) => td.map((x) => +x.dataset.v));
   assert.deepEqual(couts, [...couts].sort((a, b) => b - a), 'tri décroissant par coût');
+  assert.match(await page.textContent('table.triable tbody tr td:nth-child(10)'), /\$$/, 'coût par tour affiché');
   await ouvrir(`#/sessions?jour=${il_y_a(2).slice(0, 10)}`, 'table.triable tbody tr');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'filtre par jour');
 
