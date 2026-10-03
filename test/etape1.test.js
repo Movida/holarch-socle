@@ -250,3 +250,23 @@ test('socle : le coût se calcule à l’indexation depuis la grille, sans réé
   assert.equal([...s.journal.lire()].find((x) => x.kind === 'ui.viewed').actor, 'human:local');
   assert.ok([...s.journal.lire()].filter((x) => x.kind === 'cost.recorded').every((x) => x.cost.usd_list === null));
 });
+
+test('serveur MCP : outils en lecture, réponses du socle, par le client officiel sur stdio', async () => {
+  const { Client } = await import('@modelcontextprotocol/client');
+  const { StdioClientTransport } = await import('@modelcontextprotocol/client/stdio');
+  const accueil = tmp();
+  const s = new Socle({ site: 'local', donnees: accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([{ id: 'holarch:skill:demo', kind: 'skill', name: 'demo', description: 'Une skill fictive.', status: 'active', provenance: { source: 't' } }]);
+  ecrire(path.join(accueil, 'config.yaml'), `site: local\ninventaire: { claude-code: { actif: false }, depots-git: { actif: false }, arbre: { actif: false }, docker: { actif: false }, claude-desktop: { actif: false } }\n`);
+  const client = new Client({ name: 'test', version: '0' });
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: ['--no-warnings', path.resolve('bin/holarch.js'), 'mcp'], env: { ...process.env, HOLARCH_HOME: accueil } }));
+  try {
+    const { tools } = await client.listTools();
+    assert.deepEqual(tools.map((t) => t.name).sort(), ['arbre', 'catalogue', 'consommation', 'etat', 'fiche', 'journal', 'sessions']);
+    assert.ok(tools.every((t) => t.annotations?.readOnlyHint === true), 'tous en lecture');
+    const r = await client.callTool({ name: 'catalogue', arguments: { kind: 'skill' } });
+    assert.deepEqual(JSON.parse(r.content[0].text).fiches.map((f) => f.name), ['demo']);
+    const e = JSON.parse((await client.callTool({ name: 'etat', arguments: { jours: 7 } })).content[0].text);
+    assert.equal(e.periode.jours, 7);
+  } finally { await client.close(); }
+});

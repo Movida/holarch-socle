@@ -10,7 +10,8 @@ projet. Il apporte ce qu'aucun d'eux ne fournit d'une session, d'un projet ou d'
 > **Statut : étape 1 — Voir**, en cours. L'architecture est approuvée ; les contrats événement, fiche du catalogue et
 > acteurs aussi ; nœud et règle sont en brouillon (`arbre/`). Ce qui marche : inventaire de ce qui est en place
 > (Claude Code, dépôts Git, arbre HOLARCH, conteneurs et volumes Docker, serveurs MCP de Claude Desktop), import du
-> journal depuis les transcriptions Claude Code, coût liste, interface web en lecture.
+> journal depuis les transcriptions Claude Code, coût liste, interface web en lecture. Étape 2 en cours : HOLARCH
+> servi en MCP aux agents.
 
 ## Essayer
 
@@ -21,6 +22,12 @@ node bin/holarch.js voir     # inventaire + import, puis http://127.0.0.1:4280
 npm test                     # tests, sans navigateur
 npm run test:visuel          # interface dans Chromium (préparer : npx playwright install --with-deps chromium)
 ```
+
+### Pour les agents : HOLARCH en MCP
+
+`node bin/holarch.js mcp` sert en MCP (stdio), en lecture, ce que montre l'interface : état et coûts, catalogue, fiches,
+sessions, consommation, journal, arbre. Dans ce dépôt, Claude Code le trouve dans `.mcp.json` (à approuver au premier
+lancement) ; ailleurs : `claude mcp add holarch -- node <chemin du dépôt>/bin/holarch.js mcp`.
 
 Node.js ≥ 22.5. Les données (catalogue, journal, index) restent dans `~/.holarch`, jamais dans le dépôt ; rien ne
 quitte la machine. Le coût en dollars n'apparaît que si une grille de tarifs, relevée sur la page officielle du

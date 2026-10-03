@@ -35,8 +35,10 @@ fouiller.
 
 ## Avancement
 
-- **À faire, dans cet ordre** : 1. serveur MCP de HOLARCH ; 2. appels MCP au journal ; 3. essai d'agentgateway, puis
-  site de travail.
+- **Fait (2026-10-03)** : serveur MCP de HOLARCH sur le SDK officiel v2, en stdio (`holarch mcp`) : sept outils en
+  lecture (`etat`, `catalogue`, `fiche`, `sessions`, `consommation`, `journal`, `arbre`), réponses bornées ; déclaré au
+  projet (`.mcp.json`) ; testé de bout en bout par le client officiel (18 tests).
+- **À faire, dans cet ordre** : 2. appels MCP au journal ; 3. essai d'agentgateway, puis site de travail.
 
 ## Hors périmètre
 

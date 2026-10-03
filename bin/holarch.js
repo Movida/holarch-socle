@@ -3,24 +3,29 @@
 import { Socle } from '../src/socle.js';
 import { chargerConfig, ecrireConfigExemple, accueil } from '../src/config.js';
 import { creerServeur } from '../src/web/serveur.js';
+import { servirStdio } from '../src/mcp/serveur.js';
+import { readFileSync } from 'node:fs';
 
 const [cmd = 'aide', ...args] = process.argv.slice(2);
 const json = args.includes('--json');
 const afficher = (o) => console.log(json ? JSON.stringify(o, null, 2) : o);
 
-const AIDE = `holarch — socle autour des agents d'IA (étape 1 : voir)
+const AIDE = `holarch — socle autour des agents d'IA
 
   holarch init         écrit une configuration d'exemple dans ${accueil()}/config.yaml
   holarch inventaire   recense ce qui est en place (catalogue)
   holarch importer     importe le journal (transcriptions Claude Code…)
   holarch etat         résumé : catalogue, sessions, tokens
   holarch voir         rafraîchit puis sert l'interface web (http://127.0.0.1:4280, --port N pour un autre port)
+  holarch mcp          sert HOLARCH en MCP sur stdio, en lecture (claude mcp add holarch -- holarch mcp)
 
 Options : --json (sortie brute). Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
 const socle = () => new Socle(chargerConfig());
 
 switch (cmd) {
+  // Rien ne s'écrit sur la sortie standard en mode MCP : c'est le canal du protocole.
+  case 'mcp': servirStdio(socle(), JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version); break;
   case 'init': console.log(ecrireConfigExemple() ? `configuration écrite : ${accueil()}/config.yaml` : 'configuration déjà présente'); break;
   case 'inventaire': { const s = socle(); const r = await s.inventaire(); s.indexer(); afficher(json ? r : `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}`); break; }
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : Object.entries(r).map(([k, v]) => `${k} : ${v.fichiers_lus} fichier(s) lu(s), ${v.ajoutes} événement(s) ajouté(s), ${v.ignores} déjà connu(s), ${v.refuses} refusé(s), ${v.en_cours_ignores} session(s) en cours laissée(s) pour plus tard`).join('\n')); break; }

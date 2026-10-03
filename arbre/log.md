@@ -2,6 +2,8 @@
 
 ## 2026-10-03
 
+* **Serveur MCP de HOLARCH** : sept outils en lecture sur le SDK officiel v2, `holarch mcp`, `.mcp.json`.
+
 * **Ouverture de l'étape 2** : recherche des passerelles MCP existantes ; décision `forme-etape-2` (serveur HOLARCH,
   appels MCP au journal, agentgateway après essai ; critère par lieu) ; spécification `etape-2-point-entree.md`.
 
