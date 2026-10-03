@@ -1,0 +1,44 @@
+---
+type: spec
+title: Étape 1 — Voir
+description: Catalogue et journal alimentés par l'existant, et une interface web en lecture qui montre ce qui est en place et ce qui se passe.
+status: draft
+links:
+  derives_from: [/arbre/besoins/besoins-fondateurs.md]
+  constrained_by: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md, /arbre/decisions/2026-10-03-synchronisation.md]
+---
+
+# Étape 1 — Voir
+
+**Sert** B2 (« voir ce qui est en place et ce qui se passe »). **Critère d'usage** : l'utilisateur ouvre l'interface
+plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a tourné, pour combien ? ».
+
+## Livre
+
+1. **Inventaire** → catalogue : des adaptateurs d'inventaire, un par source, chacun optionnel et activé par la
+   configuration. Premiers adaptateurs : Claude Code (skills, agents, hooks, serveurs MCP, plugins, mémoires par
+   projet), dépôts Git sous des racines configurées, l'arbre HOLARCH lui-même. Aucun contenu sensible n'est copié :
+   une fiche porte une référence (`location`), un nom, une description, des mesures.
+2. **Import du journal** : des adaptateurs d'import, idempotents. Premier : les transcriptions Claude Code → événements
+   `session.started`, `session.finished`, `cost.recorded` (tokens par modèle ; coût en USD seulement si une table de
+   tarifs est configurée — aucun tarif n'est inventé).
+3. **Stockage** : journal en JSON Lines par site et par mois, en ajout seul (le contrat) ; un index SQLite reconstruit
+   depuis le journal et l'inventaire, jetable. Données dans un répertoire de travail hors dépôt (`~/.holarch` par
+   défaut, configurable) : rien de personnel n'entre dans le dépôt public.
+4. **Interface web en lecture**, servie en local : tableau de bord, catalogue, journal (sessions, tokens par projet et
+   par modèle), arbre (nœuds et statuts). Le serveur expose une API JSON que le hub MCP (étape 2) reprendra telle quelle.
+5. **Ligne de commande** : `holarch inventaire`, `holarch importer`, `holarch voir`, `holarch etat`.
+
+## Choix techniques (principe P12)
+
+| Choix | Raison | Ce qui le ferait changer |
+|---|---|---|
+| Node.js (≥ 22), modules ES, sans étape de compilation | répandu, SDK MCP officiel, `node:sqlite` intégré | un besoin de performance ou d'écosystème qu'il ne couvre pas |
+| JSON Schema pour les contrats | neutre vis-à-vis du langage : le contrat survit à l'implémentation | — |
+| JSON Lines + SQLite | journal lisible et fusionnable, index sans serveur | volume ou accès concurrent au-delà d'un poste |
+| Interface en HTML, CSS et JavaScript sans framework | aucune chaîne de construction, durable | une interface qui devient une application riche (étape 5 et au-delà) |
+| Configuration en YAML | lisible et éditable à la main | — |
+
+## Hors périmètre
+
+Écriture depuis l'interface, hub MCP, règles appliquées, exécution : étapes suivantes.

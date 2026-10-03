@@ -16,7 +16,7 @@ links:
 | Champ | Valeur |
 |---|---|
 | `id` | `holarch:<kind>:<slug>`, unique et stable |
-| `kind` | `rule` · `procedure` · `skill` · `hook` · `agent_profile` · `model_profile` · `knowledge_base` · `project` · `node` · `run` · `budget` · `connector` · `context` · `adapter` · `brick` · `idea` (extensible par décision) |
+| `kind` | `rule` · `procedure` · `skill` · `hook` · `agent_profile` · `model_profile` · `knowledge_base` · `project` · `node` · `run` · `budget` · `connector` · `context` · `adapter` · `brick` · `idea` · `memory` (note de mémoire d'un outil) · `instructions` (fichier de consignes d'un outil, `CLAUDE.md`…) · `plugin` · `plugin_marketplace` (extensible par décision) |
 | `name`, `description` | texte court |
 | `version` | semver, si l'élément est versionné |
 | `node` | nœud de l'arbre auquel l'élément est attaché (portée) |
@@ -29,6 +29,7 @@ links:
 | `location` | où l'élément vit réellement (chemin, URL, conteneur) — une référence, jamais un secret |
 | `usage` | `{count, last_used, cost_usd}`, tenu à jour depuis le journal |
 | `links` | `depends_on`, `realizes` (nœud), `replaces` |
+| `attributes` | attributs propres au `kind`, posés par l'adaptateur qui crée la fiche ; non normatifs |
 
 ## 2. Règles
 

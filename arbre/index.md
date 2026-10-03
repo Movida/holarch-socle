@@ -15,6 +15,7 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`besoins/besoins-fondateurs.md`](besoins/besoins-fondateurs.md) - les quatre besoins d'où part le système
 - [`conception/types.md`](conception/types.md) - le registre des types de nœuds
 - [`conception/contrats/index.md`](conception/contrats/index.md) - les contrats : nœud, règle, fiche du catalogue, événement du journal
+- [`conception/etape-1-voir.md`](conception/etape-1-voir.md) - étape 1 : catalogue, journal et interface en lecture
 - [`decisions/2026-10-03-fondation.md`](decisions/2026-10-03-fondation.md) - les décisions fondatrices
 - [`decisions/2026-10-03-synchronisation.md`](decisions/2026-10-03-synchronisation.md) - ce qui se synchronise entre local et serveur, et qui fait foi
 - [`questions.md`](questions.md) - les questions ouvertes

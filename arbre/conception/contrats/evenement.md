@@ -41,7 +41,7 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 `session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.called` · `rule.*` (applied,
 violated, derogated, proposed) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
 `element.*` (created, updated, suspended, retired) · `cost.recorded` · `budget.*` (warning, exceeded) · `dream.*`
-(started, proposal, finished) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded).
+(started, proposal, finished) · `inventory.finished` · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded).
 
 ## 4. Règles
 

@@ -7,8 +7,21 @@ ce qu'ils apprennent soit conservé, vérifié et partagé entre vos projets, et
 HOLARCH ne refait pas l'orchestration d'agents : les runtimes existants le font et évoluent plus vite que n'importe quel
 projet. Il apporte ce qu'aucun d'eux ne fournit d'une session, d'un projet ou d'un outil à l'autre.
 
-> **Statut : étape 0 — spécification.** Rien n'est encore exécutable. L'architecture est approuvée ; l'arbre du
-> système et ses contrats sont en brouillon (`arbre/`).
+> **Statut : étape 1 — Voir**, en cours. L'architecture est approuvée ; les contrats sont en brouillon (`arbre/`).
+> Ce qui marche : inventaire de ce qui est en place (Claude Code, dépôts Git, arbre HOLARCH), import du journal depuis
+> les transcriptions Claude Code, interface web en lecture.
+
+## Essayer
+
+```bash
+npm install
+node bin/holarch.js init     # configuration d'exemple dans ~/.holarch/config.yaml (répertoire : HOLARCH_HOME)
+node bin/holarch.js voir     # inventaire + import, puis http://127.0.0.1:4280
+```
+
+Node.js ≥ 22.5. Les données (catalogue, journal, index) restent dans `~/.holarch`, jamais dans le dépôt ; rien ne
+quitte la machine. Le coût en dollars n'apparaît que si des tarifs sont renseignés dans la configuration : aucun tarif
+n'est inventé.
 
 ## L'idée en une image
 
@@ -41,6 +54,7 @@ Le détail : [`docs/architecture.md`](docs/architecture.md).
 | `docs/architecture.md` | l'architecture macro, de laquelle tout dérive |
 | `arbre/` | l'arbre du système lui-même, écrit avec sa propre méthode (fondations, besoins, conception, décisions) |
 | `arbre/conception/contrats/` | les contrats en brouillon : nœud, règle, fiche du catalogue, événement du journal |
+| `src/`, `bin/`, `test/` | l'implémentation de l'étape en cours (`arbre/conception/etape-1-voir.md`) |
 | `CLAUDE.md` | consignes pour une session d'agent dans ce dépôt |
 
 ## Licence

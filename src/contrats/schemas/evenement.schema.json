@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Movida/holarch-socle/contrats/evenement/0.2.0",
+  "title": "Événement du journal (contrat 0.2.0, arbre/conception/contrats/evenement.md)",
+  "type": "object",
+  "required": ["id", "at", "kind", "actor", "site"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
+    "kind": { "type": "string", "pattern": "^[a-z_]+\\.[a-z_]+$" },
+    "actor": { "type": "string", "pattern": "^(human|agent|system):.+" },
+    "site": { "type": "string", "minLength": 1 },
+    "context": { "type": ["string", "null"] },
+    "node": { "type": ["string", "null"] },
+    "subject": { "type": ["string", "null"] },
+    "correlation": { "type": ["string", "null"] },
+    "data": { "type": "object" },
+    "cost": {
+      "type": "object",
+      "properties": {
+        "usd_list": { "type": ["number", "null"] },
+        "usd_real": { "type": ["number", "null"] },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "tokens": { "type": "object", "additionalProperties": { "type": "integer" } }
+      }
+    },
+    "classification": { "enum": ["public", "internal", "confidential", "sensitive"] }
+  }
+}

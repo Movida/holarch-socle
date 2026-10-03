@@ -1,6 +1,6 @@
-node_modules/
-.env
-.env.*
 *.log
 .DS_Store
+.env
+.env.*
 /var/
+node_modules/
