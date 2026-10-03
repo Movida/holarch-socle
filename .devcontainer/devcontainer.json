@@ -1,0 +1,15 @@
+{
+  "name": "HOLARCH socle",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "mounts": [
+    // Authentification et réglages Claude Code partagés avec l'hôte ; l'inventaire HOLARCH les lit aussi.
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+    // Deploy keys du conteneur (deploy-keys.sh), dans un volume nommé propre à ce dépôt.
+    "source=holarch-socle-ssh,target=/home/vscode/.ssh,type=volume"
+  ],
+  "forwardPorts": [4280],
+  "portsAttributes": { "4280": { "label": "HOLARCH — interface", "onAutoForward": "notify" } },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && bash .devcontainer/deploy-keys.sh origin",
+  "remoteEnv": { "ANTHROPIC_API_KEY": "", "HOLARCH_HOME": "/home/vscode/.claude/holarch" },
+  "customizations": { "vscode": { "extensions": ["anthropic.claude-code"] } }
+}

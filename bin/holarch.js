@@ -14,7 +14,7 @@ const AIDE = `holarch — socle autour des agents d'IA (étape 1 : voir)
   holarch inventaire   recense ce qui est en place (catalogue)
   holarch importer     importe le journal (transcriptions Claude Code…)
   holarch etat         résumé : catalogue, sessions, tokens
-  holarch voir         rafraîchit puis ouvre l'interface web (http://127.0.0.1:4280)
+  holarch voir         rafraîchit puis sert l'interface web (http://127.0.0.1:4280, --port N pour un autre port)
 
 Options : --json (sortie brute). Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
@@ -33,8 +33,15 @@ switch (cmd) {
   case 'voir': {
     const s = socle(); const r = s.rafraichir();
     console.log(`rafraîchi : ${r.inventaire.fiches} fiches, ${r.index.evenements} événements`);
-    const { hote, port } = s.config.web;
-    creerServeur(s).listen(port, hote, () => console.log(`HOLARCH · interface : http://${hote}:${port}`));
+    const { hote } = s.config.web;
+    const i = args.indexOf('--port'); const port = i >= 0 ? +args[i + 1] : s.config.web.port;
+    const serveur = creerServeur(s);
+    serveur.on('error', (e) => {
+      if (e.code !== 'EADDRINUSE') throw e;
+      console.error(`Le port ${port} est déjà pris : l'interface tourne peut-être déjà (http://${hote}:${port}).\nSinon : holarch voir --port ${port + 1}`);
+      process.exit(1);
+    });
+    serveur.listen(port, hote, () => console.log(`HOLARCH · interface : http://${hote}:${port}`));
     break; }
   default: console.log(AIDE);
 }

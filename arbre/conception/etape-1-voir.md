@@ -39,6 +39,19 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 | Interface en HTML, CSS et JavaScript sans framework | aucune chaîne de construction, durable | une interface qui devient une application riche (étape 5 et au-delà) |
 | Configuration en YAML | lisible et éditable à la main | — |
 
+## Avancement
+
+- **Fait (2026-10-03)** : inventaire (Claude Code, dépôts Git, arbre), import des transcriptions Claude Code, journal et
+  index, interface web en lecture (tableau de bord, catalogue, sessions, journal, arbre), ligne de commande, 8 tests.
+- **Reste, dans cet ordre** :
+  1. **Tarifs** : relever la grille officielle du fournisseur (page de tarifs, datée et citée), l'inscrire dans la
+     configuration du profil, afficher le coût liste ; jamais un tarif de mémoire.
+  2. **Adaptateurs d'inventaire** : conteneurs et volumes Docker ; serveurs MCP de Claude Desktop (sa configuration
+     côté hôte) ; serveurs MCP conteneurisés déclarés par l'utilisateur.
+  3. **Relecture et approbation des contrats** (nœud, règle, fiche, événement, acteurs) par l'utilisateur.
+  4. **Critère d'usage** observé sur une semaine (l'utilisateur ouvre l'interface plutôt que de demander), puis
+     ouverture de l'étape 2 (hub MCP).
+
 ## Hors périmètre
 
 Écriture depuis l'interface, hub MCP, règles appliquées, exécution : étapes suivantes.

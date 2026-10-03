@@ -13,6 +13,9 @@
   contrat est une décision, versionnée.
 - **Autour des runtimes, pas à leur place** : avant d'écrire une brique, vérifier qu'un runtime ou un outil existant ne
   le fait pas déjà bien (`docs/architecture.md` §2).
+- **Reprendre** : l'état courant est dans `arbre/log.md` (le plus récent en tête) et dans la section « Avancement » de
+  la spécification de l'étape en cours (`arbre/conception/etape-*.md`) ; l'ordre des étapes dans `docs/architecture.md` §10.
+- Vérifier avant de rendre la main : `npm test` vert ; aucune donnée personnelle dans un fichier suivi.
 - Journal : une ligne datée dans `arbre/log.md` par session qui change l'arbre (`## AAAA-MM-JJ` puis `* **Sujet** : détail`,
   le plus récent en premier).
 - Commits : résumé impératif court, en français ; un commit = une intention.
