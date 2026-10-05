@@ -2,6 +2,9 @@
 
 ## 2026-10-05
 
+* **Ouverture de l'étape 3** : `etape-3-regles-projets.md`, tranches 1 (accès distant par projet) et 2 (vue
+  Projets, Q14 résolue). Tranche 1 livrée : `holarch distant`, un serveur Remote Control par projet, à la demande.
+
 * **Import vu de deux montages** : un même répertoire de transcriptions lu depuis un conteneur puis depuis l'hôte
   était importé deux fois (état et identifiants fondés sur le chemin absolu) ; ils se fondent désormais sur le chemin
   relatif au compte, l'état ancien est repris. Constaté sur un site réel : les événements en double ont été retirés

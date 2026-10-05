@@ -17,6 +17,7 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`conception/contrats/index.md`](conception/contrats/index.md) - les contrats : nœud, règle, fiche du catalogue, événement du journal
 - [`conception/etape-1-voir.md`](conception/etape-1-voir.md) - étape 1 : catalogue, journal et interface en lecture (close)
 - [`conception/etape-2-point-entree.md`](conception/etape-2-point-entree.md) - étape 2 : serveur MCP de HOLARCH, appels MCP au journal, hub de fédération
+- [`conception/etape-3-regles-projets.md`](conception/etape-3-regles-projets.md) - étape 3 : accès distant par projet, vue Projets, puis règles et création de projet
 - [`conception/essai-agentgateway.md`](conception/essai-agentgateway.md) - ce que l'essai d'agentgateway a montré, ce qui reste à essayer sur l'hôte
 - [`conception/procedure-essai-hote.md`](conception/procedure-essai-hote.md) - mode opératoire de l'essai du hub sur l'hôte, pour une session d'agent
 - [`conception/procedure-site-travail.md`](conception/procedure-site-travail.md) - mode opératoire du site de travail et de sa passerelle protégée, pour une session d'agent

@@ -5,6 +5,7 @@ import { chargerConfig, ecrireConfigExemple, accueil } from '../src/config.js';
 import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
+import { creerDistant } from '../src/distant.js';
 import { readFileSync } from 'node:fs';
 
 const [cmd = 'aide', ...args] = process.argv.slice(2);
@@ -19,6 +20,9 @@ const AIDE = `holarch — socle autour des agents d'IA
   holarch etat         résumé : catalogue, sessions, tokens
   holarch voir         rafraîchit puis sert l'interface web (http://127.0.0.1:4280, --port N pour un autre port)
   holarch mcp          sert HOLARCH en MCP sur stdio, en lecture (claude mcp add holarch -- holarch mcp)
+  holarch distant [activer|desactiver <projet>]
+                       accès distant par projet : un serveur Remote Control de Claude Code par projet, à la demande ;
+                       sans argument, liste les projets dont l'accès est actif (<projet> : chemin ou nom de dossier)
   holarch pont <url> --cle <fichier>
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier
@@ -36,6 +40,14 @@ switch (cmd) {
   case 'inventaire': { const s = socle(); const r = await s.inventaire(); s.indexer(); afficher(json ? r : `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.deplacees.length} déplacées, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}${r.comptes_non_lus?.length ? `\nATTENTION comptes Claude Code non lus : ${r.comptes_non_lus.join(', ')}` : ''}`); break; }
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : Object.entries(r).map(([k, v]) => `${k} : ${v.fichiers_lus} fichier(s) lu(s), ${v.ajoutes} événement(s) ajouté(s), ${v.ignores} déjà connu(s), ${v.refuses} refusé(s)${v.en_cours_ignores ? `, ${v.en_cours_ignores} session(s) en cours laissée(s) pour plus tard` : ''}${v.absent !== undefined ? ` (fichier absent : ${v.absent ?? 'non configuré'})` : ''}`).join('\n')); break; }
   case 'indexer': afficher(socle().indexer()); break;
+  case 'distant': {
+    const d = creerDistant(chargerConfig()); const [action, projet] = args.filter((a) => !a.startsWith('--'));
+    try {
+      if (action === 'activer') { const r = d.activer(projet); afficher(json ? r : `accès distant actif : ${r.nom} (${r.chemin}), service ${r.unite}${r.confiance_declaree ? ' ; dossier déclaré de confiance pour Claude Code' : ''}`); }
+      else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}`); }
+      else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
+    } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
+    break; }
   case 'etat': { const s = socle(); s.indexer(); const e = s.etat(); if (json) { afficher(e); break; }
     console.log(`site ${e.site} · ${e.evenements} événements · sessions ${e.sessions.total} (dont ${e.periode.sessions} sur ${e.periode.jours} jours)`);
     console.log(`catalogue : ${e.fiches_par_type.map((f) => `${f.kind} ${f.n}`).join(' · ')}`);

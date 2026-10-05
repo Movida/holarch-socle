@@ -33,6 +33,9 @@ const DEFAUTS = () => ({
   // [{ nom, home, config? }], `nom` étant un identifiant choisi (jamais un courriel), `config` valant par défaut
   // `<home>/.claude.json`. Vide : l'inventaire et l'import ne lisent que leur `home`, sans nom de compte.
   comptes_claude_code: [],
+  // Accès distant par projet (`holarch distant`) : `claude`, le binaire (sinon celui du PATH) ; `mode_permissions`, le
+  // mode des sessions servies (acceptEdits, auto, default…), celui de Claude Code si vide.
+  acces_distant: { claude: null, mode_permissions: null },
   // Grille de tarifs, relevée sur la page officielle du fournisseur : { source, releve, modeles }, où chaque modèle porte
   // { entree, cache_ecrit, cache_ecrit_1h, cache_lu, sortie } en USD par million de tokens (src/tarifs.js).
   // Vide par défaut : aucun tarif n'est inventé ; sans tarif, le coût reste inconnu et seuls les tokens sont comptés.
