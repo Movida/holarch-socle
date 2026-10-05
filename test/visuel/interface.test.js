@@ -40,13 +40,13 @@ function donneesFictives() {
     fiche('memory', 'note-a', { description: 'Même note.', attributes: { projet: 'projet-a' } }),
     fiche('memory', 'note-a-bis', { name: 'note-a', description: 'Même note.', attributes: { projet: 'projet-b' } }),
     fiche('node', 'arbre/contrat', { name: 'Contrat fictif', status: 'proposed', node: '/arbre/contrat.md', attributes: { type: 'contract', statut: 'draft' } }),
-    fiche('node', 'arbre/racine', { name: 'Racine fictive', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'stable', depot: 'demo' } }),
-    fiche('node', 'arbre/enfant', { name: 'Enfant fictif', node: '/arbre/enfant.md', links: { derives_from: ['/arbre/index.md'] }, attributes: { type: 'need', statut: 'draft', depot: 'demo' } }),
+    fiche('node', 'arbre/racine', { name: 'Racine fictive', node: '/arbre/index.md', links: { project: ['holarch:project:projet-calme'] }, attributes: { type: 'guideline', statut: 'stable' } }),
+    fiche('node', 'arbre/enfant', { name: 'Enfant fictif', node: '/arbre/enfant.md', links: { derives_from: ['/arbre/index.md'], project: ['holarch:project:projet-calme'] }, attributes: { type: 'need', statut: 'draft' } }),
     fiche('project', 'projet-a', { location: '/ws/projet-a', attributes: { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 3, dernier_commit: il_y_a(1), dernier_sujet: 'Un commit fictif' } }),
     fiche('project', 'projet-b', { location: '/ws/projet-b', attributes: { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(4) } }),
     fiche('project', 'projet-calme', { location: '/ws/projet-calme', attributes: { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0, dernier_commit: il_y_a(300) } }),
-    fiche('node', 'projet-a/racine', { name: 'Racine A', location: '/ws/projet-a/arbre/index.md', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', depot: 'projet-a', questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Une question `fictive` ?', niveau: 'gênant' }] } }),
-    fiche('node', 'projet-a/etape', { name: 'Étape 2 — Fictive', location: '/ws/projet-a/arbre/conception/etape-2-fictive.md', node: '/arbre/conception/etape-2-fictive.md', attributes: { type: 'spec', statut: 'draft', depot: 'projet-a', etape: 2, avancement: [{ etiquette: 'Fait', date: '2026-10-01', texte: 'Une tranche faite.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Une tranche à faire.'] }] } }),
+    fiche('node', 'projet-a/racine', { name: 'Racine A', location: '/ws/projet-a/arbre/index.md', node: '/arbre/index.md', links: { project: ['holarch:project:projet-a'] }, attributes: { type: 'guideline', statut: 'draft', questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Une question `fictive` ?', niveau: 'gênant' }] } }),
+    fiche('node', 'projet-a/etape', { name: 'Étape 2 — Fictive', location: '/ws/projet-a/arbre/conception/etape-2-fictive.md', node: '/arbre/conception/etape-2-fictive.md', links: { project: ['holarch:project:projet-a'] }, attributes: { type: 'spec', statut: 'draft', etape: 2, avancement: [{ etiquette: 'Fait', date: '2026-10-01', texte: 'Une tranche faite.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Une tranche à faire.'] }] } }),
   ]);
   s.indexer();
   return s;
@@ -95,7 +95,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
 
   assert.equal(await page.getAttribute('.nav a[aria-current="page"]', 'data-vue'), 'tableau');
   await page.click('.barre a.nom:has-text("projet-b")');
-  await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=projet-b'));
+  await page.waitForFunction(() => location.hash === '#/sessions?projet=holarch%3Aproject%3Aprojet-b');
   await page.waitForSelector('table.triable tbody tr.cliquable');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 1, 'sessions du projet');
   await page.click('table.triable tbody tr.cliquable td:nth-child(2)');
@@ -109,9 +109,9 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.match(carteA, /projet-a[\s\S]*3 non commités[\s\S]*2 non poussés[\s\S]*Étape 2 — Fictive[\s\S]*Une tranche à faire[\s\S]*1 question ouverte[\s\S]*7 j : 1 session/);
   assert.match(await page.textContent('main'), /Sans activité sur 30 jours[\s\S]*projet-calme/);
   await page.click('.carte.projet:first-child .activite a');
-  await page.waitForFunction(() => location.hash.startsWith('#/sessions?depot='));
+  await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=holarch'));
   await page.waitForSelector('table.triable tbody tr.cliquable');
-  assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'sessions du dépôt');
+  assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'sessions du projet');
 
   await ouvrir('#/catalogue', 'table tbody tr');
   assert.match(await page.textContent('tr[data-fiche="holarch:node:arbre/contrat"]'), /draft/);

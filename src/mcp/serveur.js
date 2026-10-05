@@ -10,7 +10,9 @@ const texte = (o) => ({ content: [{ type: 'text', text: JSON.stringify(o) }] });
 const jours = z.number().int().min(1).max(3650).optional().describe('Période en jours (30 par défaut)');
 const limite = (n, max) => z.number().int().min(1).max(max).optional().describe(`Nombre maximal de résultats (${n} par défaut, ${max} au plus)`);
 // Une fiche résumée : ce qu'il faut pour choisir, le détail passe par `fiche`.
-const resume = (f) => ({ id: f.id, kind: f.kind, name: f.name, description: f.description ?? null, status: f.status, location: f.location ?? null, projet: f.attributes?.projet ?? null });
+const resume = (f) => ({ id: f.id, kind: f.kind, name: f.name, description: f.description ?? null, status: f.status, location: f.location ?? null, projet: f.links?.project?.[0] ?? null });
+// Un projet se désigne par son identifiant, son nom ou un chemin (décision rattachement-projet) ; le socle résout.
+const projet = z.string().optional().describe('Projet : identifiant (holarch:project:…), nom ou chemin');
 
 export function creerServeurMcp(socle, version) {
   const s = new McpServer({ name: 'holarch', version });
@@ -32,25 +34,25 @@ export function creerServeurMcp(socle, version) {
   }, async ({ id }) => texte(socle.fiche(id) ?? { erreur: `fiche introuvable : ${id}` }));
 
   s.registerTool('sessions', {
-    description: 'Sessions Claude Code d’une période, les plus récentes d’abord : projet, durée, tours, sous-agents, refus, tokens, coût liste.',
-    inputSchema: z.object({ jours, projet: z.string().optional(), limite: limite(30, 500) }), annotations: LECTURE,
-  }, async ({ jours: j, projet, limite: n }) => {
-    const l = socle.sessions({ jours: j ?? 30, projet: projet || null });
-    return texte({ total: l.length, sessions: l.slice(0, n ?? 30).map((x) => ({ session: x.session, fin: x.fin, projet: x.data.projet, depots: x.depots.map((d) => d.nom), branche: x.data.branche, duree_s: x.data.duree_s, tours: x.tours_total ?? x.data.tours, sous_agents: x.sous_agents, refus: x.refus, sortie: x.sortie, cache_lu: x.cache_lu, usd: x.usd, modeles: x.data.modeles })) });
+    description: 'Sessions Claude Code d’une période, les plus récentes d’abord : projets (ceux où la session a travaillé), dossier de départ, durée, tours, sous-agents, refus, tokens, coût liste.',
+    inputSchema: z.object({ jours, projet, limite: limite(30, 500) }), annotations: LECTURE,
+  }, async ({ jours: j, projet: p, limite: n }) => {
+    const l = socle.sessions({ jours: j ?? 30, projet: p || null });
+    return texte({ total: l.length, sessions: l.slice(0, n ?? 30).map((x) => ({ session: x.session, fin: x.fin, projets: x.projets.map((q) => ({ id: q.id, nom: q.nom, n: q.n })), dossier: x.data.projet, branche: x.data.branche, duree_s: x.data.duree_s, tours: x.tours_total ?? x.data.tours, sous_agents: x.sous_agents, refus: x.refus, sortie: x.sortie, cache_lu: x.cache_lu, usd: x.usd, modeles: x.data.modeles })) });
   });
 
   s.registerTool('projets', {
-    description: 'Suivi des projets (dépôts) : étape en cours d’après leur arbre (faits, reste), questions ouvertes et décisions à approuver, activité sur 7 et 30 jours (sessions, coût liste partagé entre les dépôts touchés), dernier commit, état du dépôt (non commité, non poussé, retard sur l’amont).',
-    inputSchema: z.object({ projet: z.string().optional().describe('Nom du projet : son détail seul'), calmes: z.boolean().optional().describe('Inclure les projets sans activité ni attente (non par défaut)'), limite: limite(20, 200) }),
+    description: 'Suivi des projets (identifiés par leur dépôt Git) : étape en cours d’après leur arbre (faits, reste), questions ouvertes et décisions à approuver, activité sur 7 et 30 jours (sessions, coût liste partagé entre les projets où chaque session a travaillé), dernier commit, état du dépôt (non commité, non poussé, retard sur l’amont).',
+    inputSchema: z.object({ projet, calmes: z.boolean().optional().describe('Inclure les projets sans activité ni attente (non par défaut)'), limite: limite(20, 200) }),
     annotations: LECTURE,
-  }, async ({ projet, calmes, limite: n }) => {
-    const r = socle.projets();
-    const l = r.projets.filter((p) => (projet ? p.nom === projet : calmes || !p.calme));
+  }, async ({ projet: ref, calmes, limite: n }) => {
+    const r = socle.projets(); const id = ref ? socle.projetDe(ref) : null;
+    const l = r.projets.filter((p) => (id ? p.id === id : calmes || !p.calme));
     return texte({ total: l.length, hors_projet: r.hors_projet, projets: l.slice(0, n ?? 20) });
   });
 
   s.registerTool('consommation', {
-    description: 'Tokens et coût liste d’une période, regroupés par projet, par modèle ou par jour.',
+    description: 'Tokens et coût liste d’une période, regroupés par projet (identifiant et nom ; le coût d’une session se partage entre ses projets, null : hors projet), par modèle ou par jour.',
     inputSchema: z.object({ jours, par: z.enum(['projet', 'modele', 'jour']).optional().describe('Regroupement (projet par défaut)') }), annotations: LECTURE,
   }, async ({ jours: j, par }) => texte(socle.consommation({ jours: j ?? 30, par: par ?? 'projet' })));
 

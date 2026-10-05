@@ -2,7 +2,8 @@
 type: decision
 title: Tout se rattache au projet par son identifiant
 description: Une seule notion, le projet du catalogue identifié par son dépôt ; fiches et événements le citent par identifiant, un module partagé fait le rattachement.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-05, ref: "échange du 2026-10-05, « La différenciation dépôt projet que tu proposes me va très bien. On part sur ça »" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/conception/contrats/fiche-catalogue.md, /arbre/conception/contrats/evenement.md]
@@ -37,7 +38,7 @@ dans le module d'import et le socle l'y emprunte.
 - tout ne relève pas d'un projet (skills et connecteurs du niveau utilisateur, session lancée dans `/tmp`) : l'absence
   de rattachement se dit (« hors projet »), elle ne se force pas.
 
-**Décision proposée.**
+**Décision.**
 
 | Point | Choix |
 |---|---|

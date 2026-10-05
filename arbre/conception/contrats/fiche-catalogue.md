@@ -4,10 +4,10 @@ title: Contrat — fiche du catalogue
 description: Tout élément en place a une fiche ; ce qui n'est pas au catalogue n'existe pas pour le système.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
-version: 0.3.0
+version: 0.4.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-03-sources-hote.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-03-sources-hote.md, /arbre/decisions/2026-10-05-rattachement-projet.md]
 ---
 
 # Contrat — fiche du catalogue
@@ -29,7 +29,7 @@ links:
 | `site` | site où l'élément vit, s'il est propre à une machine (hook local, conteneur) ; absent s'il vit dans Git |
 | `location` | où l'élément vit réellement (chemin, URL, conteneur) — une référence, jamais un secret |
 | `usage` | `{count, last_used, cost_usd}`, tenu à jour depuis le journal |
-| `links` | `depends_on`, `realizes` (nœud), `replaces` |
+| `links` | `depends_on`, `realizes` (nœud), `replaces` ; `project` : identifiants des projets (fiches `project`) auxquels l'élément appartient, absent pour un élément qui n'appartient à aucun projet (niveau utilisateur) |
 | `attributes` | attributs propres au `kind`, posés par l'adaptateur qui crée la fiche ; non normatifs |
 
 ## 2. Règles

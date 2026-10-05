@@ -22,7 +22,8 @@ const AIDE = `holarch — socle autour des agents d'IA
   holarch mcp          sert HOLARCH en MCP sur stdio, en lecture (claude mcp add holarch -- holarch mcp)
   holarch distant [activer|desactiver <projet>]
                        accès distant par projet : un serveur Remote Control de Claude Code par projet, à la demande ;
-                       sans argument, liste les projets dont l'accès est actif (<projet> : chemin ou nom de dossier)
+                       sans argument, liste les projets dont l'accès est actif (<projet> : projet du catalogue, par
+                       son nom, un chemin ou son identifiant)
   holarch pont <url> --cle <fichier>
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier

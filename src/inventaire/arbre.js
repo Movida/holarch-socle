@@ -1,6 +1,7 @@
 // Adaptateur d'inventaire de l'arbre HOLARCH : chaque nœud (fichier Markdown à en-tête sous arbre/) devient une fiche
 // `node`, avec son type, son statut et ses liens. Dépôts lus : ceux de la configuration, plus tout dépôt connu qui porte
-// un `arbre/index.md`. Pour la vue Projets : une spécification d'étape porte les entrées de sa section « Avancement »,
+// un `arbre/index.md`. Un nœud appartient au projet de son dépôt : son identifiant se fonde sur celui du projet (deux
+// clones de même nom ne se confondent plus) et il porte le lien `project` (décision rattachement-projet). Pour la vue Projets : une spécification d'étape porte les entrées de sa section « Avancement »,
 // la racine porte les questions ouvertes de `arbre/questions.md`.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -51,7 +52,9 @@ export default function inventaireArbre(options, ctx) {
   for (const depot of depots) {
     const racine = path.join(depot, 'arbre');
     if (!fs.existsSync(racine)) continue;
-    const nomDepot = path.basename(depot);
+    // Dépôt configuré hors des racines inventoriées : pas de projet connu, l'identifiant garde le nom du dossier.
+    const projet = ctx.projetDe?.(depot);
+    const cle = projet ? projet.id.slice('holarch:project:'.length) : path.basename(depot);
     for (const f of noeuds(racine, racine, [])) {
       const h = enTete(f);
       if (!h.type) continue;
@@ -60,11 +63,11 @@ export default function inventaireArbre(options, ctx) {
       const suivi = etape ? { etape: +etape[1], avancement: avancement(lire(f)) }
         : rel === '/arbre/index.md' ? { questions_ouvertes: questionsOuvertes(lire(path.join(racine, 'questions.md'))) } : {};
       out.push({
-        id: `holarch:node:${slug(nomDepot + rel)}`, kind: 'node', name: h.title || path.basename(f, '.md'),
+        id: `holarch:node:${slug(cle + rel)}`, kind: 'node', name: h.title || path.basename(f, '.md'),
         description: h.description || null, version: h.version || null, node: rel,
         status: h.status === 'deprecated' ? 'retired' : h.status === 'stable' ? 'active' : 'proposed',
         provenance: { source: 'inventaire:arbre' }, classification: h.classification || 'internal', location: f,
-        links: h.links || {}, attributes: { depot: nomDepot, type: h.type, statut: h.status || null, approuve: h.approved || null, revue: h.review || null, ...suivi },
+        links: { ...(h.links || {}), ...(projet && { project: [projet.id] }) }, attributes: { type: h.type, statut: h.status || null, approuve: h.approved || null, revue: h.review || null, ...suivi },
       });
     }
   }

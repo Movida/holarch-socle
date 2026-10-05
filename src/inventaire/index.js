@@ -23,7 +23,7 @@ export async function inventorier(config, { catalogue, journal }) {
   }
   const cc = config.inventaire['claude-code'];
   const comptes = comptesClaudeCode(config, cc || {});
-  const ctx = { site: config.site, depots: [], appelsMcp, comptes };
+  const ctx = { site: config.site, depots: [], projets: [], projetDe: () => null, appelsMcp, comptes };
   const fiches = []; const erreurs = []; const absentes = [];
   // Un compte Claude Code présent sur le poste mais non lu rend l'inventaire et l'import incomplets, sans erreur : le dire.
   const nonLus = cc && cc.actif !== false ? comptesNonLus(comptes) : [];

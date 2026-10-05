@@ -5,10 +5,17 @@ import { Journal } from './stockage/journal.js';
 import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
 import { inventorier } from './inventaire/index.js';
-import importerTranscriptions, { localiserDepot } from './import/claude-code-transcriptions.js';
+import importerTranscriptions from './import/claude-code-transcriptions.js';
+import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
 import { ulid } from './ulid.js';
+
+// Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
+function parts(projets) {
+  const total = projets.reduce((x, p) => x + p.n, 0);
+  return total ? projets.map((p) => [p.id, p.n / total, p.nom]) : [[null, 1, null]];
+}
 
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions, agentgateway: importerPasserelle };
 
@@ -28,12 +35,12 @@ export class Socle {
     // appels au serveur qui la désigne chez les clients, pour ne pas les compter deux fois.
     const p = this.config.import?.agentgateway;
     const passerelles = p && p.actif !== false && p.fichier ? [p.nom || 'passerelle'] : [];
-    // Les dépôts du dernier inventaire : une session s'y rattache d'après les chemins de ses appels d'outils.
-    const depots = this.catalogue.lire({ site: this.config.site }).filter((f) => f.kind === 'project' && f.location).map((f) => ({ id: f.id, nom: f.name, location: f.location }));
+    // Les projets du dernier inventaire : une session s'y rattache d'après les chemins de ses appels d'outils.
+    const projets = projetsDe(this.catalogue.lire({ site: this.config.site }));
     for (const [nom, imp] of Object.entries(IMPORTS)) {
       const o = this.config.import?.[nom];
       if (!o || o.actif === false) continue;
-      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles, comptes: comptesClaudeCode(this.config, o), depots });
+      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles, comptes: comptesClaudeCode(this.config, o), projets });
     }
     return r;
   }
@@ -95,7 +102,7 @@ export class Socle {
       tokens: ['7', '30'].map((j) => ({ jours: +j, ...q("SELECT SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd FROM evenements WHERE kind='cost.recorded' AND at>=?", depuis(+j))[0] })),
       evenements: q('SELECT COUNT(*) n FROM evenements')[0].n,
       // Mémoires identiques (même nom et même description) dans plusieurs projets : copie oubliée ou savoir à remonter.
-      memoires_doubles: q("SELECT name, COUNT(*) n, group_concat(coalesce(json_extract(json,'$.attributes.projet'), json_extract(json,'$.attributes.projet_claude')), ', ') projets FROM fiches WHERE kind='memory' GROUP BY name, coalesce(description,'') HAVING n>1 ORDER BY n DESC"),
+      memoires_doubles: q("SELECT name, COUNT(*) n, group_concat(coalesce((SELECT p.name FROM fiches p WHERE p.id=json_extract(m.json,'$.links.project[0]')), json_extract(m.json,'$.attributes.projet_claude')), ', ') projets FROM fiches m WHERE kind='memory' GROUP BY name, coalesce(description,'') HAVING n>1 ORDER BY n DESC"),
       projets_sales: q("SELECT name, json_extract(json,'$.attributes.fichiers_modifies') n FROM fiches WHERE kind='project' AND n>0 ORDER BY n DESC"),
     };
   }
@@ -129,11 +136,45 @@ export class Socle {
     return { fiche: JSON.parse(r.json), evenements: this.index.requete(`SELECT * FROM evenements WHERE subject IN (${ids.map(() => '?').join(',')}) ORDER BY at DESC LIMIT 50`, ...ids) };
   }
 
-  // Sessions d'une période, sous-agents rattachés. Chaque session porte les dépôts qu'elle a touchés (`depots`, sous-agents
-  // compris) ; sans dépôt touché, celui de son répertoire de départ (`repli`). Un `session.finished` complémentaire
-  // (`data.complement`) n'apporte que les dépôts d'une session importée avant eux : il ne compte pas comme une fin.
-  sessions({ jours = 30, projet = null, depot = null } = {}) {
+  // Attribution des sessions aux projets (décision rattachement-projet), la seule, partagée par toutes les lectures :
+  // racine de corrélation → [{id, nom, n}]. Ce sont les projets touchés (`data.projets`, sous-agents compris, la dernière
+  // fin de chaque corrélation qui en porte, complément compris) ; sans projet touché, celui du répertoire de départ
+  // (`repli`) ; sinon aucun (« hors projet »).
+  attribution() {
+    const projets = projetsDe(this.fiches({ kind: 'project' }));
+    const noms = new Map(projets.map((p) => [p.id, p.nom]));
+    const lieu = localiserProjet(projets);
+    const touches = new Map(); const departs = new Map(); const vues = new Set();
+    for (const e of this.index.requete("SELECT correlation, data FROM evenements WHERE kind='session.finished' AND correlation IS NOT NULL ORDER BY at DESC, id DESC")) {
+      const racine = e.correlation.split(':')[0]; const d = JSON.parse(e.data);
+      if (racine === e.correlation && !departs.has(racine)) departs.set(racine, d.cwd);
+      if (vues.has(e.correlation) || !d.projets?.length) continue;
+      vues.add(e.correlation);
+      const m = touches.get(racine) || new Map(); touches.set(racine, m);
+      for (const p of d.projets) m.set(p.id, (m.get(p.id) || 0) + p.n);
+    }
+    return (racine) => {
+      const t = touches.get(racine);
+      if (t?.size) return [...t].map(([id, n]) => ({ id, nom: noms.get(id) ?? null, n })).sort((a, b) => b.n - a.n);
+      const p = lieu(departs.get(racine));
+      return p ? [{ id: p.id, nom: p.nom, n: 1, repli: true }] : [];
+    };
+  }
+
+  // Une référence de projet donnée par une personne ou un agent (identifiant, nom, chemin ; `aucun` : hors projet).
+  projetDe(ref) {
+    if (!ref || ref === 'aucun') return ref || null;
+    const p = resoudreProjet(projetsDe(this.fiches({ kind: 'project' })), ref);
+    if (!p) throw new Error(`projet inconnu : ${ref}`);
+    return p.id;
+  }
+
+  // Sessions d'une période, sous-agents rattachés, chacune avec ses projets (`projets`, attribution ci-dessus). Un
+  // `session.finished` complémentaire (`data.complement`) n'apporte que les projets d'une session importée avant eux : il
+  // ne compte pas comme une fin. `projet` : identifiant, nom ou chemin ; `aucun` pour les sessions hors projet.
+  sessions({ jours = 30, projet = null } = {}) {
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
+    const id = this.projetDe(projet);
     const vraie = "json_extract(%s.data,'$.complement') IS NULL";
     const lignes = this.index.requete(`SELECT f.correlation session, f.at fin, f.data, f.actor,
         (SELECT MIN(at) FROM evenements s WHERE s.kind='session.started' AND s.correlation=f.correlation) debut,
@@ -146,61 +187,32 @@ export class Socle {
       FROM evenements f WHERE f.kind='session.finished' AND json_extract(f.data,'$.sous_agent')=0 AND ${vraie.replace('%s', 'f')} AND f.at>=?
         AND f.id=(SELECT id FROM evenements g WHERE g.kind='session.finished' AND g.correlation=f.correlation AND ${vraie.replace('%s', 'g')} ORDER BY at DESC, id DESC LIMIT 1)
       ORDER BY f.at DESC`, depuis);
-    const touches = this.depotsTouches(depuis);
-    const lieu = this.localiserProjet();
-    return lignes.map((l) => {
-      const data = JSON.parse(l.data);
-      const t = touches.get(l.session);
-      const repli = !t?.size && lieu(data.cwd);
-      const depots = t?.size ? [...t.values()].sort((a, b) => b.n - a.n) : repli ? [{ id: repli.id, nom: repli.name, n: 1, repli: true }] : [];
-      return { ...l, data, depots };
-    }).filter((l) => (!projet || l.data.projet === projet) && (!depot || l.depots.some((d) => d.id === depot)));
-  }
-
-  // Dépôts touchés par session (racine de corrélation), sous-agents compris : pour chaque corrélation, la dernière fin
-  // qui porte des dépôts (complément compris).
-  depotsTouches(depuis) {
-    const r = new Map(); const vues = new Set();
-    for (const e of this.index.requete("SELECT correlation, data FROM evenements WHERE kind='session.finished' AND at>=? AND json_array_length(json_extract(data,'$.depots'))>0 ORDER BY at DESC, id DESC", depuis)) {
-      if (vues.has(e.correlation)) continue; vues.add(e.correlation);
-      const racine = e.correlation.split(':')[0];
-      const m = r.get(racine) || new Map(); r.set(racine, m);
-      for (const d of JSON.parse(e.data).depots) { const x = m.get(d.id) || { id: d.id, nom: d.nom, n: 0 }; x.n += d.n; m.set(d.id, x); }
-    }
-    return r;
-  }
-
-  // Projet du catalogue qui contient un chemin (comme à l'import, montage d'un conteneur compris).
-  localiserProjet() {
-    const fiches = new Map(this.fiches({ kind: 'project' }).map((f) => [f.id, f]));
-    const trouver = localiserDepot([...fiches.values()].map((f) => ({ id: f.id, location: f.location })));
-    return (p) => fiches.get(trouver(p)?.id) || null;
+    const projetsDeSession = this.attribution();
+    return lignes.map((l) => ({ ...l, data: JSON.parse(l.data), projets: projetsDeSession(l.session) }))
+      .filter((l) => !id || (id === 'aucun' ? !l.projets.length : l.projets.some((p) => p.id === id)));
   }
 
   // Vue Projets (étape 3, tranche 2) : par projet, où il en est d'après son arbre, ce qui l'attend, son activité et
-  // l'état technique de son dépôt. Le coût d'une session se partage entre les dépôts touchés, au prorata des appels.
+  // l'état technique de son dépôt. Le coût d'une session se partage entre ses projets, au prorata des appels.
   projets() {
     const fiches = this.fiches({ kind: 'project' });
     const noeuds = this.fiches({ kind: 'node' });
+    // Sessions comptées par projet ; coût et tokens repris de `consommation` (coûts datés dans la période) : la vue et le
+    // tableau de bord donnent le même chiffre.
     const j7 = new Date(Date.now() - 7 * 864e5).toISOString();
     const activite = new Map();
-    const compter = (id, s, part) => {
-      const a = activite.get(id) || { sessions_7: 0, sessions_30: 0, usd_7: null, usd_30: null, sortie_30: 0, derniere_session: null };
-      a.sessions_30++; if (s.fin >= j7) a.sessions_7++;
-      if (s.usd != null) { a.usd_30 = (a.usd_30 || 0) + s.usd * part; if (s.fin >= j7) a.usd_7 = (a.usd_7 || 0) + s.usd * part; }
-      a.sortie_30 += Math.round((s.sortie || 0) * part);
-      if (!a.derniere_session || s.fin > a.derniere_session) a.derniere_session = s.fin;
-      activite.set(id, a);
-    };
+    const de = (id) => { if (!activite.has(id)) activite.set(id, { sessions_7: 0, sessions_30: 0, usd_7: null, usd_30: null, sortie_30: 0, derniere_session: null }); return activite.get(id); };
     for (const s of this.sessions({ jours: 30 })) {
-      const total = s.depots.reduce((x, d) => x + d.n, 0);
-      if (!total) compter(null, s, 1);
-      for (const d of s.depots) compter(d.id, s, d.n / total);
+      for (const [id] of parts(s.projets)) {
+        const a = de(id); a.sessions_30++; if (s.fin >= j7) a.sessions_7++;
+        if (!a.derniere_session || s.fin > a.derniere_session) a.derniere_session = s.fin;
+      }
     }
-    const sous = (f, n) => n.location?.startsWith(`${f.location}/arbre/`);
+    for (const c of this.consommation({ jours: 30, par: 'projet' })) { const a = de(c.cle); a.usd_30 = c.usd; a.sortie_30 = c.sortie; }
+    for (const c of this.consommation({ jours: 7, par: 'projet' })) de(c.cle).usd_7 = c.usd;
     const liste = fiches.map((f) => {
       const a = f.attributes || {};
-      const ns = f.location ? noeuds.filter((n) => sous(f, n)) : [];
+      const ns = noeuds.filter((n) => n.links?.project?.includes(f.id));
       const etapes = ns.filter((n) => n.attributes?.etape != null).sort((x, y) => x.attributes.etape - y.attributes.etape);
       const close = (n) => (n.attributes.avancement || []).some((e) => e.etiquette.startsWith('Clôture'));
       const courante = [...etapes].reverse().find((n) => !close(n)) || etapes.at(-1);
@@ -228,12 +240,25 @@ export class Socle {
     return { projets: liste, hors_projet: activite.get(null) || null };
   }
 
+  // Par projet : le coût de chaque session va à ses projets (même attribution et même partage que la vue Projets) ; la
+  // clé est l'identifiant du projet, `null` hors projet.
   consommation({ jours = 30, par = 'projet' } = {}) {
-    // Par modèle : un identifiant passé par un intermédiaire (anthropic/…) se range avec son modèle de base ; `via` le compte.
-    const col = { projet: 'projet', modele: "CASE WHEN model LIKE 'anthropic/%' THEN substr(model, 11) ELSE model END", jour: 'substr(at,1,10)' }[par] || 'projet';
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
-    return this.index.requete(`SELECT ${col} cle, SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd, COUNT(*) n, SUM(model LIKE 'anthropic/%') via
-      FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY cle ORDER BY ${par === 'jour' ? 'cle' : 'sortie DESC'}`, depuis);
+    const somme = "SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd, COUNT(*) n, SUM(model LIKE 'anthropic/%') via";
+    if (par === 'projet') {
+      const projetsDeSession = this.attribution(); const r = new Map();
+      for (const l of this.index.requete(`SELECT correlation, ${somme} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY correlation`, depuis)) {
+        for (const [id, part, nom] of parts(projetsDeSession(String(l.correlation).split(':')[0]))) {
+          const x = r.get(id) || { cle: id, nom, sortie: 0, cache_lu: 0, cache_ecrit: 0, entree: 0, usd: null, n: 0, via: 0 }; r.set(id, x);
+          for (const k of ['sortie', 'cache_lu', 'cache_ecrit', 'entree', 'n', 'via']) x[k] += (l[k] || 0) * part;
+          if (l.usd != null) x.usd = (x.usd || 0) + l.usd * part;
+        }
+      }
+      return [...r.values()].map((x) => ({ ...x, sortie: Math.round(x.sortie), cache_lu: Math.round(x.cache_lu), cache_ecrit: Math.round(x.cache_ecrit), entree: Math.round(x.entree) })).sort((a, b) => b.sortie - a.sortie);
+    }
+    // Par modèle : un identifiant passé par un intermédiaire (anthropic/…) se range avec son modèle de base ; `via` le compte.
+    const col = par === 'jour' ? 'substr(at,1,10)' : "CASE WHEN model LIKE 'anthropic/%' THEN substr(model, 11) ELSE model END";
+    return this.index.requete(`SELECT ${col} cle, ${somme} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY cle ORDER BY ${par === 'jour' ? 'cle' : 'sortie DESC'}`, depuis);
   }
 
   evenements({ kind = null, session = null, sauf = null, limite = 200 } = {}) {
@@ -246,6 +271,8 @@ export class Socle {
   }
 
   arbre() {
-    return this.fiches({ kind: 'node' }).map((f) => ({ id: f.id, chemin: f.node, titre: f.name, description: f.description, type: f.attributes?.type, statut: f.attributes?.statut, version: f.version, depot: f.attributes?.depot, parent: (f.links?.derives_from || [])[0] || null, approuve: f.attributes?.approuve || null }));
+    const noms = new Map(projetsDe(this.fiches({ kind: 'project' })).map((p) => [p.id, p.nom]));
+    return this.fiches({ kind: 'node' }).map((f) => ({ id: f.id, chemin: f.node, titre: f.name, description: f.description, type: f.attributes?.type, statut: f.attributes?.statut, version: f.version,
+      projet: f.links?.project?.[0] ? { id: f.links.project[0], nom: noms.get(f.links.project[0]) ?? null } : null, parent: (f.links?.derives_from || [])[0] || null, approuve: f.attributes?.approuve || null }));
   }
 }

@@ -4,10 +4,10 @@ title: Contrat — événement du journal
 description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
-version: 0.6.0
+version: 0.7.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md]
 ---
 
 # Contrat — événement du journal
@@ -34,6 +34,7 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 | `subject` | identifiant du catalogue de l'élément concerné, s'il y en a un |
 | `correlation` | identifiant qui relie les événements d'une même session, exécution ou décision |
 | `data` | contenu propre au `kind` ; jamais un secret ; jamais un contenu au-dessus de la `classification` de l'événement |
+| `data.projets` | projets concernés, par identifiant du catalogue, avec leur poids : `[{id, n}]` ; porté par la fin de session, il vaut pour tous les événements de même `correlation` (coût, outils), qui se regroupent par projet à travers elle. `data.projet`, quand il existe, est le nom du dossier de départ : affichage et historique seulement, jamais une clé de regroupement |
 | `cost` | si l'événement coûte : `{usd_list, usd_real?, provider, model, tokens}` ; `usd_list` est le coût liste que connaît l'émetteur, sinon `null` : la lecture le calcule depuis `tokens` et la grille de tarifs (décision coût liste) |
 | `cost.tokens` | `in`, `cache_write`, `cache_write_1h` (part de `cache_write` écrite pour une heure, facturée plus cher), `cache_read`, `out` ; les sommes font foi : un événement peut compléter la ventilation d'un précédent |
 | `classification` | niveau de l'événement ; un consommateur ne lit que ce que son niveau autorise |

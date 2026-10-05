@@ -1,8 +1,8 @@
 // Import des transcriptions Claude Code (~/.claude/projects/<projet>/<session>.jsonl, sous-agents compris) vers le
 // journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas depuis le dernier import),
 // tool.denied (refus d'outil : origine et outil, jamais le contenu), tool.called (appel d'un outil MCP : serveur, outil,
-// issue ; jamais les arguments ni la réponse). Une session se rattache aux dépôts du catalogue que ses appels d'outils
-// ont touchés (`data.depots` : identifiant, nom, nombre d'appels ; jamais les chemins ni les commandes).
+// issue ; jamais les arguments ni la réponse). Une session se rattache aux projets du catalogue dont ses appels d'outils
+// ont touché le dépôt (`data.projets` : identifiant et nombre d'appels ; jamais les chemins ni les commandes).
 // Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
 // Un fichier se repère par son chemin relatif au répertoire du compte (`projects/…`), pas par son chemin absolu : le
 // même répertoire lu depuis deux points de montage (un conteneur et l'hôte) ne compte qu'une fois.
@@ -11,11 +11,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ulid } from '../ulid.js';
+import { localiserProjet } from '../projets.js';
 
 const IGNORER_MODELES = new Set(['<synthetic>']);
 // Version de l'état d'import : un fichier lu par une version antérieure est relu une fois, et l'écart des cumuls devient
 // un événement complémentaire (v2 : part de l'écriture de cache à une heure, `cache_write_1h` ; v3 : refus d'outil ;
-// v4 : appels MCP ; v5 : dépôts touchés, en complément pour une transcription inchangée).
+// v4 : appels MCP ; v5 : projets touchés, en complément pour une transcription inchangée).
 const VERSION_ETAT = 5;
 
 // Refus d'outil : un résultat en erreur dont le texte COMMENCE par l'un de ces messages (décision refus). Un texte qui
@@ -68,28 +69,8 @@ export function cheminsAppel(entree, cwd) {
   return bruts.map((p) => resoudre(p, cwd)).filter(Boolean);
 }
 
-// Dépôt d'un chemin : le plus profond qui le contient (un dépôt imbriqué l'emporte sur celui qui le contient). Un chemin
-// vu d'un autre montage (conteneur de développement, `/home/vscode/<dépôt>/…`) se rattache par le nom : un segment égal
-// au nom d'un dépôt connu, si la suite du chemin existe dans ce dépôt (le segment le plus profond d'abord).
-export function localiserDepot(depots, existe = fs.existsSync) {
-  const tries = depots.filter((d) => d.location).map((d) => ({ ...d, location: path.normalize(d.location) })).sort((a, b) => b.location.length - a.location.length);
-  const parNom = new Map();
-  for (const d of tries) { const b = path.basename(d.location); if (!parNom.has(b)) parNom.set(b, []); parNom.get(b).push(d); }
-  const cache = new Map();
-  return (p) => {
-    if (!p) return null;
-    const direct = tries.find((d) => p === d.location || p.startsWith(d.location + path.sep));
-    if (direct) return direct;
-    if (cache.has(p)) return cache.get(p);
-    const seg = p.split(path.sep); let r = null;
-    for (let i = seg.length - 1; i > 0 && !r; i--) r = (parNom.get(seg[i]) || []).find((d) => existe(path.join(d.location, ...seg.slice(i + 1)))) || null;
-    cache.set(p, r);
-    return r;
-  };
-}
-
-function analyser(f, depotDe = () => null) {
-  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], appels: new Map(), depots: new Map(), sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
+function analyser(f, projetDe = () => null) {
+  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], appels: new Map(), projets: new Map(), sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
   const outils = {};
   const vus = new Set();
   for (const ligne of fs.readFileSync(f, 'utf8').split('\n')) {
@@ -113,10 +94,10 @@ function analyser(f, depotDe = () => null) {
       for (const x of e.message.content) {
         if (x?.type !== 'tool_use') continue;
         outils[x.id] = x.name;
-        // Un appel touche les dépôts que désignent ses chemins ; à défaut, celui de son répertoire courant.
-        let touches = new Set(cheminsAppel(x.input, e.cwd).map(depotDe).filter(Boolean));
-        if (!touches.size && e.cwd) touches = new Set([depotDe(path.normalize(e.cwd))].filter(Boolean));
-        for (const d of touches) { const t = r.depots.get(d.id) || { id: d.id, nom: d.nom, n: 0 }; t.n++; r.depots.set(d.id, t); }
+        // Un appel touche les projets dont ses chemins désignent le dépôt ; à défaut, celui de son répertoire courant.
+        let touches = new Set(cheminsAppel(x.input, e.cwd).map(projetDe).filter(Boolean));
+        if (!touches.size && e.cwd) touches = new Set([projetDe(e.cwd)].filter(Boolean));
+        for (const p of touches) r.projets.set(p.id, (r.projets.get(p.id) || 0) + 1);
         // Un outil MCP se nomme mcp__<serveur>__<outil> : seuls le serveur et l'outil sont gardés.
         const [pre, serveur, ...reste] = String(x.name || '').split('__');
         if (pre === 'mcp' && serveur && reste.length && !r.appels.has(x.id)) r.appels.set(x.id, { at: e.timestamp, cle: x.id, serveur, outil: reste.join('__'), statut: null });
@@ -155,8 +136,8 @@ function migrerEtat(etat) {
   return anciens;
 }
 
-export default function importerTranscriptions(options, { journal, donnees, passerelles = [], comptes = null, depots = [] }) {
-  const depotDe = localiserDepot(depots);
+export default function importerTranscriptions(options, { journal, donnees, passerelles = [], comptes = null, projets = [] }) {
+  const projetDe = localiserProjet(projets);
   const viaPasserelle = new Set(passerelles.map((n) => String(n).replace(/[^A-Za-z0-9_-]/g, '_')));
   const etatF = path.join(donnees, 'import', 'claude-code-transcriptions.json');
   let etat = {}; try { etat = JSON.parse(fs.readFileSync(etatF, 'utf8')); } catch { /* premier import */ }
@@ -172,7 +153,7 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     const prec = etat[cle];
     if (prec && prec.taille === st.size && prec.v === VERSION_ETAT) continue;
     if (Date.now() - st.mtimeMs < calme) { enCours++; continue; }
-    const a = analyser(f, depotDe); lus++;
+    const a = analyser(f, projetDe); lus++;
     if (!a.session || !a.debut) { etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: {}, session: false }; continue; }
     const principal = Object.entries(a.modeles).sort((x, y) => y[1].out - x[1].out)[0]?.[0] || 'inconnu';
     const actor = `agent:claude-code/${principal}`;
@@ -180,11 +161,11 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     const corr = a.sousAgent ? `${a.session}:${path.basename(f, '.jsonl')}` : a.session;
     const base = { actor, correlation: corr, classification: 'internal' };
     const cpt = nomCompte ? { compte: nomCompte } : {};
-    const touches = [...a.depots.values()].sort((x, y) => y.n - x.n).slice(0, 20);
+    const touches = [...a.projets].map(([id, n]) => ({ id, n })).sort((x, y) => y.n - x.n).slice(0, 20);
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
     const fin = { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null, tours: a.tours, invites: a.invites, duree_s: duree, modeles: Object.keys(a.modeles) };
     // Transcription déjà importée, inchangée, relue pour une version antérieure : seuls ses compléments s'ajoutent (coûts
-    // ventilés, refus et appels s'ils n'existaient pas, dépôts touchés par un `session.finished` complémentaire). Rien de
+    // ventilés, refus et appels s'ils n'existaient pas, projets touchés par un `session.finished` complémentaire). Rien de
     // ce qui existait déjà n'est réémis : la graine des identifiants a pu changer depuis (clé relative au compte).
     const relu = prec?.session && prec.taille === st.size;
     const v = prec?.v ?? 0;
@@ -207,8 +188,8 @@ export default function importerTranscriptions(options, { journal, donnees, pass
       evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${cle}:appel:${x.cle}`), at: x.at || a.fin, kind: 'tool.called',
         data: { projet, ...cpt, sous_agent: a.sousAgent, serveur: x.serveur, outil: x.outil, statut: x.statut } });
     }
-    if (!relu) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:end:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, depots: touches } });
-    else if (v < 5 && touches.length) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:depots:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, depots: touches, complement: 'depots' } });
+    if (!relu) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:end:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, projets: touches } });
+    else if (v < 5 && touches.length) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:projets:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, projets: touches, complement: 'projets' } });
     etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
   }
   const r = journal.ajouter(evenements);

@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { git, liste, mtimeIso, slug, urlSure } from './outils.js';
+import { projetsDe, localiserProjet } from '../projets.js';
 
 function chercher(racine, profondeur, ignorer, trouves) {
   if (profondeur < 0 || !fs.existsSync(racine)) return;
@@ -38,7 +39,7 @@ export default function inventaireDepots(options, ctx) {
   const depots = trouverDepots(options);
   ctx.depots = depots;
   const ids = identifiants(depots);
-  return depots.map((d) => {
+  const fiches = depots.map((d) => {
     const remotes = (git(d, ['remote', '-v']) || '').split('\n').filter((l) => l.endsWith('(fetch)'))
       .map((l) => { const [nom, url] = l.split(/\s+/); return { nom, url: urlSure(url) }; });
     const dernier = git(d, ['log', '-1', '--format=%cI%x09%s']);
@@ -58,4 +59,8 @@ export default function inventaireDepots(options, ctx) {
         en_retard: Number.isFinite(retard) ? retard : null, dernier_fetch: commun ? mtimeIso(path.join(path.resolve(d, commun), 'FETCH_HEAD')) : null },
     };
   });
+  // Les adaptateurs suivants rattachent leurs éléments à ces projets (lien `project`).
+  ctx.projets = projetsDe(fiches);
+  ctx.projetDe = localiserProjet(ctx.projets);
+  return fiches;
 }

@@ -21,7 +21,8 @@ function banc({ mode = 'auto' } = {}) {
     return { status: 0, stdout: args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : '', stderr: '' };
   };
   const config = { inventaire: { 'depots-git': { racines: [racine] }, 'claude-code': { config: cfgClaude } }, acces_distant: { mode_permissions: mode } };
-  return { racine, unites, cfgClaude, appels, d: creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude' }) };
+  const projets = [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }];
+  return { racine, unites, cfgClaude, appels, d: creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets }) };
 }
 
 test('accès distant : activer écrit un service marqué, déclare la confiance et démarre ; desactiver le retire', () => {
@@ -37,7 +38,8 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   assert.equal(c.projects[path.join(racine, 'demo')].hasTrustDialogAccepted, true);
   assert.deepEqual([c.autre, c.projects['/x']], [1, { hasTrustDialogAccepted: false, garde: true }]);
   assert.deepEqual(appels.slice(0, 2), ['daemon-reload', 'enable --now holarch-distant-demo.service']);
-  assert.deepEqual(d.liste(), [{ nom: 'demo', chemin: path.join(racine, 'demo'), actif: true }]);
+  assert.deepEqual(d.liste(), [{ nom: 'demo', chemin: path.join(racine, 'demo'), projet: 'holarch:project:demo', actif: true }]);
+  assert.equal(d.activer('holarch:project:demo').projet, 'holarch:project:demo', 'par son identifiant');
   assert.equal(d.activer(path.join(racine, 'demo')).confiance_declaree, false);
   d.desactiver('demo');
   assert.ok(!fs.existsSync(path.join(unites, r.unite)));
@@ -47,7 +49,7 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
 
 test('accès distant : projet introuvable refusé, service étranger jamais touché, mode par défaut omis', () => {
   const { unites, d } = banc({ mode: null });
-  assert.throws(() => d.activer('absent'), /introuvable/);
+  assert.throws(() => d.activer('absent'), /inconnu du catalogue/);
   fs.writeFileSync(path.join(unites, 'holarch-distant-demo.service'), '[Service]\nExecStart=/bin/true\n');
   assert.throws(() => d.activer('demo'), /pas été écrit par HOLARCH/);
   assert.throws(() => d.desactiver('demo'), /pas été écrit par HOLARCH/);
@@ -65,14 +67,15 @@ test('accès distant : projet introuvable refusé, service étranger jamais touc
 import { spawnSync } from 'node:child_process';
 import { Journal } from '../src/stockage/journal.js';
 import { Socle } from '../src/socle.js';
-import importerTranscriptions, { cheminsAppel, localiserDepot } from '../src/import/claude-code-transcriptions.js';
+import importerTranscriptions, { cheminsAppel } from '../src/import/claude-code-transcriptions.js';
+import { localiserProjet, resoudreProjet } from '../src/projets.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
 import inventaireDepots from '../src/inventaire/depots-git.js';
 import { ulid } from '../src/ulid.js';
 
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
 const vieillir = (f) => { const t = new Date(Date.now() - 3600e3); fs.utimesSync(f, t, t); };
-const DEPOTS = [{ id: 'holarch:project:a', nom: 'a', location: '/ws/a' }, { id: 'holarch:project:b', nom: 'b', location: '/ws/b' }, { id: 'holarch:project:sous', nom: 'sous', location: '/ws/a/sous' }];
+const PROJETS = [{ id: 'holarch:project:a', nom: 'a', location: '/ws/a' }, { id: 'holarch:project:b', nom: 'b', location: '/ws/b' }, { id: 'holarch:project:sous', nom: 'sous', location: '/ws/a/sous' }];
 
 function transcription(home) {
   const f = path.join(home, 'projects', '-ws', 's1.jsonl');
@@ -92,31 +95,34 @@ function transcription(home) {
   return f;
 }
 
-test('projets : une session se rattache aux dépôts touchés par ses appels, sans garder chemins ni commandes', () => {
+test('projets : une session se rattache aux projets dont ses appels ont touché le dépôt, sans garder chemins ni commandes', () => {
   assert.deepEqual(cheminsAppel({ command: 'cd b && cat ~/n.txt /etc/x' }, '/ws'), ['/ws/b', path.join(os.homedir(), 'n.txt'), '/etc/x']);
   // Vu d'un conteneur : rattaché par le nom du dépôt si la suite du chemin existe dans le dépôt.
   const existe = (p) => ['/ws/a/src/x.js', '/ws/a/sous'].includes(p);
-  const loc = localiserDepot(DEPOTS, existe);
+  const loc = localiserProjet(PROJETS, existe);
   assert.deepEqual(['/home/dev/a/src/x.js', '/home/dev/a/sous', '/home/dev/a/absent', '/home/dev/b/x', '/ws/b/y'].map((p) => loc(p)?.nom ?? null), ['a', 'sous', null, null, 'b']);
   const home = tmp(); const donnees = tmp(); transcription(home);
   const journal = new Journal(donnees, 'local');
-  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, depots: DEPOTS });
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, projets: PROJETS });
   const fin = [...journal.lire()].find((e) => e.kind === 'session.finished');
-  assert.deepEqual(fin.data.depots, [{ id: 'holarch:project:a', nom: 'a', n: 2 }, { id: 'holarch:project:b', nom: 'b', n: 2 }, { id: 'holarch:project:sous', nom: 'sous', n: 1 }]);
+  assert.deepEqual(fin.data.projets, [{ id: 'holarch:project:a', n: 2 }, { id: 'holarch:project:b', n: 2 }, { id: 'holarch:project:sous', n: 1 }]);
+  // Une référence donnée par une personne : identifiant, nom, chemin ; un nom porté par deux projets est refusé.
+  assert.deepEqual(['holarch:project:b', 'sous', '/ws/a/x', 'absent'].map((r) => resoudreProjet(PROJETS, r)?.nom ?? null), ['b', 'sous', 'a', null]);
+  assert.throws(() => resoudreProjet([...PROJETS, { id: 'holarch:project:a2', nom: 'a', location: '/autre/a' }], 'a'), /ambigu/);
   const tout = JSON.stringify([...journal.lire()]);
   assert.ok(!tout.includes('x.js') && !tout.includes('git status') && !tout.includes('secret') && !tout.includes('/tmp/z'), 'ni chemin, ni commande, ni argument');
 });
 
-test('projets : une transcription déjà importée reçoit un complément de dépôts, et rien d’autre', () => {
+test('projets : une transcription déjà importée reçoit un complément de projets, et rien d’autre', () => {
   const home = tmp(); const donnees = tmp(); const f = transcription(home);
   const journal = new Journal(donnees, 'local');
   // État de la version 4 : la session, ses coûts et ses appels sont déjà au journal, sous une autre graine.
   ecrire(path.join(donnees, 'import', 'claude-code-transcriptions.json'), JSON.stringify({ 'projects/-ws/s1.jsonl': { v: 4, taille: fs.statSync(f).size, session: true, cumuls: { 'modele-x': { in: 7, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 35 } } } }));
-  const r = importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, depots: DEPOTS });
+  const r = importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, projets: PROJETS });
   const ev = [...journal.lire()];
   assert.deepEqual(ev.map((e) => e.kind), ['session.finished'], `un seul complément (${r.ajoutes} ajouté(s))`);
-  assert.equal(ev[0].data.complement, 'depots'); assert.equal(ev[0].data.depots.length, 3); assert.equal(ev[0].data.tours, 7);
-  assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, depots: DEPOTS }).fichiers_lus, 0);
+  assert.equal(ev[0].data.complement, 'projets'); assert.equal(ev[0].data.projets.length, 3); assert.equal(ev[0].data.tours, 7);
+  assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, projets: PROJETS }).fichiers_lus, 0);
 });
 
 test('projets : avancement de l’étape, questions, décisions, activité partagée, état du dépôt', () => {
@@ -129,14 +135,14 @@ test('projets : avancement de l’étape, questions, décisions, activité parta
     ev.push({ ...base, id: ulid(Date.parse(il_y_a(j)), `${corr}c`), at: il_y_a(j), kind: 'cost.recorded', data: {}, cost: { provider: 'anthropic', model: 'm', usd_list: null, tokens: { out: usd } } });
     ev.push({ ...base, id: ulid(Date.parse(il_y_a(j)), `${corr}f`), at: il_y_a(j), kind: 'session.finished', data: { sous_agent: false, tours: 4, ...data } });
   };
-  session('s1', 1, { cwd: '/ws', projet: 'ws', depots: [{ id: 'holarch:project:a', nom: 'a', n: 3 }, { id: 'holarch:project:b', nom: 'b', n: 1 }] }, 8);
-  session('s2', 10, { cwd: '/ws/b/src', projet: 'src', depots: [] }, 2);
+  session('s1', 1, { cwd: '/ws', projet: 'ws', projets: [{ id: 'holarch:project:a', n: 3 }, { id: 'holarch:project:b', n: 1 }] }, 8);
+  session('s2', 10, { cwd: '/ws/b/src', projet: 'src', projets: [] }, 2);
   session('s3', 20, { cwd: '/ws', projet: 'ws' }, 4);
-  ev.push({ actor: 'agent:claude-code/m', correlation: 's3', classification: 'internal', id: ulid(Date.parse(il_y_a(20)), 's3x'), at: il_y_a(20), kind: 'session.finished', data: { sous_agent: false, tours: 4, cwd: '/ws', projet: 'ws', depots: [{ id: 'holarch:project:a', nom: 'a', n: 1 }], complement: 'depots' } });
+  ev.push({ actor: 'agent:claude-code/m', correlation: 's3', classification: 'internal', id: ulid(Date.parse(il_y_a(20)), 's3x'), at: il_y_a(20), kind: 'session.finished', data: { sous_agent: false, tours: 4, cwd: '/ws', projet: 'ws', projets: [{ id: 'holarch:project:a', n: 1 }], complement: 'projets' } });
   session('s4', 3, { cwd: '/ailleurs', projet: 'ailleurs' }, 1);
   s.journal.ajouter(ev);
   const projet = (nom, attributes) => ({ id: `holarch:project:${nom}`, kind: 'project', name: nom, status: 'active', provenance: { source: 't' }, location: `/ws/${nom}`, attributes });
-  const noeud = (depot, rel, type, statut, attributes = {}) => ({ id: `holarch:node:${depot}${rel}`, kind: 'node', name: `${type} ${rel}`, status: 'proposed', provenance: { source: 't' }, location: `/ws/${depot}${rel}`, node: rel, attributes: { depot, type, statut, ...attributes } });
+  const noeud = (projet, rel, type, statut, attributes = {}) => ({ id: `holarch:node:${projet}${rel}`, kind: 'node', name: `${type} ${rel}`, status: 'proposed', provenance: { source: 't' }, location: `/ws/${projet}${rel}`, node: rel, links: { project: [`holarch:project:${projet}`] }, attributes: { type, statut, ...attributes } });
   s.catalogue.remplacer([
     projet('a', { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 1, dernier_commit: il_y_a(2), dernier_sujet: 'Un commit' }),
     projet('b', { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0 }),
@@ -160,11 +166,17 @@ test('projets : avancement de l’étape, questions, décisions, activité parta
   assert.deepEqual([hors_projet.sessions_30, hors_projet.usd_30], [1, 1]);
   assert.deepEqual([a.calme, b.calme, c.calme, c.activite], [false, false, true, null]);
   assert.equal(s.sessions({ jours: 30 }).length, 4, 'le complément ne fait pas une session de plus');
-  assert.deepEqual(s.sessions({ jours: 30, depot: 'holarch:project:b' }).map((x) => x.session).sort(), ['s1', 's2']);
+  assert.deepEqual(s.sessions({ jours: 30, projet: 'holarch:project:b' }).map((x) => x.session).sort(), ['s1', 's2']);
+  assert.deepEqual(s.sessions({ jours: 30, projet: 'b' }).map((x) => x.session).sort(), ['s1', 's2'], 'par son nom');
+  assert.deepEqual(s.sessions({ jours: 30, projet: 'aucun' }).map((x) => x.session), ['s4']);
   assert.equal(s.etat().sessions.total, 4);
+  // Le tableau de bord compte comme la vue Projets : même attribution, même partage du coût.
+  const conso = Object.fromEntries(s.consommation({ jours: 30, par: 'projet' }).map((x) => [x.cle, x.usd]));
+  assert.deepEqual(conso, { 'holarch:project:a': 10, 'holarch:project:b': 4, null: 1 });
+  assert.deepEqual(s.arbre().find((n) => n.chemin === '/arbre/index.md').projet, { id: 'holarch:project:a', nom: 'a' });
 });
 
-test('projets : l’inventaire lit l’avancement, les questions et l’écart à l’amont sans réseau', () => {
+test('projets : l’inventaire lit l’avancement, les questions et l’écart à l’amont sans réseau', async () => {
   const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@exemple.test', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@exemple.test' };
   Object.assign(process.env, env);
   const g = (d, ...a) => { const r = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
@@ -182,8 +194,12 @@ test('projets : l’inventaire lit l’avancement, les questions et l’écart �
   assert.deepEqual([p.attributes.amont, p.attributes.en_avance, p.attributes.en_retard, p.attributes.dernier_sujet], ['origin/main', 1, 1, 'Ici']);
   assert.ok(p.attributes.dernier_fetch);
   const n = inventaireArbre({}, ctx);
-  const idx = n.find((f) => f.node === '/arbre/index.md'); const et = n.find((f) => f.node === '/arbre/conception/etape-1-demo.md');
+  const ici = n.filter((f) => f.location.startsWith(depot + path.sep)); // le clone « autre » porte le même arbre
+  const idx = ici.find((f) => f.node === '/arbre/index.md'); const et = ici.find((f) => f.node === '/arbre/conception/etape-1-demo.md');
   assert.deepEqual(idx.attributes.questions_ouvertes, [{ id: 'Q3', noeud: 'x.md §1', question: 'Une question ?', niveau: 'gênant' }]);
   assert.equal(et.attributes.etape, 1);
+  assert.deepEqual(et.links.project, [p.id], 'un nœud appartient au projet de son dépôt');
+  const { slug } = await import('../src/inventaire/outils.js');
+  assert.equal(et.id, `holarch:node:${slug(p.id.slice('holarch:project:'.length) + '/arbre/conception/etape-1-demo.md')}`, 'identifiant fondé sur celui du projet');
   assert.deepEqual(et.attributes.avancement, [{ etiquette: 'Fait', date: '2026-10-01', texte: 'première partie.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Un : à faire suite.', 'Deux.'] }]);
 });

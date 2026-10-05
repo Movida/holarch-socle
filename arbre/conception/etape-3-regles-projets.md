@@ -5,7 +5,7 @@ description: Les projets deviennent des entités suivies et outillées (accès d
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/decisions/2026-10-05-cloture-etape-2.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/fiche-catalogue.md]
+  constrained_by: [/arbre/decisions/2026-10-05-cloture-etape-2.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/fiche-catalogue.md]
 ---
 
 # Étape 3 — Règles et projets
@@ -34,7 +34,7 @@ d'office (un serveur actif coûte de la mémoire, environ 200 Mo).
 | `holarch distant activer <projet>` | déclare le dossier de confiance pour Claude Code, écrit le service utilisateur du projet, l'active et le démarre |
 | `holarch distant desactiver <projet>` | arrête et retire le service ; la déclaration de confiance reste |
 
-`<projet>` est un chemin, ou un nom de dossier cherché sous les racines de dépôts du site (`inventaire.depots-git`).
+`<projet>` est un projet du catalogue, désigné par son nom, un chemin ou son identifiant (décision `rattachement-projet`).
 Le mode de permission des sessions se règle par site (`acces_distant.mode_permissions`, celui de Claude Code par
 défaut). Un service écrit par HOLARCH porte une marque ; un service qu'il n'a pas écrit n'est jamais modifié ni retiré.
 
@@ -55,7 +55,7 @@ d'après sa spécification) ; ce qui l'attend (questions ouvertes, décisions à
 (dernières sessions, dernier commit, coût sur 7 et 30 jours) ; son état technique (commits non poussés, retard sur le
 dépôt distant, modifications en cours) ; plus tard, ses écarts à ses règles (audit de conformité).
 
-**Exigence.** Une session se rattache aux dépôts où elle a réellement travaillé (chemins de ses commandes et de ses
+**Exigence.** Une session se rattache aux projets où elle a réellement travaillé (chemins de ses commandes et de ses
 fichiers), pas seulement à son dossier de départ : un dossier d'entrée commun ne doit pas rendre la vue aveugle.
 
 **Constat (2026-10-05, transcriptions du poste personnel).** Le répertoire courant d'une session change en cours de
@@ -64,14 +64,15 @@ surtout par des commandes shell qui citent des chemins absolus, plus rarement pa
 
 **Livre.**
 
-1. **Rattachement à l'import.** Chaque appel d'outil d'une transcription (sous-agents compris) touche les dépôts
+1. **Rattachement à l'import** (module `projets`, décision `rattachement-projet`). Chaque appel d'outil d'une
+   transcription (sous-agents compris) touche les projets dont le dépôt contient
    connus du catalogue que désignent ses chemins : `file_path`, `notebook_path`, `path`, et, pour une commande shell, les
    chemins absolus (ou `~/…`) et les cibles de `cd` et de `git -C`, relatifs au répertoire courant de la ligne ; sans
    chemin explicite, son répertoire courant. Un dépôt imbriqué l'emporte sur celui qui le contient.
-   `session.finished` porte `data.depots` : `[{id, nom, n}]`, `n` le nombre d'appels qui l'ont touché. Rien d'autre
+   `session.finished` porte `data.projets` : `[{id, n}]`, `n` le nombre d'appels qui l'ont touché. Rien d'autre
    n'est gardé (ni chemin, ni commande, ni argument).
 2. **Historique.** Une transcription déjà importée est relue une fois (version 5 de l'état d'import) ; si elle n'a pas
-   changé, un `session.finished` **complémentaire** (`data.complement: "depots"`, mêmes données plus `depots`) s'ajoute
+   changé, un `session.finished` **complémentaire** (`data.complement: "projets"`, mêmes données plus `projets`) s'ajoute
    au journal, qui ne se réécrit pas (contrat événement §1 : une correction est un nouvel événement). Les lectures
    ignorent le complément quand elles comptent les sessions.
 3. **État technique du dépôt**, à l'inventaire (`depots-git`) : branche amont, commits non poussés (`en_avance`), retard
@@ -86,18 +87,19 @@ surtout par des commandes shell qui citent des chemins absolus, plus rarement pa
      « Fait », la dernière, les entrées « Reste » ;
    - *ce qui l'attend* : questions ouvertes, décisions en `draft` (à approuver) ;
    - *activité* : sessions et coût liste sur 7 et 30 jours, dernière session, dernier commit. Une session compte pour
-     chaque dépôt qu'elle a touché ; son coût (sous-agents compris) se partage entre eux au prorata des appels ; une
-     session sans dépôt touché se rattache au dépôt de son répertoire de départ, sinon à « hors projet » ;
+     chaque projet qu'elle a touché ; son coût (sous-agents compris) se partage entre eux au prorata des appels ; une
+     session sans projet touché se rattache au projet de son répertoire de départ, sinon à « hors projet ». Cette
+     attribution est la seule : le tableau de bord, la consommation et les sessions la reprennent ;
    - *état technique* : point 3.
    Les projets se rangent par activité récente ; ceux sans activité sur 30 jours et sans rien en attente se replient.
 6. **Interface** : page « Projets » (une carte par projet actif, un tableau pour les autres) ; un projet mène à ses
-   sessions (filtre par dépôt touché) et à sa fiche. **MCP** : outil `projets`, en lecture, réponse bornée.
+   sessions (filtre par projet) et à sa fiche. **MCP** : outil `projets`, en lecture, réponse bornée.
 
 **Choix techniques (P12).**
 
 | Choix | Raison | Ce qui le ferait changer |
 |---|---|---|
-| rattacher à l'import, d'après les dépôts du catalogue | la transcription n'est lue qu'une fois et son contenu n'est pas gardé | un dépôt inventorié après l'import de ses sessions : il faut relire (version de l'état d'import) |
+| rattacher à l'import, d'après les projets du catalogue | la transcription n'est lue qu'une fois et son contenu n'est pas gardé | un dépôt inventorié après l'import de ses sessions : il faut relire (version de l'état d'import) |
 | partage du coût au prorata des appels | sans double compte : la somme par projet reste le coût du site | une mesure plus juste (tokens par appel) si elle devient lisible |
 | complément plutôt que réécriture | le journal est en ajout seul | — |
 | avancement lu dans la spécification, pas saisi ailleurs | la spécification est déjà tenue à jour par la méthode (CLAUDE.md, « Reprendre ») | un projet sans arbre : la carte ne montre alors que l'activité et l'état technique |
@@ -107,8 +109,8 @@ chemins (`/home/vscode/<dépôt>/…`, `/workspaces/<dépôt>/…`) ne sont pas 
 aucun dépôt connu se rattache donc par le nom : un segment égal au nom d'un dépôt du catalogue, si la suite du chemin
 existe dans ce dépôt (le segment le plus profond d'abord). Le répertoire de départ, en repli, se rattache de même.
 
-**Limites connues.** Un chemin relatif dans une commande, hors `cd` et `git -C`, est ignoré. Un dépôt absent du
-catalogue du site (hors des racines de `depots-git`) ne peut pas recevoir de session.
+**Limites connues.** Un chemin relatif dans une commande, hors `cd` et `git -C`, est ignoré. Un dépôt hors des racines
+de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas recevoir de session.
 
 ## Avancement
 
@@ -121,6 +123,11 @@ catalogue du site (hors des racines de `depots-git`) ne peut pas recevoir de ses
   l'arbre, lecture `projets` (page « Projets », filtre des sessions par dépôt, outil MCP) ; 4 tests, test visuel
   étendu (à passer dans le conteneur du socle, sans Chromium ici). Essai à blanc sur une copie des données du poste
   personnel : 173 compléments et rien d'autre ; 57 sessions sur 30 jours rattachées au lieu de 13.
+- **Fait (2026-10-05)** : décision `rattachement-projet` (approuvée) appliquée : module `projets` partagé ; lien
+  `project` sur les fiches (éléments Claude Code d'un dépôt, mémoires, nœuds de l'arbre, conteneurs et volumes ; contrat
+  fiche 0.4.0) ; `data.projets` remplace `data.depots` avant tout import réel (contrat événement 0.7.0) ; une seule
+  attribution pour le tableau de bord, la consommation, les sessions et la vue Projets ; `holarch distant` et les
+  outils MCP désignent un projet par nom, chemin ou identifiant ; nœuds de l'arbre identifiés par leur projet.
 - **Reste** :
   1. **Vue Projets à l'usage** : passer le test visuel dans le conteneur ; recueillir l'avis de l'auteur sur la page.
   2. **Tranches suivantes** : arbre des règles et de la configuration, adaptateurs, récolte, création de projet, audit

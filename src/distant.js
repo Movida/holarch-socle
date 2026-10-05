@@ -7,6 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { Catalogue } from './stockage/catalogue.js';
+import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 
 const MARQUE = '# Écrit par HOLARCH (holarch distant)';
 const PREFIXE = 'holarch-distant-';
@@ -56,32 +58,33 @@ export function creerDistant(config, {
   unites = path.join(os.homedir(), '.config', 'systemd', 'user'),
   systemctl = (args) => spawnSync('systemctl', ['--user', ...args], { encoding: 'utf8' }),
   claude = config.acces_distant?.claude || null,
+  projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
 } = {}) {
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
   const geree = (f) => fs.existsSync(f) && fs.readFileSync(f, 'utf8').startsWith(MARQUE);
   const lancer = (args) => { const r = systemctl(args); if (r.status !== 0) throw new Error(`systemctl --user ${args.join(' ')} : ${(r.stderr || '').trim() || `code ${r.status}`}`); return r; };
 
-  // Un chemin, ou un nom de dossier cherché sous les racines de dépôts du site.
-  const resoudre = (projet) => {
-    if (!projet) throw new Error('projet manquant : un chemin ou un nom de dossier');
-    if (projet.includes('/') || projet.startsWith('.')) return path.resolve(projet);
-    const racines = config.inventaire?.['depots-git']?.racines || [os.homedir()];
-    const trouve = racines.map((r) => path.join(r, projet)).find((p) => fs.existsSync(p) && fs.statSync(p).isDirectory());
-    if (!trouve) throw new Error(`projet introuvable sous les racines (${racines.join(', ')}) : ${projet}`);
-    return trouve;
+  // Un projet du catalogue, désigné par son identifiant, son nom ou un chemin (module projets, comme partout ailleurs).
+  const resoudre = (ref) => {
+    if (!ref) throw new Error('projet manquant : un nom, un chemin ou un identifiant');
+    const p = resoudreProjet(projets, ref);
+    if (!p?.location) throw new Error(`projet inconnu du catalogue : ${ref} (un dépôt neuf y entre par holarch inventaire)`);
+    return p;
   };
+  const projetDe = localiserProjet(projets);
 
   return {
     liste() {
       if (!fs.existsSync(unites)) return [];
       return fs.readdirSync(unites).filter((f) => f.startsWith(PREFIXE) && f.endsWith('.service') && geree(path.join(unites, f))).map((f) => {
         const texte = fs.readFileSync(path.join(unites, f), 'utf8');
-        return { nom: f.slice(PREFIXE.length, -'.service'.length), chemin: texte.match(/^WorkingDirectory=(.*)$/m)?.[1] ?? null,
+        const chemin = texte.match(/^WorkingDirectory=(.*)$/m)?.[1] ?? null;
+        return { nom: f.slice(PREFIXE.length, -'.service'.length), chemin, projet: projetDe(chemin)?.id ?? null,
           actif: systemctl(['is-active', f]).stdout?.trim() === 'active' };
       });
     },
-    activer(projet) {
-      const chemin = resoudre(projet);
+    activer(ref) {
+      const p = resoudre(ref); const chemin = p.location;
       if (!fs.existsSync(chemin)) throw new Error(`dossier absent : ${chemin}`);
       const binaire = claude || trouverClaude();
       if (!binaire) throw new Error('claude introuvable dans le PATH (acces_distant.claude pour le préciser)');
@@ -91,10 +94,12 @@ export function creerDistant(config, {
       fs.mkdirSync(unites, { recursive: true });
       fs.writeFileSync(f, uniteDe({ nom, chemin, claude: binaire, mode: config.acces_distant?.mode_permissions || null }));
       lancer(['daemon-reload']); lancer(['enable', '--now', path.basename(f)]);
-      return { nom, chemin, unite: path.basename(f), confiance_declaree: confiance };
+      return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance };
     },
-    desactiver(projet) {
-      const nom = projet.includes('/') ? nomDe(projet) : projet; const f = fichierUnite(nom);
+    // Le service d'un projet sorti du catalogue doit rester retirable : à défaut de projet, la référence est son nom.
+    desactiver(ref) {
+      let p = null; try { p = resoudreProjet(projets, ref); } catch { /* nom ambigu : pris tel quel */ }
+      const nom = p?.location ? nomDe(p.location) : String(ref).includes('/') ? nomDe(ref) : ref; const f = fichierUnite(nom);
       if (!fs.existsSync(f)) throw new Error(`aucun accès distant actif pour ${nom}`);
       if (!geree(f)) throw new Error(`${f} n'a pas été écrit par HOLARCH : rien n'est retiré`);
       lancer(['disable', '--now', path.basename(f)]);

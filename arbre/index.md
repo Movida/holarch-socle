@@ -34,6 +34,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`decisions/2026-10-03-forme-etape-2.md`](decisions/2026-10-03-forme-etape-2.md) - l'étape 2 découpée selon le lieu où chaque partie sert
 - [`decisions/2026-10-03-passerelle-par-site.md`](decisions/2026-10-03-passerelle-par-site.md) - une passerelle protégée là où il y a à fédérer, HOLARCH en direct ailleurs
 - [`decisions/2026-10-05-cloture-etape-2.md`](decisions/2026-10-05-cloture-etape-2.md) - l'étape 2 close sur l'usage au travail ; l'interface attendue pour le suivi des projets
-- [`decisions/2026-10-05-rattachement-projet.md`](decisions/2026-10-05-rattachement-projet.md) - tout se rattache au projet par son identifiant (proposée)
+- [`decisions/2026-10-05-rattachement-projet.md`](decisions/2026-10-05-rattachement-projet.md) - tout se rattache au projet par son identifiant ; le dépôt en est le support
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre

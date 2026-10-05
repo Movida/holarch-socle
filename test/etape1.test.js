@@ -196,9 +196,14 @@ test('inventaire Docker : conteneurs et volumes par l’API en lecture, rattach�
   const srv = http.createServer((req, res) => { vus.push(`${req.method} ${req.url}`); res.end(JSON.stringify(api[req.url])); });
   await new Promise((ok) => srv.listen(socket, ok));
   try {
-    const fiches = await inventaireDocker({ hote: `unix://${socket}` }, { site: 'local' });
+    // Le dossier du devcontainer est vu de l'hôte ; le projet, inventorié ailleurs, se retrouve par son nom.
+    const depot = path.join(tmp(), 'demo'); fs.mkdirSync(depot);
+    const { localiserProjet } = await import('../src/projets.js');
+    const fiches = await inventaireDocker({ hote: `unix://${socket}` }, { site: 'local', projetDe: localiserProjet([{ id: 'holarch:project:demo', nom: 'demo', location: depot }]) });
     const par = (n) => fiches.find((f) => f.name === n);
-    assert.equal(par('boring_yalow').attributes.projet, 'demo'); assert.equal(par('boring_yalow').status, 'active');
+    assert.deepEqual(par('boring_yalow').links, { project: ['holarch:project:demo'] }); assert.equal(par('boring_yalow').status, 'active');
+    assert.deepEqual(par('demo-ssh').links, { project: ['holarch:project:demo'] }, 'un volume prend le projet du conteneur qui l’utilise');
+    assert.equal(par('vieux').links, undefined);
     assert.equal(par('vieux').status, 'suspended');
     assert.deepEqual(par('demo-ssh').attributes.conteneurs, ['boring_yalow']); assert.equal(par('oublie').attributes.orphelin, true);
     assert.ok(!JSON.stringify(fiches).includes('SECRET'));
