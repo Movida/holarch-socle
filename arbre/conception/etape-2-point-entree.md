@@ -64,8 +64,9 @@ fouiller.
   et au tableau de bord.
 - **Fait (2026-10-05)** : pont stdio du socle (`holarch pont`) pour les clients stdio ; ré-identification au catalogue
   par le nom (Q12).
-- **À faire** : critère d'usage de l'étape (Desktop et Claude Code passent par
-  le hub au quotidien), à lire au tableau de bord après quelques jours d'usage.
+- **Clôture (2026-10-05)** : étape close sur l'usage au travail (décision `cloture-etape-2`) : la passerelle sert au
+  quotidien. Le critère « ici » reste ouvert : serveur HOLARCH à brancher pour toutes les sessions du site, index à
+  rafraîchir.
 
 ## Hors périmètre
 

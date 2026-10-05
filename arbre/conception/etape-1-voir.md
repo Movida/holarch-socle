@@ -67,6 +67,9 @@ plutôt que de demander « qu'est-ce qui est en place ? » ou « qu'est-ce qui a
 - **Fait (2026-10-03)** : pages consultées au journal (`ui.viewed`), usage de l'interface au tableau de bord.
 - **Clôture (2026-10-03)** : étape close sur sa livraison (décision `cloture-etape-1`) ; le critère d'usage reste
   ouvert, mesuré en continu, à revoir au plus tard à la clôture de l'étape 2.
+- **Retour sur le critère (2026-10-05)** : une seule journée de consultation, pendant la construction ; le critère
+  n'est plus une condition (décision `cloture-etape-2`) : indicateurs consultés de temps en temps, mesure gardée, aucune
+  page retirée ; l'usage attendu de l'interface est le suivi des projets (Q14).
 - **Reste, hors clôture** :
   1. **Site de l'hôte** : HOLARCH installé sur l'hôte (Node ≥ 22.5), `HOLARCH_SITE=hote` et `config.hote.yaml`,
      relevé régulier (décision `sources-hote` approuvée, contrat fiche 0.3.0). Configuration par site faite (14 tests).

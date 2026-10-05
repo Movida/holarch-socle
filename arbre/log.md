@@ -2,6 +2,10 @@
 
 ## 2026-10-05
 
+* **Clôture de l'étape 2** : close sur l'usage au travail (décision `cloture-etape-2`) ; retour sur le critère de
+  l'étape 1 (une journée de consultation, mesure faussée par un défaut de branchement) : il n'est plus une condition ;
+  l'usage attendu de l'interface est le suivi des projets (Q14). Le critère « ici » de l'étape 2 reste ouvert.
+
 * **Pont du socle** (`holarch pont`, Q8) : reprend une session expirée, ferme la sienne en partant, lit la clé dans un
   fichier ; remplace `mcp-remote` pour Claude Desktop. **Q12** : la ré-identification au catalogue exige le même nom.
   Minuterie d'import horaire sur le site de travail.

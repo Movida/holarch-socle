@@ -8,6 +8,7 @@
 | Q8 | `conception/essai-site-travail.md` §6-7, §13, §18-19 | Vie des sessions de la passerelle : serveurs lourds ou à secrets en serveur partagé (geste de la procédure, §3) ; le pont de Desktop (`holarch pont`) reprend une session expirée et ferme la sienne. Reste : le client HTTP de Claude Code reprend-il une session expirée ? Condition pour raccourcir la durée de vie (30 min). | cosmétique |
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
 | Q13 | `conception/essai-site-travail.md` §16 | Brique Savoir : le serveur OKF fédéré en devient-il l'adaptateur, et que doit dire le contrat de la brique (lecture avant, proposition après, porte vérifiée) pour ne pas dépendre de ses outils ? À l'ouverture de l'étape 6. | cosmétique d'ici l'étape 6 |
+| Q14 | `decisions/2026-10-05-cloture-etape-2.md` | Suivi des projets dans l'interface : que montrer d'un projet (avancement de ses étapes, questions et décisions ouvertes, sessions et coût récents, écarts à ses règles…) et à quelle fréquence l'auteur le consulte-t-il ? À qualifier avec l'auteur à l'ouverture de l'étape 3. | gênant |
 
 ## Résolues
 
