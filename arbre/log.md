@@ -4,8 +4,10 @@
 
 * **Import vu de deux montages** : un même répertoire de transcriptions lu depuis un conteneur puis depuis l'hôte
   était importé deux fois (état et identifiants fondés sur le chemin absolu) ; ils se fondent désormais sur le chemin
-  relatif au compte, l'état ancien est repris. Constaté sur un site réel : les événements en double sont à retirer
-  du journal, exception au contrat (ajout seul) consentie par l'auteur, journal sauvegardé avant.
+  relatif au compte, l'état ancien est repris. Constaté sur un site réel : les événements en double ont été retirés
+  du journal (exception au contrat, ajout seul, consentie par l'auteur ; journal sauvegardé avant), puis l'import
+  corrigé n'a repris que ce qui manquait. Poste personnel branché : serveur HOLARCH pour toutes les sessions,
+  inventaire et import horaires.
 
 * **Clôture de l'étape 2** : close sur l'usage au travail (décision `cloture-etape-2`) ; retour sur le critère de
   l'étape 1 (une journée de consultation, mesure faussée par un défaut de branchement) : il n'est plus une condition ;

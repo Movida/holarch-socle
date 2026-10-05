@@ -67,6 +67,9 @@ fouiller.
 - **Clôture (2026-10-05)** : étape close sur l'usage au travail (décision `cloture-etape-2`) : la passerelle sert au
   quotidien. Le critère « ici » reste ouvert : serveur HOLARCH à brancher pour toutes les sessions du site, index à
   rafraîchir.
+- **Fait (2026-10-05)** : branchement du poste personnel : serveur HOLARCH déclaré pour toutes les sessions (portée
+  utilisateur, `HOLARCH_HOME` passé au serveur), inventaire et import toutes les heures par une minuterie utilisateur.
+  Le critère « ici » se mesure désormais.
 
 ## Hors périmètre
 
