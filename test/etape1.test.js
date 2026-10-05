@@ -311,7 +311,7 @@ test('serveur MCP : outils en lecture, réponses du socle, par le client officie
   await client.connect(new StdioClientTransport({ command: process.execPath, args: ['--no-warnings', path.resolve('bin/holarch.js'), 'mcp'], env: { ...process.env, HOLARCH_HOME: accueil } }));
   try {
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name).sort(), ['arbre', 'catalogue', 'consommation', 'etat', 'fiche', 'journal', 'sessions']);
+    assert.deepEqual(tools.map((t) => t.name).sort(), ['arbre', 'catalogue', 'consommation', 'etat', 'fiche', 'journal', 'projets', 'sessions']);
     assert.ok(tools.every((t) => t.annotations?.readOnlyHint === true), 'tous en lecture');
     const r = await client.callTool({ name: 'catalogue', arguments: { kind: 'skill' } });
     assert.deepEqual(JSON.parse(r.content[0].text).fiches.map((f) => f.name), ['demo']);

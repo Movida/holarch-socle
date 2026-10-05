@@ -26,7 +26,7 @@ function donneesFictives() {
     ev.push({ ...base, id: ulid(Date.parse(il_y_a(jours, 11)), `${n}c`), at: il_y_a(jours, 11), kind: 'cost.recorded', data: { projet, sous_agent: false },
       cost: { provider: 'anthropic', model: modele, usd_list: null, tokens: { in: 1200, cache_write: 5e4, cache_write_1h: 0, cache_read: sortie * 40, out: sortie } } });
     ev.push({ ...base, id: ulid(Date.parse(il_y_a(jours, 11)), `${n}f`), at: il_y_a(jours, 11), kind: 'session.finished',
-      data: { projet, sous_agent: false, tours: 12, invites: 3, duree_s: 7200, modeles: [modele] } });
+      data: { projet, cwd: `/ws/${projet}`, sous_agent: false, tours: 12, invites: 3, duree_s: 7200, modeles: [modele] } });
   };
   // Des jours sans activité au milieu de la plage : l'histogramme doit les montrer à zéro.
   [[1, 0, 'projet-a', 9e5], [2, 2, 'projet-b', 3e6], [3, 9, 'projet-a', 4e5], [4, 20, 'projet-c', 2e5], [5, 2, 'projet-c', 1e5, 'modele-sans-tarif']]
@@ -42,6 +42,11 @@ function donneesFictives() {
     fiche('node', 'arbre/contrat', { name: 'Contrat fictif', status: 'proposed', node: '/arbre/contrat.md', attributes: { type: 'contract', statut: 'draft' } }),
     fiche('node', 'arbre/racine', { name: 'Racine fictive', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'stable', depot: 'demo' } }),
     fiche('node', 'arbre/enfant', { name: 'Enfant fictif', node: '/arbre/enfant.md', links: { derives_from: ['/arbre/index.md'] }, attributes: { type: 'need', statut: 'draft', depot: 'demo' } }),
+    fiche('project', 'projet-a', { location: '/ws/projet-a', attributes: { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 3, dernier_commit: il_y_a(1), dernier_sujet: 'Un commit fictif' } }),
+    fiche('project', 'projet-b', { location: '/ws/projet-b', attributes: { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(4) } }),
+    fiche('project', 'projet-calme', { location: '/ws/projet-calme', attributes: { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0, dernier_commit: il_y_a(300) } }),
+    fiche('node', 'projet-a/racine', { name: 'Racine A', location: '/ws/projet-a/arbre/index.md', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', depot: 'projet-a', questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Une question `fictive` ?', niveau: 'gênant' }] } }),
+    fiche('node', 'projet-a/etape', { name: 'Étape 2 — Fictive', location: '/ws/projet-a/arbre/conception/etape-2-fictive.md', node: '/arbre/conception/etape-2-fictive.md', attributes: { type: 'spec', statut: 'draft', depot: 'projet-a', etape: 2, avancement: [{ etiquette: 'Fait', date: '2026-10-01', texte: 'Une tranche faite.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Une tranche à faire.'] }] } }),
   ]);
   s.indexer();
   return s;
@@ -97,6 +102,16 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await page.waitForFunction(() => location.hash.startsWith('#/journal?session=session-2'));
   await page.waitForSelector('.evenement .badge.fam-tool');
   assert.ok((await page.$$eval('.evenement', (e) => e.length)) >= 4, 'événements de la session, refus compris');
+
+  await ouvrir('#/projets', '.carte.projet');
+  assert.equal(await page.$$eval('.carte.projet', (c) => c.length), 2, 'une carte par projet en mouvement');
+  const carteA = await page.textContent('.carte.projet:first-child');
+  assert.match(carteA, /projet-a[\s\S]*3 non commités[\s\S]*2 non poussés[\s\S]*Étape 2 — Fictive[\s\S]*Une tranche à faire[\s\S]*1 question ouverte[\s\S]*7 j : 1 session/);
+  assert.match(await page.textContent('main'), /Sans activité sur 30 jours[\s\S]*projet-calme/);
+  await page.click('.carte.projet:first-child .activite a');
+  await page.waitForFunction(() => location.hash.startsWith('#/sessions?depot='));
+  await page.waitForSelector('table.triable tbody tr.cliquable');
+  assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'sessions du dépôt');
 
   await ouvrir('#/catalogue', 'table tbody tr');
   assert.match(await page.textContent('tr[data-fiche="holarch:node:arbre/contrat"]'), /draft/);

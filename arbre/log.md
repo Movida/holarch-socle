@@ -2,6 +2,12 @@
 
 ## 2026-10-05
 
+* **Vue Projets** (étape 3, tranche 2) : une session se rattache aux dépôts que ses appels d'outils ont touchés, y
+  compris vus d'un conteneur (par le nom du dépôt, si la suite du chemin y existe) ; l'historique reçoit des
+  `session.finished` complémentaires, rien n'est réécrit. Page « Projets » : étape en cours, reste, questions,
+  décisions à approuver, activité 7 et 30 jours (coût partagé entre dépôts touchés), dépôt non commité, non poussé ou
+  en retard ; outil MCP `projets`.
+
 * **Ouverture de l'étape 3** : `etape-3-regles-projets.md`, tranches 1 (accès distant par projet) et 2 (vue
   Projets, Q14 résolue). Tranche 1 livrée : `holarch distant`, un serveur Remote Control par projet, à la demande.
 

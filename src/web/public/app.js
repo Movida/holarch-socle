@@ -82,6 +82,42 @@ async function tableau(params) {
     <p class="discret section">Interface ouverte ${nf.format(p.ui.jours_actifs)} jour${p.ui.jours_actifs > 1 ? 's' : ''} sur ${n}${p.ui.pages.length ? ` · ${p.ui.pages.map((x) => `${h(x.cle)} ${nf.format(x.n)}`).join(', ')}` : ''}.</p>`;
 }
 
+// Texte tiré de l'arbre : les `code` restent lisibles, rien d'autre n'est interprété.
+const md = (t) => h(t).replace(/`([^`]+)`/g, '<code>$1</code>');
+
+async function projets(params) {
+  const tous = params.get('tous') === '1';
+  const { projets: liste, hors_projet: hors } = await api('/api/projets');
+  const actifs = liste.filter((p) => !p.calme); const calmes = liste.filter((p) => p.calme);
+  const tech = (p) => {
+    const t = p.technique; const b = [];
+    if (t.fichiers_modifies) b.push(`<span class="badge alerte" title="Fichiers modifiés ou non suivis">${nf.format(t.fichiers_modifies)} non commité${t.fichiers_modifies > 1 ? 's' : ''}</span>`);
+    if (t.en_avance) b.push(`<span class="badge alerte" title="Commits absents de ${h(t.amont)}">${nf.format(t.en_avance)} non poussé${t.en_avance > 1 ? 's' : ''}</span>`);
+    if (t.en_retard) b.push(`<span class="badge" title="Commits de ${h(t.amont)} absents ici, d’après le dernier fetch${t.dernier_fetch ? ` (${h(date(t.dernier_fetch))})` : ''}">${nf.format(t.en_retard)} en retard</span>`);
+    if (!t.amont && p.branche && p.branche !== 'HEAD') b.push('<span class="badge" title="La branche n’a pas de branche amont : jamais poussée, ou dépôt sans remote">sans amont</span>');
+    if (!b.length && t.amont) b.push(`<span class="badge ok" title="À jour avec ${h(t.amont)}, d’après le dernier fetch">à jour</span>`);
+    return b.join(' ');
+  };
+  const cout = (u) => (u == null ? '' : ` · ${usd(u)}`);
+  const carte = (p) => {
+    const a = p.activite; const e = p.etape;
+    return `<div class="carte projet">
+      <div class="tete"><a class="t" href="#" data-fiche="${h(p.id)}" title="${h(p.chemin || '')}">${h(p.nom)}</a>${p.branche ? ` <span class="mono discret">${h(p.branche)}</span>` : ''} ${tech(p)}</div>
+      ${e ? `<div class="etape"><a href="#" data-fiche="${h(e.id)}">${h(e.titre)}</a>${e.close ? ' <span class="badge ok">close</span>' : ''} <span class="discret">· ${nf.format(e.faits)} fait${e.faits > 1 ? 's' : ''}</span>
+        ${e.dernier_fait ? `<div class="discret">Dernier fait${e.dernier_fait.date ? ` (${jj(e.dernier_fait.date)})` : ''} : ${md(e.dernier_fait.texte || '')}</div>` : ''}
+        ${e.reste.length ? `<div class="reste"><b>Reste</b><ul>${e.reste.map((r) => `<li>${md(r)}</li>`).join('')}</ul></div>` : ''}</div>` : p.arbre ? '<div class="discret">Arbre sans spécification d’étape.</div>' : ''}
+      ${p.questions.length || p.decisions.length ? `<div class="attend">${p.decisions.length ? `<details><summary><span class="badge accent">${nf.format(p.decisions.length)} décision${p.decisions.length > 1 ? 's' : ''} à approuver</span></summary><ul>${p.decisions.map((d) => `<li><a href="#" data-fiche="${h(d.id)}">${h(d.titre)}</a></li>`).join('')}</ul></details>` : ''}${p.questions.length ? `<details><summary><span class="badge accent">${nf.format(p.questions.length)} question${p.questions.length > 1 ? 's' : ''} ouverte${p.questions.length > 1 ? 's' : ''}</span></summary><ul>${p.questions.map((q) => `<li><b>${h(q.id)}</b> ${md(q.question || '')}${q.niveau ? ` <span class="discret">(${h(q.niveau)})</span>` : ''}</li>`).join('')}</ul></details>` : ''}</div>` : ''}
+      <div class="activite discret">${a ? `<a href="#/sessions?depot=${encodeURIComponent(p.id)}" title="Sessions qui ont travaillé dans ce dépôt (coût partagé entre les dépôts touchés)">7 j : ${nf.format(a.sessions_7)} session${a.sessions_7 > 1 ? 's' : ''}${cout(a.usd_7)} · 30 j : ${nf.format(a.sessions_30)}${cout(a.usd_30)}</a> · dernière ${h(depuis(a.derniere_session))}` : 'Aucune session sur 30 j'}${p.dernier_commit ? ` · commit ${h(depuis(p.dernier_commit.at))}${p.dernier_commit.sujet ? ` : <span title="${h(p.dernier_commit.sujet)}">${h(p.dernier_commit.sujet.length > 70 ? `${p.dernier_commit.sujet.slice(0, 69)}…` : p.dernier_commit.sujet)}</span>` : ''}` : ''}</div>
+    </div>`;
+  };
+  return `
+    <div class="entete"><h1>Projets</h1><div class="puces" role="group" aria-label="Projets montrés"><a class="puce ${tous ? '' : 'actif'}" href="#/projets">En mouvement (${actifs.length})</a><a class="puce ${tous ? 'actif' : ''}" href="#/projets?tous=1">Tous (${liste.length})</a></div></div>
+    <p class="sous-titre">Où en est chaque projet d’après son arbre, ce qui l’attend, son activité et l’état de son dépôt. Une session compte pour chaque dépôt où elle a travaillé.</p>
+    <div class="grille g2">${(tous ? liste : actifs).map(carte).join('') || '<div class="carte vide">Aucun projet en mouvement sur 30 jours.</div>'}</div>
+    ${!tous && calmes.length ? `<div class="carte tableau section"><h2>Sans activité sur 30 jours, rien en attente</h2><table class="triable"><thead><tr><th>Projet</th><th>Branche</th><th class="num" data-sens="desc">Dernier commit</th></tr></thead><tbody>${calmes.map((p) => `<tr class="cliquable" data-fiche="${h(p.id)}"><td>${h(p.nom)}</td><td class="mono desc">${h(p.branche || '')}</td><td class="num" data-v="${p.dernier_commit ? Date.parse(p.dernier_commit.at) : -1}">${p.dernier_commit ? h(date(p.dernier_commit.at)) : '—'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    ${hors ? `<p class="discret section">Hors projet sur 30 j : ${nf.format(hors.sessions_30)} session${hors.sessions_30 > 1 ? 's' : ''}${cout(hors.usd_30)} (aucun dépôt connu touché).</p>` : ''}`;
+}
+
 async function catalogue(params) {
   const kind = params.get('kind') || ''; const q = params.get('q') || '';
   const [e, fiches] = await Promise.all([api('/api/etat'), api(`/api/fiches?${new URLSearchParams({ ...(kind && { kind }), ...(q && { q }) })}`)]);
@@ -98,16 +134,17 @@ async function catalogue(params) {
 }
 
 async function sessions(params) {
-  const projet = params.get('projet') || ''; const jour = params.get('jour') || ''; const modele = params.get('modele') || '';
+  const projet = params.get('projet') || ''; const jour = params.get('jour') || ''; const modele = params.get('modele') || ''; const depot = params.get('depot') || '';
   const toutes = await api('/api/sessions?jours=90');
+  const nomDepot = depot && toutes.flatMap((s) => s.depots).find((d) => d.id === depot)?.nom;
   const projets = [...new Set(toutes.map((s) => s.data.projet).filter(Boolean))].sort();
-  const liste = toutes.filter((s) => (!projet || s.data.projet === projet) && (!jour || s.fin.slice(0, 10) === jour) && (!modele || (s.data.modeles || []).some((x) => x === modele || x === `anthropic/${modele}`)));
+  const liste = toutes.filter((s) => (!projet || s.data.projet === projet) && (!jour || s.fin.slice(0, 10) === jour) && (!modele || (s.data.modeles || []).some((x) => x === modele || x === `anthropic/${modele}`)) && (!depot || s.depots.some((d) => d.id === depot)));
   return `
     <h1>Sessions</h1>
     <p class="sous-titre">Sessions Claude Code des 90 derniers jours, sous-agents rattachés à leur session.</p>
-    <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length} sur 90 j)</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select>${jour ? `<a class="puce actif" href="#/sessions${projet ? `?projet=${encodeURIComponent(projet)}` : ''}" title="Retirer le filtre">${jj(jour)} ✕</a>` : ''}${modele ? `<a class="puce actif" href="#/sessions" title="Retirer le filtre">${h(modele)} ✕</a>` : ''}</div>
+    <div class="outils"><select id="projet"><option value="">Tous les projets (${toutes.length} sur 90 j)</option>${projets.map((p) => `<option ${p === projet ? 'selected' : ''}>${h(p)}</option>`).join('')}</select>${jour ? `<a class="puce actif" href="#/sessions${projet ? `?projet=${encodeURIComponent(projet)}` : ''}" title="Retirer le filtre">${jj(jour)} ✕</a>` : ''}${modele ? `<a class="puce actif" href="#/sessions" title="Retirer le filtre">${h(modele)} ✕</a>` : ''}${depot ? `<a class="puce actif" href="#/sessions" title="Sessions qui ont travaillé dans ce dépôt — retirer le filtre">dépôt ${h(nomDepot || depot)} ✕</a>` : ''}</div>
     <div class="carte tableau"><table class="triable"><thead><tr><th>Fin</th><th>Projet</th><th class="num">Durée</th><th class="num">Tours</th><th class="num">Sous-agents</th><th class="num">Refus</th><th class="num">Sortie</th><th class="num">Cache lu</th><th class="num">Coût</th><th class="num" title="Coût de la session (sous-agents compris) divisé par ses tours : il monte quand chaque tour relit un long contexte">Coût / tour</th><th>Modèle</th></tr></thead><tbody>
-      ${liste.map((s) => `<tr class="cliquable" data-lien="#/journal?session=${encodeURIComponent(s.session)}" title="Voir les événements de la session"><td class="date" data-v="${Date.parse(s.fin)}" title="${h(date(s.fin))}">${h(dateCourte(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}</td>${num(s.data.duree_s, h(duree(s.data.duree_s)))}${num(s.data.tours || 0, nf.format(s.data.tours || 0))}${num(s.sous_agents || 0, s.sous_agents || '')}${num(s.refus || 0, s.refus || '')}${num(s.sortie, abr(s.sortie))}${num(s.cache_lu, abr(s.cache_lu))}${num(s.usd, usd(s.usd))}${(() => { const pt = s.usd != null && s.tours_total ? s.usd / s.tours_total : null; return `<td class="num" data-v="${pt ?? -1}"${s.tours_total ? ` title="contexte relu en moyenne : ${h(abr(Math.round((s.cache_lu || 0) / s.tours_total)))} tokens par tour"` : ''}>${pt == null ? '—' : `${pt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`}</td>`; })()}<td class="mono desc" title="${h((s.data.modeles || []).join(', '))}">${h((s.data.modeles || []).map(court).join(', '))}</td></tr>`).join('') || '<tr><td colspan="11" class="vide">Aucune session.</td></tr>'}
+      ${liste.map((s) => `<tr class="cliquable" data-lien="#/journal?session=${encodeURIComponent(s.session)}" title="Voir les événements de la session"><td class="date" data-v="${Date.parse(s.fin)}" title="${h(date(s.fin))}">${h(dateCourte(s.fin))}</td><td>${h(s.data.projet || '—')}${s.data.branche ? ` <span class="discret">${h(s.data.branche)}</span>` : ''}${(() => { const t = s.depots.filter((d) => !d.repli); return t.length && !(t.length === 1 && t[0].nom === s.data.projet) ? `<div class="desc" title="Dépôts touchés (appels d’outils)">→ ${h(t.map((d) => d.nom).join(', '))}</div>` : ''; })()}</td>${num(s.data.duree_s, h(duree(s.data.duree_s)))}${num(s.data.tours || 0, nf.format(s.data.tours || 0))}${num(s.sous_agents || 0, s.sous_agents || '')}${num(s.refus || 0, s.refus || '')}${num(s.sortie, abr(s.sortie))}${num(s.cache_lu, abr(s.cache_lu))}${num(s.usd, usd(s.usd))}${(() => { const pt = s.usd != null && s.tours_total ? s.usd / s.tours_total : null; return `<td class="num" data-v="${pt ?? -1}"${s.tours_total ? ` title="contexte relu en moyenne : ${h(abr(Math.round((s.cache_lu || 0) / s.tours_total)))} tokens par tour"` : ''}>${pt == null ? '—' : `${pt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`}</td>`; })()}<td class="mono desc" title="${h((s.data.modeles || []).join(', '))}">${h((s.data.modeles || []).map(court).join(', '))}</td></tr>`).join('') || '<tr><td colspan="11" class="vide">Aucune session.</td></tr>'}
     </tbody></table></div>`;
 }
 
@@ -182,7 +219,7 @@ function triables() {
     };
   }));
 }
-const VUES = { '': ['tableau', tableau], catalogue: ['catalogue', catalogue], sessions: ['sessions', sessions], journal: ['journal', journal], arbre: ['arbre', arbre] };
+const VUES = { '': ['tableau', tableau], projets: ['projets', projets], catalogue: ['catalogue', catalogue], sessions: ['sessions', sessions], journal: ['journal', journal], arbre: ['arbre', arbre] };
 let NAVIGATION = 0;
 async function router() {
   const jeton = ++NAVIGATION;

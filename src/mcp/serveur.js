@@ -36,7 +36,17 @@ export function creerServeurMcp(socle, version) {
     inputSchema: z.object({ jours, projet: z.string().optional(), limite: limite(30, 500) }), annotations: LECTURE,
   }, async ({ jours: j, projet, limite: n }) => {
     const l = socle.sessions({ jours: j ?? 30, projet: projet || null });
-    return texte({ total: l.length, sessions: l.slice(0, n ?? 30).map((x) => ({ session: x.session, fin: x.fin, projet: x.data.projet, branche: x.data.branche, duree_s: x.data.duree_s, tours: x.tours_total ?? x.data.tours, sous_agents: x.sous_agents, refus: x.refus, sortie: x.sortie, cache_lu: x.cache_lu, usd: x.usd, modeles: x.data.modeles })) });
+    return texte({ total: l.length, sessions: l.slice(0, n ?? 30).map((x) => ({ session: x.session, fin: x.fin, projet: x.data.projet, depots: x.depots.map((d) => d.nom), branche: x.data.branche, duree_s: x.data.duree_s, tours: x.tours_total ?? x.data.tours, sous_agents: x.sous_agents, refus: x.refus, sortie: x.sortie, cache_lu: x.cache_lu, usd: x.usd, modeles: x.data.modeles })) });
+  });
+
+  s.registerTool('projets', {
+    description: 'Suivi des projets (dépôts) : étape en cours d’après leur arbre (faits, reste), questions ouvertes et décisions à approuver, activité sur 7 et 30 jours (sessions, coût liste partagé entre les dépôts touchés), dernier commit, état du dépôt (non commité, non poussé, retard sur l’amont).',
+    inputSchema: z.object({ projet: z.string().optional().describe('Nom du projet : son détail seul'), calmes: z.boolean().optional().describe('Inclure les projets sans activité ni attente (non par défaut)'), limite: limite(20, 200) }),
+    annotations: LECTURE,
+  }, async ({ projet, calmes, limite: n }) => {
+    const r = socle.projets();
+    const l = r.projets.filter((p) => (projet ? p.nom === projet : calmes || !p.calme));
+    return texte({ total: l.length, hors_projet: r.hors_projet, projets: l.slice(0, n ?? 20) });
   });
 
   s.registerTool('consommation', {

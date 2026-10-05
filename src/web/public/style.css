@@ -127,6 +127,18 @@ dl.champs dt { color: var(--doux); font-size: .8rem; font-weight: 400; } dl.cham
 .arbre li.attenue > .noeud, .arbre li.attenue > details > summary .noeud { opacity: .5; }
 .outils button.replier { width: auto; margin: 0; padding: .3rem .7rem; font-size: .8rem; }
 
+/* ---- projets : une carte par projet en mouvement */
+.projet { display: flex; flex-direction: column; gap: .55rem; font-size: .9rem; }
+.projet .tete { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
+.projet .tete .t { font-weight: 700; font-size: 1rem; color: var(--texte); } .projet .tete a.t:hover { color: var(--accent); }
+.projet .reste { margin-top: .25rem; } .projet .reste b { font-size: .78rem; color: var(--doux); font-weight: 600; }
+.projet ul { margin: .15rem 0 0; padding-left: 1.1rem; } .projet li { font-size: .84rem; margin: .1rem 0; list-style: disc; }
+.projet .attend { display: flex; flex-direction: column; gap: .25rem; }
+.projet details { margin: 0; padding: 0; border: 0; } .projet summary { cursor: pointer; line-height: inherit; }
+.projet summary::after { display: none; }
+.projet .activite { margin-top: auto; border-top: 1px solid var(--bord); padding-top: .45rem; }
+.projet code { font-size: .8em; padding: .05rem .25rem; }
+
 /* ---- journal */
 .evenement { display: grid; grid-template-columns: 150px 170px 1fr; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid var(--bord); font-size: .88rem; }
 

@@ -5,7 +5,7 @@ import { Journal } from './stockage/journal.js';
 import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
 import { inventorier } from './inventaire/index.js';
-import importerTranscriptions from './import/claude-code-transcriptions.js';
+import importerTranscriptions, { localiserDepot } from './import/claude-code-transcriptions.js';
 import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
 import { ulid } from './ulid.js';
@@ -28,10 +28,12 @@ export class Socle {
     // appels au serveur qui la désigne chez les clients, pour ne pas les compter deux fois.
     const p = this.config.import?.agentgateway;
     const passerelles = p && p.actif !== false && p.fichier ? [p.nom || 'passerelle'] : [];
+    // Les dépôts du dernier inventaire : une session s'y rattache d'après les chemins de ses appels d'outils.
+    const depots = this.catalogue.lire({ site: this.config.site }).filter((f) => f.kind === 'project' && f.location).map((f) => ({ id: f.id, nom: f.name, location: f.location }));
     for (const [nom, imp] of Object.entries(IMPORTS)) {
       const o = this.config.import?.[nom];
       if (!o || o.actif === false) continue;
-      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles, comptes: comptesClaudeCode(this.config, o) });
+      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles, comptes: comptesClaudeCode(this.config, o), depots });
     }
     return r;
   }
@@ -64,7 +66,7 @@ export class Socle {
       fiches_par_type: q('SELECT kind, COUNT(*) n FROM fiches GROUP BY kind ORDER BY n DESC'),
       dernier_inventaire: q("SELECT at, data FROM evenements WHERE kind='inventory.finished' ORDER BY at DESC LIMIT 1").map((r) => ({ at: r.at, ...JSON.parse(r.data) }))[0] || null,
       sessions: {
-        total: q("SELECT COUNT(*) n FROM evenements WHERE kind='session.finished' AND json_extract(data,'$.sous_agent')=0")[0].n,
+        total: q("SELECT COUNT(DISTINCT correlation) n FROM evenements WHERE kind='session.finished' AND json_extract(data,'$.sous_agent')=0")[0].n,
       },
       periode: {
         jours,
@@ -127,8 +129,12 @@ export class Socle {
     return { fiche: JSON.parse(r.json), evenements: this.index.requete(`SELECT * FROM evenements WHERE subject IN (${ids.map(() => '?').join(',')}) ORDER BY at DESC LIMIT 50`, ...ids) };
   }
 
-  sessions({ jours = 30, projet = null } = {}) {
+  // Sessions d'une période, sous-agents rattachés. Chaque session porte les dépôts qu'elle a touchés (`depots`, sous-agents
+  // compris) ; sans dépôt touché, celui de son répertoire de départ (`repli`). Un `session.finished` complémentaire
+  // (`data.complement`) n'apporte que les dépôts d'une session importée avant eux : il ne compte pas comme une fin.
+  sessions({ jours = 30, projet = null, depot = null } = {}) {
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
+    const vraie = "json_extract(%s.data,'$.complement') IS NULL";
     const lignes = this.index.requete(`SELECT f.correlation session, f.at fin, f.data, f.actor,
         (SELECT MIN(at) FROM evenements s WHERE s.kind='session.started' AND s.correlation=f.correlation) debut,
         (SELECT SUM(tok_out) FROM evenements c WHERE c.kind='cost.recorded' AND (c.correlation=f.correlation OR c.correlation LIKE f.correlation || ':%')) sortie,
@@ -136,11 +142,90 @@ export class Socle {
         (SELECT SUM(usd) FROM evenements c WHERE c.kind='cost.recorded' AND (c.correlation=f.correlation OR c.correlation LIKE f.correlation || ':%')) usd,
         (SELECT COUNT(DISTINCT correlation) FROM evenements c WHERE c.kind='session.finished' AND c.correlation LIKE f.correlation || ':%') sous_agents,
         (SELECT COUNT(*) FROM evenements c WHERE c.kind='tool.denied' AND (c.correlation=f.correlation OR c.correlation LIKE f.correlation || ':%')) refus,
-        (SELECT SUM(t) FROM (SELECT json_extract(c.data,'$.tours') t, MAX(c.at) FROM evenements c WHERE c.kind='session.finished' AND (c.correlation=f.correlation OR c.correlation LIKE f.correlation || ':%') GROUP BY c.correlation)) tours_total
-      FROM evenements f WHERE f.kind='session.finished' AND json_extract(f.data,'$.sous_agent')=0 AND f.at>=?
-        AND f.at=(SELECT MAX(at) FROM evenements g WHERE g.kind='session.finished' AND g.correlation=f.correlation)
+        (SELECT SUM(t) FROM (SELECT json_extract(c.data,'$.tours') t, MAX(c.at) FROM evenements c WHERE c.kind='session.finished' AND ${vraie.replace('%s', 'c')} AND (c.correlation=f.correlation OR c.correlation LIKE f.correlation || ':%') GROUP BY c.correlation)) tours_total
+      FROM evenements f WHERE f.kind='session.finished' AND json_extract(f.data,'$.sous_agent')=0 AND ${vraie.replace('%s', 'f')} AND f.at>=?
+        AND f.id=(SELECT id FROM evenements g WHERE g.kind='session.finished' AND g.correlation=f.correlation AND ${vraie.replace('%s', 'g')} ORDER BY at DESC, id DESC LIMIT 1)
       ORDER BY f.at DESC`, depuis);
-    return lignes.map((l) => ({ ...l, data: JSON.parse(l.data) })).filter((l) => !projet || l.data.projet === projet);
+    const touches = this.depotsTouches(depuis);
+    const lieu = this.localiserProjet();
+    return lignes.map((l) => {
+      const data = JSON.parse(l.data);
+      const t = touches.get(l.session);
+      const repli = !t?.size && lieu(data.cwd);
+      const depots = t?.size ? [...t.values()].sort((a, b) => b.n - a.n) : repli ? [{ id: repli.id, nom: repli.name, n: 1, repli: true }] : [];
+      return { ...l, data, depots };
+    }).filter((l) => (!projet || l.data.projet === projet) && (!depot || l.depots.some((d) => d.id === depot)));
+  }
+
+  // Dépôts touchés par session (racine de corrélation), sous-agents compris : pour chaque corrélation, la dernière fin
+  // qui porte des dépôts (complément compris).
+  depotsTouches(depuis) {
+    const r = new Map(); const vues = new Set();
+    for (const e of this.index.requete("SELECT correlation, data FROM evenements WHERE kind='session.finished' AND at>=? AND json_array_length(json_extract(data,'$.depots'))>0 ORDER BY at DESC, id DESC", depuis)) {
+      if (vues.has(e.correlation)) continue; vues.add(e.correlation);
+      const racine = e.correlation.split(':')[0];
+      const m = r.get(racine) || new Map(); r.set(racine, m);
+      for (const d of JSON.parse(e.data).depots) { const x = m.get(d.id) || { id: d.id, nom: d.nom, n: 0 }; x.n += d.n; m.set(d.id, x); }
+    }
+    return r;
+  }
+
+  // Projet du catalogue qui contient un chemin (comme à l'import, montage d'un conteneur compris).
+  localiserProjet() {
+    const fiches = new Map(this.fiches({ kind: 'project' }).map((f) => [f.id, f]));
+    const trouver = localiserDepot([...fiches.values()].map((f) => ({ id: f.id, location: f.location })));
+    return (p) => fiches.get(trouver(p)?.id) || null;
+  }
+
+  // Vue Projets (étape 3, tranche 2) : par projet, où il en est d'après son arbre, ce qui l'attend, son activité et
+  // l'état technique de son dépôt. Le coût d'une session se partage entre les dépôts touchés, au prorata des appels.
+  projets() {
+    const fiches = this.fiches({ kind: 'project' });
+    const noeuds = this.fiches({ kind: 'node' });
+    const j7 = new Date(Date.now() - 7 * 864e5).toISOString();
+    const activite = new Map();
+    const compter = (id, s, part) => {
+      const a = activite.get(id) || { sessions_7: 0, sessions_30: 0, usd_7: null, usd_30: null, sortie_30: 0, derniere_session: null };
+      a.sessions_30++; if (s.fin >= j7) a.sessions_7++;
+      if (s.usd != null) { a.usd_30 = (a.usd_30 || 0) + s.usd * part; if (s.fin >= j7) a.usd_7 = (a.usd_7 || 0) + s.usd * part; }
+      a.sortie_30 += Math.round((s.sortie || 0) * part);
+      if (!a.derniere_session || s.fin > a.derniere_session) a.derniere_session = s.fin;
+      activite.set(id, a);
+    };
+    for (const s of this.sessions({ jours: 30 })) {
+      const total = s.depots.reduce((x, d) => x + d.n, 0);
+      if (!total) compter(null, s, 1);
+      for (const d of s.depots) compter(d.id, s, d.n / total);
+    }
+    const sous = (f, n) => n.location?.startsWith(`${f.location}/arbre/`);
+    const liste = fiches.map((f) => {
+      const a = f.attributes || {};
+      const ns = f.location ? noeuds.filter((n) => sous(f, n)) : [];
+      const etapes = ns.filter((n) => n.attributes?.etape != null).sort((x, y) => x.attributes.etape - y.attributes.etape);
+      const close = (n) => (n.attributes.avancement || []).some((e) => e.etiquette.startsWith('Clôture'));
+      const courante = [...etapes].reverse().find((n) => !close(n)) || etapes.at(-1);
+      const av = courante?.attributes.avancement || [];
+      const faits = av.filter((e) => e.etiquette.startsWith('Fait'));
+      const racine = ns.find((n) => n.node === '/arbre/index.md');
+      const act = activite.get(f.id) || null;
+      const p = {
+        id: f.id, nom: f.name, chemin: f.location ?? null, branche: a.branche ?? null,
+        technique: { fichiers_modifies: a.fichiers_modifies ?? 0, amont: a.amont ?? null, en_avance: a.en_avance ?? null, en_retard: a.en_retard ?? null, dernier_fetch: a.dernier_fetch ?? null },
+        dernier_commit: a.dernier_commit ? { at: a.dernier_commit, sujet: a.dernier_sujet ?? null } : null,
+        arbre: ns.length > 0,
+        etape: courante ? { id: courante.id, numero: courante.attributes.etape, titre: courante.name, close: close(courante), faits: faits.length,
+          dernier_fait: faits.at(-1) || null, reste: av.filter((e) => e.etiquette.startsWith('Reste')).flatMap((e) => (e.sous.length ? e.sous : [e.texte]).filter(Boolean)) } : null,
+        questions: racine?.attributes?.questions_ouvertes || [],
+        decisions: ns.filter((n) => n.attributes?.type === 'decision' && n.attributes?.statut === 'draft').map((n) => ({ id: n.id, titre: n.name })),
+        activite: act,
+      };
+      const attente = p.questions.length + p.decisions.length + p.technique.fichiers_modifies + (p.technique.en_avance || 0);
+      p.calme = !act && !attente;
+      p.recent = [act?.derniere_session, p.dernier_commit?.at].filter(Boolean).sort().at(-1) || null;
+      return p;
+    });
+    liste.sort((x, y) => (y.recent || '').localeCompare(x.recent || '') || x.nom.localeCompare(y.nom));
+    return { projets: liste, hors_projet: activite.get(null) || null };
   }
 
   consommation({ jours = 30, par = 'projet' } = {}) {

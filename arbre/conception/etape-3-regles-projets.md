@@ -58,7 +58,57 @@ dépôt distant, modifications en cours) ; plus tard, ses écarts à ses règles
 **Exigence.** Une session se rattache aux dépôts où elle a réellement travaillé (chemins de ses commandes et de ses
 fichiers), pas seulement à son dossier de départ : un dossier d'entrée commun ne doit pas rendre la vue aveugle.
 
-À spécifier en détail à son ouverture.
+**Constat (2026-10-05, transcriptions du poste personnel).** Le répertoire courant d'une session change en cours de
+route (un `cd` persiste) et chaque ligne de transcription le porte ; une session lancée du dossier d'entrée travaille
+surtout par des commandes shell qui citent des chemins absolus, plus rarement par les outils de fichiers.
+
+**Livre.**
+
+1. **Rattachement à l'import.** Chaque appel d'outil d'une transcription (sous-agents compris) touche les dépôts
+   connus du catalogue que désignent ses chemins : `file_path`, `notebook_path`, `path`, et, pour une commande shell, les
+   chemins absolus (ou `~/…`) et les cibles de `cd` et de `git -C`, relatifs au répertoire courant de la ligne ; sans
+   chemin explicite, son répertoire courant. Un dépôt imbriqué l'emporte sur celui qui le contient.
+   `session.finished` porte `data.depots` : `[{id, nom, n}]`, `n` le nombre d'appels qui l'ont touché. Rien d'autre
+   n'est gardé (ni chemin, ni commande, ni argument).
+2. **Historique.** Une transcription déjà importée est relue une fois (version 5 de l'état d'import) ; si elle n'a pas
+   changé, un `session.finished` **complémentaire** (`data.complement: "depots"`, mêmes données plus `depots`) s'ajoute
+   au journal, qui ne se réécrit pas (contrat événement §1 : une correction est un nouvel événement). Les lectures
+   ignorent le complément quand elles comptent les sessions.
+3. **État technique du dépôt**, à l'inventaire (`depots-git`) : branche amont, commits non poussés (`en_avance`), retard
+   sur l'amont (`en_retard`, d'après le dernier `fetch`, dont la date est gardée : l'inventaire n'interroge jamais le
+   réseau), fichiers modifiés (déjà là).
+4. **Avancement d'après l'arbre**, à l'inventaire (`arbre`) : pour une spécification d'étape
+   (`conception/etape-<n>-….md`), les entrées de sa section « Avancement » (`- **Étiquette (date)** : texte`, sous-points
+   compris) ; pour la racine (`arbre/index.md`), les questions ouvertes de `arbre/questions.md` (tableau avant
+   « Résolues »). Textes tronqués, comme les descriptions.
+5. **Lecture `projets`** (socle, interface, serveur MCP), par projet du catalogue :
+   - *où il en est* : l'étape en cours (la plus haute sans entrée « Clôture », sinon la dernière), le nombre d'entrées
+     « Fait », la dernière, les entrées « Reste » ;
+   - *ce qui l'attend* : questions ouvertes, décisions en `draft` (à approuver) ;
+   - *activité* : sessions et coût liste sur 7 et 30 jours, dernière session, dernier commit. Une session compte pour
+     chaque dépôt qu'elle a touché ; son coût (sous-agents compris) se partage entre eux au prorata des appels ; une
+     session sans dépôt touché se rattache au dépôt de son répertoire de départ, sinon à « hors projet » ;
+   - *état technique* : point 3.
+   Les projets se rangent par activité récente ; ceux sans activité sur 30 jours et sans rien en attente se replient.
+6. **Interface** : page « Projets » (une carte par projet actif, un tableau pour les autres) ; un projet mène à ses
+   sessions (filtre par dépôt touché) et à sa fiche. **MCP** : outil `projets`, en lecture, réponse bornée.
+
+**Choix techniques (P12).**
+
+| Choix | Raison | Ce qui le ferait changer |
+|---|---|---|
+| rattacher à l'import, d'après les dépôts du catalogue | la transcription n'est lue qu'une fois et son contenu n'est pas gardé | un dépôt inventorié après l'import de ses sessions : il faut relire (version de l'état d'import) |
+| partage du coût au prorata des appels | sans double compte : la somme par projet reste le coût du site | une mesure plus juste (tokens par appel) si elle devient lisible |
+| complément plutôt que réécriture | le journal est en ajout seul | — |
+| avancement lu dans la spécification, pas saisi ailleurs | la spécification est déjà tenue à jour par la méthode (CLAUDE.md, « Reprendre ») | un projet sans arbre : la carte ne montre alors que l'activité et l'état technique |
+
+**Montages.** Sur le poste personnel, la plupart des sessions tournent dans des conteneurs de développement : leurs
+chemins (`/home/vscode/<dépôt>/…`, `/workspaces/<dépôt>/…`) ne sont pas ceux de l'inventaire. Un chemin qui n'est sous
+aucun dépôt connu se rattache donc par le nom : un segment égal au nom d'un dépôt du catalogue, si la suite du chemin
+existe dans ce dépôt (le segment le plus profond d'abord). Le répertoire de départ, en repli, se rattache de même.
+
+**Limites connues.** Un chemin relatif dans une commande, hors `cd` et `git -C`, est ignoré. Un dépôt absent du
+catalogue du site (hors des racines de `depots-git`) ne peut pas recevoir de session.
 
 ## Avancement
 
@@ -66,3 +116,12 @@ fichiers), pas seulement à son dossier de départ : un dossier d'entrée commun
 - **Fait (2026-10-05)** : tranche 1, `holarch distant` (liste, activer, desactiver) : service utilisateur marqué par
   projet, dossier déclaré de confiance, mode de permission par site ; 2 tests (systemctl simulé). Essayé sur le poste
   personnel : la session du projet apparaît dans l'application, rangée sous l'appareil de la machine.
+- **Fait (2026-10-05)** : tranche 2, vue Projets : sessions rattachées aux dépôts touchés (`data.depots`, montages de
+  conteneur compris, complément pour l'historique), écart à l'amont à l'inventaire, avancement et questions lus dans
+  l'arbre, lecture `projets` (page « Projets », filtre des sessions par dépôt, outil MCP) ; 4 tests, test visuel
+  étendu (à passer dans le conteneur du socle, sans Chromium ici). Essai à blanc sur une copie des données du poste
+  personnel : 173 compléments et rien d'autre ; 57 sessions sur 30 jours rattachées au lieu de 13.
+- **Reste** :
+  1. **Vue Projets à l'usage** : passer le test visuel dans le conteneur ; recueillir l'avis de l'auteur sur la page.
+  2. **Tranches suivantes** : arbre des règles et de la configuration, adaptateurs, récolte, création de projet, audit
+     de conformité (§5.2, §5.8), à spécifier à leur ouverture.

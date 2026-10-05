@@ -60,3 +60,130 @@ test('accès distant : projet introuvable refusé, service étranger jamais touc
   assert.equal(declarerConfiance(f, '/p'), true);
   assert.deepEqual(JSON.parse(fs.readFileSync(f, 'utf8')), { projects: { '/p': { hasTrustDialogAccepted: true } } });
 });
+
+// ---------------------------------------------------------------- tranche 2 : vue Projets
+import { spawnSync } from 'node:child_process';
+import { Journal } from '../src/stockage/journal.js';
+import { Socle } from '../src/socle.js';
+import importerTranscriptions, { cheminsAppel, localiserDepot } from '../src/import/claude-code-transcriptions.js';
+import inventaireArbre from '../src/inventaire/arbre.js';
+import inventaireDepots from '../src/inventaire/depots-git.js';
+import { ulid } from '../src/ulid.js';
+
+const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+const vieillir = (f) => { const t = new Date(Date.now() - 3600e3); fs.utimesSync(f, t, t); };
+const DEPOTS = [{ id: 'holarch:project:a', nom: 'a', location: '/ws/a' }, { id: 'holarch:project:b', nom: 'b', location: '/ws/b' }, { id: 'holarch:project:sous', nom: 'sous', location: '/ws/a/sous' }];
+
+function transcription(home) {
+  const f = path.join(home, 'projects', '-ws', 's1.jsonl');
+  let n = 0;
+  const appel = (cwd, name, input) => JSON.stringify({ type: 'assistant', sessionId: 's1', cwd, timestamp: `2026-10-01T10:0${n}:00Z`, requestId: `r${n}`,
+    message: { id: `m${n++}`, model: 'modele-x', content: [{ type: 'tool_use', id: `t${n}`, name, input }], usage: { input_tokens: 1, output_tokens: 5 } } });
+  ecrire(f, [
+    appel('/ws', 'Read', { file_path: '/ws/a/x.js' }),
+    appel('/ws', 'Bash', { command: 'cd /ws/b && git status 2>/dev/null' }),
+    appel('/ws/b', 'Bash', { command: 'ls' }),
+    appel('/ws/b', 'Bash', { command: 'git -C ../a log --oneline' }),
+    appel('/ws/b', 'Edit', { file_path: '/ws/a/sous/y.md', old_string: 'secret', new_string: 'x' }),
+    appel('/ws', 'Bash', { command: 'cat /tmp/z' }),
+    appel('/ws', 'mcp__holarch__etat', {}),
+  ].join('\n') + '\n');
+  vieillir(f);
+  return f;
+}
+
+test('projets : une session se rattache aux dépôts touchés par ses appels, sans garder chemins ni commandes', () => {
+  assert.deepEqual(cheminsAppel({ command: 'cd b && cat ~/n.txt /etc/x' }, '/ws'), ['/ws/b', path.join(os.homedir(), 'n.txt'), '/etc/x']);
+  // Vu d'un conteneur : rattaché par le nom du dépôt si la suite du chemin existe dans le dépôt.
+  const existe = (p) => ['/ws/a/src/x.js', '/ws/a/sous'].includes(p);
+  const loc = localiserDepot(DEPOTS, existe);
+  assert.deepEqual(['/home/dev/a/src/x.js', '/home/dev/a/sous', '/home/dev/a/absent', '/home/dev/b/x', '/ws/b/y'].map((p) => loc(p)?.nom ?? null), ['a', 'sous', null, null, 'b']);
+  const home = tmp(); const donnees = tmp(); transcription(home);
+  const journal = new Journal(donnees, 'local');
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, depots: DEPOTS });
+  const fin = [...journal.lire()].find((e) => e.kind === 'session.finished');
+  assert.deepEqual(fin.data.depots, [{ id: 'holarch:project:a', nom: 'a', n: 2 }, { id: 'holarch:project:b', nom: 'b', n: 2 }, { id: 'holarch:project:sous', nom: 'sous', n: 1 }]);
+  const tout = JSON.stringify([...journal.lire()]);
+  assert.ok(!tout.includes('x.js') && !tout.includes('git status') && !tout.includes('secret') && !tout.includes('/tmp/z'), 'ni chemin, ni commande, ni argument');
+});
+
+test('projets : une transcription déjà importée reçoit un complément de dépôts, et rien d’autre', () => {
+  const home = tmp(); const donnees = tmp(); const f = transcription(home);
+  const journal = new Journal(donnees, 'local');
+  // État de la version 4 : la session, ses coûts et ses appels sont déjà au journal, sous une autre graine.
+  ecrire(path.join(donnees, 'import', 'claude-code-transcriptions.json'), JSON.stringify({ 'projects/-ws/s1.jsonl': { v: 4, taille: fs.statSync(f).size, session: true, cumuls: { 'modele-x': { in: 7, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 35 } } } }));
+  const r = importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, depots: DEPOTS });
+  const ev = [...journal.lire()];
+  assert.deepEqual(ev.map((e) => e.kind), ['session.finished'], `un seul complément (${r.ajoutes} ajouté(s))`);
+  assert.equal(ev[0].data.complement, 'depots'); assert.equal(ev[0].data.depots.length, 3); assert.equal(ev[0].data.tours, 7);
+  assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, depots: DEPOTS }).fichiers_lus, 0);
+});
+
+test('projets : avancement de l’étape, questions, décisions, activité partagée, état du dépôt', () => {
+  const donnees = tmp();
+  const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {}, tarifs: { modeles: { m: { entree: 0, cache_ecrit: 0, cache_lu: 0, sortie: 1e6 } } } });
+  const il_y_a = (j) => new Date(Date.now() - j * 864e5).toISOString().replace(/\.\d+Z$/, 'Z');
+  const ev = [];
+  const session = (corr, j, data, usd) => {
+    const base = { actor: 'agent:claude-code/m', correlation: corr, classification: 'internal' };
+    ev.push({ ...base, id: ulid(Date.parse(il_y_a(j)), `${corr}c`), at: il_y_a(j), kind: 'cost.recorded', data: {}, cost: { provider: 'anthropic', model: 'm', usd_list: null, tokens: { out: usd } } });
+    ev.push({ ...base, id: ulid(Date.parse(il_y_a(j)), `${corr}f`), at: il_y_a(j), kind: 'session.finished', data: { sous_agent: false, tours: 4, ...data } });
+  };
+  session('s1', 1, { cwd: '/ws', projet: 'ws', depots: [{ id: 'holarch:project:a', nom: 'a', n: 3 }, { id: 'holarch:project:b', nom: 'b', n: 1 }] }, 8);
+  session('s2', 10, { cwd: '/ws/b/src', projet: 'src', depots: [] }, 2);
+  session('s3', 20, { cwd: '/ws', projet: 'ws' }, 4);
+  ev.push({ actor: 'agent:claude-code/m', correlation: 's3', classification: 'internal', id: ulid(Date.parse(il_y_a(20)), 's3x'), at: il_y_a(20), kind: 'session.finished', data: { sous_agent: false, tours: 4, cwd: '/ws', projet: 'ws', depots: [{ id: 'holarch:project:a', nom: 'a', n: 1 }], complement: 'depots' } });
+  session('s4', 3, { cwd: '/ailleurs', projet: 'ailleurs' }, 1);
+  s.journal.ajouter(ev);
+  const projet = (nom, attributes) => ({ id: `holarch:project:${nom}`, kind: 'project', name: nom, status: 'active', provenance: { source: 't' }, location: `/ws/${nom}`, attributes });
+  const noeud = (depot, rel, type, statut, attributes = {}) => ({ id: `holarch:node:${depot}${rel}`, kind: 'node', name: `${type} ${rel}`, status: 'proposed', provenance: { source: 't' }, location: `/ws/${depot}${rel}`, node: rel, attributes: { depot, type, statut, ...attributes } });
+  s.catalogue.remplacer([
+    projet('a', { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 1, dernier_commit: il_y_a(2), dernier_sujet: 'Un commit' }),
+    projet('b', { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0 }),
+    projet('c', { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(200) }),
+    noeud('a', '/arbre/index.md', 'guideline', 'draft', { questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Quoi ?', niveau: 'gênant' }] }),
+    noeud('a', '/arbre/conception/etape-1-voir.md', 'spec', 'draft', { etape: 1, avancement: [{ etiquette: 'Fait', date: '2026-10-01', texte: 'un', sous: [] }, { etiquette: 'Clôture', date: '2026-10-02', texte: 'close', sous: [] }] }),
+    noeud('a', '/arbre/conception/etape-2-agir.md', 'spec', 'draft', { etape: 2, avancement: [{ etiquette: 'Fait', date: '2026-10-03', texte: 'deux', sous: [] }, { etiquette: 'Fait', date: '2026-10-04', texte: 'trois', sous: [] }, { etiquette: 'Reste, hors clôture', date: null, texte: null, sous: ['r1', 'r2'] }] }),
+    noeud('a', '/arbre/decisions/d1.md', 'decision', 'draft'),
+    noeud('a', '/arbre/decisions/d2.md', 'decision', 'stable'),
+  ]);
+  s.indexer();
+  const { projets, hors_projet } = s.projets();
+  const [a, b, c] = ['a', 'b', 'c'].map((n) => projets.find((p) => p.nom === n));
+  assert.deepEqual(projets.map((p) => p.nom), ['a', 'b', 'c'], 'rangés par activité récente');
+  assert.deepEqual([a.etape.numero, a.etape.faits, a.etape.dernier_fait.texte, a.etape.reste], [2, 2, 'trois', ['r1', 'r2']]);
+  assert.deepEqual([a.questions.map((q) => q.id), a.decisions.map((d) => d.titre)], [['Q1'], ['decision /arbre/decisions/d1.md']]);
+  assert.deepEqual([a.technique.en_avance, a.technique.fichiers_modifies, a.dernier_commit.sujet], [2, 1, 'Un commit']);
+  // s1 : 8 $ partagés 3/4 a, 1/4 b ; s2 : sans dépôt touché, rattachée au dépôt de son répertoire (b) ; s3 : complément (a).
+  assert.deepEqual([a.activite.sessions_7, a.activite.sessions_30, a.activite.usd_7, a.activite.usd_30], [1, 2, 6, 10]);
+  assert.deepEqual([b.activite.sessions_7, b.activite.sessions_30, b.activite.usd_30], [1, 2, 4]);
+  assert.deepEqual([hors_projet.sessions_30, hors_projet.usd_30], [1, 1]);
+  assert.deepEqual([a.calme, b.calme, c.calme, c.activite], [false, false, true, null]);
+  assert.equal(s.sessions({ jours: 30 }).length, 4, 'le complément ne fait pas une session de plus');
+  assert.deepEqual(s.sessions({ jours: 30, depot: 'holarch:project:b' }).map((x) => x.session).sort(), ['s1', 's2']);
+  assert.equal(s.etat().sessions.total, 4);
+});
+
+test('projets : l’inventaire lit l’avancement, les questions et l’écart à l’amont sans réseau', () => {
+  const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@exemple.test', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@exemple.test' };
+  Object.assign(process.env, env);
+  const g = (d, ...a) => { const r = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
+  const racine = tmp(); const nu = path.join(racine, 'nu.git'); const depot = path.join(racine, 'demo'); const autre = path.join(racine, 'autre');
+  spawnSync('git', ['init', '-q', '--bare', '-b', 'main', nu]);
+  spawnSync('git', ['clone', '-q', nu, depot]);
+  ecrire(path.join(depot, 'arbre', 'index.md'), '---\ntype: guideline\ntitle: Racine\nstatus: draft\n---\n');
+  ecrire(path.join(depot, 'arbre', 'questions.md'), '# Questions ouvertes\n\n| # | Nœud | Question | Niveau |\n|---|---|---|---|\n| Q3 | `x.md` §1 | Une **question** ? | gênant |\n\n## Résolues\n\n| Q1 | fini | oui |\n');
+  ecrire(path.join(depot, 'arbre', 'conception', 'etape-1-demo.md'), '---\ntype: spec\ntitle: Étape 1 — Démo\nstatus: draft\n---\n\n## Avancement\n\n- **Fait (2026-10-01)** : première\n  partie.\n- **Reste** :\n  1. **Un** : à faire\n     suite.\n  2. Deux.\n\n## Hors périmètre\n\n- **Fait (2026-10-09)** : pas ici\n');
+  g(depot, 'checkout', '-q', '-b', 'main'); g(depot, 'add', '.'); g(depot, 'commit', '-q', '-m', 'Premier'); g(depot, 'push', '-q', '-u', 'origin', 'main');
+  spawnSync('git', ['clone', '-q', nu, autre]); ecrire(path.join(autre, 'f'), 'x'); g(autre, 'add', '.'); g(autre, 'commit', '-q', '-m', 'Ailleurs'); g(autre, 'push', '-q');
+  g(depot, 'fetch', '-q'); ecrire(path.join(depot, 'g'), 'y'); g(depot, 'add', '.'); g(depot, 'commit', '-q', '-m', 'Ici');
+  const ctx = { site: 'local' };
+  const p = inventaireDepots({ racines: [racine], profondeur: 1 }, ctx).find((f) => f.name === 'demo');
+  assert.deepEqual([p.attributes.amont, p.attributes.en_avance, p.attributes.en_retard, p.attributes.dernier_sujet], ['origin/main', 1, 1, 'Ici']);
+  assert.ok(p.attributes.dernier_fetch);
+  const n = inventaireArbre({}, ctx);
+  const idx = n.find((f) => f.node === '/arbre/index.md'); const et = n.find((f) => f.node === '/arbre/conception/etape-1-demo.md');
+  assert.deepEqual(idx.attributes.questions_ouvertes, [{ id: 'Q3', noeud: 'x.md §1', question: 'Une question ?', niveau: 'gênant' }]);
+  assert.equal(et.attributes.etape, 1);
+  assert.deepEqual(et.attributes.avancement, [{ etiquette: 'Fait', date: '2026-10-01', texte: 'première partie.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Un : à faire suite.', 'Deux.'] }]);
+});
