@@ -83,7 +83,19 @@ cette page n'en porte aucune. agentgateway 1.6.0, `mcp-remote` 0.14.3, Node 24 L
     entrée par serveur dans Claude Desktop : avec la passerelle, ce geste recrée les doublons du constat 7. Le registre a
     été absorbé dans le profil privé du site, l'écriture dans les clients retirée ; la passerelle est la seule à lancer
     les connecteurs. Son étiquette répond à Q6 : un serveur MCP conteneurisé se reconnaît à une étiquette du service.
-16. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
+16. **Un serveur de bases de connaissances fédéré n'est pas la brique Savoir.** Le serveur OKF existant, candidat de
+    la brique Savoir (`docs/architecture.md` §5.3, §11), passe par la passerelle comme les autres : ses outils restent
+    sous son préfixe, son écriture reste la sienne (une proposition, revue par l'humain), et aucun code du socle ne
+    dépend de ses outils. Le contrat de la brique Savoir reste à écrire (étape 6) ; ce serveur pourra en devenir
+    l'adaptateur, ou non. Lancé une instance par session (son modèle), dans une image d'exécution minimale avec son dépôt
+    monté seul ; ses verrous `flock` sont bien partagés entre un conteneur, WSL et un autre conteneur (vérifié).
+    La passerelle fusionne les `instructions` des serveurs, une section par serveur, mais sans préfixer les noms d'outils
+    qu'elles citent : un client lit `kb_search` là où l'outil s'appelle `<serveur>_kb_search`.
+17. **Le coffre de secrets sous la charge.** Un connecteur qui résout ses secrets par la CLI d'un coffre (appel d'un
+    exécutable Windows depuis WSL) à chaque session échoue quand plusieurs sessions démarrent ensemble (expiration de
+    l'interopérabilité). En serveur partagé, les secrets ne sont lus qu'une fois. Un connecteur sans connexions limitées
+    mais avec des secrets gagne donc aussi à être partagé.
+18. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
     sous `failOpen` (vérifiée à l'essai précédent, pas ici).
 
 ## Pistes

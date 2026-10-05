@@ -10,6 +10,7 @@
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
 | Q11 | `conception/essai-site-travail.md` §1 | Compte lu par défaut (`~/.claude`) : détecter `CLAUDE_CONFIG_DIR` et les répertoires de compte, ou rendre le réglage explicite dès `holarch init` ? | gênant |
 | Q12 | `conception/essai-site-travail.md` §10 | Inventaire : rapprocher un remplacement d'un déplacement sur l'identité (nom, commande) et non sur le seul fichier. | cosmétique |
+| Q13 | `conception/essai-site-travail.md` §16 | Brique Savoir : le serveur OKF fédéré en devient-il l'adaptateur, et que doit dire le contrat de la brique (lecture avant, proposition après, porte vérifiée) pour ne pas dépendre de ses outils ? À l'ouverture de l'étape 6. | cosmétique d'ici l'étape 6 |
 
 ## Résolues
 

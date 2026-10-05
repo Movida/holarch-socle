@@ -9,7 +9,8 @@
   blocage). Serveurs de bases de données en conteneur permanent partagé (SSE) : plus de saturation, 4 sessions en 5 à 9 s.
   Défaut corrigé : l'index SQLite se reconstruisait sans attendre le verrou, et des serveurs HOLARCH lancés ensemble
   mouraient (test à plusieurs processus). Registre des connecteurs absorbé par le profil du site, plus d'entrée directe
-  dans les clients ; Q6 résolue. Rien du travail dans le socle.
+  dans les clients ; Q6 résolue. Serveur de bases de connaissances fédéré sans préjuger de la brique Savoir (Q13) ;
+  connecteurs à secrets en serveur partagé. Rien du travail dans le socle.
 
 ## 2026-10-03
 
