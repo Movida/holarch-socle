@@ -410,3 +410,45 @@ test('passerelle : une cible ignorée (failOpen) devient system.degraded, sans l
   assert.ok(!JSON.stringify(evs).includes('SECRET') && !JSON.stringify(evs).includes('/chemin'));
   for (const e of evs) assert.equal(valider('evenement', { ...e, site: 'local' }), null);
 });
+
+test('catalogue : remplacer une fiche par une autre dans le même fichier n’est pas un déplacement (Q12)', () => {
+  const c = new Catalogue(tmp(), 'local');
+  const f = (id, name) => ({ id: `holarch:connector:${id}`, kind: 'connector', name, status: 'active', provenance: { source: 't' }, location: '/config.json' });
+  c.remplacer([f('mcp/a', 'a'), f('mcp/b', 'b')]);
+  const r = c.remplacer([f('mcp/a', 'a'), f('mcp/hub', 'hub')]);
+  assert.deepEqual([r.apparues, r.disparues, r.deplacees.length], [['holarch:connector:mcp/hub'], ['holarch:connector:mcp/b'], 0]);
+  const r2 = c.remplacer([f('compte/mcp/a', 'a'), f('mcp/hub', 'hub')]);
+  assert.deepEqual([r2.apparues, r2.disparues, r2.deplacees.map((d) => [d.de.id, d.id])], [[], [], [['holarch:connector:mcp/a', 'holarch:connector:compte/mcp/a']]], 'même nom, même fichier : ré-identification');
+});
+
+test('pont stdio → hub : réponses JSON et SSE, reprise d’une session expirée, fermeture de la session (Q8)', async () => {
+  const { creerPont, messagesDe } = await import('../src/pont.js');
+  assert.deepEqual(messagesDe('text/event-stream', 'event: message\ndata: {"id":1}\n\n: ping\n\ndata: {"id":2}\n\n').map((m) => m.id), [1, 2]);
+  // Faux hub : une session par initialize, qu'on peut faire expirer ; DELETE noté.
+  let n = 0; const vivantes = new Set(); const vus = []; const fermees = [];
+  const hub = async (url, { method, headers, body }) => {
+    const reponse = (status, obj, h = {}) => new Response(obj === null ? null : JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', ...h } });
+    if (headers.authorization !== 'Bearer k') return reponse(401, { error: 'cle' });
+    if (method === 'DELETE') { fermees.push(headers['mcp-session-id']); vivantes.delete(headers['mcp-session-id']); return reponse(200, null); }
+    const m = JSON.parse(body); vus.push(m.method);
+    if (m.method === 'initialize' && headers['mcp-protocol-version'] && headers['mcp-protocol-version'] !== m.params?.protocolVersion) return reponse(400, { error: 'version mismatch' });
+    if (m.method === 'initialize') { await new Promise((r) => setTimeout(r, 20)); const s = `s${++n}`; vivantes.add(s); return reponse(200, { jsonrpc: '2.0', id: m.id, result: { protocolVersion: '2025-06-18' } }, { 'mcp-session-id': s }); }
+    if (!vivantes.has(headers['mcp-session-id'])) return reponse(404, { error: 'Session not found' });
+    if (!('id' in m)) return reponse(202, null);
+    return new Response(`data: ${JSON.stringify({ jsonrpc: '2.0', id: m.id, result: { ok: headers['mcp-session-id'] } })}\n\n`, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+  };
+  const recus = [];
+  const pont = creerPont({ url: 'http://hub/mcp', cle: 'k', ecrire: (m) => recus.push(m), fetchImpl: hub });
+  // Envoyés sans attendre, comme les lignes successives de stdin : la suite attend la réponse d'initialize.
+  await Promise.all([
+    pont.envoyer({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }),
+    pont.envoyer({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+    pont.envoyer({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: {} }),
+  ]);
+  vivantes.clear(); // la passerelle oublie la session (durée de vie dépassée)
+  await pont.envoyer({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: {} });
+  assert.deepEqual(recus.map((m) => [m.id, m.result?.ok ?? m.result?.protocolVersion]), [[1, '2025-06-18'], [2, 's1'], [3, 's2']], 'la réponse de reprise ne remonte pas au client');
+  assert.equal(pont.session, 's2');
+  await pont.fermer();
+  assert.deepEqual(fermees, ['s2']);
+});

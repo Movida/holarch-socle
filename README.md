@@ -31,7 +31,8 @@ lancement) ; ailleurs : `claude mcp add holarch -- node <chemin du dépôt>/bin/
 avec le dépôt dans WSL : une entrée `holarch` de commande `wsl.exe` et d'arguments
 `["-e", "node", "<chemin du dépôt dans WSL>/bin/holarch.js", "mcp"]` (variable `HOLARCH_HOME` à passer si les données ne
 sont pas à l'emplacement par défaut). Une passerelle qui fédère plusieurs serveurs ne se justifie que là où il y en a à
-fédérer (décision `passerelle-par-site`).
+fédérer (décision `passerelle-par-site`) ; un client qui ne parle que stdio la joint par
+`node bin/holarch.js pont http://127.0.0.1:<port>/mcp --cle <fichier>`, qui reprend une session expirée et ferme la sienne.
 
 Node.js ≥ 22.5. Les données (catalogue, journal, index) restent dans `~/.holarch`, jamais dans le dépôt ; rien ne
 quitte la machine. Le coût en dollars n'apparaît que si une grille de tarifs, relevée sur la page officielle du

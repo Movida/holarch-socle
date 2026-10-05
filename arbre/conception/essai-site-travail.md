@@ -101,7 +101,16 @@ cette page n'en porte aucune. agentgateway 1.6.0, `mcp-remote` 0.14.3, Node 24 L
     des constats 6 et 9 viennent de sessions jamais fermées : réessais d'un client, et scripts de vérification qui ne
     fermaient pas les leurs (17 séries vivantes pour une dizaine d'essais). Délai laissé au défaut : plus court, il
     couperait une session de client inactive, et la reprise par le pont n'est pas vérifiée.
-19. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
+19. **Le pont générique ne gère pas la vie d'une session.** `mcp-remote` ne reprend pas une session que la passerelle a
+    expirée (« invalid session ID header » à chaque appel, jusqu'au redémarrage du client) et ne ferme pas la sienne quand
+    le client se ferme (les serveurs stdio de la session restent en marche jusqu'à expiration) : vérifié sur une passerelle
+    à durée de vie de 60 s. Remplacé par un pont du socle (`holarch pont`), qui rejoue l'initialisation sur session
+    inconnue et ferme la session à la fin de son entrée ; même essai : session reprise après 150 s, serveurs libérés
+    dès la fermeture. Deux pièges rencontrés en l'écrivant : l'en-tête de version de protocole doit égaler la version du
+    corps d'un `initialize` (sinon refus), et un message qui suit l'`initialize` doit attendre sa réponse (sinon il part
+    sans session). La durée de vie reste au défaut : le client HTTP de Claude Code n'a pas été essayé sur une session
+    expirée.
+20. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
     sous `failOpen` (vérifiée à l'essai précédent, pas ici).
 
 ## Pistes

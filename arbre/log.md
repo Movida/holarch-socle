@@ -2,6 +2,10 @@
 
 ## 2026-10-05
 
+* **Pont du socle** (`holarch pont`, Q8) : reprend une session expirée, ferme la sienne en partant, lit la clé dans un
+  fichier ; remplace `mcp-remote` pour Claude Desktop. **Q12** : la ré-identification au catalogue exige le même nom.
+  Minuterie d'import horaire sur le site de travail.
+
 * **Cibles ignorées par la passerelle** (Q9) : `system.degraded` tiré de son journal, signalé par `holarch etat` et la
   carte « Appels MCP » ; l'historique du jour réapparaît (verrou de l'index, coffre de secrets, saturation des bases).
 

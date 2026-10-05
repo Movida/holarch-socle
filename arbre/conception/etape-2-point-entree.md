@@ -62,6 +62,8 @@ fouiller.
 - **Fait (2026-10-05)** : plusieurs comptes Claude Code par site (Q11) : la part de chaque compte se suit dans `holarch etat`.
 - **Fait (2026-10-05)** : cibles ignorées par la passerelle au journal (`system.degraded`, Q9), visibles dans `holarch etat`
   et au tableau de bord.
+- **Fait (2026-10-05)** : pont stdio du socle (`holarch pont`) pour les clients stdio ; ré-identification au catalogue
+  par le nom (Q12).
 - **À faire** : critère d'usage de l'étape (Desktop et Claude Code passent par
   le hub au quotidien), à lire au tableau de bord après quelques jours d'usage.
 

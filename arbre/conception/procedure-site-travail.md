@@ -71,7 +71,10 @@ multiplicateurs de cache s'appliquant au tarif rapide. Sans grille, le coût res
      local en droits `600` hors des dépôts ; la configuration ne porte que son **empreinte** (`keyHash: "sha256:<hex>"`),
      donc aucun secret et un fichier versionnable. La rotation change le fichier et l'empreinte, jamais les clients
      (ils relisent le fichier au lancement) ;
-   - cibles : les serveurs relevés au §2 **et** le serveur HOLARCH (`bin/holarch.js mcp`) ;
+   - cibles : les serveurs relevés au §2 **et** le serveur HOLARCH (`bin/holarch.js mcp`). **Classer chaque serveur**
+     avant de l'écrire : en stdio, une instance par session, s'il est léger et sans secret ; en **serveur partagé**
+     (conteneur permanent en SSE sur la boucle locale, sous un service, cible `sse`) s'il tient des connexions limitées
+     (base de données) ou lit ses secrets dans un coffre (un appel par session expire sous la charge) ;
    - `failureMode: failOpen` ; journal au format `json`, écrit dans un fichier sous `$HOLARCH_HOME/passerelle/` ;
      `adminAddr`, `statsAddr`, `readinessAddr` sur 127.0.0.1 ou `off`.
 3. Lancement durable : un service utilisateur systemd dans WSL si systemd y est actif ; sinon, proposer à l'humain
@@ -106,12 +109,13 @@ Pour chaque client, **montrer le changement et attendre l'accord**, sauvegarder 
 - **Claude Code dans un conteneur de développement** : `host.docker.internal` ; la protection contre le DNS rebinding
   impose l'en-tête `Host: localhost:<port>` ; tester les deux en-têtes ensemble et consigner.
 - **Claude Desktop** : une entrée stdio qui lance dans WSL un **script de lancement** (versionné dans le profil, sans
-  secret) : `wsl.exe -d <distribution> -- <chemin du script>`. Le script fixe son `PATH`, relit la clé dans son fichier et
-  exécute `mcp-remote` (version fixée) avec `--header 'Authorization:Bearer ${KEY}'` (apostrophes : `mcp-remote`
-  substitue la variable lui-même). **Aucune substitution dans la configuration de Desktop** : `wsl.exe -- bash -lc "…"`
-  repasse la commande par un premier shell qui expanse `$(…)` et `$PATH` (espaces du `PATH` de Windows : erreur de
-  syntaxe) et recopie la clé dans le journal d'erreur de Desktop. Le `npx` de Windows peut aussi précéder celui de WSL
-  dans le `PATH` : le pont tourne alors sous Windows et l'en-tête arrive vide (401).
+  secret) : `wsl.exe -d <distribution> -- <chemin du script>`. Le script fixe son `PATH` et exécute le pont du socle,
+  `node <socle>/bin/holarch.js pont http://127.0.0.1:<port>/mcp --cle <fichier de la clé>` : il lit la clé lui-même,
+  **reprend une session expirée** côté passerelle et **ferme la sienne** quand Desktop se ferme. (`mcp-remote`, essayé
+  d'abord, ne fait ni l'un ni l'autre : après expiration, tous les appels échouent jusqu'au redémarrage de Desktop, et
+  chaque fermeture laisse ses serveurs en marche jusqu'à expiration.) **Aucune substitution dans la configuration de
+  Desktop** : `wsl.exe -- bash -lc "…"` repasse la commande par un premier shell qui expanse `$(…)` et `$PATH` (espaces
+  du `PATH` de Windows : erreur de syntaxe) et recopierait une clé dans le journal d'erreur de Desktop.
 - **Retirer des clients** les entrées directes des serveurs désormais derrière la passerelle : c'est ce qui fait que
   les clients « passent par le hub ». Garder les sauvegardes. **Ordre** : tant que les deux existent, chaque serveur
   tourne deux fois ; pour des serveurs qui ouvrent des connexions limitées (bases de données), retirer les entrées
