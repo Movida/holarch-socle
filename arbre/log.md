@@ -8,7 +8,8 @@
   l'essai (compte Claude Code, tarifs, empreinte de clé, `PATH` du service, script de lancement de Desktop, reprise après
   blocage). Serveurs de bases de données en conteneur permanent partagé (SSE) : plus de saturation, 4 sessions en 5 à 9 s.
   Défaut corrigé : l'index SQLite se reconstruisait sans attendre le verrou, et des serveurs HOLARCH lancés ensemble
-  mouraient (test à plusieurs processus). Rien du travail dans le socle.
+  mouraient (test à plusieurs processus). Registre des connecteurs absorbé par le profil du site, plus d'entrée directe
+  dans les clients ; Q6 résolue. Rien du travail dans le socle.
 
 ## 2026-10-03
 

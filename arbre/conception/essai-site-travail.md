@@ -78,7 +78,12 @@ cette page n'en porte aucune. agentgateway 1.6.0, `mcp-remote` 0.14.3, Node 24 L
     (`DROP`/`CREATE`) ; plusieurs démarrés ensemble (une série par session du hub) se verrouillaient et les perdants
     mouraient, ignorés par `failOpen` : le serveur HOLARCH manquait dans 3 sessions sur 4. L'index attend maintenant le
     verrou et se reconstruit en une transaction ; test à plusieurs processus.
-15. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
+15. **Le registre des connecteurs appartient au profil du site.** Un registre préexistant (un service Compose par serveur
+    MCP, une étiquette qui le désigne comme connecteur, des secrets en références vers un coffre) savait aussi écrire une
+    entrée par serveur dans Claude Desktop : avec la passerelle, ce geste recrée les doublons du constat 7. Le registre a
+    été absorbé dans le profil privé du site, l'écriture dans les clients retirée ; la passerelle est la seule à lancer
+    les connecteurs. Son étiquette répond à Q6 : un serveur MCP conteneurisé se reconnaît à une étiquette du service.
+16. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
     sous `failOpen` (vérifiée à l'essai précédent, pas ici).
 
 ## Pistes

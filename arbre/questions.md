@@ -5,7 +5,6 @@
 | Q2 | `besoins/besoins-fondateurs.md` | Qualifier B5 « déléguer une tâche longue en confiance » après le second test comparatif. | gênant |
 | Q4 | `conception/contrats/regle.md` §1 | Vocabulaire des actions (`match`) commun aux adaptateurs : à fixer à l'étape 3 sur les premiers clients (Claude Code, Desktop). | cosmétique d'ici l'étape 3 |
 | Q5 | `conception/contrats/noeud.md` §2 | Registre des clés de `config` des nœuds : à ouvrir avec la première clé réellement portée par un nœud (aucune à ce jour ; les clés de la configuration du site n'en relèvent pas). | cosmétique d'ici là |
-| Q6 | `decisions/2026-10-03-sources-hote.md` | Serveurs MCP conteneurisés : en existe-t-il sur un site, et à quoi les reconnaître (étiquette, catalogue MCP de Docker) ? Ils sont déjà inventoriés comme conteneurs. | cosmétique tant qu'il n'y en a pas |
 | Q8 | `conception/essai-site-travail.md` §6-7, §13 | Démarrage des serveurs stdio lourds, lancés à chaque session : le serveur permanent partagé en SSE est validé pour les bases de données. Reste : en faire un geste de la procédure, et décider si la passerelle doit démarrer ces serveurs à la demande. | gênant |
 | Q9 | `conception/essai-site-travail.md` §4 | `failOpen` masque une cible morte : où mettre le contrôle « cibles servies = cibles configurées » (procédure, commande `holarch`, carte du tableau de bord) ? | gênant |
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
@@ -18,4 +17,5 @@
 |---|---|---|
 | Q1 | Une classification peut-elle se relâcher en descendant ? | Non : `decisions/2026-10-03-classification.md` |
 | Q3 | Synchronisation local ↔ serveur | `decisions/2026-10-03-synchronisation.md` |
+| Q6 | Serveurs MCP conteneurisés : à quoi les reconnaître ? | à une étiquette du service Compose qui les déclare (essai du site de travail, constat 15) ; l'inventaire ne la lit pas encore |
 | Q7 | Configuration de Claude Desktop installé en paquet MSIX | oui : l'adaptateur cherche aussi `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\`, sous Windows et depuis WSL ; `inventaire.claude-desktop.config` reste prioritaire |
