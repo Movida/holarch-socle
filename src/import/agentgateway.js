@@ -5,6 +5,10 @@
 //
 // Limite constatée (essai du 2026-10-03) : la passerelle répond 200 même quand l'outil échoue ; elle ne voit que les
 // échecs HTTP (refus, authentification, serveur injoignable). Le statut d'un appel transmis reste donc inconnu (null).
+//
+// `system.degraded` pour chaque cible que la passerelle ignore (`failOpen`) : sans cela, un serveur qui ne démarre pas
+// disparaît des clients sans aucune erreur (essai du site de travail, Q9). Seuls le serveur et la phase sont gardés,
+// jamais le détail de l'erreur.
 import fs from 'node:fs';
 import path from 'node:path';
 import { ulid } from '../ulid.js';
@@ -12,10 +16,27 @@ import { ulid } from '../ulid.js';
 const duree = (d) => { const m = /^([\d.]+)(ms|s|µs|us)$/.exec(String(d || '')); return m ? Math.round(+m[1] * { ms: 1, s: 1000, µs: 1e-3, us: 1e-3 }[m[2]]) : null; };
 const statut = (http) => (http === 401 || http === 403 ? 'refuse' : http >= 400 ? 'erreur' : null);
 
+const CIBLE_IGNOREE = [
+  [/^failed to initialize target '([^']+)'/, 'demarrage'],
+  [/^upstream '([^']+)' failed during fanout/, 'requete'],
+  [/^upstream '([^']+)' failed during notification/, 'notification'],
+  [/^upstream '([^']+)' failed for GET stream/, 'flux'],
+];
+export function cibleIgnoree(message) {
+  for (const [motif, phase] of CIBLE_IGNOREE) { const m = String(message || '').match(motif); if (m) return { serveur: m[1], phase }; }
+  return null;
+}
+
 export function evenementsDe(lignes, nom) {
   const out = [];
   for (const ligne of lignes) {
     let e; try { e = JSON.parse(ligne); } catch { continue; }
+    const c = e.level === 'warn' && e.time ? cibleIgnoree(e.message) : null;
+    if (c) {
+      out.push({ id: ulid(Date.parse(String(e.time)), `${nom}:${ligne}`), at: String(e.time), kind: 'system.degraded', actor: 'system:passerelle',
+        correlation: null, classification: 'internal', data: { composant: 'passerelle', serveur: c.serveur, phase: c.phase, via: nom } });
+      continue;
+    }
     if (e['mcp.method.name'] !== 'tools/call' || !e['mcp.target'] || !e.time) continue;
     const at = String(e.time);
     out.push({

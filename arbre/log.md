@@ -2,6 +2,9 @@
 
 ## 2026-10-05
 
+* **Cibles ignorées par la passerelle** (Q9) : `system.degraded` tiré de son journal, signalé par `holarch etat` et la
+  carte « Appels MCP » ; l'historique du jour réapparaît (verrou de l'index, coffre de secrets, saturation des bases).
+
 * **Plusieurs comptes Claude Code par site** (Q11) : `comptes_claude_code`, compte dans les fiches et les événements,
   sessions et coût par compte dans `holarch etat`, compte présent mais non lu signalé ; les événements importés avant
   restent « non attribués » (journal en ajout seul). Test à deux comptes.

@@ -60,6 +60,8 @@ fouiller.
   passerelle importé ; serveurs de bases de données partagés (SSE) ; index SQLite sûr à plusieurs processus. Quinze constats,
   questions Q8 à Q12.
 - **Fait (2026-10-05)** : plusieurs comptes Claude Code par site (Q11) : la part de chaque compte se suit dans `holarch etat`.
+- **Fait (2026-10-05)** : cibles ignorées par la passerelle au journal (`system.degraded`, Q9), visibles dans `holarch etat`
+  et au tableau de bord.
 - **À faire** : critère d'usage de l'étape (Desktop et Claude Code passent par
   le hub au quotidien), à lire au tableau de bord après quelques jours d'usage.
 

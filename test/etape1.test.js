@@ -396,3 +396,17 @@ test('plusieurs comptes Claude Code : fiches et événements distingués par com
   assert.deepEqual(sessions.map((e) => e.data.compte).sort(), ['perso', 'pro']);
   assert.ok([...journal.lire()].filter((e) => e.kind === 'cost.recorded').every((e) => e.data.compte));
 });
+
+test('passerelle : une cible ignorée (failOpen) devient system.degraded, sans le détail de l’erreur', async () => {
+  const { evenementsDe } = await import('../src/import/agentgateway.js');
+  const l = (message) => JSON.stringify({ level: 'warn', time: '2026-10-05T10:00:00.1Z', scope: 'agentgateway::mcp::upstream', message });
+  const evs = evenementsDe([
+    l("failed to initialize target 'demo', skipping (failure_mode=FailOpen): failed to start stdio server: No such file or directory /chemin/SECRET"),
+    l("upstream 'base' failed during fanout, skipping: upstream closed on receive"),
+    l('upstream stream ended unexpectedly, skipping (failure_mode=FailOpen)'),
+    'texte libre d’un serveur stdio',
+  ], 'hub');
+  assert.deepEqual(evs.map((e) => [e.kind, e.data.serveur, e.data.phase]), [['system.degraded', 'demo', 'demarrage'], ['system.degraded', 'base', 'requete']]);
+  assert.ok(!JSON.stringify(evs).includes('SECRET') && !JSON.stringify(evs).includes('/chemin'));
+  for (const e of evs) assert.equal(valider('evenement', { ...e, site: 'local' }), null);
+});

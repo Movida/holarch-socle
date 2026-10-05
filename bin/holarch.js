@@ -35,6 +35,7 @@ switch (cmd) {
     console.log(`catalogue : ${e.fiches_par_type.map((f) => `${f.kind} ${f.n}`).join(' · ')}`);
     for (const t of e.tokens) console.log(`${t.jours} j : sortie ${t.sortie ?? 0} tokens, cache lu ${t.cache_lu ?? 0}${t.usd != null ? `, ${t.usd.toFixed(2)} USD liste` : e.tarifs_configures ? '' : ' (coût inconnu : aucun tarif configuré)'}`);
     if (e.periode.par_compte.length) console.log(`comptes sur ${e.periode.jours} j : ${e.periode.par_compte.map((c) => `${c.cle ?? 'non attribué'} ${c.sessions} session(s)${c.usd != null ? ` ${c.usd.toFixed(2)} USD` : ''}`).join(' · ')}`);
+    if (e.periode.degradations.length) console.log(`ATTENTION passerelle, cibles ignorées sur ${e.periode.jours} j : ${e.periode.degradations.map((x) => `${x.cle} ${x.n}${x.demarrage ? ` (dont ${x.demarrage} au démarrage)` : ''}, dernière ${x.dernier.slice(0, 16).replace('T', ' ')}`).join(' · ')}`);
     const nl = e.dernier_inventaire?.comptes_non_lus || [];
     if (nl.length) console.log(`ATTENTION comptes Claude Code non lus : ${nl.join(', ')} (comptes_claude_code dans la configuration)`);
     if (e.tarifs_configures) console.log(`tarifs : grille du ${e.tarifs.releve ?? '?'} (${e.tarifs.source ?? 'source non citée'})${e.periode.sans_tarif.length ? ` ; sans tarif sur ${e.periode.jours} j : ${e.periode.sans_tarif.map((m) => m.model).join(', ')}` : ''}`);
