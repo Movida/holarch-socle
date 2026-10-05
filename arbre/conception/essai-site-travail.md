@@ -1,0 +1,85 @@
+---
+type: observation
+title: Essai de la procédure du site de travail
+description: Ce que la mise en place du site de travail et de sa passerelle protégée a montré (2026-10-05) : ce qui a tenu, les difficultés, les pistes pour la méthode et pour HOLARCH.
+status: draft
+as_of: 2026-10-05
+links:
+  derives_from: [/arbre/conception/procedure-site-travail.md]
+  supported_by: [/arbre/conception/essai-agentgateway.md]
+---
+
+# Essai de la procédure du site de travail (2026-10-05)
+
+Première exécution de `procedure-site-travail.md` par une session d'agent, sur un poste Windows avec WSL 2, Docker Desktop,
+Claude Desktop et Claude Code. Le but était d'éprouver la méthode ; les données du travail restent dans le profil privé, et
+cette page n'en porte aucune. agentgateway 1.6.0, `mcp-remote` 0.14.3, Node 24 LTS.
+
+## Ce qui a tenu
+
+| Vérifié | Résultat |
+|---|---|
+| Prérequis (§0) | contrôles mécaniques suffisants ; un seul est humain (le dépôt du profil) |
+| Profil privé (§1) | dépôt privé, configuration en lien symbolique vers `$HOLARCH_HOME` : une source, versionnée |
+| Site et import (§2) | inventaire sans erreur ; import des transcriptions idempotent |
+| Passerelle (§3) | écoute 127.0.0.1 seul ; sans clé 401 ; `Host` étranger 403 ; outils de chaque serveur préfixés ; chaîne témoin absente du journal ; service utilisateur systemd relancé seul après un arrêt brutal |
+| Clé d'accès | rotation sans toucher aux clients (ils relisent le fichier au lancement) ; l'ancienne clé donne aussitôt 401 |
+| Clients (§4) | Claude Desktop (pont stdio) et Claude Code (HTTP) appellent des outils fédérés ; la passerelle les journalise |
+| Journal de la passerelle (§5) | 8 `tool.called` importés, serveur et outil seulement, aucun argument ; deuxième passe : 0 ajouté |
+
+## Difficultés et constats
+
+1. **Le compte lu par défaut n'est pas celui du site.** `claude-code.home` vaut `~/.claude` ; avec un répertoire par
+   compte (`CLAUDE_CONFIG_DIR`), l'import lit 0 session et l'inventaire un profil vide, sans erreur. Il faut poser
+   `inventaire.claude-code` **et** `import.claude-code-transcriptions` sur le bon répertoire. La procédure (§2) ne le dit pas.
+2. **La grille de tarifs n'a pas toujours d'origine locale.** §1 la fait « recopier du site personnel » ; ici il n'y en a
+   pas sur le poste. Relevée sur la page officielle (date et source consignées) ; le mode rapide demande une entrée
+   `<modèle>:rapide` avec les multiplicateurs de cache appliqués au tarif rapide. Un calcul de coût apparaît alors.
+3. **La clé n'a pas besoin d'être dans la configuration, même sous forme chiffrée.** Le schéma accepte `keyHash`
+   (`sha256:<hex>`) : le fichier de la passerelle devient versionnable sans aucun secret. §3 suppose « un fichier non
+   versionné produit au lancement » ; c'est inutile.
+4. **`failOpen` masque une cible morte.** Lancée par systemd, la passerelle n'avait pas dans son `PATH` ni Node (installé
+   par un gestionnaire de versions) ni la CLI d'un gestionnaire de secrets : seules 1 cible sur 5 était servie, sans
+   erreur côté client, un avertissement au journal seulement. Le contrôle « la liste d'outils contient ceux de **chaque**
+   serveur » de §3 l'attrape, à condition de comparer au nombre de cibles configurées.
+5. **Desktop réinterprète la commande.** `wsl.exe -- bash -lc "<commande>"` est passé à un premier shell qui substitue
+   `$(…)` et `$PATH` : le `PATH` de Windows (espaces) casse la syntaxe, et **la clé, déjà substituée, est recopiée en
+   clair dans le journal d'erreur de Desktop**. Dans ce contexte, `npx` est de plus celui de Windows s'il précède dans
+   le `PATH` : le pont tourne sous Windows et l'en-tête arrive vide (401). Remède : aucune substitution dans la
+   configuration de Desktop, un script de lancement (versionné, sans secret) qui fixe son `PATH` et relit la clé ; la
+   variable `${KEY}` est substituée par `mcp-remote` lui-même.
+6. **Boucle de réessais.** Chaque session ouvre une série de serveurs stdio ; Desktop en ouvre plusieurs par lancement
+   (pont principal, pool des sessions de code), et chaque expiration en relance. Des serveurs de bases de données
+   saturent la limite de connexions de leur rôle, ce qui ralentit la série suivante : `initialize` passe de 3 s à 13-41 s,
+   dépasse le délai du client, qui réessaie. Casser la boucle : fermer le client, redémarrer la passerelle (toutes les
+   séries disparaissent), relancer le client une fois. Une session neuve met ensuite ~12 s.
+7. **La coexistence double la charge.** §4 retire les entrées directes **après** l'essai du hub ; pendant l'essai, chaque
+   serveur tourne deux fois (direct et fédéré). Avec des ressources à limite de connexions, c'est ce doublon qui
+   déclenche le point 6.
+8. **Les secrets en clair chez les clients.** `claude mcp add --header` écrit la clé telle quelle dans la configuration
+   du compte (fichier en droits 600) ; il n'y a pas d'option « lire depuis un fichier ». Acceptable pour une clé qui n'ouvre
+   qu'une boucle locale, à consigner.
+9. **Journal mixte.** Le flux de la passerelle mêle ses lignes JSON et la sortie d'erreur des serveurs stdio qu'elle lance ;
+   l'import les écarte sans les compter comme refus.
+10. **Faux déplacement à l'inventaire.** Après qu'une entrée de la configuration de Desktop a été remplacée par une autre,
+    l'inventaire a émis `element.moved` de l'ancienne vers la nouvelle (même fichier), et 11 fiches « disparues » : le
+    rapprochement par emplacement prend un remplacement pour un déplacement.
+11. **Doublon du serveur HOLARCH.** Le projet le déclare déjà (`.mcp.json`, en stdio) ; avec la passerelle, il est servi
+    deux fois pour Claude Code. Choisir un chemin.
+12. **Persistance.** L'installation d'un service utilisateur a été arrêtée par le contrôle d'autorisation de l'outil
+    d'agent, puis faite sur accord explicite de l'humain. La procédure prévoit déjà ce point d'arrêt (§3.3) ; il vaut aussi
+    pour le contrôle propre à l'outil.
+13. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
+    sous `failOpen` (vérifiée à l'essai précédent, pas ici).
+
+## Pistes
+
+Elles alimentent `questions.md` (Q8 à Q12) :
+
+- **Procédure corrigée** (2026-10-05, mêmes jours) : compte Claude Code, tarifs, `keyHash`, `PATH` du service, vérification
+  « autant de serveurs que de cibles », script de lancement pour Desktop, ordre des opérations, reprise après blocage ;
+- **un contrôle de santé de la passerelle** qui compare les cibles servies aux cibles configurées ;
+- **une grille de tarifs relevable par une commande** plutôt qu'à la main ;
+- **le démarrage des serveurs lourds** : ne pas tous les lancer à chaque session (démarrage paresseux, ou serveur
+  persistant derrière la passerelle) ;
+- **l'inventaire** : rapprocher un remplacement d'un déplacement sur l'identité (nom, commande), pas sur le seul fichier.
