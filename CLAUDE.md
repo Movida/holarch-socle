@@ -15,6 +15,10 @@
   le fait pas déjà bien (`docs/architecture.md` §2).
 - **Reprendre** : l'état courant est dans `arbre/log.md` (le plus récent en tête) et dans la section « Avancement » de
   la spécification de l'étape en cours (`arbre/conception/etape-*.md`) ; l'ordre des étapes dans `docs/architecture.md` §10.
+- **Cohérence globale** : ce qui s'ajoute reprend les notions, le vocabulaire et les mécanismes déjà en place (une seule
+  façon de désigner une chose, un module partagé plutôt qu'une logique recopiée ; deux vues ne donnent pas deux chiffres
+  pour la même chose). Avant de rendre la main, chercher la notion touchée dans tout le code ; corriger ou signaler.
+- Une consigne de conception se discute (avis argumenté, alternative) avant de s'appliquer.
 - Vérifier avant de rendre la main : `npm test` vert ; aucune donnée personnelle dans un fichier suivi.
 - Journal : une ligne datée dans `arbre/log.md` par session qui change l'arbre (`## AAAA-MM-JJ` puis `* **Sujet** : détail`,
   le plus récent en premier).

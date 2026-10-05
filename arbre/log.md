@@ -2,6 +2,9 @@
 
 ## 2026-10-05
 
+* **Cohérence du rattachement aux projets** : audit après la vue Projets, six façons de désigner un projet dans le
+  code ; décision `rattachement-projet` proposée (draft) ; règle de cohérence globale ajoutée à `CLAUDE.md`.
+
 * **Vue Projets** (étape 3, tranche 2) : une session se rattache aux dépôts que ses appels d'outils ont touchés, y
   compris vus d'un conteneur (par le nom du dépôt, si la suite du chemin y existe) ; l'historique reçoit des
   `session.finished` complémentaires, rien n'est réécrit. Page « Projets » : étape en cours, reste, questions,
