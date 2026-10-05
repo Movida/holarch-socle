@@ -128,6 +128,11 @@ relance à chaque expiration ; des séries orphelines saturent une ressource lim
    serveur, puis mesurer une session neuve.
 3. Rouvrir **un** client, ne plus y toucher pendant deux minutes, lire le journal de la passerelle.
 
+**Remède durable pour les serveurs qui tiennent des connexions limitées** (bases de données) : ne pas les lancer par
+session. Les faire tourner en **un conteneur permanent**, en SSE sur la boucle locale, sous un service utilisateur
+(arrêt : accord de l'humain), et les viser dans la passerelle par `sse: { host: 127.0.0.1, port, path }`. Toutes les
+sessions partagent alors un pool ; vérifier que le nombre de connexions ouvertes ne croît plus avec les sessions.
+
 ## 5. Journal de la passerelle vers le journal HOLARCH
 
 L'import existe dans le socle (`src/import/agentgateway.js`) : il lit le journal `json` de la passerelle et en tire

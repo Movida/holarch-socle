@@ -344,3 +344,21 @@ test('import de la passerelle : appels d’outil au format JSON réel, reprise i
   importerTranscriptions({ home, calme_minutes: 10 }, { journal: j2, donnees: d2, passerelles: ['hub'] });
   assert.deepEqual([...j2.lire()].filter((e) => e.kind === 'tool.called').map((e) => e.data.serveur), ['autre']);
 });
+
+test('index : plusieurs processus le reconstruisent ensemble sans échouer (un serveur MCP par session d’un hub)', async () => {
+  const { spawn } = await import('node:child_process');
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-index-'));
+  const module = new URL('../src/stockage/index.js', import.meta.url).href;
+  const code = `import { Index } from ${JSON.stringify(module)};
+    const i = new Index(${JSON.stringify(dossier)});
+    for (let k = 0; k < 20; k++) i.reconstruire({ evenements: [], fiches: [], tarifs: {} });`;
+  const lancer = () => new Promise((fin) => {
+    const p = spawn(process.execPath, ['--no-warnings', '--input-type=module', '-e', code], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (b) => { err += b; });
+    p.on('close', (c) => fin({ c, err }));
+  });
+  const res = await Promise.all([lancer(), lancer(), lancer(), lancer()]);
+  for (const r of res) assert.equal(r.c, 0, r.err.slice(0, 300));
+  fs.rmSync(dossier, { recursive: true, force: true });
+});

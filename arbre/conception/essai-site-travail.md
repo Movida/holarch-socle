@@ -69,7 +69,16 @@ cette page n'en porte aucune. agentgateway 1.6.0, `mcp-remote` 0.14.3, Node 24 L
 12. **Persistance.** L'installation d'un service utilisateur a été arrêtée par le contrôle d'autorisation de l'outil
     d'agent, puis faite sur accord explicite de l'humain. La procédure prévoit déjà ce point d'arrêt (§3.3) ; il vaut aussi
     pour le contrôle propre à l'outil.
-13. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
+13. **Un serveur partagé règle la saturation.** Les serveurs de bases de données lancés en un conteneur permanent en SSE
+    (sur la boucle locale), au lieu d'une série stdio par session, ramènent à un pool de connexions par base : 4 sessions
+    simultanées aboutissent en 5 à 9 s (contre ~40 s), le nombre de connexions ouvertes est constant (ici 8 sur une limite
+    de 10, tous pools confondus) et ne croît plus avec les sessions. La marge reste mince : tout autre outil qui utilise le
+    même rôle l'entame. Le lancement permanent est une persistance (accord de l'humain).
+14. **Défaut du socle, corrigé : l'index SQLite.** Chaque serveur HOLARCH reconstruisait l'index au démarrage
+    (`DROP`/`CREATE`) ; plusieurs démarrés ensemble (une série par session du hub) se verrouillaient et les perdants
+    mouraient, ignorés par `failOpen` : le serveur HOLARCH manquait dans 3 sessions sur 4. L'index attend maintenant le
+    verrou et se reconstruit en une transaction ; test à plusieurs processus.
+15. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
     sous `failOpen` (vérifiée à l'essai précédent, pas ici).
 
 ## Pistes
@@ -80,6 +89,6 @@ Elles alimentent `questions.md` (Q8 à Q12) :
   « autant de serveurs que de cibles », script de lancement pour Desktop, ordre des opérations, reprise après blocage ;
 - **un contrôle de santé de la passerelle** qui compare les cibles servies aux cibles configurées ;
 - **une grille de tarifs relevable par une commande** plutôt qu'à la main ;
-- **le démarrage des serveurs lourds** : ne pas tous les lancer à chaque session (démarrage paresseux, ou serveur
-  persistant derrière la passerelle) ;
+- **le démarrage des serveurs lourds** : le serveur persistant derrière la passerelle est validé (constat 13) ; reste à en
+  faire un geste de la procédure et à décider si la passerelle doit pouvoir les démarrer à la demande ;
 - **l'inventaire** : rapprocher un remplacement d'un déplacement sur l'identité (nom, commande), pas sur le seul fichier.

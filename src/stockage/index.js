@@ -9,11 +9,15 @@ export class Index {
   constructor(donnees) {
     fs.mkdirSync(donnees, { recursive: true });
     this.db = new DatabaseSync(path.join(donnees, 'index.sqlite'));
+    // Plusieurs processus ouvrent le même index (un serveur MCP par session d'un hub) : ils attendent le verrou au lieu d'échouer.
+    this.db.exec('PRAGMA busy_timeout = 20000');
   }
 
   // Le coût d'un événement est celui qu'il porte (`usd_list`) ou, à défaut, celui que donne la grille de tarifs.
   reconstruire({ evenements, fiches, tarifs }) {
     const db = this.db;
+    // Une seule transaction, prise d'emblée : un lecteur ne voit jamais l'index vide ou à moitié refait.
+    db.exec('BEGIN IMMEDIATE');
     db.exec(`DROP TABLE IF EXISTS evenements; DROP TABLE IF EXISTS fiches;
       CREATE TABLE evenements (id TEXT PRIMARY KEY, at TEXT, kind TEXT, actor TEXT, site TEXT, context TEXT, node TEXT,
         subject TEXT, correlation TEXT, data TEXT, model TEXT, usd REAL, tok_in INTEGER, tok_cache_write INTEGER,
@@ -22,7 +26,6 @@ export class Index {
         status TEXT, site TEXT, location TEXT, json TEXT);
       CREATE INDEX ev_kind ON evenements(kind, at); CREATE INDEX ev_corr ON evenements(correlation);`);
     let n = 0;
-    db.exec('BEGIN');
     n = this.inserer(evenements, tarifs);
     const iff = db.prepare('INSERT OR REPLACE INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?)');
     for (const f of fiches) iff.run(f.id, f.kind, f.name, f.description ?? null, f.node ?? null, f.context ?? null, f.status, f.site ?? null, f.location ?? null, JSON.stringify(f));

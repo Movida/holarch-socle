@@ -3,10 +3,12 @@
 ## 2026-10-05
 
 * **Essai du site de travail** : procédure exécutée de bout en bout (profil privé, site, passerelle protégée en service
-  utilisateur, Claude Desktop et Claude Code, import du journal de la passerelle) ; treize constats dans
+  utilisateur, Claude Desktop et Claude Code, import du journal de la passerelle) ; quinze constats dans
   `essai-site-travail.md`, cinq questions ouvertes (Q8 à Q12) ; `procedure-site-travail.md` corrigée d'après
   l'essai (compte Claude Code, tarifs, empreinte de clé, `PATH` du service, script de lancement de Desktop, reprise après
-  blocage). Rien du travail dans le socle.
+  blocage). Serveurs de bases de données en conteneur permanent partagé (SSE) : plus de saturation, 4 sessions en 5 à 9 s.
+  Défaut corrigé : l'index SQLite se reconstruisait sans attendre le verrou, et des serveurs HOLARCH lancés ensemble
+  mouraient (test à plusieurs processus). Rien du travail dans le socle.
 
 ## 2026-10-03
 
