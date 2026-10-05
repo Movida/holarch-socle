@@ -8,7 +8,6 @@
 | Q8 | `conception/essai-site-travail.md` §6-7, §13, §18 | Démarrage des serveurs stdio, une série par session : le serveur permanent partagé est validé (bases de données, connecteurs à secrets) ; une session fermée libère sa série, une abandonnée expire après 30 min d'inactivité. Reste : en faire un geste de la procédure, et savoir si un pont client reprend une session expirée (condition pour raccourcir le délai). | gênant |
 | Q9 | `conception/essai-site-travail.md` §4 | `failOpen` masque une cible morte : où mettre le contrôle « cibles servies = cibles configurées » (procédure, commande `holarch`, carte du tableau de bord) ? | gênant |
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
-| Q11 | `conception/essai-site-travail.md` §1 | Compte lu par défaut (`~/.claude`) : détecter `CLAUDE_CONFIG_DIR` et les répertoires de compte, ou rendre le réglage explicite dès `holarch init` ? | gênant |
 | Q12 | `conception/essai-site-travail.md` §10 | Inventaire : rapprocher un remplacement d'un déplacement sur l'identité (nom, commande) et non sur le seul fichier. | cosmétique |
 | Q13 | `conception/essai-site-travail.md` §16 | Brique Savoir : le serveur OKF fédéré en devient-il l'adaptateur, et que doit dire le contrat de la brique (lecture avant, proposition après, porte vérifiée) pour ne pas dépendre de ses outils ? À l'ouverture de l'étape 6. | cosmétique d'ici l'étape 6 |
 
@@ -19,4 +18,5 @@
 | Q1 | Une classification peut-elle se relâcher en descendant ? | Non : `decisions/2026-10-03-classification.md` |
 | Q3 | Synchronisation local ↔ serveur | `decisions/2026-10-03-synchronisation.md` |
 | Q6 | Serveurs MCP conteneurisés : à quoi les reconnaître ? | à une étiquette du service Compose qui les déclare (essai du site de travail, constat 15) ; l'inventaire ne la lit pas encore |
+| Q11 | Compte Claude Code lu par défaut (`~/.claude`) alors qu'il y en a plusieurs | réglage explicite `comptes_claude_code` ([{nom, home}]) lu par l'inventaire et l'import, compte porté par les fiches et les événements, part par compte dans `holarch etat` ; un répertoire de compte présent mais non lu est signalé à l'inventaire. Sans le réglage, un site garde ses identifiants. |
 | Q7 | Configuration de Claude Desktop installé en paquet MSIX | oui : l'adaptateur cherche aussi `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\`, sous Windows et depuis WSL ; `inventaire.claude-desktop.config` reste prioritaire |

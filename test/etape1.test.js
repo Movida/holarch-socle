@@ -362,3 +362,37 @@ test('index : plusieurs processus le reconstruisent ensemble sans échouer (un s
   for (const r of res) assert.equal(r.c, 0, r.err.slice(0, 300));
   fs.rmSync(dossier, { recursive: true, force: true });
 });
+
+test('plusieurs comptes Claude Code : fiches et événements distingués par compte, compte non lu signalé', async () => {
+  const { comptesClaudeCode, comptesNonLus } = await import('../src/config.js');
+  const racine = tmp();
+  const pro = path.join(racine, '.claude-pro'); const perso = path.join(racine, '.claude-perso'); const oublie = path.join(racine, '.claude-autre');
+  for (const h of [pro, perso]) {
+    ecrire(path.join(h, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\ndescription: La même skill dans chaque compte.\n---\n');
+    ecrire(path.join(h, 'projects', '-ws-demo', 'memory', 'note.md'), '---\nname: note\ndescription: Même projet, même note.\n---\n');
+    ecrire(path.join(h, '.claude.json'), JSON.stringify({ claudeAiMcpEverConnected: ['claude.ai Demo'] }));
+    const f = path.join(h, 'projects', '-ws-demo', `${path.basename(h)}.jsonl`);
+    ecrire(f, JSON.stringify({ type: 'assistant', sessionId: path.basename(h), cwd: '/ws/demo', timestamp: '2026-10-01T10:00:00Z', requestId: 'r', message: { id: 'm', model: 'modele-x', usage: { input_tokens: 1, output_tokens: 2 } } }) + '\n');
+    vieillir(f);
+  }
+  ecrire(path.join(oublie, 'projects', '-x', 'a.jsonl'), '');
+  const config = { comptes_claude_code: [{ nom: 'pro', home: pro }, { nom: 'perso', home: perso }] };
+  const comptes = comptesClaudeCode(config);
+  assert.deepEqual(comptes.map((c) => [c.nom, c.config]), [['pro', path.join(pro, '.claude.json')], ['perso', path.join(perso, '.claude.json')]]);
+  assert.deepEqual(comptesClaudeCode({}, { home: '/h', config: '/c' }), [{ nom: null, home: '/h', config: '/c' }], 'sans comptes : un seul, sans nom');
+  assert.deepEqual(comptesNonLus(comptes, racine), [oublie]);
+
+  const fiches = inventaireClaudeCode({}, { site: 'local', depots: [], comptes });
+  const ids = fiches.map((f) => f.id);
+  assert.equal(new Set(ids).size, ids.length, 'aucune collision d’identifiant entre comptes');
+  assert.deepEqual(fiches.filter((f) => f.kind === 'skill').map((f) => f.attributes.compte).sort(), ['perso', 'pro']);
+  assert.equal(fiches.filter((f) => f.kind === 'memory').length, 2);
+  assert.equal(fiches.filter((f) => f.kind === 'connector').length, 2);
+  for (const f of fiches) assert.equal(valider('fiche', f), null, f.id);
+
+  const donnees = tmp(); const journal = new Journal(donnees, 'local');
+  importerTranscriptions({ calme_minutes: 10 }, { journal, donnees, comptes });
+  const sessions = [...journal.lire()].filter((e) => e.kind === 'session.finished');
+  assert.deepEqual(sessions.map((e) => e.data.compte).sort(), ['perso', 'pro']);
+  assert.ok([...journal.lire()].filter((e) => e.kind === 'cost.recorded').every((e) => e.data.compte));
+});

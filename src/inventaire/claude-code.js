@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enTete, lireJson, liste, mtimeIso, premiereLigne, slug, urlSure } from './outils.js';
+import { comptesClaudeCode } from '../config.js';
 
 const fiche = (kind, cle, name, extra, source = 'inventaire:claude-code') => ({
   id: `holarch:${kind}:${slug(cle)}`, kind, name: String(name), status: 'active',
@@ -84,10 +85,11 @@ function memoires(home, site) {
   });
 }
 
-export default function inventaireClaudeCode(options, ctx) {
-  const { home, config } = options; const site = ctx.site;
+// Ce qui relève d'un compte (niveau utilisateur, mémoires, connecteurs claude.ai). Avec plusieurs comptes, chaque fiche
+// porte le compte dans son identifiant et ses attributs : un même projet ou une même skill existe dans chacun.
+function compte({ nom, home, config }, site) {
   const out = [];
-  if (fs.existsSync(home)) {
+  if (home && fs.existsSync(home)) {
     out.push(...skills(path.join(home, 'skills'), 'utilisateur', null, site));
     out.push(...agents(path.join(home, 'agents'), 'utilisateur', null, site));
     const f = path.join(home, 'settings.json');
@@ -98,17 +100,28 @@ export default function inventaireClaudeCode(options, ctx) {
     for (const [nom, v] of Object.entries(plug?.plugins || {})) out.push(fiche('plugin', nom, nom, { site, location: path.join(home, 'plugins'), description: Array.isArray(v) ? `${v.length} installation(s)` : null }));
     for (const m of liste(path.join(home, 'plugins', 'marketplaces'), (d) => d.isDirectory())) out.push(fiche('plugin_marketplace', m.name, m.name, { site, location: path.join(home, 'plugins', 'marketplaces', m.name) }));
   }
-  const cfg = lireJson(config);
+  const cfg = config ? lireJson(config) : null;
   if (cfg) {
     out.push(...mcp(cfg.mcpServers, config, 'utilisateur', null, site));
     for (const [p, v] of Object.entries(cfg.projects || {})) out.push(...mcp(v.mcpServers, config, 'local', path.basename(p), site));
   }
   // Connecteurs claude.ai : distants, gérés par le compte, absents des fichiers de configuration ; Claude Code n'en
   // garde localement que les noms déjà utilisés. Les appels au journal complètent : tout serveur appelé a sa fiche.
-  for (const nom of cfg?.claudeAiMcpEverConnected || []) {
-    out.push(fiche('connector', `mcp/claude.ai/${nom}`, nom, { description: 'connecteur claude.ai (distant, géré par le compte)', location: 'claude.ai', site,
+  for (const n of cfg?.claudeAiMcpEverConnected || []) {
+    out.push(fiche('connector', `mcp/claude.ai/${n}`, n, { description: 'connecteur claude.ai (distant, géré par le compte)', location: 'claude.ai', site,
       attributes: { portee: 'claude.ai', projet: null, transport: 'http', distant: true } }));
   }
+  if (!nom) return out;
+  return out.map((f) => {
+    const debut = `holarch:${f.kind}:`;
+    return { ...f, id: `${debut}${slug(nom)}/${f.id.slice(debut.length)}`, attributes: { ...(f.attributes || {}), compte: nom } };
+  });
+}
+
+export default function inventaireClaudeCode(options, ctx) {
+  const site = ctx.site;
+  const out = [];
+  for (const c of ctx.comptes || comptesClaudeCode({}, options)) out.push(...compte(c, site));
   for (const depot of ctx.depots || []) {
     const nom = path.basename(depot);
     out.push(...skills(path.join(depot, '.claude', 'skills'), 'projet', nom, site));

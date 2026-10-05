@@ -29,6 +29,10 @@ const DEFAUTS = () => ({
     // lequel les clients la connaissent (leurs appels à ce serveur ne sont alors pas repris des transcriptions).
     agentgateway: { actif: false, fichier: null, nom: 'hub' },
   },
+  // Comptes Claude Code lus par le site, quand il y en a plusieurs (un répertoire par compte, `CLAUDE_CONFIG_DIR`) :
+  // [{ nom, home, config? }], `nom` étant un identifiant choisi (jamais un courriel), `config` valant par défaut
+  // `<home>/.claude.json`. Vide : l'inventaire et l'import ne lisent que leur `home`, sans nom de compte.
+  comptes_claude_code: [],
   // Grille de tarifs, relevée sur la page officielle du fournisseur : { source, releve, modeles }, où chaque modèle porte
   // { entree, cache_ecrit, cache_ecrit_1h, cache_lu, sortie } en USD par million de tokens (src/tarifs.js).
   // Vide par défaut : aucun tarif n'est inventé ; sans tarif, le coût reste inconnu et seuls les tokens sont comptés.
@@ -53,6 +57,24 @@ export function chargerConfig(fichier = path.join(accueil(), 'config.yaml'), sit
   const nom = site || commune.site || DEFAUTS().site;
   const propre = lireYaml(path.join(path.dirname(fichier), `config.${nom}.yaml`));
   return developper({ ...fusion(fusion(DEFAUTS(), commune), propre), site: nom });
+}
+
+// Les comptes Claude Code qu'un adaptateur doit lire : ceux de `comptes_claude_code`, sinon son seul `home` (sans nom :
+// les identifiants des fiches et les événements restent ceux d'un site à un compte).
+export function comptesClaudeCode(config, opts = {}) {
+  const liste = (config.comptes_claude_code || []).filter((c) => c && c.home);
+  if (!liste.length) return [{ nom: null, home: opts.home, config: opts.config }];
+  return liste.map((c) => ({ nom: String(c.nom || path.basename(c.home).replace(/^\.claude-?/, '') || 'defaut'), home: c.home,
+    config: c.config || (path.resolve(c.home) === path.join(os.homedir(), '.claude') ? path.join(os.homedir(), '.claude.json') : path.join(c.home, '.claude.json')) }));
+}
+
+// Répertoires de compte Claude Code présents sur le poste (`~/.claude`, `~/.claude-<nom>`, avec des transcriptions) que
+// le site ne lit pas : sans eux, l'inventaire et l'import sont incomplets sans le moindre message d'erreur.
+export function comptesNonLus(comptes, racine = os.homedir()) {
+  const lus = new Set(comptes.filter((c) => c.home).map((c) => { try { return fs.realpathSync(c.home); } catch { return path.resolve(c.home); } }));
+  let entrees = []; try { entrees = fs.readdirSync(racine, { withFileTypes: true }); } catch { return []; }
+  return entrees.filter((e) => e.isDirectory() && /^\.claude(-[^/]+)?$/.test(e.name) && fs.existsSync(path.join(racine, e.name, 'projects')))
+    .map((e) => path.join(racine, e.name)).filter((d) => !lus.has(fs.realpathSync(d)));
 }
 
 export function ecrireConfigExemple(fichier = path.join(accueil(), 'config.yaml')) {

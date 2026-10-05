@@ -59,7 +59,8 @@ fouiller.
   site, passerelle protégée par clé (service utilisateur), Claude Desktop et Claude Code branchés, journal de la
   passerelle importé ; serveurs de bases de données partagés (SSE) ; index SQLite sûr à plusieurs processus. Quinze constats,
   questions Q8 à Q12.
-- **À faire** : corriger la procédure d'après l'essai ; critère d'usage de l'étape (Desktop et Claude Code passent par
+- **Fait (2026-10-05)** : plusieurs comptes Claude Code par site (Q11) : la part de chaque compte se suit dans `holarch etat`.
+- **À faire** : critère d'usage de l'étape (Desktop et Claude Code passent par
   le hub au quotidien), à lire au tableau de bord après quelques jours d'usage.
 
 ## Hors périmètre

@@ -2,6 +2,10 @@
 
 ## 2026-10-05
 
+* **Plusieurs comptes Claude Code par site** (Q11) : `comptes_claude_code`, compte dans les fiches et les événements,
+  sessions et coût par compte dans `holarch etat`, compte présent mais non lu signalé ; les événements importés avant
+  restent « non attribués » (journal en ajout seul). Test à deux comptes.
+
 * **Essai du site de travail** : procédure exécutée de bout en bout (profil privé, site, passerelle protégée en service
   utilisateur, Claude Desktop et Claude Code, import du journal de la passerelle) ; quinze constats dans
   `essai-site-travail.md`, cinq questions ouvertes (Q8 à Q12) ; `procedure-site-travail.md` corrigée d'après

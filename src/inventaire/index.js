@@ -8,6 +8,7 @@ import docker from './docker.js';
 import claudeDesktop from './claude-desktop.js';
 import { SourceAbsente } from './source.js';
 import { ulid } from '../ulid.js';
+import { comptesClaudeCode, comptesNonLus } from '../config.js';
 
 export const ADAPTATEURS = { 'depots-git': depotsGit, 'claude-code': claudeCode, arbre, docker, 'claude-desktop': claudeDesktop };
 
@@ -20,8 +21,12 @@ export async function inventorier(config, { catalogue, journal }) {
     u.count++; if (!u.last_used || e.at > u.last_used) u.last_used = e.at;
     appelsMcp.set(e.data.serveur, u);
   }
-  const ctx = { site: config.site, depots: [], appelsMcp };
+  const cc = config.inventaire['claude-code'];
+  const comptes = comptesClaudeCode(config, cc || {});
+  const ctx = { site: config.site, depots: [], appelsMcp, comptes };
   const fiches = []; const erreurs = []; const absentes = [];
+  // Un compte Claude Code présent sur le poste mais non lu rend l'inventaire et l'import incomplets, sans erreur : le dire.
+  const nonLus = cc && cc.actif !== false ? comptesNonLus(comptes) : [];
   for (const [nom, adaptateur] of Object.entries(ADAPTATEURS)) {
     const opts = config.inventaire[nom];
     if (!opts || opts.actif === false) continue;
@@ -34,7 +39,7 @@ export async function inventorier(config, { catalogue, journal }) {
     ...r.apparues.map((s) => ev('element.created', s)),
     ...r.disparues.map((s) => ev('element.retired', s)),
     ...r.deplacees.map((d) => ({ ...ev('element.moved', d.id), data: { de: d.de, vers: d.vers } })),
-    { ...ev('inventory.finished', null), data: { fiches: r.fiches, apparues: r.apparues.length, disparues: r.disparues.length, deplacees: r.deplacees.length, refusees: r.refusees.length, erreurs, absentes } },
+    { ...ev('inventory.finished', null), data: { fiches: r.fiches, apparues: r.apparues.length, disparues: r.disparues.length, deplacees: r.deplacees.length, refusees: r.refusees.length, erreurs, absentes, comptes: comptes.map((c) => c.nom).filter(Boolean), comptes_non_lus: nonLus } },
   ]);
-  return { ...r, erreurs, absentes };
+  return { ...r, erreurs, absentes, comptes_non_lus: nonLus };
 }

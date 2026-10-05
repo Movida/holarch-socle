@@ -1,6 +1,6 @@
 // Le socle d'un site : configuration, journal, catalogue, index, et les opérations de l'étape 1. Les fonctions de
 // lecture sont celles que l'interface web et, à l'étape 2, le hub MCP exposent.
-import { chargerConfig } from './config.js';
+import { chargerConfig, comptesClaudeCode } from './config.js';
 import { Journal } from './stockage/journal.js';
 import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
@@ -31,7 +31,7 @@ export class Socle {
     for (const [nom, imp] of Object.entries(IMPORTS)) {
       const o = this.config.import?.[nom];
       if (!o || o.actif === false) continue;
-      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles });
+      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles, comptes: comptesClaudeCode(this.config, o) });
     }
     return r;
   }
@@ -69,6 +69,8 @@ export class Socle {
       periode: {
         jours,
         sessions: q("SELECT COUNT(DISTINCT correlation) n FROM evenements WHERE kind='session.finished' AND json_extract(data,'$.sous_agent')=0 AND at>=?", d)[0].n,
+        // Sessions et coût par compte Claude Code (sites à plusieurs comptes) : la part de chacun se suit dans le temps.
+        par_compte: q("SELECT json_extract(data,'$.compte') cle, COUNT(DISTINCT CASE WHEN kind='session.finished' AND json_extract(data,'$.sous_agent')=0 THEN correlation END) sessions, SUM(CASE WHEN kind='cost.recorded' THEN usd END) usd FROM evenements WHERE kind IN ('session.finished','cost.recorded') AND at>=? GROUP BY cle ORDER BY sessions DESC", d).filter((r, _, t) => t.some((x) => x.cle != null)),
         tokens: q("SELECT SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd FROM evenements WHERE kind='cost.recorded' AND at>=?", d)[0],
         // Coût liste par type de tokens : ce qui pèse (souvent la relecture du cache) se voit.
         cout_par_type: this.coutParType(d),
