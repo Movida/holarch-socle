@@ -2,6 +2,9 @@
 
 ## 2026-10-05
 
+* **Sessions vides** : le service d'accès distant d'un projet reprend sa dernière session (`--continue`) au lieu d'en
+  créer une à chaque démarrage ; Q15 ouverte sur `--no-create-session-in-dir`.
+
 * **Rattachement au projet** : décision `rattachement-projet` approuvée et appliquée (projet = notion unique, dépôt = son
   support) : module `projets`, lien `project` des fiches (contrat 0.4.0), `data.projets` (contrat événement 0.7.0), une
   seule attribution pour toutes les lectures. Règle de cohérence globale ajoutée à `CLAUDE.md`.

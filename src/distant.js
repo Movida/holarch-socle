@@ -14,11 +14,16 @@ const MARQUE = '# Écrit par HOLARCH (holarch distant)';
 const PREFIXE = 'holarch-distant-';
 
 export const nomDe = (chemin) => path.basename(chemin).replace(/[^A-Za-z0-9_.-]+/g, '-');
-const guillemets = (s) => (/[\s"'\\]/.test(s) ? `"${s.replace(/(["\\])/g, '\\$1')}"` : s);
+// Mot pour le shell (entre apostrophes), puis ligne de commande pour systemd (entre guillemets, `$` et `%` doublés).
+const shell = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+const systemd = (s) => `"${s.replace(/(["\\])/g, '\\$1').replace(/\$/g, '$$$$').replace(/%/g, '%%')}"`;
 
+// Au démarrage, le serveur reprend la dernière session du dossier (`--continue`, si elle date de moins de quatre heures
+// environ) ; sinon il en crée une. Sans cette reprise, chaque redémarrage laissait une session vide dans l'application.
 export function uniteDe({ nom, chemin, claude, mode }) {
   const bins = [...new Set([path.dirname(claude), path.dirname(process.execPath), '/usr/local/bin', '/usr/bin', '/bin'])];
-  const args = ['remote-control', '--name', nom, '--remote-control-session-name-prefix', nom, ...(mode ? ['--permission-mode', mode] : [])];
+  const options = ['--name', nom, '--remote-control-session-name-prefix', nom, ...(mode ? ['--permission-mode', mode] : [])].map(shell).join(' ');
+  const script = `${shell(claude)} remote-control --continue ${options} || exec ${shell(claude)} remote-control ${options}`;
   return `${MARQUE} : accès distant au projet ${nom}. Retiré par \`holarch distant desactiver ${nom}\`.
 [Unit]
 Description=Claude Code Remote Control : ${nom}
@@ -26,8 +31,8 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=${chemin}
-Environment=PATH=${bins.join(':')}
-ExecStart=${[claude, ...args].map(guillemets).join(' ')}
+Environment=${systemd(`PATH=${bins.join(':')}`)}
+ExecStart=/bin/sh -c ${systemd(script)}
 Restart=on-failure
 RestartSec=30
 StandardOutput=null

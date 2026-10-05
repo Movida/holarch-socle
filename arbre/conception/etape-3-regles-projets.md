@@ -31,7 +31,7 @@ d'office (un serveur actif coûte de la mémoire, environ 200 Mo).
 | Commande | Effet |
 |---|---|
 | `holarch distant` | liste les projets dont l'accès distant est actif |
-| `holarch distant activer <projet>` | déclare le dossier de confiance pour Claude Code, écrit le service utilisateur du projet, l'active et le démarre |
+| `holarch distant activer <projet>` | déclare le dossier de confiance pour Claude Code, écrit le service utilisateur du projet, l'active et le démarre ; au démarrage, le serveur reprend la dernière session du dossier (`--continue`, moins de quatre heures environ), sinon en crée une |
 | `holarch distant desactiver <projet>` | arrête et retire le service ; la déclaration de confiance reste |
 
 `<projet>` est un projet du catalogue, désigné par son nom, un chemin ou son identifiant (décision `rattachement-projet`).
@@ -123,6 +123,10 @@ de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas r
   l'arbre, lecture `projets` (page « Projets », filtre des sessions par dépôt, outil MCP) ; 4 tests, test visuel
   étendu (à passer dans le conteneur du socle, sans Chromium ici). Essai à blanc sur une copie des données du poste
   personnel : 173 compléments et rien d'autre ; 57 sessions sur 30 jours rattachées au lieu de 13.
+- **Fait (2026-10-05)** : sessions vides dans l'application : chaque démarrage d'un serveur Remote Control en crée une
+  d'avance. Le service d'un projet reprend désormais la dernière session du dossier (`--continue`), et n'en crée une
+  qu'à défaut (essayé : options acceptées, échec propre sans session récente ; ligne vérifiée sous systemd) ; `PATH` du
+  service entre guillemets. Option plus radicale, `--no-create-session-in-dir` : Q15.
 - **Fait (2026-10-05)** : décision `rattachement-projet` (approuvée) appliquée : module `projets` partagé ; lien
   `project` sur les fiches (éléments Claude Code d'un dépôt, mémoires, nœuds de l'arbre, conteneurs et volumes ; contrat
   fiche 0.4.0) ; `data.projets` remplace `data.depots` avant tout import réel (contrat événement 0.7.0) ; une seule

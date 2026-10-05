@@ -33,7 +33,10 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   const texte = fs.readFileSync(path.join(unites, r.unite), 'utf8');
   assert.match(texte, /^# Écrit par HOLARCH/);
   assert.match(texte, new RegExp(`^WorkingDirectory=${path.join(racine, 'demo')}$`, 'm'));
-  assert.match(texte, /^ExecStart=\/opt\/outils\/claude remote-control --name demo --remote-control-session-name-prefix demo --permission-mode auto$/m);
+  // Reprise de la dernière session du dossier, sinon une nouvelle (pas de session vide à chaque redémarrage).
+  const options = "'--name' 'demo' '--remote-control-session-name-prefix' 'demo' '--permission-mode' 'auto'";
+  assert.match(texte, new RegExp(`^ExecStart=/bin/sh -c "'/opt/outils/claude' remote-control --continue ${options} \\|\\| exec '/opt/outils/claude' remote-control ${options}"$`, 'm'));
+  assert.match(texte, /^Environment="PATH=\/opt\/outils:/m);
   const c = JSON.parse(fs.readFileSync(cfgClaude, 'utf8'));
   assert.equal(c.projects[path.join(racine, 'demo')].hasTrustDialogAccepted, true);
   assert.deepEqual([c.autre, c.projects['/x']], [1, { hasTrustDialogAccepted: false, garde: true }]);
