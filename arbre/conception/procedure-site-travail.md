@@ -89,6 +89,8 @@ multiplicateurs de cache s'appliquant au tarif rapide. Sans grille, le coût res
 - **autant de serveurs que de cibles configurées** : avec `failOpen`, une cible qui n'a pas démarré est ignorée sans
   erreur côté client (seul un avertissement au journal le dit) ; comparer le préfixe de chaque outil listé à la liste des
   cibles, et relire les avertissements du journal ;
+- **les scripts de vérification ferment leurs sessions** (`terminateSession` du client officiel) : une session laissée
+  ouverte garde ses serveurs stdio jusqu'à 30 min d'inactivité ;
 - **une session neuve** : mesurer le délai de `initialize` (de l'ordre de la seconde par serveur léger ; plus, des
   serveurs qui ouvrent des connexions à une base). Au-delà de ce que tolère un client (quelques dizaines de secondes), voir
   « Reprise après blocage ».

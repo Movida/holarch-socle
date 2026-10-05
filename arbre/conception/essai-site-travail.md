@@ -95,7 +95,13 @@ cette page n'en porte aucune. agentgateway 1.6.0, `mcp-remote` 0.14.3, Node 24 L
     exécutable Windows depuis WSL) à chaque session échoue quand plusieurs sessions démarrent ensemble (expiration de
     l'interopérabilité). En serveur partagé, les secrets ne sont lus qu'une fois. Un connecteur sans connexions limitées
     mais avec des secrets gagne donc aussi à être partagé.
-18. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
+18. **Ce qui libère une session de la passerelle.** Une session fermée par le client (`DELETE`) libère aussitôt ses
+    serveurs stdio ; une session abandonnée expire après `config.mcp.sessionTtl` (30 min par défaut), compté depuis la
+    **dernière activité** (vérifié : une session active survit au-delà du délai, une inactive expire). Les accumulations
+    des constats 6 et 9 viennent de sessions jamais fermées : réessais d'un client, et scripts de vérification qui ne
+    fermaient pas les leurs (17 séries vivantes pour une dizaine d'essais). Délai laissé au défaut : plus court, il
+    couperait une session de client inactive, et la reprise par le pont n'est pas vérifiée.
+19. **Non vérifié.** La carte « Appels MCP » à l'écran (le journal contient bien les événements) ; la panne d'un serveur
     sous `failOpen` (vérifiée à l'essai précédent, pas ici).
 
 ## Pistes
