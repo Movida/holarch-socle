@@ -2,6 +2,11 @@
 
 ## 2026-10-05
 
+* **Import vu de deux montages** : un même répertoire de transcriptions lu depuis un conteneur puis depuis l'hôte
+  était importé deux fois (état et identifiants fondés sur le chemin absolu) ; ils se fondent désormais sur le chemin
+  relatif au compte, l'état ancien est repris. Constaté sur un site réel : les événements en double sont à retirer
+  du journal, exception au contrat (ajout seul) consentie par l'auteur, journal sauvegardé avant.
+
 * **Clôture de l'étape 2** : close sur l'usage au travail (décision `cloture-etape-2`) ; retour sur le critère de
   l'étape 1 (une journée de consultation, mesure faussée par un défaut de branchement) : il n'est plus une condition ;
   l'usage attendu de l'interface est le suivi des projets (Q14). Le critère « ici » de l'étape 2 reste ouvert.

@@ -3,6 +3,8 @@
 // tool.denied (refus d'outil : origine et outil, jamais le contenu), tool.called (appel d'un outil MCP : serveur, outil,
 // issue ; jamais les arguments ni la réponse).
 // Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
+// Un fichier se repère par son chemin relatif au répertoire du compte (`projects/…`), pas par son chemin absolu : le
+// même répertoire lu depuis deux points de montage (un conteneur et l'hôte) ne compte qu'une fois.
 // Le coût en USD ne se calcule pas ici mais à la lecture, depuis la grille de tarifs configurée (src/tarifs.js).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -92,50 +94,70 @@ function analyser(f) {
   return r;
 }
 
+// Clé d'un fichier dans l'état d'import et dans la graine des identifiants : chemin relatif au répertoire du compte,
+// préfixé du nom du compte s'il en a un.
+const cleDe = (home, f, nomCompte) => (nomCompte ? `${nomCompte}:` : '') + path.relative(home, f).split(path.sep).join('/');
+
+// Un état écrit avant ces clés relatives portait des chemins absolus, peut-être vus d'un autre point de montage :
+// la partie à partir du dernier `/projects/` les rattache au même fichier. Le plus avancé l'emporte.
+function migrerEtat(etat) {
+  const anciens = new Map();
+  for (const [k, v] of Object.entries(etat)) {
+    if (!k.startsWith('/')) continue;
+    const i = k.lastIndexOf('/projects/');
+    if (i >= 0) { const r = k.slice(i + 1); if (!anciens.has(r) || (v.taille || 0) > (anciens.get(r).taille || 0)) anciens.set(r, v); }
+    delete etat[k];
+  }
+  return anciens;
+}
+
 export default function importerTranscriptions(options, { journal, donnees, passerelles = [], comptes = null }) {
   const viaPasserelle = new Set(passerelles.map((n) => String(n).replace(/[^A-Za-z0-9_-]/g, '_')));
   const etatF = path.join(donnees, 'import', 'claude-code-transcriptions.json');
   let etat = {}; try { etat = JSON.parse(fs.readFileSync(etatF, 'utf8')); } catch { /* premier import */ }
+  const anciens = migrerEtat(etat);
   const calme = (options.calme_minutes ?? 10) * 60e3;
   const evenements = []; let lus = 0; let enCours = 0;
   // Plusieurs comptes (un répertoire chacun) : chaque événement porte le compte qui a produit la session.
-  const sources = (comptes || [{ nom: null, home: options.home }]).flatMap((c) => fichiers(c.home).map((f) => [f, c.nom]));
-  for (const [f, nomCompte] of sources) {
+  const sources = (comptes || [{ nom: null, home: options.home }]).flatMap((c) => fichiers(c.home).map((f) => [f, c.nom, c.home]));
+  for (const [f, nomCompte, home] of sources) {
     const st = fs.statSync(f);
-    const prec = etat[f];
+    const cle = cleDe(home, f, nomCompte);
+    if (!etat[cle] && anciens.has(cleDe(home, f, null))) etat[cle] = anciens.get(cleDe(home, f, null));
+    const prec = etat[cle];
     if (prec && prec.taille === st.size && prec.v === VERSION_ETAT) continue;
     if (Date.now() - st.mtimeMs < calme) { enCours++; continue; }
     const a = analyser(f); lus++;
-    if (!a.session || !a.debut) { etat[f] = { v: VERSION_ETAT, taille: st.size, cumuls: {}, session: false }; continue; }
+    if (!a.session || !a.debut) { etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: {}, session: false }; continue; }
     const principal = Object.entries(a.modeles).sort((x, y) => y[1].out - x[1].out)[0]?.[0] || 'inconnu';
     const actor = `agent:claude-code/${principal}`;
     const projet = a.cwd ? path.basename(a.cwd) : null;
     const corr = a.sousAgent ? `${a.session}:${path.basename(f, '.jsonl')}` : a.session;
     const base = { actor, correlation: corr, classification: 'internal' };
     const cpt = nomCompte ? { compte: nomCompte } : {};
-    if (!prec?.session) evenements.push({ ...base, id: ulid(Date.parse(a.debut), `${f}:start`), at: a.debut, kind: 'session.started', data: { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null } });
+    if (!prec?.session) evenements.push({ ...base, id: ulid(Date.parse(a.debut), `${cle}:start`), at: a.debut, kind: 'session.started', data: { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null } });
     for (const [m, t] of Object.entries(a.modeles)) {
       const avant = prec?.cumuls?.[m] || {};
       const delta = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v - (avant[k] || 0)]));
       if (Object.values(delta).every((v) => v <= 0)) continue;
-      evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:${m}:${t.out}:${t.cache_read}:${t.cache_write_1h}`), at: a.fin, kind: 'cost.recorded',
+      evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:${m}:${t.out}:${t.cache_read}:${t.cache_write_1h}`), at: a.fin, kind: 'cost.recorded',
         // Un identifiant préfixé (`fournisseur/modèle`) est passé par un intermédiaire, qui facture lui-même.
         data: { projet, ...cpt, sous_agent: a.sousAgent, ...(m.includes('/') && { via: 'intermediaire' }) },
         cost: { provider: m.includes('/') ? m.split('/')[0] : 'anthropic', model: m, usd_list: null, tokens: delta } });
     }
     for (const x of a.refus) {
-      evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${f}:refus:${x.cle}`), at: x.at || a.fin, kind: 'tool.denied',
+      evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${cle}:refus:${x.cle}`), at: x.at || a.fin, kind: 'tool.denied',
         data: { projet, ...cpt, sous_agent: a.sousAgent, outil: x.outil, origine: x.origine, categorie: x.categorie } });
     }
     for (const x of a.appels.values()) {
       if (viaPasserelle.has(x.serveur)) continue; // la passerelle le journalise elle-même, avec le vrai serveur et le vrai outil
-      evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${f}:appel:${x.cle}`), at: x.at || a.fin, kind: 'tool.called',
+      evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${cle}:appel:${x.cle}`), at: x.at || a.fin, kind: 'tool.called',
         data: { projet, ...cpt, sous_agent: a.sousAgent, serveur: x.serveur, outil: x.outil, statut: x.statut } });
     }
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
-    evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${f}:end:${a.fin}`), at: a.fin, kind: 'session.finished',
+    evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:end:${a.fin}`), at: a.fin, kind: 'session.finished',
       data: { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null, tours: a.tours, invites: a.invites, duree_s: duree, modeles: Object.keys(a.modeles) } });
-    etat[f] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
+    etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
   }
   const r = journal.ajouter(evenements);
   fs.mkdirSync(path.dirname(etatF), { recursive: true });

@@ -127,6 +127,26 @@ test('import des transcriptions : sessions et tokens, dédoublonnage des message
   assert.equal([...journal.lire()].filter((e) => e.kind === 'session.started').length, 1);
 });
 
+test('import : le même répertoire lu depuis deux points de montage ne compte qu’une fois, état ancien compris', () => {
+  const donnees = tmp(); const a = tmp(); const b = tmp();
+  const rel = path.join('projects', '-ws-demo', 's3.jsonl');
+  const ligne = (id, out) => JSON.stringify({ type: 'assistant', sessionId: 's3', cwd: '/ws/demo', timestamp: `2026-10-01T10:0${id}:00Z`, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', usage: { input_tokens: 1, output_tokens: out } } });
+  for (const h of [a, b]) { ecrire(path.join(h, rel), ligne(1, 5) + '\n'); vieillir(path.join(h, rel)); }
+  const journal = new Journal(donnees, 'local');
+  assert.equal(importerTranscriptions({ home: a, calme_minutes: 10 }, { journal, donnees }).ajoutes, 3);
+  assert.equal(importerTranscriptions({ home: b, calme_minutes: 10 }, { journal, donnees }).fichiers_lus, 0);
+  // État d'une version qui notait le chemin absolu, vu depuis l'autre montage : repris, seul l'ajout devient un événement.
+  const etatF = path.join(donnees, 'import', 'claude-code-transcriptions.json');
+  const etat = JSON.parse(fs.readFileSync(etatF, 'utf8'));
+  fs.writeFileSync(etatF, JSON.stringify({ [path.join(a, rel)]: etat[rel.split(path.sep).join('/')] }));
+  fs.appendFileSync(path.join(b, rel), ligne(2, 7) + '\n'); vieillir(path.join(b, rel));
+  const r = importerTranscriptions({ home: b, calme_minutes: 10 }, { journal, donnees });
+  assert.equal(r.ajoutes, 2);
+  const ev = [...journal.lire()];
+  assert.equal(ev.filter((e) => e.kind === 'session.started').length, 1);
+  assert.equal(ev.filter((e) => e.kind === 'cost.recorded').reduce((x, e) => x + e.cost.tokens.out, 0), 12);
+});
+
 test('configuration : commune, puis propre au site, le site venant de HOLARCH_SITE ou du fichier commun', async () => {
   const { chargerConfig } = await import('../src/config.js');
   const d = tmp(); const f = path.join(d, 'config.yaml');
