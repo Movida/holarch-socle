@@ -75,11 +75,11 @@ switch (cmd) {
         afficher(json ? sortie : sortie.join('\n'));
       } else if (action) {
         const r = s.regles({ projet: action });
-        afficher(json ? r : [`${r.nom} — types : ${r.arbre?.types.join(', ') || 'aucun'} ; ${r.regles.length} règle(s), ${r.regles.filter((e) => e.applicable).length} appliquée(s) ; rappels : ${r.rappels} caractères à chaque tour`,
+        afficher(json ? r : [`${r.nom} — types : ${r.arbre?.types.join(', ') || 'aucun'} ; ${r.regles.length} règle(s), ${r.regles.filter((e) => e.applicable).length} appliquée(s) ; rappels : ${r.rappels} caractères à chaque tour${r.rappels_proposes ? ` (+${r.rappels_proposes} si les proposées sont approuvées)` : ''}`,
           ...r.regles.map(ligne), ...r.signaux.map((x) => `ATTENTION ${x}`)].join('\n'));
       } else {
         const r = s.regles();
-        afficher(json ? r : [`compte — ${r.compte.regles.length} règle(s), ${r.compte.regles.filter((e) => e.applicable).length} appliquée(s) ; rappels : ${r.compte.rappels} caractères à chaque tour`,
+        afficher(json ? r : [`compte — ${r.compte.regles.length} règle(s), ${r.compte.regles.filter((e) => e.applicable).length} appliquée(s) ; rappels : ${r.compte.rappels} caractères à chaque tour${r.compte.rappels_proposes ? ` (+${r.compte.rappels_proposes} si les proposées sont approuvées)` : ''}`,
           ...r.compte.regles.map(ligne), ...r.compte.signaux.map((x) => `ATTENTION ${x}`), '',
           ...(r.projets.length ? r.projets.map((p) => `${p.nom} : ${p.declare ? 'déclaré' : 'non déclaré par un contexte'}, types ${p.types.join(', ') || 'aucun'}, ${p.appliquees} appliquée(s), ${p.proposees} proposée(s)${p.signaux ? `, ${p.signaux} signal(aux)` : ''}`) : ['aucun projet n’a de règles']) ].join('\n'));
       }

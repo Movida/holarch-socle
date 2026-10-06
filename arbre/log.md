@@ -2,6 +2,12 @@
 
 ## 2026-10-06
 
+* **Arbre des règles, réalisation** (tranche 3) : règle effective calculée (profil, contexte, types, projet ;
+  provenance, dérogations, règles non dérogeables), écrite pour Claude Code dans `~/.claude/rules/holarch/` et
+  `.claude/rules/holarch/` (fichiers marqués, retirés quand leur règle disparaît) ; `holarch regles`, page « Règles »,
+  outil MCP. Types transverses `methode-holarch` et `depot-public`, règles du socle, profil et second projet branchés ;
+  toutes les règles en brouillon, en attente d'approbation.
+
 * **Arbre des règles** : décision `arbre-des-regles` proposée (draft) d'après la consigne de l'auteur : profil en
   racine des règles, socle en types transverses (`methode-holarch`, `depot-public`), appartenance d'un projet déclarée
   par son contexte (lien côté le plus fermé), règles matérialisées dans les portées de Claude Code ; approuvée par

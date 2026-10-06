@@ -1,0 +1,6 @@
+# Règles du type `depot-public` (contrat règle). Brouillons tant que l'auteur ne les a pas approuvées.
+- id: rien-de-personnel
+  statement: "Ce dépôt est public. Aucun nom de personne, de client ou de projet personnel, aucun chemin de machine, compte ou secret dans un fichier suivi ; un exemple se rédige avec des données fictives. Le vérifier avant de rendre la main."
+  why: "Une donnée publiée ne se reprend pas."
+  level: reminder
+  source: harvest

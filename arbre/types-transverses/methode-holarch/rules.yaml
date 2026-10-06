@@ -1,0 +1,36 @@
+# Règles du type `methode-holarch` (contrat règle). Brouillons tant que l'auteur ne les a pas approuvées.
+- id: brouillon-jusqu-a-approbation
+  statement: "Tout ce que l'agent crée est en brouillon (`status: draft`). Un élément ne passe en `stable` que lorsque l'agent consigne une approbation humaine écrite (`approved: {by, at, ref}`), jamais de lui-même."
+  why: "Seul ce qui est stable oblige ; une approbation déduite ferait passer une proposition pour une règle."
+  level: reminder
+  source: harvest
+- id: fait-inconnu-marque
+  statement: "Un fait inconnu ne s'invente pas. Il se marque `[À COMPLÉTER : ce qui manque]` et s'ajoute au registre des questions ouvertes du projet. Sur un choix de méthode, l'agent propose, en le marquant comme proposition."
+  why: "Un fait inventé se propage sans que rien ne le signale."
+  level: reminder
+  source: harvest
+- id: rien-a-l-avance
+  statement: "Rien n'est créé à l'avance. Pas de document, de dossier, de brique ou de code sans une étape en cours qui l'appelle."
+  why: "Ce qui ne sert pas encore coûte à lire et à tenir, et oriente à tort."
+  level: reminder
+  source: harvest
+- id: contrainte-changee-par-decision
+  statement: "Une contrainte approuvée ne se contourne pas. La changer passe par une décision écrite, soumise à l'humain, qui dit ce qu'elle modifie."
+  why: "Une contrainte contournée en silence cesse d'en être une, sans que personne l'ait décidé."
+  level: reminder
+  source: harvest
+- id: revue-suspend
+  statement: "Un document qui porte un bloc `review` est suspendu pour ce que ce bloc dit. On ne construit pas dessus, on le signale."
+  why: "La revue protège d'une prémisse contestée ; bâtir dessus la propagerait."
+  level: reminder
+  source: harvest
+- id: approuver-n-autorise-pas
+  statement: "Approuver un contenu n'autorise pas à agir avec. Publier, envoyer, déployer ou pousser demande une autorisation explicite, qui porte sur une version et une destination."
+  why: "Une action au dehors ne se reprend pas ; l'approbation d'un texte ne dit rien de sa destination."
+  level: reminder
+  source: harvest
+- id: journal-du-projet
+  statement: "Une session qui change l'arbre du projet laisse une entrée datée dans son journal, la plus récente en tête."
+  why: "La session suivante reprend d'après le journal, pas d'après une mémoire de conversation."
+  level: reminder
+  source: harvest

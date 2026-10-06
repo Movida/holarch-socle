@@ -60,7 +60,10 @@ function couchesDeclarant(a, declarant) {
 }
 
 const applicable = (e) => e.statut === 'stable' && !e.derogee;
-const tailleRappels = (l) => l.filter((e) => applicable(e) && e.niveau === 'reminder').reduce((t, e) => t + e.enonce.length + (e.pourquoi?.length || 0), 0);
+const taille = (l) => l.filter((e) => e.niveau === 'reminder').reduce((t, e) => t + e.enonce.length + (e.pourquoi?.length || 0), 0);
+const tailleRappels = (l) => taille(l.filter(applicable));
+// Ce que les règles proposées ajouteraient à chaque tour si elles étaient approuvées : à savoir avant d'approuver.
+const tailleProposes = (l) => taille(l.filter((e) => e.statut === 'draft' && !e.derogee));
 
 /**
  * Règle effective d'un projet : { regles, signaux, rappels } ; `rappels` compte les caractères chargés à chaque tour.
@@ -91,7 +94,7 @@ export function regleEffective(fiches, projetId) {
   for (const n of [racine, ...couches.map((c) => c.noeud)].filter(Boolean)) if (n.attributes?.erreur_regles) signaux.push(`${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_regles}`);
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
   return { projet: projetId, arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
-    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), signaux: [...new Set(signaux)], rappels: tailleRappels(regles) };
+    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), signaux: [...new Set(signaux)], rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /**
@@ -100,13 +103,13 @@ export function regleEffective(fiches, projetId) {
  */
 export function regleDuCompte(fiches) {
   const a = arbresDe(fiches); const signaux = [];
-  if (!a.profils.length) return { regles: [], signaux: ['aucun profil connu sur ce site (un arbre qui porte des nœuds context)'], rappels: 0 };
-  if (a.profils.length > 1) return { regles: [], signaux: [`plusieurs profils sur ce site : ${a.profils.map((p) => p.attributes.arbre).join(', ')} ; rien n’est posé au compte`], rappels: 0 };
+  if (!a.profils.length) return { regles: [], signaux: ['aucun profil connu sur ce site (un arbre qui porte des nœuds context)'], rappels: 0, rappels_proposes: 0 };
+  if (a.profils.length > 1) return { regles: [], signaux: [`plusieurs profils sur ce site : ${a.profils.map((p) => p.attributes.arbre).join(', ')} ; rien n’est posé au compte`], rappels: 0, rappels_proposes: 0 };
   const ctx = a.contextes.filter((n) => n.attributes.arbre === a.profils[0].attributes.arbre);
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profils[0], regles: a.regles.get(a.profils[0].id) || [] }];
   const regles = fusionner(couches, signaux);
-  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), signaux, rappels: tailleRappels(regles) };
+  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), signaux, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /** Les projets qu'un contexte (ou une activité) déclare. */

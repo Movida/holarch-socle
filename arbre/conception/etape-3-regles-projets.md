@@ -137,9 +137,10 @@ HOLARCH et sur un second projet privé du contexte personnel, un bundle de conna
 1. **Profil** (dépôt privé de l'auteur) : racine `arbre/index.md` (`id: profil`), contexte `arbre/contextes/perso.md`
    qui déclare ses projets (`projects`), et les règles récoltées dans `rules.yaml` à côté de la racine, en `draft`
    (`source: harvest`, avec les mémoires qu'elles remplacent) jusqu'à l'approbation de l'auteur.
-2. **Types transverses du socle**, un nœud chacun sous `arbre/types-transverses/`, ses règles dans un `rules.yaml` à
-   côté : `methode-holarch` et `depot-public`. Une règle de type dit un comportement ; ce qui varie d'un projet à
-   l'autre (emplacement du registre des questions, du journal) est un réglage du projet (`config`), que la règle cite.
+2. **Types transverses du socle**, un dossier chacun sous `arbre/types-transverses/` (`index.md`, nœud `template`, et
+   `rules.yaml`) : `methode-holarch` et `depot-public`. Une règle de type dit un comportement et désigne un registre
+   par son rôle (« le registre des questions ouvertes du projet ») ; le projet dit où il est dans ses propres consignes.
+   Un réglage (`config`) cité par la règle viendra quand un cas l'exigera.
 3. **Racine de l'arbre d'un projet** : `arbre/index.md`, sinon l'`index.md` d'un bundle OKF à la racine du dépôt.
    Elle déclare ses `types` et porte les règles propres au projet.
 4. **Inventaire** (adaptateur `arbre`, qui lit déjà les nœuds) : une fiche `rule` par règle
@@ -176,7 +177,7 @@ second projet garde son `CLAUDE.md` tant que ses autres agents n'ont pas d'adapt
 | `.claude/rules/` et `~/.claude/rules/`, un fichier par règle | portées natives de Claude Code (P2) ; une règle se retire en retirant son fichier ; le `CLAUDE.md` écrit à la main reste intact | une portée que le runtime ne lit plus |
 | règles du profil à la portée du compte | un seul contexte par site aujourd'hui | deux contextes sur un même site : portée locale par projet (`CLAUDE.local.md` ou import depuis le compte) |
 | `rules.yaml` lu par l'inventaire, pas une base | les règles se relisent et se versionnent avec leur arbre (contrat règle) | — |
-| règle de type en comportement, chemins en `config` | une même règle sert des projets à structures différentes | — |
+| règle de type en comportement, registre désigné par son rôle | une même règle sert des projets à structures différentes, sans réglage à tenir | une règle qui doit citer un chemin exact : réglage `config` du projet |
 
 **Limites connues.** Les règles du compte valent pour tous les projets du site, même ceux qu'aucun contexte ne déclare.
 Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils n'ont pas d'adaptateur.
@@ -213,7 +214,15 @@ Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils 
   (nouveaux projets conformes d'office, sous-niveaux d'un projet, HOLARCH lui-même) ; décision `arbre-des-regles`
   proposée (profil en racine, socle en types, lien entre arbres côté le plus fermé, matérialisation dans les portées
   de Claude Code) ; Q16 et Q17 ouvertes.
+- **Fait (2026-10-06)** : tranche 3, points 1 à 7. Adaptateur `arbre` : racine d'un bundle OKF, identité de l'arbre,
+  fiches `rule` ; module `regles` (règle effective, portée du compte, rappels comptés, et ceux des proposées) ;
+  adaptateur Claude Code (`holarch regles`, `holarch regles appliquer`) ; page « Règles », lien depuis la carte d'un
+  projet, outil MCP `regles` ; 3 tests, test visuel étendu (passé dans le conteneur). Contenu : types
+  `methode-holarch` (7 règles) et `depot-public` (1), règles propres au socle (6), profil (4 règles récoltées,
+  contexte personnel déclarant les deux projets), type déclaré à la racine du second projet (son vérificateur passe,
+  son journal le dit). Toutes les règles sont en brouillon : rien n'est encore écrit pour Claude Code.
 - **Reste** :
-  1. **Tranche 3, arbre des règles** : spécifiée ; à réaliser (points 1 à 7), puis critère de la tranche.
+  1. **Tranche 3, critère** : approbation des règles par l'auteur, `holarch regles appliquer` sur les deux projets,
+     retrait des mémoires remplacées (accord de l'auteur), `CLAUDE.md` du socle réduit à ce qui lui est propre.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.

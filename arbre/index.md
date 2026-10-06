@@ -1,6 +1,8 @@
 ---
 okf_version: "0.2"
 type: guideline
+id: holarch
+types: [methode-holarch, depot-public]
 title: HOLARCH — ligne directrice
 description: Un socle autour des runtimes d'agents d'IA, qui embarque les règles, rend tout visible, conserve et vérifie le savoir, et se régule.
 status: draft
@@ -14,6 +16,7 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`fondations/principes.md`](fondations/principes.md) - les principes qui contraignent toute conception
 - [`besoins/besoins-fondateurs.md`](besoins/besoins-fondateurs.md) - les quatre besoins d'où part le système
 - [`conception/types.md`](conception/types.md) - le registre des types de nœuds
+- [`types-transverses/index.md`](types-transverses/index.md) - les types transverses qu'un projet adopte : méthode HOLARCH, dépôt public
 - [`conception/contrats/index.md`](conception/contrats/index.md) - les contrats : nœud, règle, fiche du catalogue, événement du journal
 - [`conception/etape-1-voir.md`](conception/etape-1-voir.md) - étape 1 : catalogue, journal et interface en lecture (close)
 - [`conception/etape-2-point-entree.md`](conception/etape-2-point-entree.md) - étape 2 : serveur MCP de HOLARCH, appels MCP au journal, hub de fédération

@@ -207,7 +207,7 @@ async function regles(params) {
   }).join('');
   const table = `<div class="carte tableau section"><table class="triable"><thead><tr><th>Règle</th><th>Origine</th><th>Énoncé</th><th>Niveau</th><th>Statut</th><th>Claude Code</th></tr></thead><tbody>${lignes || '<tr><td colspan="6" class="vide">Aucune règle.</td></tr>'}</tbody></table></div>`;
   const signaux = corps.signaux.length ? `<div class="carte section"><b>À regarder</b><ul>${corps.signaux.map((x) => `<li>${h(x)}</li>`).join('')}</ul></div>` : '';
-  const rappels = `<span title="Texte des règles de niveau rappel, chargé dans le contexte de l’agent à chaque tour">${nf.format(corps.rappels)} caractères chargés à chaque tour</span>`;
+  const rappels = `<span title="Texte des règles de niveau rappel, chargé dans le contexte de l’agent à chaque tour">${nf.format(corps.rappels)} caractères chargés à chaque tour${corps.rappels_proposes ? `, ${nf.format(corps.rappels_proposes)} de plus si les proposées sont approuvées` : ''}</span>`;
   if (projet) {
     return `<h1>Règles — ${h(r.nom || projet)}</h1>
       <p class="sous-titre">Règle effective du projet : profil, contexte, types${r.arbre?.types.length ? ` (${r.arbre.types.map(h).join(', ')})` : ''}, puis le projet ; le plus spécifique l’emporte. Seul le <span class="badge ok">stable</span> s’applique. ${rappels}.</p>
