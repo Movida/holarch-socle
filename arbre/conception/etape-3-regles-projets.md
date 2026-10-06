@@ -145,7 +145,7 @@ de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas r
   proposée (profil en racine, socle en types, lien entre arbres côté le plus fermé, matérialisation dans les portées
   de Claude Code) ; Q16 et Q17 ouvertes.
 - **Reste** :
-  1. **Tranche 3, arbre des règles** : approbation de la décision `arbre-des-regles`, réponses à Q16 et Q17, puis
-     spécification de la tranche.
+  1. **Tranche 3, arbre des règles** : décision `arbre-des-regles` approuvée, Q16 et Q17 résolues (dépôt du profil
+     créé, second projet cloné) ; reste la spécification de la tranche.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.

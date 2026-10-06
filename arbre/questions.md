@@ -9,12 +9,12 @@
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
 | Q13 | `conception/essai-site-travail.md` §16 | Brique Savoir : le serveur OKF fédéré en devient-il l'adaptateur, et que doit dire le contrat de la brique (lecture avant, proposition après, porte vérifiée) pour ne pas dépendre de ses outils ? À l'ouverture de l'étape 6. | cosmétique d'ici l'étape 6 |
 | Q15 | `conception/etape-3-regles-projets.md`, tranche 1 | Un serveur Remote Control lancé avec `--no-create-session-in-dir` ne crée aucune session d'avance (plus aucune session vide) : le projet reste-t-il joignable depuis l'application (nouvelle session dans ce dossier), alors qu'elle ne montre qu'un appareil par machine ? [À COMPLÉTER : essai depuis le téléphone] | cosmétique |
-| Q17 | `decisions/2026-10-06-arbre-des-regles.md` | Dépôt privé du profil : aucun n'existe (ni sur le poste personnel, ni sur le compte de l'auteur ; constat du 2026-10-06). Nom et emplacement à convenir avant de le créer. [À COMPLÉTER : accord de l'auteur] | bloquant pour la tranche 3 |
 
 ## Résolues
 
 | # | Question | Réponse |
 |---|---|---|
+| Q17 | Dépôt privé du profil | aucun n'existait ; créé le 2026-10-06 avec l'accord de l'auteur (dépôt privé de son compte, cloné à côté de ses projets) : `decisions/2026-10-06-arbre-des-regles.md` |
 | Q16 | Quel second projet pour essayer l'arbre des règles ? | un bundle de connaissances privé du contexte personnel (choix de l'auteur, 2026-10-06) : autre nature que HOLARCH (pas de code), privé, il éprouve le côté fermé de l'arbre |
 | Q14 | Que montrer d'un projet dans la vue Projets ? | avancement de ses étapes, questions et décisions qui l'attendent, activité récente (sessions, dernier commit, coût 7 et 30 j), état technique du dépôt, plus tard ses écarts aux règles ; une session se rattache aux dépôts où elle a travaillé (accord de l'auteur, 2026-10-05) : `conception/etape-3-regles-projets.md` |
 | Q1 | Une classification peut-elle se relâcher en descendant ? | Non : `decisions/2026-10-03-classification.md` |

@@ -4,7 +4,8 @@
 
 * **Arbre des règles** : décision `arbre-des-regles` proposée (draft) d'après la consigne de l'auteur : profil en
   racine des règles, socle en types transverses (`methode-holarch`, `depot-public`), appartenance d'un projet déclarée
-  par son contexte (lien côté le plus fermé), règles matérialisées dans les portées de Claude Code ; Q16 et Q17.
+  par son contexte (lien côté le plus fermé), règles matérialisées dans les portées de Claude Code ; approuvée par
+  l'auteur. Q16 (second projet d'essai) et Q17 (dépôt du profil, créé) résolues.
 
 * **Cartes projet** : à leur hauteur naturelle (avis de l'auteur).
 

@@ -2,7 +2,8 @@
 type: decision
 title: Un arbre des règles pour tous les projets, réparti entre dépôts
 description: Le profil est la racine des règles d'une personne, le socle fournit des types ; un lien entre arbres se pose du côté le plus fermé ; les règles se matérialisent dans les portées du runtime.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-06, ref: "échange du 2026-10-06, « Tout cela me va ! » (décision, dépôt du profil, second projet)" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/decisions/2026-10-03-classification.md, /arbre/conception/contrats/noeud.md, /arbre/conception/contrats/regle.md, /arbre/conception/types.md]
