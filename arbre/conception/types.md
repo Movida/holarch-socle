@@ -4,9 +4,10 @@ title: Registre des types de nœuds
 description: Les types de nœuds de l'arbre, leurs parents admis et leurs liens obligatoires. Extensible par décision.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ça me va » (avis rendu point par point)" }
-version: 0.1.0
+version: 0.2.0
 links:
   derives_from: [/arbre/conception/contrats/noeud.md]
+  constrained_by: [/arbre/decisions/2026-10-06-arbre-des-regles.md]
 ---
 
 # Registre des types de nœuds
@@ -18,7 +19,7 @@ vérificateur, l'interface) lit ce registre, il ne code aucun type en dur.
 |---|---|---|---|
 | `guideline` | ligne directrice, racine d'un arbre | — | — |
 | `manifesto`, `principles` | fondations : pourquoi, contraintes et préférences | `guideline`, `manifesto` | — |
-| `context` | contexte cloisonné (pro, perso, client…) | `guideline` | — |
+| `context` | contexte cloisonné (pro, perso, client…) ; déclare ses projets (`projects`) | `guideline` | — |
 | `activity` | activité ou domaine regroupant des projets | `guideline`, `context`, `activity` | — |
 | `project` | projet ; peut déclarer des `types` transverses | `context`, `activity`, `project` | — |
 | `need` | besoin qualifié | tout nœud au-dessus | `constrained_by` dès qu'une contrainte s'applique |
@@ -30,6 +31,8 @@ vérificateur, l'interface) lit ce registre, il ne code aucun type en dur.
 | `decision` | décision, transversale | tout nœud | `modifies` si elle change un nœud `stable` |
 | `contract` | contrat versionné | `guideline`, `need`, `spec`, `contract` | — |
 | `procedure` | procédure (guide d'application d'une règle, mode opératoire) | tout nœud | — |
+| `template` | type transverse de projet : ensemble de règles et de réglages qu'un projet adopte par `types` | `guideline` | — |
 
-Types transverses de projet (gabarits partagés par des projets de parents différents, §5.2 de l'architecture) : registre
-à ouvrir à l'étape 3, quand le premier sera utilisé (principe P8).
+Types transverses de projet (gabarits partagés par des projets de parents différents, §5.2 de l'architecture) : nœuds
+`template`, fournis par le socle sous `arbre/types-transverses/` (décision `arbre-des-regles`) ou par un profil. Ils
+s'ajoutent quand un projet les adopte (principe P8).

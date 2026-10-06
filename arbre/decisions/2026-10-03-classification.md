@@ -19,3 +19,6 @@ celui qu'il déclare. Un contenu plus ouvert que sa branche change de place dans
 
 **Raison.** L'erreur dans ce sens est une fuite silencieuse, irréversible pour un dépôt public ; l'erreur inverse
 n'est qu'une gêne, visible et corrigeable. Assouplir plus tard reste possible, par une décision explicite.
+
+**Portée (2026-10-06).** Le durcissement vaut à l'intérieur d'un arbre ; d'un arbre à l'autre, seules les règles et la
+configuration descendent, et un projet garde sa classification (décision `arbre-des-regles`).

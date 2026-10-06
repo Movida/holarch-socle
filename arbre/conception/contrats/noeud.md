@@ -3,10 +3,10 @@ type: contract
 title: Contrat — nœud de l'arbre
 description: Ce qu'est un nœud (un fichier Markdown à en-tête YAML), ses champs, ses liens typés, son cycle de vie et l'héritage de configuration.
 status: draft
-version: 0.1.0
+version: 0.2.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/decisions/2026-10-03-classification.md, /arbre/fondations/principes.md]
+  constrained_by: [/arbre/decisions/2026-10-03-classification.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/fondations/principes.md]
 ---
 
 # Contrat — nœud de l'arbre
@@ -16,6 +16,9 @@ links:
 Un nœud est **un fichier Markdown** avec un en-tête YAML, compatible avec Open Knowledge Format (OKF 0.2). Un dossier
 regroupe les nœuds d'un même niveau et porte un `index.md` (liste des nœuds, une ligne « - description » chacun).
 L'identité d'un nœud est son chemin depuis la racine de l'arbre ; un `id` explicite survit aux déplacements.
+
+Un dépôt porte au plus un arbre. Sa **racine** est `arbre/index.md`, sinon l'`index.md` d'un bundle OKF à la racine du
+dépôt (en-tête `okf_version`). L'`id` de la racine nomme l'arbre et sert aux liens entre arbres (§3).
 
 Un nœud n'existe que s'il aide à décider ou à agir (principe P8).
 
@@ -32,7 +35,8 @@ Un nœud n'existe que s'il aide à décider ou à agir (principe P8).
 | `review` | non | revue ouverte : `{reason, since, suspends, keeps}` ; un nœud en revue est suspendu pour ce que dit `suspends` |
 | `as_of`, `stale_after` | non | date de validité, date de péremption |
 | `classification` | non (hérité) | `public` · `internal` · `confidential` · `sensitive` |
-| `types` | non | types transverses d'un `project`, dans l'ordre d'héritage |
+| `types` | non | types transverses d'un `project`, dans l'ordre d'héritage (`id` de leur nœud `template`) |
+| `projects` | non | pour un `context` ou une `activity` : les projets qu'il porte, par identifiant du catalogue (`holarch:project:<id>`) |
 | `roles` | non (hérité) | `{subject: [human:…], operator: [human:…], …}` |
 | `config` | non (hérité) | réglages, clés prises dans le registre de configuration (étape 1) |
 | `links` | selon le type | voir §3 |
@@ -51,7 +55,12 @@ Un nœud n'existe que s'il aide à décider ou à agir (principe P8).
 | `realized_by` | ce qui réalise le nœud (tranche, livrable, élément du catalogue) |
 
 Les liens sont des chemins absolus depuis la racine du dépôt de l'arbre, ou des identifiants du catalogue
-(`holarch:<kind>:<slug>`, contrat fiche).
+(`holarch:<kind>:<slug>`, contrat fiche), ou, vers un autre arbre, `<id de sa racine>:<chemin>` (exemple fictif :
+`profil:/arbre/contextes/perso.md`) ; un lien non résolu est signalé et ne casse rien.
+
+**Entre arbres, le lien se pose du côté le plus fermé** : un contexte (privé) déclare ses projets (`projects`) ; un
+dépôt plus ouvert ne cite jamais un arbre plus fermé. À l'intérieur d'un arbre, l'enfant déclare son parent
+(`derives_from`).
 
 ## 4. Cycle de vie et autorité
 
@@ -70,3 +79,5 @@ La **vue effective** d'un nœud est l'ensemble calculé, chaque valeur avec sa p
 
 Une `classification` ne peut que **se durcir** en descendant : un nœud ne déclare jamais un niveau plus ouvert que
 celui qu'il hérite (décision classification). Un contenu plus ouvert que sa branche change de place dans l'arbre.
+Ce durcissement vaut **à l'intérieur d'un arbre** : d'un arbre à l'autre (profil → contexte → projet), seules les
+règles et la configuration descendent, et un projet garde sa classification (décision `arbre-des-regles`).

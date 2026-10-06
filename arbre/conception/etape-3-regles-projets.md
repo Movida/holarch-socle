@@ -1,11 +1,11 @@
 ---
 type: spec
 title: Étape 3 — Règles et projets
-description: Les projets deviennent des entités suivies et outillées (accès distant à la demande, vue Projets), avant l'arbre des règles, la création de projet et l'audit de conformité.
+description: Les projets deviennent des entités suivies et outillées (accès distant à la demande, vue Projets), puis l'arbre des règles, la création de projet et l'audit de conformité.
 status: draft
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/decisions/2026-10-05-cloture-etape-2.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/fiche-catalogue.md]
+  constrained_by: [/arbre/decisions/2026-10-05-cloture-etape-2.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/conception/contrats/regle.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/fiche-catalogue.md]
 ---
 
 # Étape 3 — Règles et projets
@@ -14,8 +14,8 @@ links:
 redictée d'un projet à l'autre pendant un mois ; un nouveau projet créé sans corvée manuelle hors gestes réservés.
 
 L'étape avance par tranches, chacune utile seule ; seules les tranches ouvertes sont décrites ici. Les suivantes
-(arbre des règles et de la configuration, adaptateurs, récolte, création de projet, audit de conformité, §5.2 et §5.8)
-se spécifient quand elles s'ouvrent.
+(configuration, adaptateurs de hooks, récolte continue, création de projet, audit de conformité, §5.2 et §5.8) se
+spécifient quand elles s'ouvrent.
 
 ## Tranche 1 — Accès distant par projet
 
@@ -112,6 +112,70 @@ existe dans ce dépôt (le segment le plus profond d'abord). Le répertoire de d
 **Limites connues.** Un chemin relatif dans une commande, hors `cd` et `git -C`, est ignoré. Un dépôt hors des racines
 de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas recevoir de session.
 
+## Tranche 3 — Arbre des règles
+
+Décision `arbre-des-regles` (approuvée le 2026-10-06) : le profil est la racine des règles, le socle fournit des types
+transverses, un contexte déclare ses projets, les règles se matérialisent dans les portées de Claude Code. Essai sur
+HOLARCH et sur un second projet privé du contexte personnel, un bundle de connaissances (Q16).
+
+**Constat (2026-10-06, poste personnel).**
+
+- 44 mémoires de consignes dans 13 dossiers de projet. La même consigne revient sous des noms différents : donner un
+  avis argumenté avant d'appliquer une consigne de conception (4 projets), suivre le modèle prévu pour chaque étape
+  (3), vérifier l'intégration continue après un envoi (2 mémoires d'un même projet) ; une mémoire existe en deux
+  exemplaires (dossier vu d'un conteneur et de l'hôte).
+- La méthode (brouillon jusqu'à approbation consignée, fait inconnu marqué, rien à l'avance, contrainte changée par
+  décision, revue qui suspend, journal) est écrite deux fois, dans le `CLAUDE.md` du socle et dans le protocole d'agent
+  du second projet, avec des chemins et un vocabulaire différents.
+- Le second projet est un bundle OKF : son arbre est à la racine du dépôt (`index.md` portant `okf_version`), pas sous
+  `arbre/` ; d'autres agents que Claude Code lisent son `CLAUDE.md`, pas `.claude/rules/`. Il pose une règle à
+  respecter : aucune complexité ajoutée au seul motif de rendre la méthode plus générale.
+- Aucune consigne au niveau du compte (`~/.claude/CLAUDE.md` absent) ; des skills personnelles non versionnées.
+
+**Livre.**
+
+1. **Profil** (dépôt privé de l'auteur) : racine `arbre/index.md` (`id: profil`), contexte `arbre/contextes/perso.md`
+   qui déclare ses projets (`projects`), et les règles récoltées dans `rules.yaml` à côté de la racine, en `draft`
+   (`source: harvest`, avec les mémoires qu'elles remplacent) jusqu'à l'approbation de l'auteur.
+2. **Types transverses du socle**, un nœud chacun sous `arbre/types-transverses/`, ses règles dans un `rules.yaml` à
+   côté : `methode-holarch` et `depot-public`. Une règle de type dit un comportement ; ce qui varie d'un projet à
+   l'autre (emplacement du registre des questions, du journal) est un réglage du projet (`config`), que la règle cite.
+3. **Racine de l'arbre d'un projet** : `arbre/index.md`, sinon l'`index.md` d'un bundle OKF à la racine du dépôt.
+   Elle déclare ses `types` et porte les règles propres au projet.
+4. **Inventaire** (`regles`) : une fiche `rule` par règle (`holarch:rule:<id de l'arbre>/<id>`) : nœud porteur, niveau,
+   statut, classification, lien `project` pour une règle de projet. Un lien entre arbres non résolu est signalé.
+5. **Règle effective** (module `regles`, socle) d'un projet : profil, puis le contexte qui le déclare, puis sa racine
+   et ses sous-nœuds, ses types venant dans l'ordre déclaré, juste au-dessus de lui. Même `id` : le plus spécifique
+   l'emporte, sauf règle non dérogeable ; dérogations `{rule, why, by, at}`. Chaque règle porte sa provenance. Seules
+   les règles `stable` s'appliquent, les `draft` se montrent comme proposées. La taille de ce qui serait chargé à chaque
+   tour (`reminder`) est comptée.
+6. **Adaptateur Claude Code** : `holarch regles <projet>` montre la règle effective et ce qui serait écrit, et où ;
+   `holarch regles appliquer <projet>` écrit un fichier par règle `reminder` ou `guided` :
+   - règles du profil et du contexte (valables pour tous les projets du site) → `~/.claude/rules/holarch/` ;
+   - règles du projet et de ses types, si leur classification permet le dépôt → `.claude/rules/holarch/`, à commiter ;
+   - règle d'un sous-nœud → avec `paths:` ;
+   chaque fichier porte la marque « généré par HOLARCH » ; un fichier généré sans règle correspondante est retiré ; un
+   fichier non marqué n'est jamais touché, `CLAUDE.md` non plus. Les niveaux `blocking` et `verified` sont signalés
+   comme non appliqués (hooks : tranche suivante).
+7. **Interface et MCP** : la carte d'un projet mène à sa règle effective (provenance, taille des rappels) ; outil MCP
+   `regles`, en lecture.
+
+**Critère de la tranche.** Les règles récoltées, approuvées, sont appliquées aux deux projets ; les mémoires qu'elles
+remplacent sont retirées avec l'accord de l'auteur ; le `CLAUDE.md` du socle ne garde que ce qui lui est propre. Le
+second projet garde son `CLAUDE.md` tant que ses autres agents n'ont pas d'adaptateur.
+
+**Choix techniques (P12).**
+
+| Choix | Raison | Ce qui le ferait changer |
+|---|---|---|
+| `.claude/rules/` et `~/.claude/rules/`, un fichier par règle | portées natives de Claude Code (P2) ; une règle se retire en retirant son fichier ; le `CLAUDE.md` écrit à la main reste intact | une portée que le runtime ne lit plus |
+| règles du profil à la portée du compte | un seul contexte par site aujourd'hui | deux contextes sur un même site : portée locale par projet (`CLAUDE.local.md` ou import depuis le compte) |
+| `rules.yaml` lu par l'inventaire, pas une base | les règles se relisent et se versionnent avec leur arbre (contrat règle) | — |
+| règle de type en comportement, chemins en `config` | une même règle sert des projets à structures différentes | — |
+
+**Limites connues.** Les règles du compte valent pour tous les projets du site, même ceux qu'aucun contexte ne déclare.
+Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils n'ont pas d'adaptateur.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -145,7 +209,6 @@ de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas r
   proposée (profil en racine, socle en types, lien entre arbres côté le plus fermé, matérialisation dans les portées
   de Claude Code) ; Q16 et Q17 ouvertes.
 - **Reste** :
-  1. **Tranche 3, arbre des règles** : décision `arbre-des-regles` approuvée, Q16 et Q17 résolues (dépôt du profil
-     créé, second projet cloné) ; reste la spécification de la tranche.
+  1. **Tranche 3, arbre des règles** : spécifiée ; à réaliser (points 1 à 7), puis critère de la tranche.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.

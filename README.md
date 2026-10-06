@@ -57,8 +57,9 @@ HOLARCH_SITE=hote node bin/holarch.js inventaire    # lit config.yaml, puis conf
   brique et chaque API tourne dans son propre conteneur.
 - **Un catalogue** de tout ce qui est en place, **un journal** de tout ce qui se passe, **une interface web** pour
   voir, configurer, administrer.
-- **Un seul arbre** (socle → profil → contexte → activité → projet) qui porte les intentions, les règles et la
-  configuration : on généralise en posant plus haut, on uniformise des pairs en posant chez leur parent.
+- **Un seul arbre** (profil → contexte → activité → projet) qui porte les intentions, les règles et la configuration :
+  on généralise en posant plus haut, on uniformise des pairs en posant chez leur parent ; le socle fournit des types
+  transverses (ensembles de règles) qu'un projet adopte.
 - **Des briques** optionnelles et remplaçables : Intentions, Règles et configuration, Savoir, Exécution (adaptateurs de
   runtimes), Vérification, Humain, Connecteurs, Projets, Mémoire (rêve et idéation).
 - **Des boucles de régulation** qui proposent ; l'humain approuve ce qui est irréversible.

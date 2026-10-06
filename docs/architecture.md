@@ -153,9 +153,11 @@ possède, événements qu'elle émet). Son implémentation est libre et remplaç
 
 - **Garantit** : une règle ou un réglage posé une fois s'applique partout où il a cours, sans qu'on le redise ; on
   généralise en le posant plus haut, on uniformise des pairs en le posant chez leur parent.
-- **Un seul arbre porte tout** : socle → profil → contexte (pro, perso, client) → activité → projet → sous-projet ou
-  brique. C'est le même arbre que celui des intentions (§5.1) : chaque nœud porte ses règles, sa configuration
-  (budgets, profils de modèle, connecteurs, bases, identité) et ses spécifications.
+- **Un seul arbre porte tout** : profil → contexte (pro, perso, client) → activité → projet → sous-projet ou brique,
+  réparti entre dépôts (le profil est privé, un projet vit dans le sien). C'est le même arbre que celui des intentions
+  (§5.1) : chaque nœud porte ses règles, sa configuration (budgets, profils de modèle, connecteurs, bases, identité) et
+  ses spécifications. Le socle ne se place pas au-dessus du profil : il fournit des types transverses (décision
+  `arbre-des-regles`, 2026-10-06).
 - **Héritage** : ce qui est posé à un nœud vaut pour toute sa descendance.
 - **Types transverses** (« app mobile », « bundle de connaissances », « site web », « API conteneurisée »…) : des
   gabarits que des projets de parents différents partagent ; un projet hérite de son parent **et** de ses types, dans un
@@ -347,8 +349,8 @@ Un client du hub, agréable, pour **voir, configurer, administrer**. Vues :
 
 ## 8. Partage et adaptabilité
 
-- **Trois couches** : socle générique (public, sans rien de personnel) ; profil (privé : règles, bases, identités,
-  connecteurs de la personne) ; projet. Chaque couche surcharge la précédente.
+- **Trois couches** : socle générique (public, sans rien de personnel ; ses règles arrivent par les types qu'un projet
+  adopte) ; profil (privé : règles, bases, identités, connecteurs de la personne) ; projet. Chaque couche surcharge la précédente.
 - **Les contrats sont le produit** : schémas des fiches du catalogue et des événements du journal, outils du hub,
   format de l'arborescence et des règles. Ils sont versionnés ; une implémentation se remplace sans toucher aux autres.
 - **Choix techniques par défaut, révisables** : conteneurs pour tout service ; MCP comme protocole entre clients et

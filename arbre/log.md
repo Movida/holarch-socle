@@ -6,6 +6,8 @@
   racine des règles, socle en types transverses (`methode-holarch`, `depot-public`), appartenance d'un projet déclarée
   par son contexte (lien côté le plus fermé), règles matérialisées dans les portées de Claude Code ; approuvée par
   l'auteur. Q16 (second projet d'essai) et Q17 (dépôt du profil, créé) résolues.
+  Conséquences appliquées : contrats nœud et règle 0.2.0, registre des types 0.2.0 (`template`), architecture §5.2,
+  portée de la décision `classification`. Tranche 3 spécifiée d'après une récolte des consignes (mémoires, `CLAUDE.md`).
 
 * **Cartes projet** : à leur hauteur naturelle (avis de l'auteur).
 

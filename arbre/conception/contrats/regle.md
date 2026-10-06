@@ -3,10 +3,10 @@ type: contract
 title: Contrat — règle
 description: Une règle est une donnée attachée à un nœud ; elle s'hérite, se déroge explicitement, et s'applique par des adaptateurs selon son niveau.
 status: draft
-version: 0.1.0
+version: 0.2.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md, /arbre/decisions/2026-10-06-arbre-des-regles.md]
 ---
 
 # Contrat — règle
@@ -14,7 +14,8 @@ links:
 ## 1. Forme
 
 Les règles d'un nœud vivent dans un fichier `rules.yaml` à côté de lui (ou dans son en-tête sous `rules:` pour une ou
-deux). Exemple fictif :
+deux). Une règle porte la classification de son nœud. Une règle de type transverse dit un comportement ; ce qui varie
+d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`config`), que la règle cite. Exemple fictif :
 
 ```yaml
 - id: verifier-ci-apres-push
@@ -44,9 +45,17 @@ Un adaptateur traduit une règle pour un client (hook, permission, consigne de s
 règle qu'un client ne peut pas appliquer à son niveau descend au niveau applicable suivant, et l'écart est visible
 dans la vue effective.
 
+**Matérialisation.** Un adaptateur écrit dans les portées que le client possède déjà, sans refaire l'héritage : ce qui
+vaut pour tous les projets d'un site va à la portée du compte ; ce qui vaut pour un projet, à la portée du projet ;
+un sous-nœud, à une portée limitée à ses chemins. Une règle ne s'écrit jamais dans un lieu plus ouvert que sa
+classification (une règle privée n'entre pas dans un dépôt public : portée locale, non commitée). Un fichier généré
+porte une marque ; un fichier non marqué n'est jamais modifié ; une régénération montre son écart ; une panne laisse
+les fichiers précédents en place. Seule une règle `stable` se matérialise.
+
 ## 3. Héritage, dérogation, conflits
 
-- Une règle vaut pour le nœud qui la porte et toute sa descendance (puis par les `types` d'un projet).
+- Une règle vaut pour le nœud qui la porte et toute sa descendance, d'un arbre à l'autre (profil → contexte →
+  projet) ; les `types` d'un projet viennent juste au-dessus de lui, dans l'ordre déclaré.
 - **Dérogation** : un nœud descendant déclare `derogations: [{rule, why, by, at}]` ; refusée si la règle est
   `derogable: false`.
 - **Conflit** : le plus spécifique l'emporte, sauf règle non dérogeable ; un conflit que ces deux principes ne
