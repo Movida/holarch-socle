@@ -4,7 +4,8 @@
 
 * **Test visuel de la vue Projets** : passé dans le conteneur du socle après correction d'une attente du test (course
   entre deux pages) ; sur une copie des données réelles, la page s'affiche sans erreur, le « hors projet » vient
-  surtout d'un dépôt retiré de la machine.
+  surtout d'un dépôt retiré de la machine. Avis de l'auteur : ce dépôt est un projet antérieur distinct, il reste hors
+  projet ; la tranche 2 est close à l'usage.
 
 ## 2026-10-05
 

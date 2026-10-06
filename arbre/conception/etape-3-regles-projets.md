@@ -136,8 +136,10 @@ de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas r
   d'une attente du test : il lisait le tableau de la page Projets avant que la page Sessions ne la remplace. Capture
   sur une copie des données du poste personnel : 7 projets en mouvement, aucune erreur ; 276 sessions « hors projet »
   sur 30 jours, presque toutes parties d'un dépôt retiré de la machine, donc absent du catalogue (limite connue).
+- **Fait (2026-10-06)** : avis de l'auteur sur la page. Le « hors projet » vient d'une tentative antérieure, abandonnée,
+  dont HOLARCH est une redéfinition : projet distinct, ses sessions restent hors projet (les rattacher fausserait le coût
+  du socle) ; pas de détail par dossier de départ, la fenêtre de 30 jours les absorbe. Le faible nombre de sessions du
+  socle sur ce site est attendu : une partie du travail se fait sur le site de travail, dont le journal reste le sien.
 - **Reste** :
-  1. **Vue Projets à l'usage** : recueillir l'avis de l'auteur sur la page (dont le « hors projet » : le détailler par
-     dossier de départ ?).
-  2. **Tranches suivantes** : arbre des règles et de la configuration, adaptateurs, récolte, création de projet, audit
+  1. **Tranches suivantes** : arbre des règles et de la configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.
