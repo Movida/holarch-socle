@@ -51,6 +51,11 @@ export function creerServeurMcp(socle, version) {
     return texte({ total: l.length, hors_projet: r.hors_projet, projets: l.slice(0, n ?? 20) });
   });
 
+  s.registerTool('regles', {
+    description: 'Règle effective d’un projet (décision arbre-des-regles) : règles du profil, du contexte, des types transverses et du projet, chacune avec sa provenance, son statut (seul stable s’applique) et l’endroit où Claude Code la lit ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles.',
+    inputSchema: z.object({ projet }), annotations: LECTURE,
+  }, async ({ projet: ref }) => texte(socle.regles({ projet: ref || null })));
+
   s.registerTool('consommation', {
     description: 'Tokens et coût liste d’une période, regroupés par projet (identifiant et nom ; le coût d’une session se partage entre ses projets, null : hors projet), par modèle ou par jour.',
     inputSchema: z.object({ jours, par: z.enum(['projet', 'modele', 'jour']).optional().describe('Regroupement (projet par défaut)') }), annotations: LECTURE,

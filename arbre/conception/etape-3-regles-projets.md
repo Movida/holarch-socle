@@ -142,8 +142,10 @@ HOLARCH et sur un second projet privé du contexte personnel, un bundle de conna
    l'autre (emplacement du registre des questions, du journal) est un réglage du projet (`config`), que la règle cite.
 3. **Racine de l'arbre d'un projet** : `arbre/index.md`, sinon l'`index.md` d'un bundle OKF à la racine du dépôt.
    Elle déclare ses `types` et porte les règles propres au projet.
-4. **Inventaire** (`regles`) : une fiche `rule` par règle (`holarch:rule:<id de l'arbre>/<id>`) : nœud porteur, niveau,
-   statut, classification, lien `project` pour une règle de projet. Un lien entre arbres non résolu est signalé.
+4. **Inventaire** (adaptateur `arbre`, qui lit déjà les nœuds) : une fiche `rule` par règle
+   (`holarch:rule:<id de l'arbre>/<nœud>/<id>`, sans nœud pour la racine, l'`id` du nœud s'il en a un) : nœud porteur,
+   niveau, statut, classification, lien `project` du dépôt qui la porte. D'un bundle OKF, seule la racine est lue. Un
+   `rules.yaml` illisible est signalé sur son nœud, sans faire échouer l'inventaire.
 5. **Règle effective** (module `regles`, socle) d'un projet : profil, puis le contexte qui le déclare, puis sa racine
    et ses sous-nœuds, ses types venant dans l'ordre déclaré, juste au-dessus de lui. Même `id` : le plus spécifique
    l'emporte, sauf règle non dérogeable ; dérogations `{rule, why, by, at}`. Chaque règle porte sa provenance. Seules
@@ -155,10 +157,13 @@ HOLARCH et sur un second projet privé du contexte personnel, un bundle de conna
    - règles du projet et de ses types, si leur classification permet le dépôt → `.claude/rules/holarch/`, à commiter ;
    - règle d'un sous-nœud → avec `paths:` ;
    chaque fichier porte la marque « généré par HOLARCH » ; un fichier généré sans règle correspondante est retiré ; un
-   fichier non marqué n'est jamais touché, `CLAUDE.md` non plus. Les niveaux `blocking` et `verified` sont signalés
-   comme non appliqués (hooks : tranche suivante).
-7. **Interface et MCP** : la carte d'un projet mène à sa règle effective (provenance, taille des rappels) ; outil MCP
-   `regles`, en lecture.
+   fichier non marqué n'est jamais touché, `CLAUDE.md` non plus. Les niveaux `blocking` et `verified`, et `guided`
+   sans chemins, sont signalés comme non appliqués (hooks et skills : tranche suivante). Claude Code additionne les
+   portées sans les remplacer : une règle de projet qui redéfinit une règle du compte le dit dans son fichier, et une
+   dérogation à une règle du compte est signalée sans effet tant que la portée locale n'existe pas.
+7. **Interface et MCP** : page « Règles » (ce qui vaut pour le compte, les projets qui ont des règles) ; la carte d'un
+   projet mène à sa règle effective (provenance, taille des rappels, où Claude Code la lit) ; outil MCP `regles`, en
+   lecture.
 
 **Critère de la tranche.** Les règles récoltées, approuvées, sont appliquées aux deux projets ; les mémoires qu'elles
 remplacent sont retirées avec l'accord de l'auteur ; le `CLAUDE.md` du socle ne garde que ce qui lui est propre. Le

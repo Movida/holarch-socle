@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Ligne de commande HOLARCH (étape 1) : inventaire, importer, indexer, etat, voir.
 import { Socle } from '../src/socle.js';
-import { chargerConfig, ecrireConfigExemple, accueil } from '../src/config.js';
+import { chargerConfig, ecrireConfigExemple, accueil, comptesClaudeCode } from '../src/config.js';
 import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant } from '../src/distant.js';
+import { planifier, appliquer, dossierCompte, dossierProjet } from '../src/regles-claude-code.js';
 import { readFileSync } from 'node:fs';
 
 const [cmd = 'aide', ...args] = process.argv.slice(2);
@@ -24,6 +25,12 @@ const AIDE = `holarch — socle autour des agents d'IA
                        accès distant par projet : un serveur Remote Control de Claude Code par projet, à la demande ;
                        sans argument, liste les projets dont l'accès est actif (<projet> : projet du catalogue, par
                        son nom, un chemin ou son identifiant)
+  holarch regles [<projet>]
+                       règle effective d'un projet (profil, contexte, types, projet ; provenance, où Claude Code la
+                       lit) ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles
+  holarch regles appliquer [<projet>…]
+                       écrit les règles applicables : compte (<compte>/rules/holarch/) et chaque projet cité
+                       (.claude/rules/holarch/, à commiter) ; ne touche ni CLAUDE.md ni un fichier non marqué
   holarch pont <url> --cle <fichier>
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier
@@ -48,6 +55,35 @@ switch (cmd) {
       else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}`); }
       else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
     } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
+    break; }
+  case 'regles': {
+    const s = socle(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
+    const ligne = (e) => `  [${e.origine}] ${e.id}${e.applicable ? '' : e.derogee ? ' (dérogée)' : ` (${e.statut})`} → ${e.claude_code.non ? `non écrite : ${e.claude_code.non}` : `${e.claude_code.portee} : ${e.claude_code.fichier}`}`;
+    const bilan = (nom, r) => `${nom} (${r.dossier}) : ${r.crees.length} créé(s), ${r.modifies.length} modifié(s), ${r.retires.length} retiré(s), ${r.inchanges.length} inchangé(s)${r.ignores.length ? ` ; non marqués, laissés : ${r.ignores.join(', ')}` : ''}`;
+    try {
+      if (action === 'appliquer') {
+        const compte = s.regles().compte; const sortie = [];
+        for (const c of comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {})) {
+          if (c.home) sortie.push(bilan(`compte${c.nom ? ` ${c.nom}` : ''}`, appliquer(dossierCompte(c.home), planifier(compte.regles, { portee: 'compte' }))));
+        }
+        for (const ref of refs) {
+          const r = s.regles({ projet: ref });
+          if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`);
+          const plan = planifier(r.regles, { portee: 'projet', classificationDepot: r.arbre?.classification });
+          sortie.push(bilan(r.nom, appliquer(dossierProjet(r.chemin), plan)), ...plan.signaux.map((x) => `  ATTENTION ${x}`));
+        }
+        afficher(json ? sortie : sortie.join('\n'));
+      } else if (action) {
+        const r = s.regles({ projet: action });
+        afficher(json ? r : [`${r.nom} — types : ${r.arbre?.types.join(', ') || 'aucun'} ; ${r.regles.length} règle(s), ${r.regles.filter((e) => e.applicable).length} appliquée(s) ; rappels : ${r.rappels} caractères à chaque tour`,
+          ...r.regles.map(ligne), ...r.signaux.map((x) => `ATTENTION ${x}`)].join('\n'));
+      } else {
+        const r = s.regles();
+        afficher(json ? r : [`compte — ${r.compte.regles.length} règle(s), ${r.compte.regles.filter((e) => e.applicable).length} appliquée(s) ; rappels : ${r.compte.rappels} caractères à chaque tour`,
+          ...r.compte.regles.map(ligne), ...r.compte.signaux.map((x) => `ATTENTION ${x}`), '',
+          ...(r.projets.length ? r.projets.map((p) => `${p.nom} : ${p.declare ? 'déclaré' : 'non déclaré par un contexte'}, types ${p.types.join(', ') || 'aucun'}, ${p.appliquees} appliquée(s), ${p.proposees} proposée(s)${p.signaux ? `, ${p.signaux} signal(aux)` : ''}`) : ['aucun projet n’a de règles']) ].join('\n'));
+      }
+    } catch (e) { console.error(`holarch regles : ${e.message}`); process.exit(1); }
     break; }
   case 'etat': { const s = socle(); s.indexer(); const e = s.etat(); if (json) { afficher(e); break; }
     console.log(`site ${e.site} · ${e.evenements} événements · sessions ${e.sessions.total} (dont ${e.periode.sessions} sur ${e.periode.jours} jours)`);

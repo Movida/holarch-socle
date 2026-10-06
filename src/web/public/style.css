@@ -130,6 +130,7 @@ dl.champs dt { color: var(--doux); font-size: .8rem; font-weight: 400; } dl.cham
 /* ---- projets : une carte par projet en mouvement */
 .projet { display: flex; flex-direction: column; gap: .55rem; font-size: .9rem; align-self: start; } /* hauteur naturelle : pas de vide dans une carte courte */
 .projet .tete { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
+.projet .tete .regles { margin-left: auto; font-size: .8rem; }
 .projet .tete .t { font-weight: 700; font-size: 1rem; color: var(--texte); } .projet .tete a.t:hover { color: var(--accent); }
 .projet .reste { margin-top: .25rem; } .projet .reste b { font-size: .78rem; color: var(--doux); font-weight: 600; }
 .projet ul { margin: .15rem 0 0; padding-left: 1.1rem; } .projet li { font-size: .84rem; margin: .1rem 0; list-style: disc; }

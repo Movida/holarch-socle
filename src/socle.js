@@ -9,6 +9,8 @@ import importerTranscriptions from './import/claude-code-transcriptions.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
+import { regleEffective, regleDuCompte, projetsDeclares } from './regles.js';
+import { destination } from './regles-claude-code.js';
 import { ulid } from './ulid.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
@@ -268,6 +270,24 @@ export class Socle {
     // Une session et ses sous-agents (corrélation « session » ou « session:… »).
     if (session) { sql += " AND (correlation=? OR correlation LIKE ? || ':%')"; p.push(session, session); }
     return this.index.requete(`${sql} ORDER BY at DESC LIMIT ?`, ...p, Math.min(+limite || 200, 2000)).map((e) => ({ ...e, data: JSON.parse(e.data) }));
+  }
+
+  // Règle effective (étape 3, tranche 3, décision arbre-des-regles) d'un projet ; sans projet, ce qui vaut au compte et
+  // les projets qui ont des règles. Chaque règle dit où l'adaptateur Claude Code l'écrit, ou pourquoi il ne l'écrit pas.
+  regles({ projet = null } = {}) {
+    const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
+    const portees = (r, classificationDepot) => ({ ...r, regles: r.regles.map((e) => ({ ...e, claude_code: destination(e, { classificationDepot }) })) });
+    const projets = this.fiches({ kind: 'project' });
+    if (projet) {
+      const id = this.projetDe(projet); const r = regleEffective(fiches, id);
+      return { nom: projets.find((p) => p.id === id)?.name ?? null, chemin: projets.find((p) => p.id === id)?.location ?? null, ...portees(r, r.arbre?.classification) };
+    }
+    const declares = projetsDeclares(fiches);
+    const resume = projets.map((p) => ({ p, r: regleEffective(fiches, p.id) }))
+      .filter(({ p, r }) => declares.has(p.id) || r.arbre?.types.length || r.regles.some((e) => e.origine === 'projet'))
+      .map(({ p, r }) => ({ id: p.id, nom: p.name, declare: declares.has(p.id), types: r.arbre?.types || [], appliquees: r.regles.filter((e) => e.applicable).length,
+        proposees: r.regles.filter((e) => e.statut === 'draft').length, rappels: r.rappels, signaux: r.signaux.length }));
+    return { compte: portees(regleDuCompte(fiches), 'sensitive'), projets: resume };
   }
 
   arbre() {

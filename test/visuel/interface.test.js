@@ -45,7 +45,12 @@ function donneesFictives() {
     fiche('project', 'projet-a', { location: '/ws/projet-a', attributes: { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 3, dernier_commit: il_y_a(1), dernier_sujet: 'Un commit fictif' } }),
     fiche('project', 'projet-b', { location: '/ws/projet-b', attributes: { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(4) } }),
     fiche('project', 'projet-calme', { location: '/ws/projet-calme', attributes: { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0, dernier_commit: il_y_a(300) } }),
-    fiche('node', 'projet-a/racine', { name: 'Racine A', location: '/ws/projet-a/arbre/index.md', node: '/arbre/index.md', links: { project: ['holarch:project:projet-a'] }, attributes: { type: 'guideline', statut: 'draft', questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Une question `fictive` ?', niveau: 'gênant' }] } }),
+    fiche('node', 'profil/racine', { name: 'Profil fictif', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'profil' } }),
+    fiche('node', 'profil/perso', { name: 'Perso', node: '/arbre/contextes/perso.md', links: { derives_from: ['/arbre/index.md'] }, attributes: { type: 'context', statut: 'draft', arbre: 'profil', projects: ['holarch:project:projet-a'] } }),
+    fiche('node', 'socle/methode', { name: 'Méthode fictive', node: '/arbre/types-transverses/methode/index.md', attributes: { type: 'template', statut: 'draft', arbre: 'socle', id: 'methode' } }),
+    fiche('rule', 'profil/avis', { name: 'avis', description: 'Donner un avis.', attributes: { arbre: 'profil', noeud_id: 'holarch:node:profil/racine', enonce: 'Donner un avis argumenté.', pourquoi: 'Exemple.', niveau: 'reminder', statut: 'stable', derogeable: true } }),
+    fiche('rule', 'socle/methode/inventer', { name: 'jamais-inventer', description: 'Ne pas inventer.', attributes: { arbre: 'socle', noeud_id: 'holarch:node:socle/methode', enonce: 'Un fait inconnu se marque.', niveau: 'reminder', statut: 'draft', derogeable: true } }),
+    fiche('node', 'projet-a/racine', { name: 'Racine A', location: '/ws/projet-a/arbre/index.md', node: '/arbre/index.md', links: { project: ['holarch:project:projet-a'] }, attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'projet-a', types: ['methode'], questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Une question `fictive` ?', niveau: 'gênant' }] } }),
     fiche('node', 'projet-a/etape', { name: 'Étape 2 — Fictive', location: '/ws/projet-a/arbre/conception/etape-2-fictive.md', node: '/arbre/conception/etape-2-fictive.md', links: { project: ['holarch:project:projet-a'] }, attributes: { type: 'spec', statut: 'draft', etape: 2, avancement: [{ etiquette: 'Fait', date: '2026-10-01', texte: 'Une tranche faite.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Une tranche à faire.'] }] } }),
   ]);
   s.indexer();
@@ -114,6 +119,15 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await page.waitForSelector('.nav a[aria-current="page"][data-vue="sessions"]'); // sinon, le tableau de la page Projets
   await page.waitForSelector('table.triable tbody tr.cliquable');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'sessions du projet');
+
+  await ouvrir('#/projets', '.carte.projet');
+  await page.click('.carte.projet:first-child .regles');
+  await page.waitForSelector('.nav a[aria-current="page"][data-vue="regles"]');
+  await page.waitForSelector('table.triable tbody tr td a[data-fiche]');
+  assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'règle effective : profil et type');
+  assert.match(await page.textContent('main'), /Règles — projet-a[\s\S]*compte : avis\.md[\s\S]*draft : proposée, à approuver/);
+  await ouvrir('#/regles', 'table.triable tbody tr');
+  assert.match(await page.textContent('main'), /Projets qui ont des règles[\s\S]*projet-a[\s\S]*déclaré/);
 
   await ouvrir('#/catalogue', 'table tbody tr');
   assert.match(await page.textContent('tr[data-fiche="holarch:node:arbre/contrat"]'), /draft/);

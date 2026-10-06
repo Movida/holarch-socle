@@ -14,7 +14,8 @@ links:
 ## 1. Forme
 
 Les règles d'un nœud vivent dans un fichier `rules.yaml` à côté de lui (ou dans son en-tête sous `rules:` pour une ou
-deux). Une règle porte la classification de son nœud. Une règle de type transverse dit un comportement ; ce qui varie
+deux) ; le `rules.yaml` d'un dossier est celui de son `index.md`. Une règle sans `status` est un brouillon. Une règle
+porte la classification de son nœud. Une règle de type transverse dit un comportement ; ce qui varie
 d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`config`), que la règle cite. Exemple fictif :
 
 ```yaml
@@ -25,10 +26,11 @@ d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`conf
   match: { action: git.push }   # sur quoi le déclencheur porte ; vocabulaire des actions : étape 3
   level: verified               # blocking · verified · guided · reminder
   derogable: true
-  applies_to: { node_types: [project] }
+  applies_to: { node_types: [project] }   # paths: [motifs] limite la règle à des chemins du projet
   status: stable
   approved: { by: human:alice, at: 2026-10-03 }
   source: harvest               # written · harvest · decision
+  replaces: [note-de-memoire]   # ce que la règle remplace (récolte) ; facultatif
   review_after: 2027-04-01
 ```
 

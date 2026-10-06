@@ -206,3 +206,92 @@ test('projets : l’inventaire lit l’avancement, les questions et l’écart �
   assert.equal(et.id, `holarch:node:${slug(p.id.slice('holarch:project:'.length) + '/arbre/conception/etape-1-demo.md')}`, 'identifiant fondé sur celui du projet');
   assert.deepEqual(et.attributes.avancement, [{ etiquette: 'Fait', date: '2026-10-01', texte: 'première partie.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Un : à faire suite.', 'Deux.'] }]);
 });
+
+// ---- Tranche 3 : arbre des règles (décision arbre-des-regles). Données fictives.
+import { regleEffective, regleDuCompte } from '../src/regles.js';
+import { planifier, appliquer, MARQUE } from '../src/regles-claude-code.js';
+
+function arbresFictifs() {
+  const r = tmp(); const d = (n) => path.join(r, n);
+  const ok = 'status: stable\n    approved: { by: human:alice, at: 2026-10-06 }';
+  // Profil : racine, contexte qui déclare deux projets.
+  ecrire(path.join(d('profil'), 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\n---\n');
+  ecrire(path.join(d('profil'), 'arbre', 'rules.yaml'), `- id: avis-argumente\n  statement: Donner un avis argumenté avant d'appliquer une consigne de conception.\n  why: Une consigne appliquée à la lettre a déjà coûté une reprise.\n  ${ok.replace('\n    ', '\n  ')}\n- id: francais\n  statement: Répondre en français.\n  ${ok.replace('\n    ', '\n  ')}\n- id: secret-du-profil\n  statement: Ne jamais citer le profil.\n  derogable: false\n  ${ok.replace('\n    ', '\n  ')}\n- id: proposee\n  statement: Une règle pas encore approuvée.\n`);
+  ecrire(path.join(d('profil'), 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:socle, holarch:project:bundle]\nrules:\n  - id: commit-sur-main\n    statement: Commiter sur main.\n    status: stable\n---\n');
+  // Socle : un type transverse, et sa propre racine (projet).
+  ecrire(path.join(d('socle'), 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\ntypes: [methode]\nderogations:\n  - { rule: francais, why: dépôt en anglais, by: human:alice, at: 2026-10-06 }\n  - { rule: secret-du-profil, why: essai, by: human:alice, at: 2026-10-06 }\n---\n');
+  ecrire(path.join(d('socle'), 'arbre', 'rules.yaml'), `- id: tests-verts\n  statement: Les tests passent avant de rendre la main.\n  ${ok.replace('\n    ', '\n  ')}\n- id: avis-argumente\n  statement: Avis argumenté, version du projet.\n  ${ok.replace('\n    ', '\n  ')}\n- id: secret-du-profil\n  statement: Redéfinie, interdit.\n  ${ok.replace('\n    ', '\n  ')}\n`);
+  ecrire(path.join(d('socle'), 'arbre', 'types-transverses', 'methode', 'index.md'), '---\ntype: template\nid: methode\ntitle: Méthode fictive\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+  ecrire(path.join(d('socle'), 'arbre', 'types-transverses', 'methode', 'rules.yaml'), `- id: jamais-inventer\n  statement: Un fait inconnu se marque, il ne s'invente pas.\n  ${ok.replace('\n    ', '\n  ')}\n- id: garde\n  statement: Bloquer l'envoi sans vérification.\n  level: blocking\n  ${ok.replace('\n    ', '\n  ')}\n- id: doc-courte\n  statement: Les documents de conception restent courts.\n  level: guided\n  applies_to: { paths: ["arbre/**/*.md"] }\n  ${ok.replace('\n    ', '\n  ')}\n`);
+  // Bundle OKF : racine à la racine du dépôt, ses documents ne sont pas lus.
+  ecrire(path.join(d('bundle'), 'index.md'), '---\nokf_version: "0.2"\ntypes: [methode, inexistant]\n---\n# Bundle\n');
+  ecrire(path.join(d('bundle'), 'rules.yaml'), 'pas: une liste\n');
+  ecrire(path.join(d('bundle'), 'notes', 'doc.md'), '---\ntype: Protocole\ntitle: Document du bundle\n---\n');
+  const ctx = { depots: ['profil', 'socle', 'bundle'].map(d), projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) };
+  return { r, d, fiches: inventaireArbre({}, ctx) };
+}
+
+test('règles : l’inventaire lit les règles des nœuds, la racine d’un bundle OKF, et signale un rules.yaml invalide', () => {
+  const { fiches } = arbresFictifs();
+  const regles = fiches.filter((f) => f.kind === 'rule');
+  const ids = regles.map((f) => f.id).sort();
+  assert.ok(ids.includes('holarch:rule:profil/avis-argumente') && ids.includes('holarch:rule:socle/methode/jamais-inventer') && ids.includes('holarch:rule:profil/contextes/perso/commit-sur-main'), ids.join(' '));
+  const avis = regles.find((f) => f.id === 'holarch:rule:profil/avis-argumente');
+  assert.deepEqual([avis.status, avis.classification, avis.attributes.niveau, avis.attributes.statut], ['active', 'confidential', 'reminder', 'stable']);
+  assert.equal(regles.find((f) => f.name === 'proposee').attributes.statut, 'draft', 'sans statut : brouillon');
+  const okf = fiches.filter((f) => f.kind === 'node' && f.location.includes(`${path.sep}bundle${path.sep}`));
+  assert.deepEqual(okf.map((f) => f.node), ['/index.md'], 'd’un bundle OKF, seule la racine est lue');
+  assert.match(okf[0].attributes.erreur_regles, /liste de règles/);
+});
+
+test('règles : règle effective d’un projet (profil, contexte, types, projet), redéfinition, dérogation, non dérogeable', () => {
+  const { fiches } = arbresFictifs();
+  const e = regleEffective(fiches, 'holarch:project:socle');
+  const par = Object.fromEntries(e.regles.map((x) => [x.id, x]));
+  assert.deepEqual(e.arbre.types, ['methode']);
+  assert.equal(par['avis-argumente'].origine, 'projet', 'le plus spécifique l’emporte');
+  assert.deepEqual(par['avis-argumente'].recouvre.map((x) => x.origine), ['profil']);
+  assert.equal(par['commit-sur-main'].origine, 'contexte');
+  assert.equal(par['jamais-inventer'].origine, 'type');
+  assert.equal(par['secret-du-profil'].origine, 'profil', 'une règle non dérogeable tient');
+  assert.ok(e.signaux.some((x) => /non dérogeable redéfinie : secret-du-profil/.test(x)) && e.signaux.some((x) => /dérogation refusée : secret-du-profil/.test(x)));
+  assert.deepEqual([par.francais.applicable, par.francais.derogee.pourquoi], [false, 'dépôt en anglais']);
+  assert.deepEqual([par.proposee.applicable, par.proposee.statut], [false, 'draft'], 'un brouillon se montre, il ne s’applique pas');
+  assert.ok(e.rappels > 0);
+  const b = regleEffective(fiches, 'holarch:project:bundle');
+  assert.ok(b.signaux.some((x) => /type inconnu : inexistant/.test(x)) && b.signaux.some((x) => /liste de règles/.test(x)));
+  assert.ok(b.regles.some((x) => x.id === 'jamais-inventer'), 'un bundle OKF adopte un type par sa racine');
+  const sans = regleEffective(fiches, 'holarch:project:inconnu');
+  assert.ok(sans.signaux.some((x) => /aucun contexte ne déclare/.test(x)) && sans.regles.every((x) => x.origine === 'profil'));
+  const c = regleDuCompte(fiches);
+  assert.deepEqual(c.regles.map((x) => x.id).sort(), ['avis-argumente', 'commit-sur-main', 'francais', 'proposee', 'secret-du-profil'], 'un seul contexte : profil et contexte au compte');
+});
+
+test('règles : l’adaptateur Claude Code écrit un fichier marqué par règle, retire ce qui n’a plus de règle, ne touche pas le reste', () => {
+  const { fiches } = arbresFictifs();
+  const e = regleEffective(fiches, 'holarch:project:socle');
+  const plan = planifier(e.regles, { portee: 'projet', classificationDepot: 'internal' });
+  assert.deepEqual(plan.fichiers.map((x) => x.fichier).sort(), ['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md', 'tests-verts.md']);
+  assert.deepEqual(Object.fromEntries(plan.non.map((x) => [x.regle, x.raison])), { garde: 'niveau blocking : hook, à venir' });
+  assert.ok(plan.signaux.some((x) => /dérogation à francais sans effet/.test(x)), 'Claude Code additionne les portées : le dire');
+  const avis = plan.fichiers.find((x) => x.regle === 'avis-argumente').contenu;
+  assert.ok(avis.startsWith(MARQUE) && /prévaut sur celle du même nom posée au niveau du compte/.test(avis));
+  assert.match(plan.fichiers.find((x) => x.regle === 'doc-courte').contenu, /^---\npaths:\n {2}- "arbre\/\*\*\/\*\.md"\n---\n/);
+  const public_ = planifier(e.regles, { portee: 'projet', classificationDepot: 'public' });
+  assert.equal(public_.fichiers.length, 0, 'une règle interne ne s’écrit pas dans un dépôt public');
+  assert.match(public_.non.find((x) => x.regle === 'tests-verts').raison, /classification internal plus fermée que le dépôt \(public\)/);
+  const dossier = path.join(tmp(), '.claude', 'rules', 'holarch');
+  ecrire(path.join(dossier, 'a-la-main.md'), 'règle écrite à la main\n');
+  ecrire(path.join(dossier, 'tests-verts.md'), 'écrite à la main, même nom\n');
+  ecrire(path.join(dossier, 'ancienne.md'), `${MARQUE}\nrègle retirée de l'arbre\n`);
+  const essai = appliquer(dossier, plan, { ecrire: false });
+  assert.deepEqual([essai.crees.length, essai.retires, essai.ignores], [3, ['ancienne.md'], ['tests-verts.md']]);
+  assert.ok(fs.existsSync(path.join(dossier, 'ancienne.md')), 'un essai n’écrit rien');
+  const r = appliquer(dossier, plan);
+  assert.deepEqual([r.crees.sort(), r.retires], [['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md'], ['ancienne.md']]);
+  assert.equal(fs.readFileSync(path.join(dossier, 'tests-verts.md'), 'utf8'), 'écrite à la main, même nom\n', 'un fichier non marqué n’est jamais touché');
+  assert.ok(fs.existsSync(path.join(dossier, 'a-la-main.md')));
+  assert.deepEqual(appliquer(dossier, plan).inchanges.sort(), ['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md'], 'idempotent');
+  const compte = planifier(regleDuCompte(fiches).regles, { portee: 'compte' });
+  assert.deepEqual(compte.fichiers.map((x) => x.fichier).sort(), ['avis-argumente.md', 'commit-sur-main.md', 'francais.md', 'secret-du-profil.md']);
+});

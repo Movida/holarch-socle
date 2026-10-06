@@ -102,7 +102,7 @@ async function projets(params) {
   const carte = (p) => {
     const a = p.activite; const e = p.etape;
     return `<div class="carte projet">
-      <div class="tete"><a class="t" href="#" data-fiche="${h(p.id)}" title="${h(p.chemin || '')}">${h(p.nom)}</a>${p.branche ? ` <span class="mono discret">${h(p.branche)}</span>` : ''} ${tech(p)}</div>
+      <div class="tete"><a class="t" href="#" data-fiche="${h(p.id)}" title="${h(p.chemin || '')}">${h(p.nom)}</a>${p.branche ? ` <span class="mono discret">${h(p.branche)}</span>` : ''} ${tech(p)} <a class="regles discret" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Règle effective du projet : profil, contexte, types, projet">règles</a></div>
       ${e ? `<div class="etape"><a href="#" data-fiche="${h(e.id)}">${h(e.titre)}</a>${e.close ? ' <span class="badge ok">close</span>' : ''} <span class="discret">· ${nf.format(e.faits)} fait${e.faits > 1 ? 's' : ''}</span>
         ${e.dernier_fait ? `<div class="discret">Dernier fait${e.dernier_fait.date ? ` (${jj(e.dernier_fait.date)})` : ''} : ${md(e.dernier_fait.texte || '')}</div>` : ''}
         ${e.reste.length ? `<div class="reste"><b>Reste</b><ul>${e.reste.map((r) => `<li>${md(r)}</li>`).join('')}</ul></div>` : ''}</div>` : p.arbre ? '<div class="discret">Arbre sans spécification d’étape.</div>' : ''}
@@ -193,6 +193,34 @@ async function arbre(params) {
     ${[...parProjet].map(([projet, rs]) => `<div class="carte arbre section"><h2>${h(projet || '')}</h2><ul>${rs.map(rendre).join('')}</ul></div>`).join('') || '<div class="carte vide">Aucun arbre trouvé.</div>'}`;
 }
 
+// Règle effective (étape 3, tranche 3) : d'un projet, ou ce qui vaut pour tout le compte et les projets qui ont des règles.
+const ORIGINE_REGLE = { profil: 'Profil', contexte: 'Contexte', type: 'Type', projet: 'Projet' };
+async function regles(params) {
+  const projet = params.get('projet') || '';
+  const r = await api(`/api/regles${projet ? `?projet=${encodeURIComponent(projet)}` : ''}`);
+  const corps = projet ? r : r.compte;
+  const lignes = corps.regles.map((e) => {
+    const cc = e.claude_code;
+    return `<tr><td><a href="#" data-fiche="${h(e.fiche)}">${h(e.id)}</a></td><td><span class="badge" title="${h(`${e.provenance.arbre}:${e.provenance.noeud}`)}">${h(ORIGINE_REGLE[e.origine] || e.origine)}${e.origine === 'type' ? ` ${h(e.provenance.titre)}` : ''}</span>${e.recouvre.length ? '<div class="desc">redéfinit une règle plus haute</div>' : ''}</td>
+      <td title="${h(e.pourquoi || '')}">${h(e.enonce)}${e.derogee ? `<div class="desc">dérogée : ${h(e.derogee.pourquoi || '')}</div>` : ''}</td><td class="mono desc">${h(e.niveau)}</td>
+      <td><span class="badge ${e.statut === 'stable' ? 'ok' : 'accent'}">${h(e.statut)}</span></td><td class="desc">${cc.non ? h(cc.non) : `<span class="mono">${h(cc.portee)} : ${h(cc.fichier)}</span>`}</td></tr>`;
+  }).join('');
+  const table = `<div class="carte tableau section"><table class="triable"><thead><tr><th>Règle</th><th>Origine</th><th>Énoncé</th><th>Niveau</th><th>Statut</th><th>Claude Code</th></tr></thead><tbody>${lignes || '<tr><td colspan="6" class="vide">Aucune règle.</td></tr>'}</tbody></table></div>`;
+  const signaux = corps.signaux.length ? `<div class="carte section"><b>À regarder</b><ul>${corps.signaux.map((x) => `<li>${h(x)}</li>`).join('')}</ul></div>` : '';
+  const rappels = `<span title="Texte des règles de niveau rappel, chargé dans le contexte de l’agent à chaque tour">${nf.format(corps.rappels)} caractères chargés à chaque tour</span>`;
+  if (projet) {
+    return `<h1>Règles — ${h(r.nom || projet)}</h1>
+      <p class="sous-titre">Règle effective du projet : profil, contexte, types${r.arbre?.types.length ? ` (${r.arbre.types.map(h).join(', ')})` : ''}, puis le projet ; le plus spécifique l’emporte. Seul le <span class="badge ok">stable</span> s’applique. ${rappels}.</p>
+      ${signaux}${table}<p class="discret section"><a href="#/regles">Ce qui vaut pour tout le compte</a></p>`;
+  }
+  return `<h1>Règles</h1>
+    <p class="sous-titre">Ce qui vaut pour tous les projets de ce site (profil et contexte, écrits au niveau du compte) ; ${rappels}. Un projet ajoute ses types et ses propres règles.</p>
+    ${signaux}${table}
+    <div class="carte tableau section"><h2>Projets qui ont des règles</h2><table class="triable"><thead><tr><th>Projet</th><th>Contexte</th><th>Types</th><th class="num">Appliquées</th><th class="num">Proposées</th><th class="num">Rappels</th></tr></thead><tbody>
+      ${r.projets.map((p) => `<tr class="cliquable" data-lien="#/regles?projet=${encodeURIComponent(p.id)}"><td>${h(p.nom)}${p.signaux ? ` <span class="badge alerte" title="Signaux à regarder">${p.signaux}</span>` : ''}</td><td class="desc">${p.declare ? 'déclaré' : 'aucun'}</td><td class="mono desc">${h(p.types.join(', '))}</td>${num(p.appliquees, nf.format(p.appliquees))}${num(p.proposees, nf.format(p.proposees))}${num(p.rappels, nf.format(p.rappels))}</tr>`).join('') || '<tr><td colspan="6" class="vide">Aucun projet n’a de règles.</td></tr>'}
+    </tbody></table></div>`;
+}
+
 async function ouvrirFiche(id) {
   const t = $('#tiroir');
   t.hidden = false; t.innerHTML = '<p class="chargement">Chargement…</p>';
@@ -221,7 +249,7 @@ function triables() {
     };
   }));
 }
-const VUES = { '': ['tableau', tableau], projets: ['projets', projets], catalogue: ['catalogue', catalogue], sessions: ['sessions', sessions], journal: ['journal', journal], arbre: ['arbre', arbre] };
+const VUES = { '': ['tableau', tableau], projets: ['projets', projets], regles: ['regles', regles], catalogue: ['catalogue', catalogue], sessions: ['sessions', sessions], journal: ['journal', journal], arbre: ['arbre', arbre] };
 let NAVIGATION = 0;
 async function router() {
   const jeton = ++NAVIGATION;
