@@ -132,7 +132,12 @@ de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas r
   fiche 0.4.0) ; `data.projets` remplace `data.depots` avant tout import réel (contrat événement 0.7.0) ; une seule
   attribution pour le tableau de bord, la consommation, les sessions et la vue Projets ; `holarch distant` et les
   outils MCP désignent un projet par nom, chemin ou identifiant ; nœuds de l'arbre identifiés par leur projet.
+- **Fait (2026-10-06)** : test visuel passé dans le conteneur du socle (vert trois fois de suite) après correction
+  d'une attente du test : il lisait le tableau de la page Projets avant que la page Sessions ne la remplace. Capture
+  sur une copie des données du poste personnel : 7 projets en mouvement, aucune erreur ; 276 sessions « hors projet »
+  sur 30 jours, presque toutes parties d'un dépôt retiré de la machine, donc absent du catalogue (limite connue).
 - **Reste** :
-  1. **Vue Projets à l'usage** : passer le test visuel dans le conteneur ; recueillir l'avis de l'auteur sur la page.
+  1. **Vue Projets à l'usage** : recueillir l'avis de l'auteur sur la page (dont le « hors projet » : le détailler par
+     dossier de départ ?).
   2. **Tranches suivantes** : arbre des règles et de la configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.

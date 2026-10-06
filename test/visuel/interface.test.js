@@ -96,6 +96,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.equal(await page.getAttribute('.nav a[aria-current="page"]', 'data-vue'), 'tableau');
   await page.click('.barre a.nom:has-text("projet-b")');
   await page.waitForFunction(() => location.hash === '#/sessions?projet=holarch%3Aproject%3Aprojet-b');
+  await page.waitForSelector('.nav a[aria-current="page"][data-vue="sessions"]'); // la page précédente a cédé la place
   await page.waitForSelector('table.triable tbody tr.cliquable');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 1, 'sessions du projet');
   await page.click('table.triable tbody tr.cliquable td:nth-child(2)');
@@ -110,6 +111,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.match(await page.textContent('main'), /Sans activité sur 30 jours[\s\S]*projet-calme/);
   await page.click('.carte.projet:first-child .activite a');
   await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=holarch'));
+  await page.waitForSelector('.nav a[aria-current="page"][data-vue="sessions"]'); // sinon, le tableau de la page Projets
   await page.waitForSelector('table.triable tbody tr.cliquable');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'sessions du projet');
 

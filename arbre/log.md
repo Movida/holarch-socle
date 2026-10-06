@@ -1,5 +1,11 @@
 # Journal de l'arbre
 
+## 2026-10-06
+
+* **Test visuel de la vue Projets** : passé dans le conteneur du socle après correction d'une attente du test (course
+  entre deux pages) ; sur une copie des données réelles, la page s'affiche sans erreur, le « hors projet » vient
+  surtout d'un dépôt retiré de la machine.
+
 ## 2026-10-05
 
 * **Sessions vides** : le service d'accès distant d'un projet reprend sa dernière session (`--continue`) au lieu d'en
