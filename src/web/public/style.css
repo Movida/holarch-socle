@@ -128,7 +128,7 @@ dl.champs dt { color: var(--doux); font-size: .8rem; font-weight: 400; } dl.cham
 .outils button.replier { width: auto; margin: 0; padding: .3rem .7rem; font-size: .8rem; }
 
 /* ---- projets : une carte par projet en mouvement */
-.projet { display: flex; flex-direction: column; gap: .55rem; font-size: .9rem; }
+.projet { display: flex; flex-direction: column; gap: .55rem; font-size: .9rem; align-self: start; } /* hauteur naturelle : pas de vide dans une carte courte */
 .projet .tete { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
 .projet .tete .t { font-weight: 700; font-size: 1rem; color: var(--texte); } .projet .tete a.t:hover { color: var(--accent); }
 .projet .reste { margin-top: .25rem; } .projet .reste b { font-size: .78rem; color: var(--doux); font-weight: 600; }
@@ -136,7 +136,7 @@ dl.champs dt { color: var(--doux); font-size: .8rem; font-weight: 400; } dl.cham
 .projet .attend { display: flex; flex-direction: column; gap: .25rem; }
 .projet details { margin: 0; padding: 0; border: 0; } .projet summary { cursor: pointer; line-height: inherit; }
 .projet summary::after { display: none; }
-.projet .activite { margin-top: auto; border-top: 1px solid var(--bord); padding-top: .45rem; }
+.projet .activite { border-top: 1px solid var(--bord); padding-top: .45rem; }
 .projet code { font-size: .8em; padding: .05rem .25rem; }
 
 /* ---- journal */
