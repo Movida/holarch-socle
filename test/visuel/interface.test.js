@@ -125,7 +125,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await page.waitForSelector('.nav a[aria-current="page"][data-vue="regles"]');
   await page.waitForSelector('table.triable tbody tr td a[data-fiche]');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'règle effective : profil et type');
-  assert.match(await page.textContent('main'), /Règles — projet-a[\s\S]*compte : avis\.md[\s\S]*draft : proposée, à approuver/);
+  assert.match(await page.textContent('main'), /Règles — projet-a[\s\S]*compte : avis\.md[\s\S]*à approuver/);
   await ouvrir('#/regles', 'table.triable tbody tr');
   assert.match(await page.textContent('main'), /Projets qui ont des règles[\s\S]*projet-a[\s\S]*déclaré/);
 

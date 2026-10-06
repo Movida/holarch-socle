@@ -201,8 +201,8 @@ async function regles(params) {
   const corps = projet ? r : r.compte;
   const lignes = corps.regles.map((e) => {
     const cc = e.claude_code;
-    return `<tr><td><a href="#" data-fiche="${h(e.fiche)}">${h(e.id)}</a></td><td><span class="badge" title="${h(`${e.provenance.arbre}:${e.provenance.noeud}`)}">${h(ORIGINE_REGLE[e.origine] || e.origine)}${e.origine === 'type' ? ` ${h(e.provenance.titre)}` : ''}</span>${e.recouvre.length ? '<div class="desc">redéfinit une règle plus haute</div>' : ''}</td>
-      <td title="${h(e.pourquoi || '')}">${h(e.enonce)}${e.derogee ? `<div class="desc">dérogée : ${h(e.derogee.pourquoi || '')}</div>` : ''}</td><td class="mono desc">${h(e.niveau)}</td>
+    return `<tr><td><a href="#" data-fiche="${h(e.fiche)}">${h(e.id)}</a></td><td><span class="badge" title="${h(`${e.provenance.arbre}:${e.provenance.noeud}`)}">${h(ORIGINE_REGLE[e.origine] || e.origine)}</span>${e.origine === 'type' ? ` <span class="mono desc" title="${h(e.provenance.titre)}">${h(e.provenance.type_id || '')}</span>` : ''}${e.recouvre.length ? '<div class="desc">redéfinit une règle plus haute</div>' : ''}</td>
+      <td title="${h(e.pourquoi || '')}">${md(e.enonce)}${e.derogee ? `<div class="desc">dérogée : ${h(e.derogee.pourquoi || '')}</div>` : ''}</td><td class="mono desc">${h(e.niveau)}</td>
       <td><span class="badge ${e.statut === 'stable' ? 'ok' : 'accent'}">${h(e.statut)}</span></td><td class="desc">${cc.non ? h(cc.non) : `<span class="mono">${h(cc.portee)} : ${h(cc.fichier)}</span>`}</td></tr>`;
   }).join('');
   const table = `<div class="carte tableau section"><table class="triable"><thead><tr><th>Règle</th><th>Origine</th><th>Énoncé</th><th>Niveau</th><th>Statut</th><th>Claude Code</th></tr></thead><tbody>${lignes || '<tr><td colspan="6" class="vide">Aucune règle.</td></tr>'}</tbody></table></div>`;

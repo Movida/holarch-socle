@@ -44,7 +44,7 @@ function fusionner(couches, signaux) {
     for (const f of regles) {
       const a = f.attributes;
       const e = { id: f.name, fiche: f.id, enonce: a.enonce, pourquoi: a.pourquoi, niveau: a.niveau, statut: a.statut, derogeable: a.derogeable,
-        applique_a: a.applique_a, classification: f.classification, origine, provenance: { arbre: a.arbre, noeud: noeud.node, titre: noeud.name, fichier: f.location }, recouvre: [] };
+        applique_a: a.applique_a, classification: f.classification, origine, provenance: { arbre: a.arbre, noeud: noeud.node, titre: noeud.name, fichier: f.location, ...(origine === 'type' && { type_id: noeud.attributes.id }) }, recouvre: [] };
       const avant = r.get(e.id);
       if (avant && avant.derogeable === false) { signaux.push(`règle non dérogeable redéfinie : ${e.id} (${avant.provenance.arbre}:${avant.provenance.noeud}, redéfinie par ${e.provenance.arbre}:${e.provenance.noeud}) ; la première tient`); continue; }
       if (avant) e.recouvre = [...avant.recouvre, { ...avant.provenance, origine: avant.origine }];

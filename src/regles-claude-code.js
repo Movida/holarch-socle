@@ -16,7 +16,7 @@ const nomFichier = (id) => `${String(id).toLowerCase().replace(/[^a-z0-9._-]+/g,
 /** Portée Claude Code d'une règle effective : { portee, fichier } ou { non: raison }. */
 export function destination(e, { classificationDepot = 'internal' } = {}) {
   const portee = e.origine === 'profil' || e.origine === 'contexte' ? 'compte' : 'projet';
-  if (e.statut !== 'stable') return { portee, non: `${e.statut} : proposée, à approuver` };
+  if (e.statut !== 'stable') return { portee, non: e.statut === 'draft' ? 'à approuver' : `statut ${e.statut}` };
   if (e.derogee) return { portee, non: 'dérogée' };
   const chemins = e.applique_a?.paths;
   if (e.niveau === 'blocking' || e.niveau === 'verified') return { portee, non: `niveau ${e.niveau} : hook, à venir` };
