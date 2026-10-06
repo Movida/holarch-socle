@@ -140,6 +140,12 @@ de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas r
   dont HOLARCH est une redéfinition : projet distinct, ses sessions restent hors projet (les rattacher fausserait le coût
   du socle) ; pas de détail par dossier de départ, la fenêtre de 30 jours les absorbe. Le faible nombre de sessions du
   socle sur ce site est attendu : une partie du travail se fait sur le site de travail, dont le journal reste le sien.
+- **Ouverture de la tranche 3 (2026-10-06)** : consigne de l'auteur, un arbre des règles pour tous les projets
+  (nouveaux projets conformes d'office, sous-niveaux d'un projet, HOLARCH lui-même) ; décision `arbre-des-regles`
+  proposée (profil en racine, socle en types, lien entre arbres côté le plus fermé, matérialisation dans les portées
+  de Claude Code) ; Q16 et Q17 ouvertes.
 - **Reste** :
-  1. **Tranches suivantes** : arbre des règles et de la configuration, adaptateurs, récolte, création de projet, audit
+  1. **Tranche 3, arbre des règles** : approbation de la décision `arbre-des-regles`, réponses à Q16 et Q17, puis
+     spécification de la tranche.
+  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.

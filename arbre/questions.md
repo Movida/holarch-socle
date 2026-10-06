@@ -9,6 +9,8 @@
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
 | Q13 | `conception/essai-site-travail.md` §16 | Brique Savoir : le serveur OKF fédéré en devient-il l'adaptateur, et que doit dire le contrat de la brique (lecture avant, proposition après, porte vérifiée) pour ne pas dépendre de ses outils ? À l'ouverture de l'étape 6. | cosmétique d'ici l'étape 6 |
 | Q15 | `conception/etape-3-regles-projets.md`, tranche 1 | Un serveur Remote Control lancé avec `--no-create-session-in-dir` ne crée aucune session d'avance (plus aucune session vide) : le projet reste-t-il joignable depuis l'application (nouvelle session dans ce dossier), alors qu'elle ne montre qu'un appareil par machine ? [À COMPLÉTER : essai depuis le téléphone] | cosmétique |
+| Q16 | `decisions/2026-10-06-arbre-des-regles.md` | Quel second projet, à côté de HOLARCH, pour essayer l'arbre des règles (de préférence d'un autre contexte ou d'un autre type) ? [À COMPLÉTER : choix de l'auteur] | bloquant pour la tranche 3 |
+| Q17 | `decisions/2026-10-06-arbre-des-regles.md` | Le dépôt privé du profil existe-t-il sur le poste personnel, et où ; sinon, nom et emplacement à convenir avant de le créer ? [À COMPLÉTER : réponse de l'auteur] | bloquant pour la tranche 3 |
 
 ## Résolues
 

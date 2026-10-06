@@ -2,6 +2,12 @@
 
 ## 2026-10-06
 
+* **Arbre des règles** : décision `arbre-des-regles` proposée (draft) d'après la consigne de l'auteur : profil en
+  racine des règles, socle en types transverses (`methode-holarch`, `depot-public`), appartenance d'un projet déclarée
+  par son contexte (lien côté le plus fermé), règles matérialisées dans les portées de Claude Code ; Q16 et Q17.
+
+* **Cartes projet** : à leur hauteur naturelle (avis de l'auteur).
+
 * **Test visuel de la vue Projets** : passé dans le conteneur du socle après correction d'une attente du test (course
   entre deux pages) ; sur une copie des données réelles, la page s'affiche sans erreur, le « hors projet » vient
   surtout d'un dépôt retiré de la machine. Avis de l'auteur : ce dépôt est un projet antérieur distinct, il reste hors
