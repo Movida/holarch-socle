@@ -90,11 +90,13 @@ surtout par des commandes shell qui citent des chemins absolus, plus rarement pa
 4. **Avancement d'après l'arbre**, à l'inventaire (`arbre`) : pour une spécification d'étape
    (`conception/etape-<n>-….md`), les entrées de sa section « Avancement » (`- **Étiquette (date)** : texte`, sous-points
    compris) ; pour la racine (`arbre/index.md`), les questions ouvertes de `arbre/questions.md` (tableau avant
-   « Résolues »). Textes tronqués, comme les descriptions.
+   « Résolues ») et les idées de la boîte, `arbre/idees.md` (identifiant, idée, source, phase visée, gain, statut).
+   Textes tronqués, comme les descriptions.
 5. **Lecture `projets`** (socle, interface, serveur MCP), par projet du catalogue :
    - *où il en est* : l'étape en cours (la plus haute sans entrée « Clôture », sinon la dernière), le nombre d'entrées
      « Fait », la dernière, les entrées « Reste » ;
-   - *ce qui l'attend* : questions ouvertes, décisions en `draft` (à approuver) ;
+   - *ce qui l'attend* : questions ouvertes, décisions en `draft` (à approuver) ; à part, les idées de l'étape en cours
+     (phase visée qui commence par elle, ni prises ni écartées), que le résumé de reprise nomme aussi ;
    - *activité* : sessions et coût liste sur 7 et 30 jours, dernière session, dernier commit. Une session compte pour
      chaque projet qu'elle a touché ; son coût (sous-agents compris) se partage entre eux au prorata des appels ; une
      session sans projet touché se rattache au projet de son répertoire de départ, sinon à « hors projet ». Cette
@@ -570,12 +572,15 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
   mesure indépendante des transcriptions donne 1 005, 452 et 226 sur 1 251 (la session en cours n'est pas importée ;
   deux messages d'approbation d'une forme non listée, motifs élargis, restent `autre` dans l'historique). Commit sous
   une autre identité refusé dans le socle : `rule.enforced` au journal, compté sur la carte. Tranche close.
+- **Fait (2026-10-07)** : boîte à idées lue (accord de l'auteur, puis son choix de rattachement) : la phase visée
+  commence par l'étape quand elle est connue (« étape 3, récolte »), neuf phases réécrites ainsi ; l'inventaire lit
+  `arbre/idees.md` sur la racine ; la vue Projets porte les idées de l'étape en cours, ni prises ni écartées (carte :
+  badge dépliable sous le Reste ; outil MCP `projets`) ; le résumé de reprise les nomme. Sur le socle : 11 idées pour
+  l'étape 3, résumé de 1 156 caractères ; 2 tests étendus ; test visuel passé dans le conteneur. Toute idée nouvelle va
+  dans la boîte, pas dans ce Reste.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Boîte à idées (accord de l'auteur, 2026-10-07)** : registre `arbre/idees.md` ouvert, les idées de ce Reste y
-     sont passées (I1 à I18). Reste à faire : l'inventaire le lit, le résumé de reprise et la vue Projets montrent les
-     idées de l'étape qui s'ouvre. Toute idée nouvelle va dans la boîte, pas dans ce Reste.
-  3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
+  2. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
+  3. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
      §5.8), à spécifier à leur ouverture.

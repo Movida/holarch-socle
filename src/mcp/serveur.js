@@ -42,7 +42,7 @@ export function creerServeurMcp(socle, version) {
   });
 
   s.registerTool('projets', {
-    description: 'Suivi des projets (identifiés par leur dépôt Git) : étape en cours d’après leur arbre (faits, reste), questions ouvertes et décisions à approuver, activité sur 7 et 30 jours (sessions, coût liste partagé entre les projets où chaque session a travaillé), dernier commit, état du dépôt (non commité, non poussé, retard sur l’amont), intégration continue configurée.',
+    description: 'Suivi des projets (identifiés par leur dépôt Git) : étape en cours d’après leur arbre (faits, reste), questions ouvertes et décisions à approuver, idées de la boîte visées pour l’étape en cours, activité sur 7 et 30 jours (sessions, coût liste partagé entre les projets où chaque session a travaillé), dernier commit, état du dépôt (non commité, non poussé, retard sur l’amont), intégration continue configurée.',
     inputSchema: z.object({ projet, calmes: z.boolean().optional().describe('Inclure les projets sans activité ni attente (non par défaut)'), limite: limite(20, 200) }),
     annotations: LECTURE,
   }, async ({ projet: ref, calmes, limite: n }) => {

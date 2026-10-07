@@ -4,8 +4,8 @@
 // racine est lue, ses documents suivent leur propre vocabulaire). Un nœud appartient au projet de son dépôt : son
 // identifiant se fonde sur celui du projet (deux clones de même nom ne se confondent plus) et il porte le lien `project`
 // (décision rattachement-projet). Pour la vue Projets : une spécification d'étape porte les entrées de sa section
-// « Avancement », la racine porte les questions ouvertes de `arbre/questions.md`. Les règles d'un nœud (contrat règle)
-// deviennent des fiches `rule` (décision arbre-des-regles).
+// « Avancement », la racine porte les questions ouvertes de `arbre/questions.md` et les idées de `arbre/idees.md`. Les
+// règles d'un nœud (contrat règle) deviennent des fiches `rule` (décision arbre-des-regles).
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
@@ -37,6 +37,14 @@ export function questionsOuvertes(texte) {
   return texte.split(/\r?\n## /)[0].split(/\r?\n/).filter((l) => /^\|\s*Q\d+\s*\|/.test(l)).map((l) => {
     const c = l.split('|').slice(1, -1).map((x) => x.trim());
     return { id: c[0], noeud: (c[1] || '').replace(/`/g, '') || null, question: net(c[2] || '', 240), niveau: c[3] || null };
+  });
+}
+
+// Boîte à idées : lignes `| In | idée | source | phase visée | gain attendu | statut |`.
+export function idees(texte) {
+  return texte.split(/\r?\n/).filter((l) => /^\|\s*I\d+\s*\|/.test(l)).map((l) => {
+    const c = l.split('|').slice(1, -1).map((x) => x.trim());
+    return { id: c[0], idee: net(c[1] || '', 240), source: c[2] || null, phase: c[3] || null, gain: net(c[4] || '', 160) || null, statut: c[5] || null };
   });
 }
 
@@ -91,7 +99,8 @@ export default function inventaireArbre(options, ctx) {
       const rel = '/' + path.relative(depot, f);
       const etape = rel.match(/^\/arbre\/conception\/etape-(\d+)-[^/]*\.md$/);
       const suivi = etape ? { etape: +etape[1], avancement: avancement(lire(f)) }
-        : rel === '/arbre/index.md' ? { questions_ouvertes: questionsOuvertes(lire(path.join(racine.dossier, 'questions.md'))) } : {};
+        : rel === '/arbre/index.md' ? { questions_ouvertes: questionsOuvertes(lire(path.join(racine.dossier, 'questions.md'))),
+          idees: idees(lire(path.join(racine.dossier, 'idees.md'))) } : {};
       const { regles, erreur } = reglesDe(f, h);
       const noeud = {
         id: `holarch:node:${slug(cle + rel)}`, kind: 'node', name: h.title || path.basename(f, '.md'),

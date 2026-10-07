@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Boîte à idées lue** : la phase visée commence par l'étape (choix de l'auteur) ; la reprise et la vue Projets
+  montrent les idées de l'étape en cours, 11 pour l'étape 3.
+
 * **Idées de l'auteur** (boîte à idées) : I19, autorisation d'envoi paramétrable (décision à prendre, elle touche une
   règle approuvée) ; I20, petits modèles locaux spécialisés, avis donné, deux faits à compléter.
 

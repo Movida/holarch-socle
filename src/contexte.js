@@ -71,6 +71,7 @@ export function resume(s, dossier, { max = 1500 } = {}) {
   }
   if (ecarts.length) l.push(`Écarts ouverts : ${ecarts.length} (${ecarts.slice(0, 3).map((e) => court(e.message, 70)).join(' ; ')}).`);
   if (v.questions.length) l.push(`Questions ouvertes : ${v.questions.map((q) => q.id).join(', ')}.`);
+  if (v.idees.length) l.push(`Idées pour l’étape ${v.etape.numero} (\`arbre/idees.md\`) : ${v.idees.map((i) => i.id).join(', ')}.`);
   if (v.decisions.length) l.push(`Décisions à approuver : ${v.decisions.map((d) => court(d.titre, 60)).join(' ; ')}.`);
   // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente.
   const direct = v.chemin && fs.existsSync(v.chemin);

@@ -128,7 +128,7 @@ test('projets : une transcription déjà importée reçoit un complément de pro
   assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, projets: PROJETS }).fichiers_lus, 0);
 });
 
-test('projets : avancement de l’étape, questions, décisions, activité partagée, état du dépôt', () => {
+test('projets : avancement de l’étape, questions, idées, décisions, activité partagée, état du dépôt', () => {
   const donnees = tmp();
   const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {}, tarifs: { modeles: { m: { entree: 0, cache_ecrit: 0, cache_lu: 0, sortie: 1e6 } } } });
   const il_y_a = (j) => new Date(Date.now() - j * 864e5).toISOString().replace(/\.\d+Z$/, 'Z');
@@ -150,7 +150,9 @@ test('projets : avancement de l’étape, questions, décisions, activité parta
     projet('a', { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 1, dernier_commit: il_y_a(2), dernier_sujet: 'Un commit' }),
     projet('b', { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0 }),
     projet('c', { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(200) }),
-    noeud('a', '/arbre/index.md', 'guideline', 'draft', { questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Quoi ?', niveau: 'gênant' }] }),
+    noeud('a', '/arbre/index.md', 'guideline', 'draft', { questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Quoi ?', niveau: 'gênant' }],
+      idees: [['I1', 'étape 2, récolte', 'retenue'], ['I2', 'étape 2', 'prise'], ['I3', 'étape 21', 'retenue'], ['I4', 'après l’étape 2', 'retenue'], ['I5', 'Étape 2 (vue)', 'à trier'], ['I6', 'étape 2', 'écartée pour l’instant']]
+        .map(([id, phase, statut]) => ({ id, idee: id, phase, statut })) }),
     noeud('a', '/arbre/conception/etape-1-voir.md', 'spec', 'draft', { etape: 1, avancement: [{ etiquette: 'Fait', date: '2026-10-01', texte: 'un', sous: [] }, { etiquette: 'Clôture', date: '2026-10-02', texte: 'close', sous: [] }] }),
     noeud('a', '/arbre/conception/etape-2-agir.md', 'spec', 'draft', { etape: 2, avancement: [{ etiquette: 'Fait', date: '2026-10-03', texte: 'deux', sous: [] }, { etiquette: 'Fait', date: '2026-10-04', texte: 'trois', sous: [] }, { etiquette: 'Reste, hors clôture', date: null, texte: null, sous: ['r1', 'r2'] }] }),
     noeud('a', '/arbre/decisions/d1.md', 'decision', 'draft'),
@@ -162,6 +164,7 @@ test('projets : avancement de l’étape, questions, décisions, activité parta
   assert.deepEqual(projets.map((p) => p.nom), ['a', 'b', 'c'], 'rangés par activité récente');
   assert.deepEqual([a.etape.numero, a.etape.faits, a.etape.dernier_fait.texte, a.etape.reste], [2, 2, 'trois', ['r1', 'r2']]);
   assert.deepEqual([a.questions.map((q) => q.id), a.decisions.map((d) => d.titre)], [['Q1'], ['decision /arbre/decisions/d1.md']]);
+  assert.deepEqual([a.idees.map((i) => i.id), b.idees], [['I1', 'I5'], []], 'idées de l’étape en cours, ni prises ni écartées');
   assert.deepEqual([a.technique.en_avance, a.technique.fichiers_modifies, a.dernier_commit.sujet], [2, 1, 'Un commit']);
   // s1 : 8 $ partagés 3/4 a, 1/4 b ; s2 : sans dépôt touché, rattachée au dépôt de son répertoire (b) ; s3 : complément (a).
   assert.deepEqual([a.activite.sessions_7, a.activite.sessions_30, a.activite.usd_7, a.activite.usd_30], [1, 2, 6, 10]);
@@ -179,7 +182,7 @@ test('projets : avancement de l’étape, questions, décisions, activité parta
   assert.deepEqual(s.arbre().find((n) => n.chemin === '/arbre/index.md').projet, { id: 'holarch:project:a', nom: 'a' });
 });
 
-test('projets : l’inventaire lit l’avancement, les questions et l’écart à l’amont sans réseau', async () => {
+test('projets : l’inventaire lit l’avancement, les questions, les idées et l’écart à l’amont sans réseau', async () => {
   const env = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@exemple.test', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@exemple.test' };
   Object.assign(process.env, env);
   const g = (d, ...a) => { const r = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
@@ -188,6 +191,7 @@ test('projets : l’inventaire lit l’avancement, les questions et l’écart �
   spawnSync('git', ['clone', '-q', nu, depot]);
   ecrire(path.join(depot, 'arbre', 'index.md'), '---\ntype: guideline\ntitle: Racine\nstatus: draft\n---\n');
   ecrire(path.join(depot, 'arbre', 'questions.md'), '# Questions ouvertes\n\n| # | Nœud | Question | Niveau |\n|---|---|---|---|\n| Q3 | `x.md` §1 | Une **question** ? | gênant |\n\n## Résolues\n\n| Q1 | fini | oui |\n');
+  ecrire(path.join(depot, 'arbre', 'idees.md'), '# Boîte à idées\n\n| # | Idée | Source | Phase visée | Gain attendu | Statut |\n|---|---|---|---|---|---|\n| I2 | Une **idée** | auteur, 2026-10-07 | étape 1, récolte | moins de frappe | retenue |\n')
   ecrire(path.join(depot, 'arbre', 'conception', 'etape-1-demo.md'), '---\ntype: spec\ntitle: Étape 1 — Démo\nstatus: draft\n---\n\n## Avancement\n\n- **Fait (2026-10-01)** : première\n  partie.\n- **Reste** :\n  1. **Un** : à faire\n     suite.\n  2. Deux.\n\n## Hors périmètre\n\n- **Fait (2026-10-09)** : pas ici\n');
   g(depot, 'checkout', '-q', '-b', 'main'); g(depot, 'add', '.'); g(depot, 'commit', '-q', '-m', 'Premier'); g(depot, 'push', '-q', '-u', 'origin', 'main');
   spawnSync('git', ['clone', '-q', nu, autre]); ecrire(path.join(autre, 'f'), 'x'); g(autre, 'add', '.'); g(autre, 'commit', '-q', '-m', 'Ailleurs'); g(autre, 'push', '-q');
@@ -200,6 +204,7 @@ test('projets : l’inventaire lit l’avancement, les questions et l’écart �
   const ici = n.filter((f) => f.location.startsWith(depot + path.sep)); // le clone « autre » porte le même arbre
   const idx = ici.find((f) => f.node === '/arbre/index.md'); const et = ici.find((f) => f.node === '/arbre/conception/etape-1-demo.md');
   assert.deepEqual(idx.attributes.questions_ouvertes, [{ id: 'Q3', noeud: 'x.md §1', question: 'Une question ?', niveau: 'gênant' }]);
+  assert.deepEqual(idx.attributes.idees, [{ id: 'I2', idee: 'Une idée', source: 'auteur, 2026-10-07', phase: 'étape 1, récolte', gain: 'moins de frappe', statut: 'retenue' }]);
   assert.equal(et.attributes.etape, 1);
   assert.deepEqual(et.links.project, [p.id], 'un nœud appartient au projet de son dépôt');
   const { slug } = await import('../src/inventaire/outils.js');

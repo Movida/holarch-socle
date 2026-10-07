@@ -132,7 +132,7 @@ dl.champs dt { color: var(--doux); font-size: .8rem; font-weight: 400; } dl.cham
 .projet .tete { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
 .projet .tete .regles { margin-left: auto; font-size: .8rem; }
 .projet .tete .t { font-weight: 700; font-size: 1rem; color: var(--texte); } .projet .tete a.t:hover { color: var(--accent); }
-.projet .reste { margin-top: .25rem; } .projet .reste b { font-size: .78rem; color: var(--doux); font-weight: 600; }
+.projet .reste, .projet .idees { margin-top: .25rem; } .projet .reste b { font-size: .78rem; color: var(--doux); font-weight: 600; }
 .projet ul { margin: .15rem 0 0; padding-left: 1.1rem; } .projet li { font-size: .84rem; margin: .1rem 0; list-style: disc; }
 .projet .attend { display: flex; flex-direction: column; gap: .25rem; }
 .projet details { margin: 0; padding: 0; border: 0; } .projet summary { cursor: pointer; line-height: inherit; }
