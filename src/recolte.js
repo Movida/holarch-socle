@@ -167,7 +167,10 @@ export function ajouterRegles(fichier, regles) {
   const avant = fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : '';
   const pris = new Set([].concat(YAML.parse(avant) || []).map((x) => x?.id));
   const neuves = regles.filter((x) => !pris.has(x.id));
-  if (neuves.length) fs.writeFileSync(fichier, `${avant}${avant && !avant.endsWith('\n') ? '\n' : ''}${YAML.stringify(neuves, { lineWidth: 0 })}`);
+  // La provenance d'une règle tient sur une ligne, comme `approved` : elle se lit sans masquer la règle.
+  const doc = new YAML.Document(neuves);
+  for (const r of doc.contents?.items || []) { const h = r.get('harvest', true); if (h) h.flow = true; }
+  if (neuves.length) fs.writeFileSync(fichier, `${avant}${avant && !avant.endsWith('\n') ? '\n' : ''}${doc.toString({ lineWidth: 0 })}`);
   return { ecrites: neuves.map((x) => x.id), deja: regles.filter((x) => pris.has(x.id)).map((x) => x.id) };
 }
 

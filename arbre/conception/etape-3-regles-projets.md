@@ -711,12 +711,20 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   projet), 0,25 $ ; passe 2, 8 sur 8 mais groupes fondus à leurs bords, environ 18 groupes communs. Avec les 28 règles
   connues (30 jours) : 12 redites sur 28 rattachées à une règle existante, deux redites contradictoires. Critère de
   livraison tenu. Décision `recolte` proposée (brouillon) : règle `draft` au nœud commun des sources, refus gardé.
+- **Fait (2026-10-07)** : tranche 11, points 3 et 4. Décision `recolte` approuvée telle quelle ; contrat règle 0.4.0
+  (`harvest`, refus en `deprecated`). `holarch recolte --proposer` : le regroupement rend aussi identifiant, raison et
+  contradictions ; une redite nouvelle devient une règle `draft` au plus bas nœud commun de ses sources (arbre du projet
+  posé s'il manque), ajoutée sans réécrire le fichier ; une contradiction sort « à trancher » ; règles proposées et
+  refusées passées au regroupement. La reprise dit les règles à approuver. 1 test, 1 étendu. Première passe (30 jours,
+  0,27 $) : 21 redites, 13 couvertes, 7 règles proposées au profil (toutes ont des sources hors projet), 1 contradiction,
+  tranchée par l'auteur (reformuler avant de décider : `reformuler-avant-de-decider` proposée, la consigne contraire
+  gardée refusée).
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  4. **Tranche 11** : décision `recolte` à approuver, puis point 4 (propositions branchées), première passe sur les
-     16 redites non couvertes du 2026-10-07.
+  4. **Tranche 11** : livrée ; huit règles proposées au profil, à approuver par l'auteur ; critère d'usage : une
+     consigne approuvée n'est plus redite ensuite.
   5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.

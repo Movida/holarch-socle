@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Tranche 11 livrée** (récolte) : décision `recolte` approuvée telle quelle ; `holarch recolte --proposer` écrit les
+  redites nouvelles en règles brouillon au nœud commun de leurs sources, la reprise les annonce. Première passe : 7
+  règles proposées au profil, une contradiction tranchée par l'auteur (reformuler la demande avant de décider).
+
 * **Rejeu de la récolte** (tranche 11, point 2) : sur l'historique d'avant le 6, 7 puis 8 consignes attendues sur 8
   retrouvées en deux passes, 2 fausses alertes sur 20 (exigences de produit), 0,25 $ la passe ; avec les règles
   connues, 12 redites sur 28 rattachées à une règle existante. Décision `recolte` proposée en brouillon.

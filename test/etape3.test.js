@@ -663,6 +663,7 @@ test('réglages Claude Code : posés depuis le profil, valeur posée à la main 
 test('contexte : résumé de reprise du projet du dossier de travail, court ; rien hors projet', () => {
   const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
   ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: en-place\n  statement: Déjà approuvée.\n  status: stable\n- id: a-approuver\n  statement: Récoltée.\n  status: draft\n- id: refusee\n  statement: Refusée.\n  status: deprecated\n');
   ecrire(path.join(d, 'arbre', 'conception', 'etape-2-demo.md'), `---\ntype: specification\ntitle: Étape 2 — démonstration\nstatus: draft\n---\n\n## Avancement\n\n- **Fait (2026-10-01)** : ${'premier lot livré. '.repeat(30)}\n- **Reste** :\n  1. Second lot.\n`);
   g('add', '.'); g('commit', '-qm', 'x');
   const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
@@ -671,6 +672,7 @@ test('contexte : résumé de reprise du projet du dossier de travail, court ; ri
   const t = resume(s, path.join(d, 'arbre'));
   assert.match(t, /reprise du projet depot/); assert.match(t, /Étape 2 : Étape 2 — démonstration/); assert.match(t, /Reste : Second lot\./);
   assert.ok(t.length <= 1500);
+  assert.match(t, /\nRègles à approuver : 1 \(a-approuver\), page « Règles »\.\n/, 'les brouillons seulement');
   assert.doesNotMatch(t, /Dépôt :/, 'dépôt propre : rien à dire');
   assert.match(t, /Intégration continue : aucune/);
   // L'état du dépôt se lit en direct, pas dans l'inventaire (qui peut dater de l'heure précédente).
