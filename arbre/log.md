@@ -11,6 +11,9 @@
   `secrets-hors-contexte`, chacune née d'un fait de la session. La ligne de commande refuse une option inconnue avant
   d'agir et affiche l'aide sur `--help` (une commande lancée « pour voir l'aide » avait écrit des fichiers).
 
+* **Second projet d'essai** : une autre personne travaille sur sa branche principale ; les commits d'essai de HOLARCH
+  (type déclaré, règles générées) vivent sur une branche dédiée, poussée, que le clone local garde extraite.
+
 ## 2026-10-06
 
 * **Arbre des règles, réalisation** (tranche 3) : règle effective calculée (profil, contexte, types, projet ;
