@@ -4,7 +4,8 @@
 
 * **Veille de sécurité et de versions** (tranche 5) : décision `veille-securite-versions` ; contrôles des dépendances
   vulnérables (osv-scanner, gravité élevée ou critique) et des versions des outils du poste, interrogés une fois par
-  jour ; deux règles de profil approuvées, trois projets déclarés ; premier audit : 27 paquets à failles.
+  jour ; deux règles de profil approuvées, trois projets déclarés ; premier audit : 27 paquets à failles. Une mise à
+  jour de dépendance critique a résolu son écart : tranche close.
 
 * **Interface depuis le téléphone** : l'interface admet un relais HTTPS de réseau privé déclaré par son nom
   (`web.hotes_admis`) ; `holarch interface` la tient en service ; publiée par Tailscale Serve sur le poste personnel.

@@ -125,6 +125,7 @@ After=network-online.target
 
 [Service]
 Environment=${systemd(`HOLARCH_HOME=${accueil}`)}
+Environment=${systemd(`PATH=${[...new Set([path.dirname(node), path.join(os.homedir(), '.local', 'bin'), '/usr/local/bin', '/usr/bin', '/bin'])].join(':')}`)}
 ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} voir
 Restart=on-failure
 RestartSec=30

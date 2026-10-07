@@ -442,6 +442,7 @@ test('interface en service : unité marquée qui relit la même configuration, a
   i.activer();
   const texte = fs.readFileSync(path.join(unites, 'holarch-interface.service'), 'utf8');
   assert.match(texte, /^# Écrit par HOLARCH/); assert.match(texte, /Environment="HOLARCH_HOME=\/srv\/donnees holarch"/);
+  assert.match(texte, /Environment="PATH=\/opt\/node\/bin:[^"]*\/\.local\/bin:/, 'les outils du poste, comme dans un terminal');
   assert.match(texte, /ExecStart="\/opt\/node\/bin\/node" --no-warnings "\/opt\/holarch\/bin\/holarch.js" voir/);
   assert.deepEqual(appels, ['daemon-reload', 'enable --now holarch-interface.service']);
   assert.equal(i.etat().actif, true);
@@ -489,6 +490,8 @@ test('contrôles : outils à jour (installé contre publié), introuvable signal
     { nom: 'outil-b', commande: ['sh', '-c', 'echo v2.0.0'], github: 'exemple/outil-b' },
     { nom: 'outil-c', commande: ['/inexistant/outil-c', '--version'], node: 'lts' }] };
   const r = executer('outils-a-jour', { config, publiees: { 'outil-a': 'v1.3.0', 'outil-b': '2.0.0', 'outil-c': 'v24.1.0' } }, 'audit');
+  const sansPath = spawnSync(process.execPath, ['--input-type=module', '-e', `import { executer } from '${path.resolve('src/controles.js')}'; console.log(JSON.stringify(executer('outils-a-jour', { config: { outils_surveilles: [{ nom: 'sh', commande: ['sh', '-c', 'echo 1.0.0'], github: 'x/y' }] }, publiees: { sh: '1.0.0' } }, 'audit')))`], { encoding: 'utf8', env: { ...process.env, PATH: '/usr/bin:/bin' } });
+  assert.deepEqual(JSON.parse(sansPath.stdout).ecarts, [], 'un PATH réduit trouve encore un outil du système');
   assert.deepEqual(r.ecarts.map((e) => [e.cle, e.message]), [['outil-a', 'outil-a 1.2.3 installé, 1.3.0 publié'], ['outil-c', 'outil-c introuvable sur ce site']]);
   assert.match(executer('outils-a-jour', { config: {} }, 'audit').indisponible, /outils_surveilles absent/);
   assert.match(executer('outils-a-jour', { config, publiees: { 'outil-a': 'pas une version' } }, 'audit').indisponible, /illisible pour outil-a/);

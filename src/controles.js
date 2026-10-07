@@ -203,8 +203,10 @@ function outilsAJour(ctx) {
   for (const o of outils) {
     const pub = version(publiees[o.nom]);
     if (!pub) return { indisponible: `version publiée illisible pour ${o.nom}` };
+    // Même recherche que pour les autres outils (PATH, puis ~/.local/bin) : un service au PATH réduit voit le même poste.
     const cmd = [].concat(o.commande || [o.nom]).map(String);
-    const r = spawnSync(cmd[0], cmd.slice(1), { encoding: 'utf8', timeout: 20e3 });
+    const bin = cmd[0].includes('/') ? cmd[0] : trouverOutil(cmd[0]);
+    const r = bin ? spawnSync(bin, cmd.slice(1), { encoding: 'utf8', timeout: 20e3 }) : { error: true };
     const inst = version(`${r.stdout || ''} ${r.stderr || ''}`);
     if (r.error || !inst) ecarts.push({ fichier: null, ligne: null, cle: o.nom, message: `${o.nom} introuvable sur ce site` });
     else if (avant(inst, pub) < 0) ecarts.push({ fichier: null, ligne: null, cle: o.nom, message: `${o.nom} ${inst.join('.')} installé, ${pub.join('.')} publié` });

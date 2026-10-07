@@ -381,7 +381,11 @@ jour seuls et ne sont pas suivis. Un projet que le contexte ne déclare pas n'es
   exécution ne réinterroge rien ; écarts sur la carte des projets, y compris depuis le téléphone. Critère : reste à
   constater qu'une mise à jour qui corrige une faille résout son écart (le mécanisme de résolution est celui de la
   tranche 4, déjà éprouvé).
+- **Fait (2026-10-07)** : critère de la tranche 5 tenu. Une dépendance à faille critique d'un projet déclaré, mise à
+  jour avec l'accord de l'auteur (verrou seul, tests du projet passés), a résolu son écart au journal. Défaut trouvé à
+  l'usage : un audit lancé par le service de l'interface, au `PATH` réduit, déclarait les outils introuvables ; la
+  recherche d'un outil est désormais la même pour tous les contrôles, et le service reçoit le `PATH` du poste.
+  Tranche close.
 - **Reste** :
-  1. **Tranche 5** : constater la résolution d'un écart à la première mise à jour de dépendances.
-  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
+  1. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.
