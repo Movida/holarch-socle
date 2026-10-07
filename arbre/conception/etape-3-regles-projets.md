@@ -705,11 +705,18 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   Options de `claude -p` vérifiées dans l'aide et par un appel réel (`structured_output`, environ 1 200 tokens de base) ;
   `--bare` écarté (clé d'API exigée). À blanc sur le poste, 30 jours : 578 messages et 28 mémoires de retour, 93
   sessions, 125 k caractères, aucun secret retiré.
+- **Fait (2026-10-07)** : tranche 11, point 2, rejeu (`holarch recolte --jusqua 2026-10-06 --jours 365`). Aucune règle
+  connue à cette date (toutes approuvées le 7). 8 règles attendues (consigne présente dans deux sources avant le 6) :
+  passe 1, 7 retrouvées (`modele-par-etape` manquée), 20 redites dont 2 fausses alertes (exigences de produit d'un
+  projet), 0,25 $ ; passe 2, 8 sur 8 mais groupes fondus à leurs bords, environ 18 groupes communs. Avec les 28 règles
+  connues (30 jours) : 12 redites sur 28 rattachées à une règle existante, deux redites contradictoires. Critère de
+  livraison tenu. Décision `recolte` proposée (brouillon) : règle `draft` au nœud commun des sources, refus gardé.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  4. **Tranche 11** : rejeu sur l'historique (`holarch recolte --jusqua 2026-10-06`), puis décision `recolte`.
+  4. **Tranche 11** : décision `recolte` à approuver, puis point 4 (propositions branchées), première passe sur les
+     16 redites non couvertes du 2026-10-07.
   5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.

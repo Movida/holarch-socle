@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Rejeu de la récolte** (tranche 11, point 2) : sur l'historique d'avant le 6, 7 puis 8 consignes attendues sur 8
+  retrouvées en deux passes, 2 fausses alertes sur 20 (exigences de produit), 0,25 $ la passe ; avec les règles
+  connues, 12 redites sur 28 rattachées à une règle existante. Décision `recolte` proposée en brouillon.
+
 * **Tranche 11 ouverte** (récolte, choix de l'auteur) : détecteur livré, `holarch recolte` ; consignes reformulées,
   donc regroupées par `claude -p` (une mesure lexicale n'en trouve aucune) ; à blanc : 578 messages, 28 mémoires de
   retour sur 30 jours. Suite : rejeu avant le 2026-10-06.
