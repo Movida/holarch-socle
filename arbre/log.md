@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Interface relancée** à la demande de l'auteur ; décision `relancer-interface` proposée (la règle
+  `verifier-avant-de-rendre` étendue à la relance du service) ; idée I21 (demandes répétées de l'auteur, proposées en
+  skill) dans la boîte.
+
 * **Boîte à idées lue** : la phase visée commence par l'étape (choix de l'auteur) ; la reprise et la vue Projets
   montrent les idées de l'étape en cours, 11 pour l'étape 3.
 
