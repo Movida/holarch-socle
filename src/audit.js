@@ -20,7 +20,11 @@ const comptesDe = (s) => comptesClaudeCode(s.config, s.config.inventaire?.['clau
 export function contexteControle(s, projet, r, depot = projet.location) {
   const noeuds = s.fiches({ kind: 'node' });
   const declares = projetsDeclares(noeuds);
-  const publique = (id) => noeuds.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public');
+  // Public : la racine de son arbre se classe `public`, ou ses couches le déclarent public (`creation.visibilite`, que
+  // porte le type depot-public) ; une seule notion avec la commande de création.
+  const fiches = [...noeuds, ...s.fiches({ kind: 'rule' })];
+  const publique = (id) => noeuds.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public')
+    || regleEffective(fiches, id).config?.creation?.visibilite === 'public';
   const projetsPrives = s.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
   const config = r.config || {}; const reglages = s.config.controles || {};
   return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),

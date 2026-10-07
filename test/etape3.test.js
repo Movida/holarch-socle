@@ -349,6 +349,23 @@ test('contrôles : liste privée déduite et amendée, mots entiers, un écart d
   assert.match(executer('donnees-personnelles', { depot: path.join(d, 'absent'), termes: ['x'] }, 'audit').indisponible, /absent/);
 });
 
+test('contrôles : un projet déclaré public, par sa classification ou par ses types, sort de la liste privée', () => {
+  const r = tmp(); const accueil = tmp();
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:ouvert, holarch:project:classe, holarch:project:ferme]\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'types', 'public', 'index.md'), '---\ntype: template\nid: public\ntitle: Public fictif\nstatus: draft\nconfig:\n  creation: { visibilite: public }\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+  const racine = (nom, entete) => { fs.mkdirSync(path.join(r, nom)); depotGit(path.join(r, nom)); ecrire(path.join(r, nom, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${nom}\ntitle: ${nom}\nstatus: draft\n${entete}---\n`); return path.join(r, nom); };
+  const depots = [racine('ouvert', 'types: [public]\n'), racine('classe', 'classification: public\n'), racine('ferme', '')];
+  const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil'), ...depots], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const projets = depots.map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }));
+  s.catalogue.remplacer([...fiches, ...projets]); s.indexer();
+  const termes = s.contexteControle(projets[2], regleEffective([...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })], projets[2].id)).termes;
+  const autre = s.contexteControle(projets[0], regleEffective([...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })], projets[0].id)).termes;
+  assert.ok(!termes.includes('ouvert') && !termes.includes('classe'), termes.join(' | '));
+  assert.ok(autre.includes('ferme'), 'un projet sans rien qui le dise public reste privé');
+});
+
 test('contrôles : secrets par gitleaks (avant commit, audit du contenu suivi), absent ou en panne : non disponible', () => {
   const { d, g } = depotGit();
   ecrire(path.join(d, 'conf.txt'), 'a\nb\nc\n'); g('add', '.'); g('commit', '-qm', 'x');
