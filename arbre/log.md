@@ -2,6 +2,8 @@
 
 ## 2026-10-07
 
+* **Idée I25 retenue** par l'auteur ; envoi des commits du socle (accord de l'auteur).
+
 * **Mesure intermédiaire de la passation** (tranche 7) : sessions commencées après sa pose (8, 651 tours) : contexte
   relu par tour 137 k contre 239 k sur les 7 jours d'avant (19 sessions), 2 sessions au-dessus du seuil contre 10 ;
   échantillon court, critère toujours le 2026-10-14. Idée I25 proposée (décisions remises en cause sur mesure).
