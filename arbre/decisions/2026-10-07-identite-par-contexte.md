@@ -2,7 +2,8 @@
 type: decision
 title: L'identité de commit est un réglage du contexte, gardé au commit
 description: Le contexte (ou le profil, par défaut) déclare l'identité sous laquelle ses projets committent ; `holarch regles appliquer` la pose dans les dépôts qui en divergent, sans remplacer une valeur posée à la main ; le crochet `pre-commit` refuse un commit sous une autre identité ; l'audit signale l'écart.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-07, ref: "choix cliquable du 2026-10-07 : « Approuver telle quelle »" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/conception/contrats/config.md]
@@ -41,5 +42,6 @@ au lieu de le constater après publication.
 suffirait alors) ; un besoin de signer les commits (la clé de signature rejoindrait l'identité).
 
 **Conséquences.** Clé `identite` au registre de configuration ; règle `identite-de-commit` au profil ; tranche 8 de
-l'étape 3. Contexte professionnel : [À COMPLÉTER : identité de commit des projets professionnels, et s'ils relèvent de
-ce poste] (Q18).
+l'étape 3. Identités (Q18, choix de l'auteur) : adresse anonyme GitHub
+du compte personnel pour le contexte perso, du compte professionnel pour le contexte pro, valeurs au profil privé ; le
+contexte pro se déclare avec son premier projet.

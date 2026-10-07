@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Tranche 8 approuvée** : décision `identite-par-contexte` approuvée ; Q18 résolue (identité fixe par contexte,
+  adresse anonyme GitHub du compte de chaque contexte) ; idée « échecs » placée en tranche 9.
+
 * **Idée de l'auteur** : identifier les échecs, puis chercher des solutions ; avis donné, à décider (avancement, Reste).
 
 * **Tranche 8 ouverte** (configuration, identité de commit) : décision `identite-par-contexte` proposée ; Q18 ouverte.

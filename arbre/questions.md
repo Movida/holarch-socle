@@ -8,12 +8,12 @@
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
 | Q13 | `conception/essai-site-travail.md` §16 | Brique Savoir : le serveur OKF fédéré en devient-il l'adaptateur, et que doit dire le contrat de la brique (lecture avant, proposition après, porte vérifiée) pour ne pas dépendre de ses outils ? À l'ouverture de l'étape 6. | cosmétique d'ici l'étape 6 |
 | Q15 | `conception/etape-3-regles-projets.md`, tranche 1 | Un serveur Remote Control lancé avec `--no-create-session-in-dir` ne crée aucune session d'avance (plus aucune session vide) : le projet reste-t-il joignable depuis l'application (nouvelle session dans ce dossier), alors qu'elle ne montre qu'un appareil par machine ? [À COMPLÉTER : essai depuis le téléphone] | cosmétique |
-| Q18 | `decisions/2026-10-07-identite-par-contexte.md` | Contexte professionnel : sous quelle identité committent les projets professionnels, et relèvent-ils de ce poste ? (un dépôt non déclaré porte des commits sous des adresses professionnelles et personnelles) [À COMPLÉTER : réponse de l'auteur] | gênant |
 
 ## Résolues
 
 | # | Question | Réponse |
 |---|---|---|
+| Q18 | Contexte professionnel : identité de commit, et relève-t-il de ce poste ? | oui ; identité fixe par contexte, choix de l'auteur (2026-10-07) : contexte perso sous l'adresse anonyme GitHub du compte personnel, contexte pro sous celle du compte professionnel (valeurs au profil privé) ; contexte pro déclaré avec son premier projet ; le dépôt mixte reste non déclaré : `decisions/2026-10-07-identite-par-contexte.md` |
 | Q5 | Registre des clés de `config` des nœuds | ouvert avec la première clé réellement portée par un nœud (2026-10-07) : `conception/contrats/config.md`, décision `passation-sereine` |
 | Q17 | Dépôt privé du profil | aucun n'existait ; créé le 2026-10-06 avec l'accord de l'auteur (dépôt privé de son compte, cloné à côté de ses projets) : `decisions/2026-10-06-arbre-des-regles.md` |
 | Q16 | Quel second projet pour essayer l'arbre des règles ? | un bundle de connaissances privé du contexte personnel (choix de l'auteur, 2026-10-06) : autre nature que HOLARCH (pas de code), privé, il éprouve le côté fermé de l'arbre |

@@ -362,7 +362,7 @@ et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
 
 ## Tranche 8 — Configuration : identité de commit
 
-Décision `identite-par-contexte` (proposée le 2026-10-07, à approuver). Deuxième tranche « configuration » (§5.2) : un
+Décision `identite-par-contexte` (approuvée le 2026-10-07). Deuxième tranche « configuration » (§5.2) : un
 réglage porté par l'arbre, appliqué par le mécanisme de git, gardé au commit.
 
 **Livre.**
@@ -385,7 +385,7 @@ déclaré ; le réglage divergent du dépôt déclaré est signalé, puis résol
 est sans écart d'identité.
 
 **Hors tranche.** La réécriture de l'historique déjà publié (adresse personnelle dans 8 commits de `holarch-socle` et
-tous ceux d'un autre dépôt public) : geste de l'auteur, à décider à part. Le contexte professionnel (Q18). Les dépôts
+tous ceux d'un autre dépôt public) : geste de l'auteur, à décider à part. Le contexte professionnel : déclaré avec son premier projet (Q18). Les dépôts
 non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
 
 ## Avancement
@@ -508,12 +508,14 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
 - **Ouverture de la tranche 8 (2026-10-07)** : configuration, identité de commit, sur demande de l'auteur (choix de
   l'identité parmi identité et réglages Claude Code par projet, ceux-ci en tranche 9) ; décision
   `identite-par-contexte` proposée ; Q18 ouverte (contexte professionnel).
+- **Fait (2026-10-07)** : décision `identite-par-contexte` approuvée telle quelle ; Q18 résolue (identité fixe par
+  contexte, adresse anonyme GitHub du compte de chaque contexte ; contexte pro déclaré avec son premier projet ; dépôt
+  mixte laissé non déclaré). Idée « échecs » placée en tranche 9, avant les réglages de Claude Code par projet.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 8** : approbation de la décision `identite-par-contexte`, puis points 1 à 5.
-  3. **Idée de l'auteur (2026-10-07)** : identifier les échecs, puis chercher des solutions. Avis donné : d'abord
-     consigner les échecs au journal (refus de garde, tests rouges, erreurs d'outil, leçons de clôture), puis proposer
-     une solution pour ceux qui se répètent (boucles « Règles » et « Progrès et recul », §6) ; à décider, et à placer
-     avec la récolte.
-  4. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
-     leur ouverture.
+  2. **Tranche 8** : points 1 à 5 (identité perso au profil : adresse anonyme du compte personnel).
+  3. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
+     erreurs d'outil, leçons de clôture) et les compter ; les solutions pour ceux qui se répètent viendront avec la
+     récolte (boucles « Règles » et « Progrès et recul », §6). À spécifier à l'ouverture.
+  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
+     §5.8), à spécifier à leur ouverture.
