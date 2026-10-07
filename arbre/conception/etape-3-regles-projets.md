@@ -520,11 +520,17 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
   signalé puis résolu quand l'auteur l'a retiré ; un commit sous une autre identité refusé dans le socle ; audit sans écart
   d'identité. Défaut trouvé à l'usage : un crochet impossible à poser (`core.hooksPath` d'un dépôt vers un chemin de
   conteneur absent de l'hôte) interrompait toute la commande ; il est désormais dit, et les autres projets passent.
-  Reste ouvert : crochet absent de ce dépôt, tant que son `core.hooksPath` vise ce chemin. Tranche close.
+  Ce `core.hooksPath` retiré ensuite (accord de l'auteur) : crochet posé, écart résolu. Tranche close.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
      erreurs d'outil, leçons de clôture) et les compter ; les solutions pour ceux qui se répètent viendront avec la
      récolte (boucles « Règles » et « Progrès et recul », §6). À spécifier à l'ouverture.
-  3. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
+  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : l'avis de passation ne demande la leçon de clôture
+     que si la règle `lecon-de-cloture` s'applique (doublon en dur dans `contexte.js`, une seule source) ; contrôle
+     « commits non poussés » (dépôt déclaré en avance sur son amont, montré à la reprise) ; règles de profil à proposer :
+     recommandations en choix cliquables, et règle ou contrôle proposé quand un défaut est trouvé à l'usage (lien avec
+     la tranche 9). Limite connue : une règle du compte ne se déroge pas encore par projet (portée locale, à venir).
+     L'auteur demande d'autres idées du même genre : à proposer à l'ouverture.
+  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
      §5.8), à spécifier à leur ouverture.

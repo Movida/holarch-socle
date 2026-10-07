@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Habitudes paramétrables** : leçon de clôture de l'avis de passation à rattacher à sa règle, contrôle des commits
+  non poussés, règles « choix cliquables » et « défaut à l'usage » retenus par l'auteur (avancement, Reste) ; un
+  `core.hooksPath` vers un chemin de conteneur retiré, crochet posé.
+
 * **Identité de commit** (tranche 8 close) : identité déclarée au profil, posée en réglage local là où elle diffère,
   gardée au commit (règle `identite-de-commit`, bloquante) et à l'audit ; cinq projets déclarés gardés ; un réglage à
   la main divergent signalé puis résolu ; un crochet impossible à poser ne bloque plus `regles appliquer`.
