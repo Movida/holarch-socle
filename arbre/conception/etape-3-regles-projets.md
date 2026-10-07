@@ -645,13 +645,13 @@ projet (§5.8).
      (choix de l'auteur, 2026-10-07) : seules la sortie (deux vidéos finales, crédits) et le retour d'expérience
      sont gardés, dans `D:\Videos\pacs-montage-video` ; dépôt déjà absent de GitHub. LICENSE : exception portée par le
      type `depot-public` pour tout dépôt public (accord de l'auteur), retirée du socle et de la commande ; audit du socle
-     conforme. okf-phoenix périmé selon l'auteur, à supprimer en local et sur GitHub.
-     okf-phoenix : clone propre, sans dépendant ; sauvegardé (bundle vérifié et `settings.local.json`
-     dans `~/.claude/backups/`, 2026-10-07). Suppression sur GitHub refusée par une règle `deny` du compte
-     (`Bash(gh repo delete *)`), qui vaut dans tous les modes de permission : par l'auteur, depuis la page du dépôt
-     (Settings, Danger Zone), puis le dossier local par l'agent.
+     conforme. okf-phoenix retiré (2026-10-07) : sauvegardé (bundle vérifié et `settings.local.json` dans
+     `~/.claude/backups/`), supprimé sur GitHub par l'auteur, puis le dossier local par l'agent.
      okf-bundle-template : gardé (auteur, 2026-10-07), encore utilisé par un projet actif ; ses 4 commits publics portent
-     une adresse non anonyme, réattribution possible si l'auteur le demande.
+     une adresse non anonyme, réattribution possible si l'auteur le demande. À blanc (`--type depot-public`) : identité
+     locale divergente (geste réservé), conteneur, accès distant et clé de déploiement à faire ; peu actif (4 commits,
+     le dernier le 2026-09-21), choix à l'auteur entre déclarer puis retirer conteneur et accès distant, ou une option
+     de la commande pour un projet dormant (décision).
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
   4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,

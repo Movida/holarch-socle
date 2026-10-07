@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **okf-phoenix retiré** : supprimé sur GitHub par l'auteur, dossier local supprimé après vérification de la
+  sauvegarde. okf-bundle-template à blanc : identité locale à retirer par l'auteur ; conteneur et accès distant en
+  question pour un projet peu actif.
+
 * **pacs-montage-video retiré** (choix de l'auteur) : sortie et retour d'expérience gardés dans les vidéos de
   Windows, le reste supprimé. Profil hors de la liste des projets (avis partagé). Exception de la LICENSE portée par le
   type `depot-public` (accord de l'auteur).
