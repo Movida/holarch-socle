@@ -589,7 +589,8 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
      okf-phoenix et okf-bundle-template périmés selon l'auteur, à supprimer en local et sur GitHub (compte
      perso). okf-phoenix : clone propre, sans dépendant ; suppression refusée par la permission de l'outil, à lancer
      par l'auteur (bundle de sauvegarde, puis `gh repo delete --yes`, puis le dossier).
-     okf-bundle-template : encore utilisé par un projet actif (CI, 4 tests de bout en bout, README), en attente de l'auteur.
+     okf-bundle-template : gardé (auteur, 2026-10-07), encore utilisé par un projet actif ; ses 4 commits publics portent
+     une adresse non anonyme, réattribution possible si l'auteur le demande.
   3. **Règle `lecon-de-cloture` inversée** (accord de l'auteur, 2026-10-07) : décision à écrire dans le profil ; à
      l'ouverture d'un sujet, l'agent annonce le déroulé (étapes, mesures, choix qui reviendront à l'auteur) ; à la
      clôture, la leçon compare au plan annoncé et nomme ce qui l'a fait dévier.
