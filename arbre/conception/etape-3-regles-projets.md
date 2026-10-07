@@ -528,13 +528,18 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
   une session de travail passe sans bruit) ; branche sans amont : non disponible (choix de l'auteur) ; même lecture
   de l'amont que la reprise et le badge de la carte. Règle de profil `commits-pousses` (`verified`) proposée, en
   brouillon. Sur le poste : aucun écart à 4 h (un projet à 2 commits locaux depuis environ 2 h, écart à 1 h) ; 2 tests.
+- **Fait (2026-10-07)** : idée de l'auteur, réglages proposés d'après ses habitudes. Mesure du délai entre commit et
+  envoi (reflog de l'amont) : 90 % des envois en moins de 0,4 h dans le socle, 0,8 h dans le profil, 10,6 h dans un
+  projet à dépendances (un oubli de 56 jours) ; le seuil de 4 h tient. Règles de profil `commits-pousses` (`verified`)
+  et `reglage-mesure` (rappel : mesurer l'habitude avant de proposer un réglage) approuvées ; le contrôle tourne à
+  l'audit sur les cinq projets déclarés, sans écart. `reglage-mesure` pas encore écrite au compte (`regles appliquer`).
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
      erreurs d'outil, leçons de clôture) et les compter ; les solutions pour ceux qui se répètent viendront avec la
      récolte (boucles « Règles » et « Progrès et recul », §6). À spécifier à l'ouverture.
-  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : règles `commits-pousses` et `reglage-mesure`
-     (mesurer l'habitude avant de proposer un réglage) à approuver ; idée de l'auteur retenue pour plus tard, avec la
+  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : `holarch regles appliquer` pour écrire
+     `reglage-mesure` au compte ; idée de l'auteur retenue pour plus tard, avec la
      récolte : chaque réglage déclare sa mesure, l'audit en tire une valeur par projet, proposée en brouillon (exemple
      mesuré : délai entre commit et envoi, lu dans le reflog de l'amont) ; règles de profil à proposer :
      recommandations en choix cliquables, et règle ou contrôle proposé quand un défaut est trouvé à l'usage (lien avec

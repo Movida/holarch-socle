@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Règles approuvées** : `commits-pousses` et `reglage-mesure` (profil) ; contrôle actif, aucun écart. Incident :
+  `regles appliquer --help` lancé pour voir l'aide (contraire à `outil-verifie`), rien n'a été écrit.
+
 * **Habitudes (a, b)** : leçon de clôture demandée par l'avis de passation seulement quand sa règle s'applique ;
   contrôle `commits-pousses` (écart au-delà de 4 h, branche sans amont non disponible), règle de profil proposée.
   Seuil confirmé par la mesure du délai d'envoi (90 % des envois en moins de 0,4 h dans le socle, de 10,6 h dans un
