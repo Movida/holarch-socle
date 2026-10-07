@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Idées retenues** (skills qui évoluent, charte UI/UX, travaux déterministes) pour leur phase ; boîte à idées
+  proposée (registre `arbre/idees.md`), à décider ; étape 3 à clore après la mesure du 2026-10-14 (accord de
+  l'auteur). Envoi des 3 commits de la tranche 9 ; interface relancée, elle sert les échecs.
+
 * **Idées de l'auteur** : skills ajustés aux habitudes, charte UI/UX paramétrable, automatisation par outil
   déterministe quand le gain est mesuré ; avis donné, à décider (avancement, Reste).
 

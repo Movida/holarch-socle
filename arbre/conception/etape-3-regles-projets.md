@@ -583,9 +583,13 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
      chiffré par tranche, échéances lancées par une routine, bilan de ce qui reste ouvert en fin de tranche. Idée de
      l'auteur : un mécanisme qui enrichit ces propositions (une habitude nouvelle proposée quand un fait de session la
      suggère, et un registre des propositions, retenues ou non, pour ne pas les reproposer).
-  4. **Idées de l'auteur (2026-10-07), avis donné, à décider** : skills ajustés aux habitudes (aujourd'hui inventoriés
-     seulement, leur usage n'est pas mesuré : les appels `Skill` ne sont pas importés) ; charte UI/UX paramétrable par
-     aspect, portée par l'arbre comme un type, appliquée aux runtimes et contrôlée ; proposition d'automatisation qui
-     préfère un outil déterministe (timer, script, CI) à une routine d'IA quand le gain se mesure au journal.
+  4. **Idées de l'auteur (2026-10-07), retenues pour la phase qui les porte** : évolution des skills au fil de l'usage
+     (mesurer d'abord : les appels `Skill` ne sont pas importés) ; charte UI/UX paramétrable par aspect (type de l'arbre,
+     appliquée aux runtimes, contrôlée) ; travaux déterministes repérés au journal et confiés à un outil (timer, script,
+     CI) plutôt qu'à une routine d'IA. Nouvelle idée : limites connues d'un projet affichées dans l'interface. Proposé, à
+     décider : une boîte à idées dès maintenant, le carnet d'idées du §5.9 réduit à un registre `arbre/idees.md` (comme
+     les questions : idée, source, date, phase visée, gain attendu, statut), où passent les idées de ce Reste ; la reprise
+     et la vue Projets montrent celles de l'étape qui démarre. Constat de l'auteur : l'étape 3 déborde sur la régulation
+     (étape 5) ; la clore après la mesure du 2026-10-14.
   5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
      §5.8), à spécifier à leur ouverture.
