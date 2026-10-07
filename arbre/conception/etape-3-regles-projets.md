@@ -457,6 +457,30 @@ restent à la main, et l'audit du jour est sans écart.
 quatre projets non déclarés, projet par projet, avec l'accord de l'auteur (la même commande, rejouée) ; la fin de
 projet (§5.8).
 
+## Tranche 11 — Récolte
+
+Ouverte le 2026-10-07, sur le choix de l'auteur (la récolte sert directement le critère de l'étape : plus aucune règle
+redictée). Méthode choisie par l'auteur sur mesure : une proximité lexicale entre messages de sessions différentes ne
+trouve aucune consigne redite sur 30 jours (34 paires, toutes des messages recopiés par une reprise ou des invites
+d'essai) ; les consignes reviennent reformulées. Décision `recolte` à proposer sur le résultat du rejeu (point 2).
+
+**Livre.**
+
+1. **Détecteur** (`src/recolte.js`, `holarch recolte`) : extraction déterministe des candidats, messages de l'auteur
+   (ni sous-agents, ni textes injectés, ni acquiescements, ni collages ; un message recopié par une reprise compte une
+   fois) et mémoires `feedback` du catalogue ; candidats où gitleaks voit un secret retirés, rien ne part sans gitleaks ;
+   regroupement par sens par `claude -p` (sans outils ni serveur MCP ni session gardée, dépense plafonnée, JSON validé
+   par un schéma), règles connues passées pour dire ce qui est déjà couvert ; redites comptées par le socle (deux
+   sessions ou deux projets). Rien n'est écrit au journal.
+2. **Rejeu sur l'historique** antérieur au 2026-10-06 (`--jusqua`), règles connues à cette date seulement : la récolte
+   retrouve-t-elle les consignes devenues règles les 6 et 7 octobre ? Résultat : mesure de référence de la tranche.
+3. **Décision `recolte`** sur ce résultat : seuil de redite, nœud de la règle proposée, forme de la proposition.
+4. **Propositions branchées** (règle en brouillon, page « Règles », reprise), selon la décision.
+
+**Critère de livraison** (sur l'historique, sans attendre) : le rejeu retrouve les consignes connues, chiffres à
+l'appui (retrouvées sur attendues, fausses alertes). **Critère d'usage** (différé, ne bloque pas les tranches
+suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -673,10 +697,19 @@ projet (§5.8).
   (`holarch-reveil.timer`, chaque minute, posé avec le premier accès distant et retiré avec le dernier) lance
   `holarch distant reveil` : un écart de plus de cinq minutes depuis son passage précédent redémarre les accès
   distants actifs. 1 test. [À COMPLÉTER : essai sur le poste après une vraie mise en veille] (Q21)
+- **Ouverture de la tranche 11 (2026-10-07)** : récolte, choix de l'auteur ; méthode sur mesure (lexical : aucune
+  redite trouvée), détecteur en deux temps approuvé (extraction déterministe, regroupement par `claude -p`).
+- **Fait (2026-10-07)** : tranche 11, point 1. `src/recolte.js` et `holarch recolte [--jours] [--jusqua] [--modele]
+  [--budget] [--a-blanc]` ; `fichiers` (import) et `gitleaks` (contrôles) partagés ; 1 test (doublons, injections,
+  sous-agents, période, secret retiré, référence inconnue ignorée, à blanc et sans gitleaks : rien n'est envoyé).
+  Options de `claude -p` vérifiées dans l'aide et par un appel réel (`structured_output`, environ 1 200 tokens de base) ;
+  `--bare` écarté (clé d'API exigée). À blanc sur le poste, 30 jours : 578 messages et 28 mémoires de retour, 93
+  sessions, 125 k caractères, aucun secret retiré.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
+  4. **Tranche 11** : rejeu sur l'historique (`holarch recolte --jusqua 2026-10-06`), puis décision `recolte`.
+  5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.

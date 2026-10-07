@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Tranche 11 ouverte** (récolte, choix de l'auteur) : détecteur livré, `holarch recolte` ; consignes reformulées,
+  donc regroupées par `claude -p` (une mesure lexicale n'en trouve aucune) ; à blanc : 578 messages, 28 mémoires de
+  retour sur 30 jours. Suite : rejeu avant le 2026-10-06.
+
 * **Reprise de l'accès distant après une veille** (tranche 1 de l'étape 3) : le serveur Remote Control restait en vie
   mais injoignable après une mise en veille du poste ; minuteur `holarch-reveil` et `holarch distant reveil`, qui
   redémarre les accès distants actifs après un écart de plus de cinq minutes. Essai réel à faire (Q21).
