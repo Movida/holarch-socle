@@ -6,10 +6,9 @@ import { crochetDe, poserCrochet } from './garde-git.js';
 import { poserIdentite } from './identite-git.js';
 import { identiteDeclaree } from './controles.js';
 import { binaireService } from './service.js';
-import { accueil } from './config.js';
 
-/** La ligne de commande qu'appellent le crochet de git et ceux de Claude Code : la copie de service si elle est posée. */
-export const BIN = binaireService(accueil());
+// La ligne de commande qu'appellent le crochet de git et ceux de Claude Code : la copie de service posée dans l'accueil
+// de la configuration (`binaireService`), sinon le code qui s'exécute.
 
 /**
  * Compte : pour chaque compte Claude Code du site, les fichiers de règles (`<compte>/rules/holarch/`), les lectures
@@ -17,7 +16,7 @@ export const BIN = binaireService(accueil());
  * `<compte>/settings.json`. Un `settings.json` illisible n'est jamais réécrit : `permissions.erreur` et `reglages.erreur`
  * le disent. `compte` : la règle effective du compte (module regles : `regles`, `config`).
  */
-export function materialiserCompte(compte, comptes, { accueil, holarch = BIN, ecrire = true } = {}) {
+export function materialiserCompte(compte, comptes, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
   const regles = compte.regles;
   const plan = planifier(regles, { portee: 'compte' });
   const lectures = regles.filter((e) => e.applicable).flatMap((e) => lecturesRefusees(e).map((entree) => ({ entree, regle: e })));
@@ -34,7 +33,7 @@ export function materialiserCompte(compte, comptes, { accueil, holarch = BIN, ec
  * Projet : les fichiers de règles (`.claude/rules/holarch/`), le crochet de git si une règle bloquante le demande, et
  * l'identité de commit que déclare sa configuration, s'il est déclaré par un contexte (décision identite-par-contexte).
  */
-export function materialiserProjet(r, chemin, { accueil, holarch = BIN, ecrire = true } = {}) {
+export function materialiserProjet(r, chemin, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
   const plan = planifier(r.regles, { portee: 'projet', classificationDepot: r.arbre?.classification });
   const demande = r.regles.find((e) => e.applicable && avantCommit(e)) || null;
   return { plan, fichiers: appliquer(dossierProjet(chemin), plan, { ecrire }),

@@ -6,11 +6,11 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface } from '../src/distant.js';
-import { materialiserCompte, materialiserProjet, BIN } from '../src/materialisation.js';
+import { materialiserCompte, materialiserProjet } from '../src/materialisation.js';
 import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
 import { creerProjet } from '../src/creation.js';
-import { creerService } from '../src/service.js';
+import { creerService, binaireService } from '../src/service.js';
 import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
@@ -92,7 +92,7 @@ switch (cmd) {
     break; }
   case 'interface': {
     const [action] = args.filter((a) => !a.startsWith('--'));
-    const i = creerInterface({ holarch: BIN, accueil: chargerConfig().accueil });
+    const { accueil } = chargerConfig(); const i = creerInterface({ holarch: binaireService(accueil), accueil });
     try {
       if (action === 'activer') afficher(json ? i.activer() : `interface en service : ${i.activer().unite}`);
       else if (action === 'desactiver') afficher(json ? i.desactiver() : `interface retirée du service : ${i.desactiver().unite}`);
