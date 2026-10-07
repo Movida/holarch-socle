@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { projetsDe, localiserProjet } from './projets.js';
+import { etatDepot } from './inventaire/depots-git.js';
 
 /**
  * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), lu à la fin de
@@ -60,7 +61,9 @@ export function resume(s, dossier, { max = 1500 } = {}) {
   if (ecarts.length) l.push(`Écarts ouverts : ${ecarts.length} (${ecarts.slice(0, 3).map((e) => court(e.message, 70)).join(' ; ')}).`);
   if (v.questions.length) l.push(`Questions ouvertes : ${v.questions.map((q) => q.id).join(', ')}.`);
   if (v.decisions.length) l.push(`Décisions à approuver : ${v.decisions.map((d) => court(d.titre, 60)).join(' ; ')}.`);
-  if (v.technique.fichiers_modifies || v.technique.en_avance) l.push(`Dépôt : ${v.technique.fichiers_modifies} fichier(s) non commité(s), ${v.technique.en_avance || 0} commit(s) non poussé(s).`);
+  // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente.
+  const t = v.chemin && fs.existsSync(v.chemin) ? etatDepot(v.chemin) : v.technique;
+  if (t.fichiers_modifies || t.en_avance) l.push(`Dépôt : ${t.fichiers_modifies} fichier(s) non commité(s), ${t.en_avance || 0} commit(s) non poussé(s).`);
   const texte = l.join('\n');
   return texte.length > max ? `${texte.slice(0, max - 1)}…` : texte;
 }

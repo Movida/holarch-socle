@@ -468,8 +468,11 @@ et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
   (à la clôture d'un sujet, la demande qui aurait mené au résultat ; reprise dans l'avis de passation) et
   `proposer-automatisations` (proposer sans exécuter). Proposé, non retenu pour l'instant : un « profil de travail »
   (biographie) dans le profil privé.
+- **Fait (2026-10-07)** : reprise constatée après un vrai `/clear` : le résumé du projet ouvre la session suivante,
+  qui reprend sur lui et l'avancement. Défaut trouvé à l'usage : l'état du dépôt venait de l'inventaire horaire et
+  annonçait 4 fichiers non commités dans un dépôt propre ; le résumé le lit désormais en direct (fonction `etatDepot`,
+  partagée avec l'inventaire) ; 1 test étendu.
 - **Reste** :
-  1. **Tranche 7, critère** : constater la reprise après un `/clear`, puis mesurer le contexte moyen par tour à une
-     semaine (2026-10-14) contre la référence.
+  1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

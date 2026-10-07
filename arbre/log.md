@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Reprise après `/clear`** constatée (tranche 7) ; l'état du dépôt dans le résumé se lit en direct, celui de
+  l'inventaire pouvait dater d'une heure. Reste la mesure du 2026-10-14.
+
 * **Passation** : avis constaté en vraie session ; compaction avancée retirée (avis de l'auteur) ; règles de profil
   `lecon-de-cloture` et `proposer-automatisations` approuvées ; « profil de travail » proposé, non retenu pour l'instant.
 

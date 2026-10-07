@@ -29,6 +29,15 @@ export function racine(d) {
   return r.length ? r[0].split(' ')[1].slice(0, 12) : null;
 }
 
+// État de travail d'un dépôt : fichiers modifiés ou non suivis, écart à la branche amont (« retard avance » ; sans
+// branche amont, rien : la branche n'a jamais été poussée). Lu par l'inventaire et, en direct, par le résumé de reprise.
+export function etatDepot(d) {
+  const fichiers_modifies = (git(d, ['status', '--porcelain']) || '').split('\n').filter(Boolean).length;
+  const amont = git(d, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
+  const [retard, avance] = amont ? (git(d, ['rev-list', '--left-right', '--count', '@{upstream}...HEAD']) || '').split(/\s+/).map(Number) : [];
+  return { fichiers_modifies, amont: amont || null, en_avance: Number.isFinite(avance) ? avance : null, en_retard: Number.isFinite(retard) ? retard : null };
+}
+
 function identifiants(depots) {
   const r = depots.map((d) => ({ d, racine: racine(d) }));
   const n = {}; for (const x of r) if (x.racine) n[x.racine] = (n[x.racine] || 0) + 1;
@@ -44,19 +53,14 @@ export default function inventaireDepots(options, ctx) {
       .map((l) => { const [nom, url] = l.split(/\s+/); return { nom, url: urlSure(url) }; });
     const dernier = git(d, ['log', '-1', '--format=%cI%x09%s']);
     const [date, sujet] = dernier ? dernier.split('\t') : [null, null];
-    const modifies = (git(d, ['status', '--porcelain']) || '').split('\n').filter(Boolean).length;
-    // Écart à l'amont : « retard avance » ; sans branche amont, rien (la branche n'a jamais été poussée).
-    const amont = git(d, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
-    const [retard, avance] = amont ? (git(d, ['rev-list', '--left-right', '--count', '@{upstream}...HEAD']) || '').split(/\s+/).map(Number) : [];
     const commun = git(d, ['rev-parse', '--git-common-dir']);
     return {
       id: ids.get(d), kind: 'project', name: path.basename(d),
       description: sujet ? `dernier commit : ${sujet.slice(0, 120)}` : null, status: 'active',
       provenance: { source: 'inventaire:depots-git' }, classification: 'internal', site: ctx.site, location: d,
       usage: { count: 0, last_used: date || null, cost_usd: null },
-      attributes: { branche: git(d, ['rev-parse', '--abbrev-ref', 'HEAD']), remotes, fichiers_modifies: modifies, dernier_commit: date,
-        dernier_sujet: sujet ? sujet.slice(0, 160) : null, amont: amont || null, en_avance: Number.isFinite(avance) ? avance : null,
-        en_retard: Number.isFinite(retard) ? retard : null, dernier_fetch: commun ? mtimeIso(path.join(path.resolve(d, commun), 'FETCH_HEAD')) : null },
+      attributes: { branche: git(d, ['rev-parse', '--abbrev-ref', 'HEAD']), remotes, ...etatDepot(d), dernier_commit: date,
+        dernier_sujet: sujet ? sujet.slice(0, 160) : null, dernier_fetch: commun ? mtimeIso(path.join(path.resolve(d, commun), 'FETCH_HEAD')) : null },
     };
   });
   // Les adaptateurs suivants rattachent leurs éléments à ces projets (lien `project`).

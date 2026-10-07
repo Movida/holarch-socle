@@ -595,5 +595,9 @@ test('contexte : résumé de reprise du projet du dossier de travail, court ; ri
   const t = resume(s, path.join(d, 'arbre'));
   assert.match(t, /reprise du projet depot/); assert.match(t, /Étape 2 : Étape 2 — démonstration/); assert.match(t, /Reste : Second lot\./);
   assert.ok(t.length <= 1500);
+  assert.doesNotMatch(t, /Dépôt :/, 'dépôt propre : rien à dire');
+  // L'état du dépôt se lit en direct, pas dans l'inventaire (qui peut dater de l'heure précédente).
+  ecrire(path.join(d, 'brouillon.txt'), 'x');
+  assert.match(resume(s, d), /Dépôt : 1 fichier\(s\) non commité\(s\), 0 commit\(s\) non poussé\(s\)\./);
   assert.equal(resume(s, tmp()), null);
 });
