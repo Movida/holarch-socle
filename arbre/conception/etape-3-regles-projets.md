@@ -511,5 +511,9 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 8** : approbation de la décision `identite-par-contexte`, puis points 1 à 5.
-  3. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
+  3. **Idée de l'auteur (2026-10-07)** : identifier les échecs, puis chercher des solutions. Avis donné : d'abord
+     consigner les échecs au journal (refus de garde, tests rouges, erreurs d'outil, leçons de clôture), puis proposer
+     une solution pour ceux qui se répètent (boucles « Règles » et « Progrès et recul », §6) ; à décider, et à placer
+     avec la récolte.
+  4. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

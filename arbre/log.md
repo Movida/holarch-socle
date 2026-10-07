@@ -2,6 +2,8 @@
 
 ## 2026-10-07
 
+* **Idée de l'auteur** : identifier les échecs, puis chercher des solutions ; avis donné, à décider (avancement, Reste).
+
 * **Tranche 8 ouverte** (configuration, identité de commit) : décision `identite-par-contexte` proposée ; Q18 ouverte.
 
 * **Intégration continue** d'un projet détectée par l'inventaire, montrée sur sa carte et dans le résumé de reprise.
