@@ -2,6 +2,12 @@
 
 ## 2026-10-07
 
+* **Audit de conformité réalisé** (tranche 4 close) : contrôles des règles (données personnelles, secrets par
+  gitleaks, journal tenu), audit après chaque inventaire avec écarts au journal, crochet `pre-commit` de git, lectures
+  de secrets refusées au compte. Trois règles passées du rappel au contrôle avec l'accord de l'auteur ; `LICENSE`
+  soustrait au contrôle ; essais réels réussis (commit refusé, forcé puis vu et résolu, faux secret refusé, `.env`
+  illisible).
+
 * **Audit de conformité** (étape 3, tranche 4) ouvert : décision `controles-de-regles` approuvée sur quatre choix de
   l'auteur (liste privée déduite et complétée par le profil, crochet `pre-commit` de git et permissions de Claude Code,
   gitleaks pour les secrets, écarts au journal) ; contrats règle 0.3.0 (`check`) et événement 0.8.0 (`rule.resolved`).

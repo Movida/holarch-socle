@@ -3,6 +3,11 @@ okf_version: "0.2"
 type: guideline
 id: holarch
 types: [methode-holarch, depot-public]
+config:
+  journal: arbre/log.md
+  donnees_personnelles:
+    exceptions:
+      - { fichier: LICENSE, pourquoi: "titulaire du droit d'auteur de la licence MIT (avis de l'auteur, 2026-10-07)" }
 title: HOLARCH — ligne directrice
 description: Un socle autour des runtimes d'agents d'IA, qui embarque les règles, rend tout visible, conserve et vérifie le savoir, et se régule.
 status: draft

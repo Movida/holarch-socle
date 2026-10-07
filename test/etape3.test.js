@@ -208,7 +208,7 @@ test('projets : l’inventaire lit l’avancement, les questions et l’écart �
 });
 
 // ---- Tranche 3 : arbre des règles (décision arbre-des-regles). Données fictives.
-import { regleEffective, regleDuCompte } from '../src/regles.js';
+import { regleEffective, regleDuCompte, fusionnerConfig } from '../src/regles.js';
 import { planifier, appliquer, MARQUE } from '../src/regles-claude-code.js';
 
 function arbresFictifs() {
@@ -336,6 +336,9 @@ test('contrôles : liste privée déduite et amendée, mots entiers, un écart d
   assert.ok(!/zeta/i.test(JSON.stringify(avant)), 'un écart ne cite jamais le terme trouvé');
   g('commit', '-qm', 'b');
   assert.deepEqual(executer('donnees-personnelles', ctx, 'audit').ecarts.map((e) => e.fichier).sort(), ['a.md', 'carnet-prive.txt']);
+  assert.deepEqual(executer('donnees-personnelles', { ...ctx, config: { donnees_personnelles: { exceptions: [{ fichier: 'a.md', pourquoi: 'titulaire du droit d’auteur' }] } } }, 'audit').ecarts.map((e) => e.fichier), ['carnet-prive.txt'], 'un fichier soustrait, avec sa raison');
+  assert.deepEqual(fusionnerConfig({ donnees_personnelles: { termes: ['a'] }, journal: 'x' }, { donnees_personnelles: { exceptions: [{ fichier: 'L' }] }, journal: 'y' }),
+    { donnees_personnelles: { termes: ['a'], exceptions: [{ fichier: 'L' }] }, journal: 'y' }, 'réglages : objets fusionnés, listes allongées, le plus spécifique l’emporte');
   assert.match(executer('donnees-personnelles', { depot: d, termes: [] }, 'audit').indisponible, /vide/);
   assert.match(executer('inconnu', ctx, 'audit').indisponible, /contrôle inconnu/);
   assert.match(executer('donnees-personnelles', { depot: path.join(d, 'absent'), termes: ['x'] }, 'audit').indisponible, /absent/);

@@ -59,6 +59,18 @@ function couchesDeclarant(a, declarant) {
   return chaine(a, declarant).map((n) => ({ origine: n.attributes.racine ? 'profil' : 'contexte', noeud: n, regles: a.regles.get(n.id) || [] }));
 }
 
+// Réglages (`config`) des couches, de la plus générale à la plus spécifique : un objet se fusionne clé à clé, une liste
+// s'allonge (une exception posée par le projet s'ajoute à celles du profil), une valeur simple posée plus bas l'emporte.
+export function fusionnerConfig(...couches) {
+  const objet = (x) => x && typeof x === 'object' && !Array.isArray(x);
+  const fusion = (a, b) => {
+    if (Array.isArray(a) && Array.isArray(b)) return [...a, ...b];
+    if (objet(a) && objet(b)) { const r = { ...a }; for (const [k, v] of Object.entries(b)) r[k] = k in r ? fusion(r[k], v) : v; return r; }
+    return b === undefined ? a : b;
+  };
+  return couches.filter(objet).reduce(fusion, {});
+}
+
 const applicable = (e) => e.statut === 'stable' && !e.derogee;
 const taille = (l) => l.filter((e) => e.niveau === 'reminder').reduce((t, e) => t + e.enonce.length + (e.pourquoi?.length || 0), 0);
 const tailleRappels = (l) => taille(l.filter(applicable));
@@ -85,8 +97,7 @@ export function regleEffective(fiches, projetId) {
   }
   if (racine) couches.push({ origine: 'projet', noeud: racine, regles: a.regles.get(racine.id) || [] });
   const regles = fusionner(couches, signaux);
-  // Réglages (`config`) : même ordre que les règles, une clé posée plus bas l'emporte.
-  const config = Object.assign({}, ...couches.map((c) => c.noeud.attributes?.config || {}));
+  const config = fusionnerConfig(...couches.map((c) => c.noeud.attributes?.config));
   for (const d of racine?.attributes?.derogations || []) {
     const e = regles.find((x) => x.id === d?.rule);
     if (!e) { signaux.push(`dérogation à une règle absente : ${d?.rule}`); continue; }
@@ -111,7 +122,7 @@ export function regleDuCompte(fiches) {
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profils[0], regles: a.regles.get(a.profils[0].id) || [] }];
   const regles = fusionner(couches, signaux);
-  const config = Object.assign({}, ...couches.map((c) => c.noeud.attributes?.config || {}));
+  const config = fusionnerConfig(...couches.map((c) => c.noeud.attributes?.config));
   return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 

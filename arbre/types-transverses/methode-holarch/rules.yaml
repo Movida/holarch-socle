@@ -44,7 +44,8 @@
 - id: journal-du-projet
   statement: "Une session qui change l'arbre du projet laisse une entrée datée dans son journal, la plus récente en tête."
   why: "La session suivante reprend d'après le journal, pas d'après une mémoire de conversation."
-  level: reminder
+  level: verified
+  check: [journal-tenu]
   status: stable
-  approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07, avis rendu règle par règle, choix cliquables" }
+  approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07, passage au contrôle (tranche 4), choix cliquable" }
   source: harvest

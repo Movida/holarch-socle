@@ -201,7 +201,9 @@ peuvent dériver de la règle effective sans que rien ne le dise ; des mémoires
      noms de fichiers (avant commit), dans les fichiers suivis (audit). Liste déduite (nom et adresse de l'identité git,
      nom d'utilisateur et dossier personnel, dossiers des comptes Claude Code, noms des projets qu'un contexte déclare et
      dont l'arbre n'est pas public ; jamais le nom du projet contrôlé) et complétée par le réglage `donnees_personnelles`
-     du profil (`termes` à ajouter, `exceptions` à retirer, chacune avec sa raison) ;
+     du profil (`termes` à ajouter ; `exceptions` : un terme à retirer, ou un fichier à soustraire, chacune avec sa
+     raison). Les réglages des couches se fusionnent : objets clé à clé, listes allongées (une exception du projet
+     s'ajoute aux termes du profil) ;
    - `secrets` : gitleaks (8.30.1, lu dans son aide) : `gitleaks git --pre-commit --staged` avant commit, `gitleaks dir`
      sur le contenu suivi du dernier commit (exporté par `git archive`) à l'audit ; secrets masqués (`--redact`), sortie
      JSON ; un code de sortie autre que 0 (rien) ou 1 (fuites listées) rend le contrôle non disponible ;
@@ -304,7 +306,20 @@ laisse passer et le dit.
 - **Ouverture de la tranche 4 (2026-10-07)** : audit de conformité ; décision `controles-de-regles` approuvée sur
   quatre choix de l'auteur (liste privée déduite et complétée, crochet de git et permissions, gitleaks, écarts au
   journal) ; contrats règle 0.3.0 et événement 0.8.0.
+- **Fait (2026-10-07)** : tranche 4, points 1 à 5. Module `controles` (liste privée, gitleaks, journal tenu ; un
+  gitleaks en panne se dit non disponible, jamais « rien trouvé »), `holarch audit` après chaque inventaire, écarts au
+  journal (`rule.violated`, `rule.resolved`), `holarch garde avant-commit` et crochet marqué, lectures refusées au
+  compte (manifeste des entrées posées), écarts sur la page « Règles », la carte d'un projet et l'outil MCP ; réglages
+  fusionnés entre couches ; 6 tests, dont un commit fautif refusé, forcé, vu par l'audit puis résolu. gitleaks 8.30.1
+  installé sur le poste personnel (somme de contrôle vérifiée). Test visuel non passé (pas de Chromium sur l'hôte).
+- **Fait (2026-10-07)** : point 6 et critère de la tranche, sur avis de l'auteur. `rien-de-personnel` bloquante
+  (données personnelles et secrets), `secrets-hors-contexte` bloquante (sept motifs de lecture refusés),
+  `journal-du-projet` vérifiée ; journal déclaré par chaque projet ; `LICENSE` soustrait au contrôle (titulaire du droit
+  d'auteur) ; six mémoires gardées parce qu'elles disent plus retirées des `replaces`. Essais réels dans le socle : un
+  commit avec un terme de la liste privée refusé, forcé puis vu par l'audit et résolu au retrait ; un faux secret
+  refusé ; un `.env` d'essai illisible par l'outil de lecture et par `cat`. Audit des deux projets sans faux positif ;
+  le seul écart réel (un jour de commit sans entrée au journal du second projet) corrigé. Rappels : 5 057 → 4 377
+  caractères dans le socle, 3 284 → 2 869 dans le second projet. Tranche close.
 - **Reste** :
-  1. **Tranche 4** : points 1 à 6, puis son critère.
-  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
+  1. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

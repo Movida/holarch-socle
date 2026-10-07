@@ -15,7 +15,8 @@ const TAILLE_MAX = 2 * 1024 * 1024;
 /**
  * Liste privée d'un projet : déduite de la machine (identité git, dossier personnel, comptes Claude Code, noms des
  * projets non publics que déclare un contexte), complétée et amendée par le réglage `donnees_personnelles` de la règle
- * effective (`termes`, `exceptions` : chaînes ou `{terme, pourquoi}`). Le nom du projet lui-même n'en fait jamais partie.
+ * effective (`termes` : chaînes ou `{terme, pourquoi}` ; `exceptions` : `{terme, pourquoi}` retire un terme, `{fichier,
+ * pourquoi}` soustrait un fichier du contrôle). Le nom du projet lui-même n'en fait jamais partie.
  */
 export function listePrivee({ depot, config = {}, comptes = [], projetsPrives = [], nomProjet = null }) {
   const lireGit = (cle) => (git(depot, ['config', '--get', cle]).stdout || '').trim();
@@ -23,9 +24,12 @@ export function listePrivee({ depot, config = {}, comptes = [], projetsPrives = 
   const reglage = config.donnees_personnelles || {};
   const termes = [lireGit('user.name'), lireGit('user.email'), os.userInfo().username, os.homedir(),
     ...comptes.map((c) => c.home).filter(Boolean), ...projetsPrives, ...[].concat(reglage.termes || []).map(valeur)];
-  const exclus = new Set([nomProjet, ...[].concat(reglage.exceptions || []).map(valeur)].filter(Boolean).map((t) => t.toLowerCase()));
+  const exclus = new Set([nomProjet, ...[].concat(reglage.exceptions || []).filter((x) => !x?.fichier).map(valeur)].filter(Boolean).map((t) => t.toLowerCase()));
   return [...new Set(termes.map((t) => t.trim()).filter((t) => t.length >= 3 && !exclus.has(t.toLowerCase())))];
 }
+
+/** Fichiers soustraits au contrôle des données personnelles (`exceptions: [{fichier, pourquoi}]`), chemins du dépôt. */
+export const fichiersExclus = (config = {}) => [].concat(config.donnees_personnelles?.exceptions || []).filter((x) => x?.fichier).map((x) => String(x.fichier));
 
 /** Un chercheur de termes en mots entiers, sans casse ; null si la liste est vide. */
 export function chercheur(termes) {
@@ -64,14 +68,14 @@ function parFichier(trouves, message) {
 function donneesPersonnelles(ctx, moment) {
   const trouve = chercheur(ctx.termes || []);
   if (!trouve) return { indisponible: 'liste privée vide' };
-  const trouves = [];
+  const trouves = []; const exclu = new Set(fichiersExclus(ctx.config));
   if (moment === 'avant-commit') {
-    for (const f of listeZ(git(ctx.depot, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']))) if (trouve(f)) trouves.push({ fichier: f, ligne: null });
-    for (const l of lignesAjoutees(ctx.depot)) if (trouve(l.texte)) trouves.push(l);
+    for (const f of listeZ(git(ctx.depot, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']))) if (!exclu.has(f) && trouve(f)) trouves.push({ fichier: f, ligne: null });
+    for (const l of lignesAjoutees(ctx.depot)) if (!exclu.has(l.fichier) && trouve(l.texte)) trouves.push(l);
   } else {
     const r = git(ctx.depot, ['ls-files', '-z']);
     if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
-    for (const f of listeZ(r)) {
+    for (const f of listeZ(r).filter((x) => !exclu.has(x))) {
       if (trouve(f)) trouves.push({ fichier: f, ligne: null });
       let texte; try { const p = path.join(ctx.depot, f); if (fs.statSync(p).size > TAILLE_MAX) continue; texte = fs.readFileSync(p, 'utf8'); } catch { continue; }
       if (texte.includes('\0')) continue;
