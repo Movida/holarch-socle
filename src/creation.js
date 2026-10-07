@@ -40,15 +40,12 @@ ${journal ? `
 ` : ''}`;
 }
 
-// Une licence nomme son titulaire : comme pour le socle (avis de l'auteur, 2026-10-07), le fichier est soustrait au
-// contrôle des données personnelles, à la racine du projet, où l'exception se voit.
-function racineIndex({ nom, description, types, journal, licence }) {
-  const config = [journal && `  journal: ${journal}`, licence && `  donnees_personnelles:\n    exceptions:\n      - { fichier: LICENSE, pourquoi: "titulaire du droit d'auteur de la licence" }`].filter(Boolean);
+function racineIndex({ nom, description, types, journal }) {
   return `---
 type: guideline
 id: ${nom}
 types: [${types.join(', ')}]
-${config.length ? `config:\n${config.join('\n')}\n` : ''}title: ${nom}
+${journal ? `config:\n  journal: ${journal}\n` : ''}title: ${nom}
 description: ${JSON.stringify(description)}
 status: draft
 ---
@@ -126,7 +123,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     ...(cfg.etapes.conteneur ? [['.devcontainer/devcontainer.json', () => modele('devcontainer.json', { nom, volume: nom.toLowerCase() })],
       ['.devcontainer/deploy-key.sh', () => modele('deploy-key.sh'), 0o755]] : []),
     // L'arbre et son journal ne s'écrivent que pour un projet qui n'a pas encore d'arbre : un arbre existant tient le sien.
-    ...(typee && !arbreExistant ? [['arbre/index.md', () => racineIndex({ nom, description, types, journal: cfg.journal, licence: Boolean(cfg.licence) })],
+    ...(typee && !arbreExistant ? [['arbre/index.md', () => racineIndex({ nom, description, types, journal: cfg.journal })],
       ...(cfg.journal ? [[cfg.journal, () => `# Journal de l'arbre\n\n## ${maintenant.toISOString().slice(0, 10)}\n\n* **Création** : projet créé par \`holarch projet creer\`.\n`]] : [])] : []),
   ];
   if (cfg.licence && (!/^[A-Za-z0-9.-]+$/.test(String(cfg.licence)) || !fs.existsSync(path.join(MODELES, 'licences', String(cfg.licence))))) { noter('fichiers', 'echec', `licence sans modèle : ${cfg.licence}`); return r; }

@@ -8,6 +8,11 @@ config:
   # Création de projet (décision creation-de-projet) : un dépôt public est public sur GitHub et porte une licence (MIT,
   # celle de 2 des 3 dépôts publics du poste).
   creation: { visibilite: public, licence: MIT }
+  # Une licence nomme son titulaire : le fichier est soustrait au contrôle des données personnelles, pour tout dépôt
+  # public (accord de l'auteur, 2026-10-07 ; d'abord posé pour le seul socle).
+  donnees_personnelles:
+    exceptions:
+      - { fichier: LICENSE, pourquoi: "titulaire du droit d'auteur de la licence" }
 links:
   derives_from: [/arbre/index.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md]

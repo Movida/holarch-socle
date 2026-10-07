@@ -720,7 +720,7 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: identite-de-commit\n  statement: Chaque commit porte l’identité de son contexte.\n  level: blocking\n  check: [identite-de-commit]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
     ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n# Les projets du contexte.\nprojects:\n  - holarch:project:ancien   # ancien\n---\n\n# Perso\n');
     ecrire(path.join(r, 'socle', 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\n---\n');
-    ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'index.md'), '---\ntype: template\nid: public\ntitle: Public\nstatus: draft\nconfig:\n  creation: { visibilite: public, licence: MIT, journal: arbre/log.md }\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+    ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'index.md'), '---\ntype: template\nid: public\ntitle: Public\nstatus: draft\nconfig:\n  creation: { visibilite: public, licence: MIT, journal: arbre/log.md }\n  donnees_personnelles: { exceptions: [{ fichier: LICENSE, pourquoi: titulaire }] }\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
     ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'rules.yaml'), '- id: rien-de-prive\n  statement: Rien de privé dans ce dépôt.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n- id: rien-de-personnel\n  statement: Aucun nom de personne.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
     for (const d of ['profil', 'socle']) { const { g } = depotGit(path.join(r, d)); g('add', '.'); g('commit', '-qm', 'départ'); }
     const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
@@ -758,7 +758,7 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     assert.match(fs.readFileSync(path.join(d, 'LICENSE'), 'utf8'), new RegExp(`Copyright \\(c\\) ${new Date().getFullYear()} Alice Exemple`));
     assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "neuf"[\s\S]*source=neuf-ssh/);
     assert.ok(fs.statSync(path.join(d, '.devcontainer', 'deploy-key.sh')).mode & 0o100, 'deploy-key.sh exécutable');
-    assert.match(fs.readFileSync(path.join(d, 'arbre', 'index.md'), 'utf8'), /types: \[public\]\nconfig:\n  journal: arbre\/log.md\n  donnees_personnelles:\n    exceptions:\n      - \{ fichier: LICENSE,/);
+    assert.match(fs.readFileSync(path.join(d, 'arbre', 'index.md'), 'utf8'), /types: \[public\]\nconfig:\n  journal: arbre\/log.md\ntitle/);
     assert.ok(fs.existsSync(path.join(d, '.git', 'hooks', 'pre-commit')), 'crochet posé (règle bloquante)');
     assert.ok(appels.includes('repo create alice/neuf --public --description Un projet d’essai.'), appels.join('\n'));
     assert.equal(g('rev-parse', '--abbrev-ref', '@{upstream}'), 'origin/main');
