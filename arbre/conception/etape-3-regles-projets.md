@@ -225,8 +225,10 @@ Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils 
   doublons lus à chaque tour (`fait-inconnu-marque` perd la phrase sur les choix de méthode, déjà dans `avis-argumente` ;
   `principes` perd celle sur les contraintes, déjà dans `contrainte-changee-par-decision`) et déclarer la mémoire que
   `coherence-globale` remplace. Règle effective : 18 pour le socle, 11 pour le second projet, aucune proposée.
+- **Fait (2026-10-07)** : `holarch regles appliquer` sur les deux projets (accord de l'auteur) : 4 règles dans la portée
+  du compte (836 caractères à chaque tour), 14 dans le socle, 7 dans le second projet ; fichiers générés commités.
 - **Reste** :
-  1. **Tranche 3, critère** : `holarch regles appliquer` sur les deux projets, retrait des mémoires remplacées (accord
-     de l'auteur), `CLAUDE.md` du socle réduit à ce qui lui est propre.
+  1. **Tranche 3, critère** : retrait des mémoires remplacées (accord de l'auteur), `CLAUDE.md` du socle réduit à ce
+     qui lui est propre.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.

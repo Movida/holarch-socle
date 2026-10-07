@@ -4,7 +4,7 @@
 
 * **Règles approuvées** : les 18 règles de la tranche 3 (profil, types `methode-holarch` et `depot-public`, socle)
   approuvées par l'auteur, une à une, sur avis ; trois retouches (deux doublons retirés, mémoire remplacée déclarée).
-  Rien n'est encore écrit pour Claude Code (`holarch regles appliquer`, à faire avec l'accord de l'auteur).
+  Puis appliquées avec son accord : 4 au compte, 14 au socle, 7 au second projet.
 
 ## 2026-10-06
 
