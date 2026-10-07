@@ -494,6 +494,9 @@ test('contrôles : outils à jour (installé contre publié), introuvable signal
   assert.deepEqual(JSON.parse(sansPath.stdout).ecarts, [], 'un PATH réduit trouve encore un outil du système');
   assert.deepEqual(r.ecarts.map((e) => [e.cle, e.message]), [['outil-a', 'outil-a 1.2.3 installé, 1.3.0 publié'], ['outil-c', 'outil-c introuvable sur ce site']]);
   assert.match(executer('outils-a-jour', { config: {} }, 'audit').indisponible, /outils_surveilles absent/);
+  const piege = path.join(tmp(), 'piege');
+  assert.equal(executer('outils-a-jour', { config: { outils_surveilles: [{ nom: 'x', commande: [`sh; touch ${piege}`], github: 'x/y' }] }, publiees: { x: '1.0.0' } }, 'audit').ecarts[0].message, 'x introuvable sur ce site');
+  assert.ok(!fs.existsSync(piege), 'un nom d’outil ne passe jamais par un shell');
   assert.match(executer('outils-a-jour', { config, publiees: { 'outil-a': 'pas une version' } }, 'audit').indisponible, /illisible pour outil-a/);
   const lu = []; const lire = (u) => { lu.push(u); return u.includes('github') ? { tag_name: 'v8.30.1' } : [{ version: 'v25.0.0', lts: false }, { version: 'v24.11.0', lts: 'Krypton' }]; };
   assert.deepEqual([versionPubliee({ github: 'exemple/outil' }, lire), versionPubliee({ node: 'lts' }, lire)], ['v8.30.1', 'v24.11.0']);

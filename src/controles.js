@@ -91,10 +91,11 @@ function donneesPersonnelles(ctx, moment) {
 /** Chemin d'un outil : réglage du site, sinon le PATH, sinon ~/.local/bin ; null s'il est absent. */
 export function trouverOutil(nom, reglage = null) {
   if (reglage) return fs.existsSync(reglage) ? reglage : null;
-  const r = spawnSync('sh', ['-c', `command -v ${nom}`], { encoding: 'utf8' });
-  if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();
-  const l = path.join(os.homedir(), '.local', 'bin', nom);
-  return fs.existsSync(l) ? l : null;
+  // Un nom d'outil peut venir d'un réglage de l'arbre : il ne passe jamais par un shell, et ne contient pas de chemin.
+  if (!/^[A-Za-z0-9._+-]+$/.test(String(nom))) return null;
+  const executable = (f) => { try { fs.accessSync(f, fs.constants.X_OK); return fs.statSync(f).isFile(); } catch { return false; } };
+  const dossiers = [...(process.env.PATH || '').split(path.delimiter).filter(Boolean), path.join(os.homedir(), '.local', 'bin')];
+  return dossiers.map((d) => path.join(d, nom)).find(executable) || null;
 }
 
 function gitleaks(bin, args) {
