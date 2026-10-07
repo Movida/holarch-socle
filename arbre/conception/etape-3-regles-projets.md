@@ -642,7 +642,7 @@ projet (§5.8).
   finales, crédits) et le retour d'expérience gardés dans `D:\Videos\pacs-montage-video`. okf-phoenix retiré :
   sauvegardé (bundle vérifié et `settings.local.json` dans `~/.claude/backups/`), supprimé sur GitHub par l'auteur
   puis en local. okf-bundle-template déclaré par la commande, types `depot-public` et `projet-dormant` (nouveau type,
-  en brouillon : `creation.etapes` sans conteneur ni accès distant, pour un dépôt peu actif, 4 commits dont le
+  approuvé par l'auteur : `creation.etapes` sans conteneur ni accès distant, pour un dépôt peu actif, 4 commits dont le
   dernier le 2026-09-21) ; identité locale divergente retirée (geste de l'auteur, lancé par l'agent à sa demande) ;
   son `INSTANTIATE.md` fait retirer `arbre/` à l'instanciation (sans quoi chaque base hériterait de la déclaration
   du template) ; audit : trois écarts sur le nom du hub que le template sert (public, mais déclaré sans type), levés

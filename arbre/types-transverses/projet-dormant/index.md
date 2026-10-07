@@ -3,7 +3,8 @@ type: template
 id: projet-dormant
 title: Type transverse — projet dormant
 description: Un projet peu actif, déclaré pour ses règles et son audit, sans conteneur ni accès distant.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07, « J'approuve projet-dormant »" }
 config:
   # Création de projet (décision creation-de-projet) : ni conteneur de développement (donc ni clé de déploiement) ni
   # service d'accès distant ; un service qui tourne et une clé ne servent pas un dépôt touché quelques fois par mois

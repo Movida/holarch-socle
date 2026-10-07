@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Type `projet-dormant` approuvé** par l'auteur ; envoi du socle, du profil et d'okf-bundle-template (accord de
+  l'auteur).
+
 * **Migration des projets non déclarés terminée** : okf-bundle-template déclaré par la commande (accord de l'auteur),
   types `depot-public` et `projet-dormant` (nouveau, en brouillon : ni conteneur ni accès distant) ; `arbre/` retiré à
   l'instanciation du template ; `NOTICE` soustrait au contrôle par `depot-public`. Défaut corrigé : l'audit tient
