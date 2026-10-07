@@ -13,6 +13,8 @@ import { regleEffective, regleDuCompte, projetsDeclares } from './regles.js';
 import { destination } from './regles-claude-code.js';
 import { contexteControle, garde, ecartsOuverts, audit } from './audit.js';
 import { ulid } from './ulid.js';
+import { recolter, regroupeurClaude } from './recolte.js';
+import { trouverOutil } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
 function parts(projets) {
@@ -351,6 +353,19 @@ export class Socle {
   garde(o) { return garde(this, o); }
   ecartsOuverts() { return ecartsOuverts(this); }
   audit(o) { return audit(this, o); }
+
+  // Récolte (étape 3, tranche 11) : consignes redites d'une session ou d'un projet à l'autre. Les règles passées au
+  // regroupement sont celles qui étaient approuvées à la fin de la période : rejouer le passé ne donne pas le corrigé.
+  recolte({ depuis = null, jusqua = null, seuil = 2, aBlanc = false, modele, budget, regroupeur = null } = {}) {
+    const avant = (r) => !jusqua || String(r.attributes?.approuve?.at ?? '').slice(0, 10) < jusqua.slice(0, 10);
+    const regles = [...new Map(this.fiches({ kind: 'rule' }).filter((r) => r.attributes?.statut === 'stable' && avant(r))
+      .map((r) => [r.name, { id: r.name, enonce: r.attributes.enonce }])).values()];
+    const o = this.config.import?.['claude-code-transcriptions'] || {};
+    const reglages = this.config.controles || {};
+    return recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.fiches({ kind: 'project' })), regles,
+      gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: trouverOutil('claude'), modele, budget }),
+      depuis, jusqua, seuil, aBlanc });
+  }
 
   arbre() {
     const noms = new Map(projetsDe(this.fiches({ kind: 'project' })).map((p) => [p.id, p.nom]));

@@ -67,3 +67,15 @@ export const service = (e) => (e.copie
 export const posee = (r) => [`copie en service : ${r.commit}${r.nouvelle ? ' (nouvelle : tests verts, export, npm ci)' : ' (déjà présente : lien basculé)'}${r.precedent ? ` ; précédente gardée : ${r.precedent}` : ''}${r.supprimees.length ? ` ; supprimée(s) : ${r.supprimees.join(', ')}` : ''}`,
   ...r.points.map((p) => `  ${p.point} : ${p.etat}${p.message ? ` — ${p.message}` : ''}`),
   'garde avant commit et crochets de Claude Code : holarch regles appliquer (l\'audit signale ceux restés sur la copie de travail)'].join('\n');
+
+/** Ce que `holarch recolte` a trouvé (module recolte). */
+export function recolte(r) {
+  const c = r.candidats;
+  const l = [`récolte ${r.periode.depuis?.slice(0, 10) ?? '…'} → ${r.periode.jusqua?.slice(0, 10) ?? 'maintenant'} : ${c.messages} message(s) de l'auteur et ${c.memoires} mémoire(s) de retour, ${c.sessions} session(s), ${c.projets} projet(s), ${c.caracteres} caractères ; ${r.regles} règle(s) connue(s)`];
+  if (r.indisponible) return [...l, `rien n'est envoyé : ${r.indisponible}`].join('\n');
+  l.push(`secrets possibles retirés avant l'envoi : ${r.secrets_retires}`);
+  if (r.a_blanc) return [...l, 'à blanc : rien n’est envoyé'].join('\n');
+  l.push(`${r.groupes} groupe(s) rendu(s) par ${r.modele}${r.cout_usd != null ? ` (${r.cout_usd.toFixed(3)} $)` : ''}, ${r.redites.length} redite(s) :`);
+  for (const g of r.redites) l.push(`  ${g.couverte_par ? `[couverte : ${g.couverte_par}]` : '[nouvelle]'} ${g.consigne}\n      ${g.sessions} session(s), ${g.projets.length ? `projets ${g.projets.join(', ')}` : 'aucun projet'}${g.hors_projet ? `, ${g.hors_projet} hors projet` : ''}${g.memoires ? `, ${g.memoires} mémoire(s)` : ''} ; ${g.premiere?.slice(0, 10)} → ${g.derniere?.slice(0, 10)}`);
+  return l.join('\n');
+}

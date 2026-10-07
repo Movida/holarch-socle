@@ -92,7 +92,7 @@ function donneesPersonnelles(ctx, moment) {
 
 export { trouverOutil } from './commun.js';
 
-function gitleaks(bin, args) {
+export function gitleaks(bin, args) {
   const r = spawnSync(bin, [...args, '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   // 0 : rien trouvé ; 1 : des fuites, listées en JSON. Tout le reste est une panne, jamais un « rien trouvé ».
   if (r.status === 0 || r.status === 1) {

@@ -93,6 +93,7 @@ import { localiserProjet, resoudreProjet } from '../src/projets.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
 import inventaireDepots from '../src/inventaire/depots-git.js';
 import { ulid } from '../src/ulid.js';
+import { recolter } from '../src/recolte.js';
 
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
 const vieillir = (f) => { const t = new Date(Date.now() - 3600e3); fs.utimesSync(f, t, t); };
@@ -893,4 +894,47 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
   const r5 = sv.poser(c1);
   assert.equal(r5.points.find((p) => p.point === 'import').etat, 'erreur');
   assert.equal(fs.readFileSync(path.join(unites, 'holarch-import.timer'), 'utf8'), '[Timer]\nOnCalendar=daily\n');
+});
+
+test('récolte : messages de l’auteur et mémoires de retour, sans injections, doublons ni secrets ; redites comptées par le socle', () => {
+  const home = tmp(); const depot = tmp();
+  const u = (uuid, at, texte, x = {}) => JSON.stringify({ type: 'user', uuid, sessionId: x.s || 'A', timestamp: at, cwd: x.cwd || depot, message: { role: 'user', content: texte }, ...x.e });
+  ecrire(path.join(home, 'projects', 'p', 'A.jsonl'), [
+    u('1', '2026-10-01T10:00:00Z', 'Vérifie toujours les tests avant de rendre la main, sans exception.'),
+    u('2', '2026-10-01T10:01:00Z', 'oui'),
+    u('3', '2026-10-01T10:02:00Z', '<command-name>/clear</command-name> et la suite du texte'),
+    u('4', '2026-10-01T10:03:00Z', 'Un texte méta assez long pour passer la longueur.', { e: { isMeta: true } }),
+    u('5', '2026-09-01T10:00:00Z', 'Un message trop ancien pour la période retenue ici.'),
+    JSON.stringify({ type: 'user', uuid: '6', sessionId: 'A', timestamp: '2026-10-01T10:04:00Z', cwd: depot, message: { content: [{ type: 'text', text: 'Réponds en français, toujours, quoi qu’il arrive.' }, { type: 'tool_result', content: 'ignoré' }] } }),
+    u('7', '2026-10-01T10:05:00Z', 'Voici ma clé SECRET à ne jamais envoyer nulle part.'),
+  ].join('\n'));
+  ecrire(path.join(home, 'projects', 'p', 'B.jsonl'), [
+    u('1', '2026-10-01T10:00:00Z', 'Vérifie toujours les tests avant de rendre la main, sans exception.', { s: 'B' }), // recopié par une reprise
+    u('8', '2026-10-02T09:00:00Z', 'Lance npm test avant de me rendre la main, merci.', { s: 'B', cwd: '/ailleurs' }),
+  ].join('\n'));
+  ecrire(path.join(home, 'projects', 'p', 'A', 'subagents', 'agent-1.jsonl'), u('9', '2026-10-01T11:00:00Z', 'Invite écrite par un agent, pas par l’auteur.'));
+  const memoire = path.join(home, 'projects', 'p', 'memory', 'tests.md');
+  ecrire(memoire, '---\nname: tests-verts\ntype: feedback\n---\nToujours lancer les tests avant de rendre.\n');
+  const fiches = [{ id: 'mem1', kind: 'memory', name: 'tests-verts', location: memoire, links: { project: ['holarch:project:demo'] }, attributes: { type: 'feedback', modifie: '2026-10-03T00:00:00Z' } },
+    { id: 'mem2', kind: 'memory', name: 'etat', location: memoire, attributes: { type: 'project', modifie: '2026-10-03T00:00:00Z' } }];
+  // Un gitleaks fictif : il signale tout fichier qui contient SECRET.
+  const faux = path.join(tmp(), 'gitleaks');
+  ecrire(faux, '#!/bin/sh\nout=""\nfor f in "$2"/*; do case "$(cat "$f")" in *SECRET*) out="$out${out:+,}{\\"File\\":\\"$f\\",\\"RuleID\\":\\"x\\"}";; esac; done\necho "[$out]"\n[ -z "$out" ]\n');
+  fs.chmodSync(faux, 0o755);
+  let envoye = null;
+  const regroupeur = (texte) => { envoye = texte; return { modele: 'faux', cout_usd: 0.01, groupes: [
+    { consigne: 'Lancer les tests avant de rendre la main.', refs: ['m0', '[m2]', 'n3', 'm99', 'm0'], couverte_par: 'verifier' },
+    { consigne: 'Répondre en français.', refs: ['m1'], couverte_par: null }] }; };
+  const o = { comptes: [{ nom: null, home }], fiches, projets: [{ id: 'holarch:project:demo', nom: 'demo', location: depot }], regles: [{ id: 'verifier', enonce: 'Les tests sont verts avant de rendre.' }],
+    gitleaksBin: faux, regroupeur, depuis: '2026-09-15T00:00:00Z', jusqua: '2026-10-05T00:00:00Z' };
+  const r = recolter(o);
+  assert.deepEqual([r.candidats.messages, r.candidats.memoires, r.candidats.sessions, r.secrets_retires], [4, 1, 2, 1], 'un message recopié compte une fois ; sous-agent, méta, injecté, court, ancien écartés');
+  assert.match(envoye, /^Règles existantes :\n- verifier : Les tests sont verts avant de rendre\.\n/);
+  assert.match(envoye, /\[m1\] Réponds en français/); assert.match(envoye, /\[n3\] tests-verts : Toujours lancer/);
+  assert.doesNotMatch(envoye, /SECRET|ignoré|agent|oui\n/);
+  assert.deepEqual(r.redites, [{ consigne: 'Lancer les tests avant de rendre la main.', couverte_par: 'verifier', elements: 3, sessions: 3, projets: ['demo'], hors_projet: 1, memoires: 1,
+    premiere: '2026-10-01T10:00:00Z', derniere: '2026-10-03T00:00:00Z' }], 'une référence inconnue ignorée, un groupe d’une session écarté');
+  envoye = null;
+  assert.equal(recolter({ ...o, aBlanc: true }).a_blanc, true); assert.equal(envoye, null, 'à blanc : rien n’est envoyé');
+  assert.match(recolter({ ...o, gitleaksBin: null }).indisponible, /gitleaks absent/); assert.equal(envoye, null, 'sans gitleaks : rien n’est envoyé');
 });

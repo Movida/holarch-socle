@@ -84,7 +84,8 @@ export function echecOutil(outil, texte, entree) {
 }
 const texteDe = (c) => (Array.isArray(c) ? c.map((x) => x?.text || '').join(' ') : c);
 
-function fichiers(home) {
+/** Les transcriptions d'un compte (`<home>/projects/…/*.jsonl`, sous-agents compris, mémoires exclues). */
+export function fichiers(home) {
   const projets = path.join(home, 'projects');
   if (!fs.existsSync(projets)) return [];
   const out = [];
