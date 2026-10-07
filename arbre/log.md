@@ -4,7 +4,8 @@
 
 * **Règles approuvées** : les 18 règles de la tranche 3 (profil, types `methode-holarch` et `depot-public`, socle)
   approuvées par l'auteur, une à une, sur avis ; trois retouches (deux doublons retirés, mémoire remplacée déclarée).
-  Puis appliquées avec son accord : 4 au compte, 14 au socle, 7 au second projet.
+  Puis appliquées avec son accord : 4 au compte, 14 au socle, 7 au second projet ; cinq mémoires couvertes retirées,
+  `CLAUDE.md` réduit à ce qui est propre au socle. Tranche 3 close sur son critère.
 
 ## 2026-10-06
 

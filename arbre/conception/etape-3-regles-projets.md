@@ -227,8 +227,11 @@ Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils 
   `coherence-globale` remplace. Règle effective : 18 pour le socle, 11 pour le second projet, aucune proposée.
 - **Fait (2026-10-07)** : `holarch regles appliquer` sur les deux projets (accord de l'auteur) : 4 règles dans la portée
   du compte (836 caractères à chaque tour), 14 dans le socle, 7 dans le second projet ; fichiers générés commités.
+- **Fait (2026-10-07)** : critère de la tranche 3 atteint. Avec l'accord de l'auteur, cinq mémoires entièrement couvertes
+  par une règle sont retirées ; celles qui disent plus que leur règle restent (détails propres à un projet), celles du
+  projet antérieur aussi. `CLAUDE.md` du socle réduit à ce qui lui est propre : où vivent les règles, les questions,
+  les décisions et les contrats, et le format du journal. Écart relevé : la règle `modele-par-etape` déclare remplacer
+  `feedback-model-per-step`, la mémoire réelle s'écrit `feedback_model_per_step` (laissée en place, elle dit plus).
 - **Reste** :
-  1. **Tranche 3, critère** : retrait des mémoires remplacées (accord de l'auteur), `CLAUDE.md` du socle réduit à ce
-     qui lui est propre.
-  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
+  1. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.
