@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Idées de l'auteur** (boîte à idées) : I19, autorisation d'envoi paramétrable (décision à prendre, elle touche une
+  règle approuvée) ; I20, petits modèles locaux spécialisés, avis donné, deux faits à compléter.
+
 * **Boîte à idées** (accord de l'auteur) : registre `arbre/idees.md`, 18 idées reprises du Reste avec leur phase
   visée ; lecture par la reprise et la vue Projets à faire.
 
