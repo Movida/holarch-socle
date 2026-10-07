@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { git, trouverOutil, lireJson, ecrireJson } from './commun.js';
+import { etatDepot } from './inventaire/depots-git.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
 const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
@@ -256,6 +257,22 @@ function journalTenu(ctx) {
     message: `${n} commit(s) changent l'arbre le ${d}, sans entrée de ce jour au journal` })) };
 }
 
+// ---------- commits poussés ----------
+
+// Un commit resté local n'existe que sur ce site : ni le téléphone ni un conteneur ne le voient. Le délai laisse passer
+// une session de travail, dont l'envoi attend souvent l'accord de l'auteur. Même lecture de l'amont que la reprise.
+function commitsPousses(ctx) {
+  const e = etatDepot(ctx.depot);
+  if (!e.amont) return { indisponible: 'branche sans amont' };
+  if (!e.en_avance) return { ecarts: [] };
+  const h = reglage(ctx, 'non_pousses_heures', 4);
+  const r = git(ctx.depot, ['log', '--format=%ct', '@{upstream}..HEAD']);
+  const plusAncien = Math.min(...(r.stdout || '').split('\n').filter(Boolean).map(Number));
+  if (r.status !== 0 || !Number.isFinite(plusAncien)) return { indisponible: 'dates des commits illisibles' };
+  if (Date.now() / 1000 - plusAncien < h * 3600) return { ecarts: [] };
+  return { ecarts: [{ fichier: null, ligne: null, cle: 'amont', n: e.en_avance, message: `${e.en_avance} commit(s) non poussé(s) vers ${e.amont} depuis plus de ${h} h` }] };
+}
+
 /**
  * Registre : identifiant → { moments, executer(ctx, moment), portee }. Un contrôle de portée `site` regarde le poste, pas
  * un dépôt : il s'exécute une fois, au compte.
@@ -265,6 +282,7 @@ export const CONTROLES = {
   secrets: { moments: ['avant-commit', 'audit'], executer: secrets },
   'journal-tenu': { moments: ['audit'], executer: journalTenu },
   'identite-de-commit': { moments: ['avant-commit', 'audit'], executer: identiteDeCommit },
+  'commits-pousses': { moments: ['audit'], executer: commitsPousses },
   'dependances-vulnerables': { moments: ['audit'], executer: dependancesVulnerables },
   'outils-a-jour': { moments: ['audit'], executer: outilsAJour, portee: 'site' },
 };

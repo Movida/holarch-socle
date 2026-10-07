@@ -523,6 +523,24 @@ test('audit : un contrôle de portée site s’exécute au compte, jamais dans c
   assert.deepEqual(projet.controles, [], 'le projet ne le refait pas');
 });
 
+// ---- Habitudes : un commit resté local au-delà du délai est un écart.
+test('contrôles : commits non poussés au-delà du délai, branche sans amont non disponible', () => {
+  const { d, g } = depotGit(); const nu = tmp();
+  spawnSync('git', ['init', '-q', '--bare', nu]);
+  const commit = (f, heures = 0) => { ecrire(path.join(d, f), f); g('add', '.'); const date = new Date(Date.now() - heures * 36e5).toISOString();
+    const r = spawnSync('git', ['-C', d, 'commit', '-qm', f], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } }); assert.equal(r.status, 0, r.stderr); };
+  commit('a.md');
+  assert.deepEqual(executer('commits-pousses', { depot: d }, 'audit'), { indisponible: 'branche sans amont' });
+  g('remote', 'add', 'origin', nu); g('push', '-q', '-u', 'origin', 'HEAD');
+  assert.deepEqual(executer('commits-pousses', { depot: d }, 'audit').ecarts, [], 'à jour');
+  commit('b.md', 5); commit('c.md');
+  const e = executer('commits-pousses', { depot: d }, 'audit').ecarts;
+  assert.deepEqual(e.map((x) => [x.cle, x.n]), [['amont', 2]]); assert.match(e[0].message, /^2 commit\(s\) non poussé\(s\) vers origin\/\S+ depuis plus de 4 h$/);
+  assert.deepEqual(executer('commits-pousses', { depot: d, reglages: { non_pousses_heures: 6 } }, 'audit').ecarts, [], 'délai réglable');
+  g('push', '-q');
+  assert.deepEqual(executer('commits-pousses', { depot: d }, 'audit').ecarts, [], 'poussé : résolu');
+});
+
 // ---- Tranche 6 : consolidation (réglages et briques communes).
 import { porteMarque, trouverOutil, shell } from '../src/commun.js';
 

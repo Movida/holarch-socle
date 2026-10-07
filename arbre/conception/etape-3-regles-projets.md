@@ -521,14 +521,20 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
   d'identité. Défaut trouvé à l'usage : un crochet impossible à poser (`core.hooksPath` d'un dépôt vers un chemin de
   conteneur absent de l'hôte) interrompait toute la commande ; il est désormais dit, et les autres projets passent.
   Ce `core.hooksPath` retiré ensuite (accord de l'auteur) : crochet posé, écart résolu. Tranche close.
+- **Fait (2026-10-07)** : habitudes paramétrables, points a et b. L'avis de passation ne demande la leçon de clôture
+  que si la règle `lecon-de-cloture` s'applique au dossier de travail (règle effective lue au-delà du seuil seulement,
+  nommée sans recopier son texte ; une règle illisible ne retient pas l'avis). Contrôle `commits-pousses` (audit) :
+  un écart quand le plus ancien commit non poussé a plus de `non_pousses_heures` (4 h par défaut, choix de l'auteur ;
+  une session de travail passe sans bruit) ; branche sans amont : non disponible (choix de l'auteur) ; même lecture
+  de l'amont que la reprise et le badge de la carte. Règle de profil `commits-pousses` (`verified`) proposée, en
+  brouillon. Sur le poste : aucun écart à 4 h (un projet à 2 commits locaux depuis environ 2 h, écart à 1 h) ; 2 tests.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
      erreurs d'outil, leçons de clôture) et les compter ; les solutions pour ceux qui se répètent viendront avec la
      récolte (boucles « Règles » et « Progrès et recul », §6). À spécifier à l'ouverture.
-  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : l'avis de passation ne demande la leçon de clôture
-     que si la règle `lecon-de-cloture` s'applique (doublon en dur dans `contexte.js`, une seule source) ; contrôle
-     « commits non poussés » (dépôt déclaré en avance sur son amont, montré à la reprise) ; règles de profil à proposer :
+  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : règle `commits-pousses` à approuver ; règles de
+     profil à proposer :
      recommandations en choix cliquables, et règle ou contrôle proposé quand un défaut est trouvé à l'usage (lien avec
      la tranche 9). Limite connue : une règle du compte ne se déroge pas encore par projet (portée locale, à venir).
      Autres idées proposées, à trier : forme des réponses (profil), coût annoncé avant une action lourde, critère

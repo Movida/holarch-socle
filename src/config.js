@@ -38,8 +38,9 @@ const DEFAUTS = () => ({
   // mode des sessions servies (acceptEdits, auto, default…), celui de Claude Code si vide.
   acces_distant: { claude: null, mode_permissions: null },
   // Contrôles de l'audit (décisions controles-de-regles, veille-securite-versions) : outils (chemin, sinon le PATH puis
-  // ~/.local/bin), mémoire des sources réseau, fenêtre du journal tenu, taille maximale d'un fichier lu, délais, sources.
-  controles: { gitleaks: null, osv_scanner: null, cache_heures: 24, journal_jours: 30, taille_max_mo: 2, delai_osv_s: 300, delai_http_s: 20,
+  // ~/.local/bin), mémoire des sources réseau, fenêtre du journal tenu, délai avant qu'un commit non poussé soit un
+  // écart, taille maximale d'un fichier lu, délais, sources.
+  controles: { gitleaks: null, osv_scanner: null, cache_heures: 24, journal_jours: 30, non_pousses_heures: 4, taille_max_mo: 2, delai_osv_s: 300, delai_http_s: 20,
     url_github: 'https://api.github.com', url_node: 'https://nodejs.org/dist/index.json' },
   // Grille de tarifs, relevée sur la page officielle du fournisseur : { source, releve, modeles }, où chaque modèle porte
   // { entree, cache_ecrit, cache_ecrit_1h, cache_lu, sortie } en USD par million de tokens (src/tarifs.js).
@@ -98,7 +99,7 @@ inventaire:
   arbre:
     depots: []            # dépôts qui portent un arbre HOLARCH (dossier arbre/)
 # controles:              # audit : outils (chemins), mémoire des sources (cache_heures), fenêtre du journal tenu
-#   gitleaks: null        # (journal_jours), taille_max_mo, delai_osv_s, delai_http_s, url_github, url_node
+#   gitleaks: null        # (journal_jours), non_pousses_heures, taille_max_mo, delai_osv_s, delai_http_s, url_github, url_node
 # Un autre site qui partage ce répertoire (HOLARCH_SITE=<nom>) lit aussi config.<nom>.yaml, qui l'emporte sur ce fichier.
 # tarifs:                 # à relever sur la grille officielle du fournisseur, jamais de mémoire
 #   source: https://…     # page relevée
