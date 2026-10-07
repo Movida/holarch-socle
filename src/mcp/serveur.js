@@ -62,7 +62,7 @@ export function creerServeurMcp(socle, version) {
   }, async ({ jours: j, par }) => texte(socle.consommation({ jours: j ?? 30, par: par ?? 'projet' })));
 
   s.registerTool('journal', {
-    description: 'Événements du journal, les plus récents d’abord : par famille (session, cost, tool, element, inventory, ui) ou pour une session.',
+    description: 'Événements du journal, les plus récents d’abord : par famille (session, cost, tool, rule, element, inventory, ui) ou pour une session ; les échecs sont tool.failed et rule.enforced.',
     inputSchema: z.object({ kind: z.string().optional().describe('Famille ou type, par exemple tool ou tool.denied'), session: z.string().optional().describe('Identifiant de session'), limite: limite(50, 300) }),
     annotations: LECTURE,
   }, async ({ kind, session, limite: n }) => texte(socle.evenements({ kind: kind || null, session: session || null, limite: n ?? 50 })));

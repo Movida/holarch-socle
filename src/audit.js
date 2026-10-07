@@ -48,7 +48,7 @@ function controler(r, ctx, moment, niveaux, portee = 'projet') {
  * Garde avant commit (appelée par le crochet de git) : les règles bloquantes du projet du dépôt, sur les changements
  * indexés. { projet, refus: [{regle, enonce, ecarts}], indisponibles }.
  */
-export function garde(s, { depot = process.cwd(), moment = 'avant-commit' } = {}) {
+export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journaliser = false } = {}) {
   const projets = s.fiches({ kind: 'project' });
   const p = localiserProjet(projetsDe(projets))(path.resolve(depot));
   if (!p) return { projet: null, refus: [], indisponibles: [] };
@@ -57,7 +57,19 @@ export function garde(s, { depot = process.cwd(), moment = 'avant-commit' } = {}
   const { ecarts, controles } = controler(r, contexteControle(s, fiche, r, path.resolve(depot)), moment, ['blocking']);
   const refus = new Map();
   for (const x of ecarts) { if (!refus.has(x.regle_id)) refus.set(x.regle_id, { regle: x.regle_id, enonce: x.enonce, ecarts: [] }); refus.get(x.regle_id).ecarts.push(x); }
-  return { projet: p.id, refus: [...refus.values()], indisponibles: controles.filter((c) => c.etat === 'indisponible') };
+  // Un refus est un échec au journal (décision echecs-au-journal) : un `rule.enforced` par règle et contrôle, compté,
+  // jamais le contenu trouvé. Un commit forcé reste vu par l'audit (`rule.violated`).
+  // Un journal injoignable ne change pas le refus : il est dit (`journal_erreur`).
+  let journalErreur = null;
+  if (journaliser && ecarts.length) {
+    try {
+      const at = new Date().toISOString(); const parControle = new Map();
+      for (const x of ecarts) { const k = `${x.regle}|${x.controle}`; parControle.set(k, { regle: x.regle, controle: x.controle, n: (parControle.get(k)?.n || 0) + 1, moment }); }
+      const evs = [...parControle.values()].map((data) => ({ id: ulid(Date.parse(at)), at, kind: 'rule.enforced', actor: 'system:garde', subject: p.id, data, classification: 'internal' }));
+      s.journal.ajouter(evs);
+    } catch (e) { journalErreur = e.message; }
+  }
+  return { projet: p.id, refus: [...refus.values()], indisponibles: controles.filter((c) => c.etat === 'indisponible'), ...(journalErreur && { journal_erreur: journalErreur }) };
 }
 
 /** Écarts ouverts : derniers `rule.violated` sans `rule.resolved` après eux, avec leur date d'apparition. */

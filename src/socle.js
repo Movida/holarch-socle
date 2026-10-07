@@ -101,6 +101,7 @@ export class Socle {
           par_origine: q("SELECT json_extract(data,'$.origine') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC", d),
           par_outil: q("SELECT json_extract(data,'$.outil') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC LIMIT 8", d),
         },
+        echecs: (({ par_projet, ...x }) => x)(this.echecs({ jours })),
       },
       tokens: ['7', '30'].map((j) => ({ jours: +j, ...q("SELECT SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd FROM evenements WHERE kind='cost.recorded' AND at>=?", depuis(+j))[0] })),
       evenements: q('SELECT COUNT(*) n FROM evenements')[0].n,
@@ -227,6 +228,7 @@ export class Socle {
     }
     for (const c of this.consommation({ jours: 30, par: 'projet' })) { const a = de(c.cle); a.usd_30 = c.usd; a.sortie_30 = c.sortie; }
     for (const c of this.consommation({ jours: 7, par: 'projet' })) de(c.cle).usd_7 = c.usd;
+    const echecs = this.echecs({ jours: 7 }).par_projet;
     const ecarts = new Map();
     for (const o of this.ecartsOuverts()) if (o.projet) ecarts.set(o.projet, (ecarts.get(o.projet) || 0) + 1);
     const liste = fiches.map((f) => {
@@ -250,6 +252,7 @@ export class Socle {
         decisions: ns.filter((n) => n.attributes?.type === 'decision' && n.attributes?.statut === 'draft').map((n) => ({ id: n.id, titre: n.name })),
         activite: act,
         ecarts: ecarts.get(f.id) || 0,
+        echecs_7: echecs[f.id] || null,
       };
       const attente = p.questions.length + p.decisions.length + p.technique.fichiers_modifies + (p.technique.en_avance || 0) + p.ecarts;
       p.calme = !act && !attente;
@@ -258,6 +261,36 @@ export class Socle {
     });
     liste.sort((x, y) => (y.recent || '').localeCompare(x.recent || '') || x.nom.localeCompare(y.nom));
     return { projets: liste, hors_projet: activite.get(null) || null };
+  }
+
+  // Échecs d'une période (décision echecs-au-journal) : erreurs d'outil par motif, programme et outil, refus de la garde
+  // (un par commit refusé), tests lancés et rouges (dernière fin de chaque session qui en porte). Par projet : les échecs
+  // des sessions qui y ont travaillé (même attribution que la vue Projets, sans partage : un échec ne se divise pas) et
+  // les refus de la garde dans son dépôt. Le tableau de bord et la carte d'un projet lisent ce seul compte.
+  echecs({ jours = 30 } = {}) {
+    const d = new Date(Date.now() - jours * 864e5).toISOString();
+    const projetsDeSession = this.attribution();
+    const r = { total: 0, par_motif: {}, par_programme: {}, par_outil: {}, tests: { lances: 0, rouges: 0 }, par_projet: {} };
+    const pp = (id) => (r.par_projet[id] ||= { n: 0, tests_rouges: 0, garde: 0 });
+    const plus = (o, k) => { if (k != null) o[k] = (o[k] || 0) + 1; };
+    const projetsDe = (corr) => projetsDeSession(String(corr).split(':')[0]).map((p) => p.id);
+    for (const e of this.index.requete("SELECT correlation, json_extract(data,'$.motif') motif, json_extract(data,'$.programme') programme, json_extract(data,'$.outil') outil FROM evenements WHERE kind='tool.failed' AND at>=?", d)) {
+      if (e.motif === 'garde') continue; // compté par `rule.enforced`
+      r.total++; plus(r.par_motif, e.motif); plus(r.par_programme, e.programme); plus(r.par_outil, e.outil);
+      for (const id of projetsDe(e.correlation)) pp(id).n++;
+    }
+    for (const e of this.index.requete("SELECT DISTINCT at, subject FROM evenements WHERE kind='rule.enforced' AND at>=?", d)) {
+      r.total++; plus(r.par_motif, 'garde');
+      if (e.subject) { pp(e.subject).n++; pp(e.subject).garde++; }
+    }
+    const vues = new Set();
+    for (const e of this.index.requete("SELECT correlation, json_extract(data,'$.tests') tests FROM evenements WHERE kind='session.finished' AND json_extract(data,'$.tests') IS NOT NULL AND at>=? ORDER BY at DESC, id DESC", d)) {
+      if (vues.has(e.correlation)) continue; vues.add(e.correlation);
+      const t = JSON.parse(e.tests); r.tests.lances += t.lances || 0; r.tests.rouges += t.rouges || 0;
+      if (t.rouges) for (const id of projetsDe(e.correlation)) pp(id).tests_rouges += t.rouges;
+    }
+    const classe = (o, n) => Object.entries(o).map(([cle, x]) => ({ cle, n: x })).sort((a, b) => b.n - a.n).slice(0, n);
+    return { ...r, par_motif: classe(r.par_motif, 20), par_programme: classe(r.par_programme, 8), par_outil: classe(r.par_outil, 8) };
   }
 
   // Par projet : le coût de chaque session va à ses projets (même attribution et même partage que la vue Projets) ; la

@@ -1,7 +1,9 @@
 // Import des transcriptions Claude Code (~/.claude/projects/<projet>/<session>.jsonl, sous-agents compris) vers le
 // journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas depuis le dernier import),
 // tool.denied (refus d'outil : origine et outil, jamais le contenu), tool.called (appel d'un outil MCP : serveur, outil,
-// issue ; jamais les arguments ni la réponse). Une session se rattache aux projets du catalogue dont ses appels d'outils
+// issue ; jamais les arguments ni la réponse), tool.failed (erreur d'outil qui n'est pas un refus : motif d'une liste
+// fixe, code de sortie et nom du programme d'une commande shell ; jamais la commande ni la sortie), et en fin de session
+// les tests lancés et rouges (décision echecs-au-journal). Une session se rattache aux projets du catalogue dont ses appels d'outils
 // ont touché le dépôt (`data.projets` : identifiant et nombre d'appels ; jamais les chemins ni les commandes).
 // Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
 import { cleServeur, lireJson, ecrireJson } from '../commun.js';
@@ -17,23 +19,68 @@ import { localiserProjet } from '../projets.js';
 const IGNORER_MODELES = new Set(['<synthetic>']);
 // Version de l'état d'import : un fichier lu par une version antérieure est relu une fois, et l'écart des cumuls devient
 // un événement complémentaire (v2 : part de l'écriture de cache à une heure, `cache_write_1h` ; v3 : refus d'outil ;
-// v4 : appels MCP ; v5 : projets touchés, en complément pour une transcription inchangée).
-const VERSION_ETAT = 5;
+// v4 : appels MCP ; v5 : projets touchés, en complément pour une transcription inchangée ; v6 : échecs d'outil, tests,
+// refus d'approbation).
+const VERSION_ETAT = 6;
 
 // Refus d'outil : un résultat en erreur dont le texte COMMENCE par l'un de ces messages (décision refus). Un texte qui
-// les cite ailleurs, une recherche par exemple, n'est pas un refus.
+// les cite ailleurs, une recherche par exemple, n'est pas un refus. Le troisième terme est la version de l'état d'import
+// qui a ajouté le motif : une transcription déjà lue n'en reçoit, en complément, que les refus nouveaux.
+// `approbation` : une commande qui demandait une approbation, refusée faute de réponse (décision echecs-au-journal).
 const REFUS = [
-  ['classifieur', /^Permission for this action was denied by the Claude Code auto mode classifier\.(?: Reason: \[([^\]]{1,60})\])?/],
-  ['regle', /^Permission to use \w+ /],
-  ['regle', /^<tool_use_error>File is in a directory that is denied by your permission settings/],
-  ['humain', /^The user doesn't want to proceed with this tool use/],
-  ['securite', /^Permission for this command was denied by a built-in Claude Code safety check/],
-  ['hook', /^\w+:\w+ hook error:/],
+  ['classifieur', /^Permission for this action was denied by the Claude Code auto mode classifier\.(?: Reason: \[([^\]]{1,60})\])?/, 3],
+  ['classifieur', /^The server-side auto mode classifier gave no verdict/, 6, 'sans verdict'],
+  ['regle', /^Permission to use \w+ /, 3],
+  ['regle', /^<tool_use_error>File is in a directory that is denied by your permission settings/, 3],
+  ['humain', /^The user doesn't want to proceed with this tool use/, 3],
+  ['securite', /^Permission for this command was denied by a built-in Claude Code safety check/, 3],
+  ['hook', /^\w+:\w+ hook error:/, 3],
+  ['hook', /^\[[A-Z]+ · garde-fou [\w-]+\]/, 6],
+  ['approbation', /^(?:This (?:Bash )?command (?:contains multiple operations|requires approval|changes directory before)|Contains (?:[a-z]+_[a-z_]+|expansion\b|shell syntax|brace with quote)|\w+ command requires approval|Newline followed by # inside a quoted argument|Parser skipped input between top-level statements|Accesses \/proc\/|Claude requested permissions to \w+ |Commands that change directories and |\w+ in '[^'\n]*' (?:was blocked|needs approval)|Heredoc with unquoted delimiter|Glob patterns are not allowed in write operations|\w+ with '-\w+' executes commands|backtick substitution scan could not be trusted)/, 6],
 ];
 export function origineRefus(texte) {
   const t = String(texte || '').trimStart();
-  for (const [origine, motif] of REFUS) { const m = t.match(motif); if (m) return { origine, categorie: m[1] || null }; }
+  for (const [origine, motif, v, categorie] of REFUS) { const m = t.match(motif); if (m) return { origine, categorie: m[1] || categorie || null, v }; }
   return null;
+}
+
+// Échec d'outil (décision echecs-au-journal) : motif tiré d'une liste fixe, reconnu au début du message ; le reste est
+// `autre`. Une commande de test est rouge à sa sortie non nulle OU au résumé de son lanceur : derrière un tube
+// (`npm test | tail`), la sortie est celle du dernier programme.
+const MOTIFS = [
+  ['edition-perimee', /^<tool_use_error>File has been modified since read/],
+  ['edition-introuvable', /^<tool_use_error>String to replace not found/],
+  ['edition-ambigue', /^<tool_use_error>Found \d+ matches of the string to replace/],
+  ['edition-non-lue', /^<tool_use_error>File has not been read yet/],
+  ['fichier-absent', /^(?:<tool_use_error>)?File does not exist/],
+  ['validation', /^(?:<tool_use_error>)?InputValidationError/],
+  ['delai', /^(?:<tool_use_error>)?[^\n]{0,80}\btimed out\b/i],
+];
+const TEST = /\b(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b|\bnode\s+(?:--[\w-]+\s+)*--test\b/;
+const TEST_ROUGE = /^(?:#|ℹ) fail [1-9]/m;
+const COMMIT = /\bgit\b[^|;&\n]*\bcommit\b/;
+const REFUS_GARDE = /^HOLARCH : commit refusé par la règle /m;
+// Nom du premier programme d'une commande, après les `cd` et les affectations ; un nom seul, jamais un chemin ni un
+// argument (null s'il n'a pas la forme d'un nom).
+export function programmeDe(commande) {
+  for (const segment of String(commande || '').split(/&&|\|\||[;|\n]/)) {
+    const mots = segment.trim().split(/\s+/).filter((m) => m && !/^\w+=/.test(m));
+    if (!mots.length || mots[0] === 'cd') continue;
+    const nom = path.basename(mots[0]);
+    return /^[A-Za-z0-9._+-]{1,32}$/.test(nom) ? nom : null;
+  }
+  return null;
+}
+export function echecOutil(outil, texte, entree) {
+  const t = String(texte || '').trimStart();
+  const commande = typeof entree?.command === 'string' ? entree.command : null;
+  if (commande == null) return { motif: (MOTIFS.find(([, m]) => m.test(t)) || ['autre'])[0] };
+  const code = t.match(/^Exit code (\d+)/)?.[1];
+  const shell = { code: code == null ? null : Number(code), programme: programmeDe(commande) };
+  if (TEST.test(commande)) return { motif: 'tests', ...shell };
+  if (COMMIT.test(commande) && REFUS_GARDE.test(t)) return { motif: 'garde', ...shell };
+  const m = MOTIFS.find(([, x]) => x.test(t));
+  return { motif: m ? m[0] : code != null ? 'sortie' : 'autre', ...shell };
 }
 const texteDe = (c) => (Array.isArray(c) ? c.map((x) => x?.text || '').join(' ') : c);
 
@@ -71,8 +118,8 @@ export function cheminsAppel(entree, cwd) {
 }
 
 function analyser(f, projetDe = () => null) {
-  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], appels: new Map(), projets: new Map(), sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
-  const outils = {};
+  const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], echecs: [], tests: { lances: 0, rouges: 0 }, appels: new Map(), projets: new Map(), sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
+  const outils = {}; const entrees = {};
   const vus = new Set();
   for (const ligne of fs.readFileSync(f, 'utf8').split('\n')) {
     if (!ligne) continue;
@@ -85,8 +132,14 @@ function analyser(f, projetDe = () => null) {
     if (e.type === 'user' && Array.isArray(e.message?.content)) {
       for (const x of e.message.content) {
         if (x?.type !== 'tool_result') continue;
-        const o = x.is_error ? origineRefus(texteDe(x.content)) : null;
+        const texte = texteDe(x.content);
+        const o = x.is_error ? origineRefus(texte) : null;
         if (o) r.refus.push({ ...o, at: e.timestamp, cle: x.tool_use_id, outil: outils[x.tool_use_id] || null });
+        const commande = entrees[x.tool_use_id]?.command;
+        const test = typeof commande === 'string' && TEST.test(commande) && !o;
+        const rouge = test && (x.is_error || TEST_ROUGE.test(String(texte || '')));
+        if (test) { r.tests.lances++; if (rouge) r.tests.rouges++; }
+        if (!o && (x.is_error || rouge)) r.echecs.push({ ...echecOutil(outils[x.tool_use_id], texte, entrees[x.tool_use_id]), at: e.timestamp, cle: x.tool_use_id, outil: outils[x.tool_use_id] || null });
         const appel = r.appels.get(x.tool_use_id);
         if (appel) appel.statut = o ? 'refuse' : x.is_error ? 'erreur' : 'ok';
       }
@@ -94,7 +147,7 @@ function analyser(f, projetDe = () => null) {
     if (e.type === 'assistant' && Array.isArray(e.message?.content)) {
       for (const x of e.message.content) {
         if (x?.type !== 'tool_use') continue;
-        outils[x.id] = x.name;
+        outils[x.id] = x.name; entrees[x.id] = x.input;
         // Un appel touche les projets dont ses chemins désignent le dépôt ; à défaut, celui de son répertoire courant.
         let touches = new Set(cheminsAppel(x.input, e.cwd).map(projetDe).filter(Boolean));
         if (!touches.size && e.cwd) touches = new Set([projetDe(e.cwd)].filter(Boolean));
@@ -164,7 +217,7 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     const cpt = nomCompte ? { compte: nomCompte } : {};
     const touches = [...a.projets].map(([id, n]) => ({ id, n })).sort((x, y) => y.n - x.n).slice(0, 20);
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
-    const fin = { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null, tours: a.tours, invites: a.invites, duree_s: duree, modeles: Object.keys(a.modeles) };
+    const fin = { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null, tours: a.tours, invites: a.invites, duree_s: duree, modeles: Object.keys(a.modeles), ...(a.tests.lances && { tests: a.tests }) };
     // Transcription déjà importée, inchangée, relue pour une version antérieure : seuls ses compléments s'ajoutent (coûts
     // ventilés, refus et appels s'ils n'existaient pas, projets touchés par un `session.finished` complémentaire). Rien de
     // ce qui existait déjà n'est réémis : la graine des identifiants a pu changer depuis (clé relative au compte).
@@ -180,9 +233,13 @@ export default function importerTranscriptions(options, { journal, donnees, pass
         data: { projet, ...cpt, sous_agent: a.sousAgent, ...(m.includes('/') && { via: 'intermediaire' }) },
         cost: { provider: m.includes('/') ? m.split('/')[0] : 'anthropic', model: m, usd_list: null, tokens: delta } });
     }
-    for (const x of relu && v >= 3 ? [] : a.refus) {
+    for (const x of relu ? a.refus.filter((x) => x.v > v) : a.refus) {
       evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${cle}:refus:${x.cle}`), at: x.at || a.fin, kind: 'tool.denied',
         data: { projet, ...cpt, sous_agent: a.sousAgent, outil: x.outil, origine: x.origine, categorie: x.categorie } });
+    }
+    for (const x of relu && v >= 6 ? [] : a.echecs) {
+      evenements.push({ ...base, id: ulid(Date.parse(x.at || a.fin), `${cle}:echec:${x.cle}`), at: x.at || a.fin, kind: 'tool.failed',
+        data: { projet, ...cpt, sous_agent: a.sousAgent, outil: x.outil, motif: x.motif, ...(x.programme !== undefined && { code: x.code, programme: x.programme }) } });
     }
     for (const x of relu && v >= 4 ? [] : a.appels.values()) {
       if (viaPasserelle.has(x.serveur)) continue; // la passerelle le journalise elle-même, avec le vrai serveur et le vrai outil
@@ -191,6 +248,9 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     }
     if (!relu) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:end:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, projets: touches } });
     else if (v < 5 && touches.length) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:projets:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, projets: touches, complement: 'projets' } });
+    // Les tests d'une session lue avant la version 6 s'ajoutent par un complément qui reprend toute la fin (les lectures
+    // prennent la dernière fin d'une session pour son répertoire et ses projets).
+    else if (v < 6 && a.tests.lances) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:tests:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, projets: touches, complement: 'tests' } });
     etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
   }
   const r = journal.ajouter(evenements);

@@ -424,6 +424,12 @@ test('audit : un commit fautif est refusé par le crochet ; forcé, il apparaît
   assert.equal(refus.status, 1, refus.stderr);
   assert.match(refus.stderr, /commit refusé par la règle rien-de-personnel/); assert.match(refus.stderr, /note\.md:1/);
   assert.ok(!/zeta/i.test(refus.stderr), 'le refus ne répète pas le terme');
+  // Le refus est un échec au journal : la règle et le contrôle, comptés, jamais le terme (décision echecs-au-journal).
+  const garde = [...s.journal.lire()].filter((e) => e.kind === 'rule.enforced');
+  assert.deepEqual(garde.map((e) => [e.subject, e.data.controle, e.data.n, e.data.moment, e.actor]), [['holarch:project:depot', 'donnees-personnelles', 1, 'avant-commit', 'system:garde']]);
+  s.indexer();
+  assert.deepEqual(s.echecs().par_motif, [{ cle: 'garde', n: 1 }]);
+  assert.equal(s.projets().projets.find((p) => p.id === 'holarch:project:depot').echecs_7.garde, 1);
   g('commit', '-qm', 'forcé', '--no-verify');
 
   const a1 = s.audit({ journaliser: true });
@@ -433,9 +439,9 @@ test('audit : un commit fautif est refusé par le crochet ; forcé, il apparaît
 
   ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'corrigé');
   assert.deepEqual([s.audit({ journaliser: true }).journal.resolus, s.ecartsOuverts().length], [1, 0]);
-  const evs = [...s.journal.lire()].filter((e) => e.kind.startsWith('rule.'));
+  const evs = [...s.journal.lire()].filter((e) => ['rule.violated', 'rule.resolved'].includes(e.kind));
   assert.deepEqual(evs.map((e) => e.kind), ['rule.violated', 'rule.violated', 'rule.resolved', 'rule.resolved']);
-  assert.ok(evs.every((e) => e.actor === 'system:audit' && !/zeta/i.test(JSON.stringify(e))), 'au journal, jamais le terme');
+  assert.ok(evs.every((e) => e.actor === 'system:audit') && !/zeta/i.test(JSON.stringify([...s.journal.lire()])), 'au journal, jamais le terme');
 });
 
 test('interface en service : unité marquée qui relit la même configuration, activée puis retirée ; une unité étrangère jamais touchée', () => {

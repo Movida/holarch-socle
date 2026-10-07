@@ -252,6 +252,44 @@ test('import : refus d’outil repérés par leur message en tête, origine et o
   assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees }).fichiers_lus, 0);
 });
 
+test('import : échecs d’outil par motif, tests rouges derrière un tube, refus d’approbation ; jamais la commande ni la sortie', () => {
+  const home = tmp(); const donnees = tmp();
+  const f = path.join(home, 'projects', '-ws-demo', 's4.jsonl');
+  const appel = (id, name, input, ts) => JSON.stringify({ type: 'assistant', sessionId: 's4', cwd: '/ws/demo', timestamp: ts, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', content: [{ type: 'tool_use', id: `t${id}`, name, input }], usage: { output_tokens: 1 } } });
+  const resultat = (id, contenu, ts, erreur = true) => JSON.stringify({ type: 'user', sessionId: 's4', timestamp: ts, message: { content: [{ type: 'tool_result', tool_use_id: `t${id}`, is_error: erreur, content: contenu }] } });
+  const lignes = [
+    [1, 'Bash', { command: 'cd /ws/demo && npm test 2>&1 | tail -3' }, 'ℹ tests 4\nℹ pass 3\nℹ fail 1\n/ws/demo/secret.js', false],
+    [2, 'Bash', { command: 'npm test' }, 'ℹ fail 0', false],
+    [3, 'Bash', { command: 'FOO=1 /usr/bin/git status --secret' }, 'Exit code 128\nfatal: /chemin/prive', true],
+    [4, 'Edit', { file_path: '/ws/demo/a.js' }, '<tool_use_error>File has been modified since read, either by the user', true],
+    [5, 'Bash', { command: 'a; b' }, 'This Bash command contains multiple operations. The following parts require approval: rm /secret', true],
+    [6, 'Bash', { command: 'x' }, 'Contains simple_expansion', true],
+    [7, 'Bash', { command: 'git add . && git commit -m x' }, 'Exit code 1\n M note.md\nHOLARCH : commit refusé par la règle rien-de-personnel — …', true],
+    [8, 'Bash', { command: 'grep -n "commit refusé" bin/holarch.js' }, 'Exit code 1\nHOLARCH : commit refusé par la règle x', true],
+    [9, 'Read', { file_path: '/x' }, 'pdftoppm is not installed', true],
+  ];
+  ecrire(f, lignes.flatMap(([id, n, input, texte, erreur]) => [appel(id, n, input, `2026-10-01T10:0${id}:00Z`), resultat(id, texte, `2026-10-01T10:0${id}:01Z`, erreur)]).join('\n') + '\n'); vieillir(f);
+  const journal = new Journal(donnees, 'local');
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees });
+  const evs = [...journal.lire()];
+  assert.deepEqual(evs.filter((e) => e.kind === 'tool.failed').map((e) => [e.data.outil, e.data.motif, e.data.code, e.data.programme]),
+    [['Bash', 'tests', null, 'npm'], ['Bash', 'sortie', 128, 'git'], ['Edit', 'edition-perimee', undefined, undefined], ['Bash', 'garde', 1, 'git'], ['Bash', 'sortie', 1, 'grep'], ['Read', 'autre', undefined, undefined]]);
+  assert.deepEqual(evs.filter((e) => e.kind === 'tool.denied').map((e) => e.data.origine), ['approbation', 'approbation']);
+  assert.deepEqual(evs.find((e) => e.kind === 'session.finished').data.tests, { lances: 2, rouges: 1 });
+  const tout = JSON.stringify(evs);
+  assert.ok(!/secret|prive|status|tail|note\.md/.test(tout), 'ni commande, ni chemin, ni sortie');
+
+  // Transcription importée par la version 5 : ses échecs, ses nouveaux refus et ses tests arrivent en complément, une fois.
+  const donnees2 = tmp(); const journal2 = new Journal(donnees2, 'local');
+  const cle = 'projects/-ws-demo/s4.jsonl';
+  ecrire(path.join(donnees2, 'import', 'claude-code-transcriptions.json'), JSON.stringify({ [cle]: { v: 5, taille: fs.statSync(f).size, session: true, cumuls: { 'modele-x': { in: 0, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 9 } } } }));
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal: journal2, donnees: donnees2 });
+  const c = [...journal2.lire()];
+  assert.deepEqual(c.map((e) => e.kind).sort(), ['session.finished', 'tool.denied', 'tool.denied', ...Array(6).fill('tool.failed')]);
+  assert.deepEqual([c.find((e) => e.kind === 'session.finished').data.complement, c.find((e) => e.kind === 'session.finished').data.cwd], ['tests', '/ws/demo']);
+  assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal: journal2, donnees: donnees2 }).fichiers_lus, 0);
+});
+
 test('import et inventaire : appels MCP au journal sans arguments, usage porté par les fiches des connecteurs', async () => {
   const home = tmp(); const donnees = tmp();
   const f = path.join(home, 'projects', '-ws-demo', 's4.jsonl');

@@ -560,9 +560,20 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
 - **Ouverture de la tranche 9 (2026-10-07)** : échecs au journal, idée de l'auteur ; décision `echecs-au-journal`
   proposée, sur une mesure des transcriptions de 30 jours : 338 refus de permission non reconnus par `tool.denied`, 22
   des 24 tests rouges du socle sortis en code 0 derrière un tube. Leçons de clôture proposées hors tranche.
+- **Fait (2026-10-07)** : tranche 9, points 1 à 4 et critère, décision `echecs-au-journal` approuvée telle quelle (refus
+  non reconnus en origine `approbation`, leçons de clôture avec la récolte). Import en version 6 : `tool.failed` (motif
+  d'une liste fixe, code de sortie, nom du programme), tests en fin de session, refus d'approbation ; `holarch garde`
+  écrit `rule.enforced` ; compte unique `echecs` lu par le tableau de bord (carte « Échecs ») et la carte d'un projet
+  (badge sur 7 jours) ; filtre par motif et famille `rule` au journal ; contrat événement 0.9.0 ; 1 test ajouté, 1
+  étendu ; test visuel passé dans le conteneur. Sur le poste, 30 jours : 1 007 échecs (595 sorties non nulles, 226
+  tests rouges sur 1 242 lancements, dont 199 sans code de sortie non nul, 117 autres), 450 refus d'approbation ; une
+  mesure indépendante des transcriptions donne 1 005, 452 et 226 sur 1 251 (la session en cours n'est pas importée ;
+  deux messages d'approbation d'une forme non listée, motifs élargis, restent `autre` dans l'historique). Commit sous
+  une autre identité refusé dans le socle : `rule.enforced` au journal, compté sur la carte. Tranche close.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 9, échecs** : décision `echecs-au-journal` à approuver, puis points 1 à 4 et critère.
+  2. **Échecs, solutions** : pour ceux qui se répètent (tests rouges, sorties non nulles de `node`, `cat`, `python3`),
+     avec la récolte ; leçons de clôture avec elle.
   3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : idée de l'auteur retenue pour plus tard, avec la
      récolte : chaque réglage déclare sa mesure, l'audit en tire une valeur par projet, proposée en brouillon (exemple
      mesuré : délai entre commit et envoi, lu dans le reflog de l'amont) ; règles de profil à proposer :

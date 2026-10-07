@@ -2,6 +2,11 @@
 
 ## 2026-10-07
 
+* **Échecs au journal** (tranche 9 close) : erreurs d'outil, tests rouges, refus de la garde et refus d'approbation
+  au journal, comptés au tableau de bord et sur la carte d'un projet ; 30 jours sur le poste : 1 007 échecs, dont 226
+  tests rouges sur 1 242 (199 invisibles au code de sortie), et 450 refus d'approbation, à 2 près d'une mesure
+  indépendante ; un vrai refus de la garde vu au journal.
+
 * **Tranche 9 ouverte** (échecs au journal) : décision `echecs-au-journal` proposée ; mesure sur 30 jours : 338 refus
   de permission non reconnus, 22 des 24 tests rouges du socle invisibles au code de sortie.
 

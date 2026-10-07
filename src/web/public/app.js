@@ -21,7 +21,9 @@ const type = (k) => TYPES[k] || k;
 // Un nœud de l'arbre s'affiche avec son statut d'arbre (draft, stable), comme sur la page Arbre ; le statut de fiche
 // (contrat du catalogue) reste dans le détail.
 const statut = (f) => (f.kind === 'node' && f.attributes?.statut) || f.status;
-const ORIGINES = { humain: 'Par vous', classifieur: 'Classifieur (mode auto)', regle: 'Règle de permission', securite: 'Contrôle de sécurité', hook: 'Hook' };
+const ORIGINES = { humain: 'Par vous', classifieur: 'Classifieur (mode auto)', regle: 'Règle de permission', securite: 'Contrôle de sécurité', hook: 'Hook', approbation: 'Approbation demandée' };
+// Motifs d'échec (décision echecs-au-journal), dans les mots de l'interface.
+const MOTIFS = { sortie: 'Sortie non nulle', tests: 'Tests rouges', garde: 'Commit refusé par la garde', 'edition-perimee': 'Fichier modifié depuis sa lecture', 'edition-introuvable': 'Texte à remplacer introuvable', 'edition-ambigue': 'Texte à remplacer ambigu', 'edition-non-lue': 'Fichier édité sans lecture', 'fichier-absent': 'Fichier absent', validation: 'Paramètres invalides', delai: 'Délai dépassé', autre: 'Autre erreur' };
 
 // ---------------------------------------------------------------- vues
 const PERIODES = [7, 30, 90];
@@ -50,6 +52,8 @@ async function tableau(params) {
   const absentes = e.dernier_inventaire?.absentes || [];
   const maxM = Math.max(1, ...p.mcp.map((m) => m.n));
   const refus = p.refus.par_origine; const maxR = Math.max(1, ...refus.map((r) => r.n));
+  const ec = p.echecs; const maxE = Math.max(1, ...ec.par_motif.map((r) => r.n));
+  const lienEchec = (m) => (m === 'garde' ? '#/journal?kind=rule.enforced' : `#/journal?kind=tool.failed&motif=${encodeURIComponent(m || '')}`);
   return `
     <div class="entete"><h1>Tableau de bord</h1><div class="puces" role="group" aria-label="Période">${PERIODES.map((j) => `<a class="puce ${j === n ? 'actif' : ''}" href="#/?jours=${j}">${j} j</a>`).join('')}</div></div>
     <p class="sous-titre">Ce qui est en place, et ce qui s’est passé sur ce site ces ${n} derniers jours.${e.dernier_inventaire ? ` Dernier inventaire ${h(depuis(e.dernier_inventaire.at))}.` : ''}</p>
@@ -73,6 +77,10 @@ async function tableau(params) {
       <div class="carte"><h2>Refus d’outil, ${n} j</h2>${refus.length ? `<div class="barres">${refus.map((r) => `
         <div class="barre"><a class="nom" href="#/journal?kind=tool.denied&origine=${encodeURIComponent(r.cle || '')}">${h(ORIGINES[r.cle] || r.cle)}</a><span class="piste"><span class="rempli" style="width:${(r.n / maxR) * 100}%"></span></span><span class="chiffre">${nf.format(r.n)}</span></div>`).join('')}</div>
         <p class="discret">Outils les plus refusés : ${p.refus.par_outil.map((o) => `<a href="#/journal?kind=tool.denied&outil=${encodeURIComponent(o.cle || '')}">${h(o.cle || '?')}</a> (${nf.format(o.n)})`).join(', ')}</p>` : '<div class="discret">Aucun refus sur la période.</div>'}</div>
+      <div class="carte"><h2>Échecs, ${n} j</h2>${ec.total ? `<div class="barres">${ec.par_motif.map((r) => `
+        <div class="barre"><a class="nom" href="${lienEchec(r.cle)}">${h(MOTIFS[r.cle] || r.cle)}</a><span class="piste"><span class="rempli" style="width:${(r.n / maxE) * 100}%"></span></span><span class="chiffre">${nf.format(r.n)}</span></div>`).join('')}</div>
+        ${ec.tests.lances ? `<p class="discret" title="Rouges : sortie non nulle ou résumé du lanceur qui compte un échec">Tests : ${nf.format(ec.tests.rouges)} rouges sur ${nf.format(ec.tests.lances)} lancements (${pct(ec.tests.rouges, ec.tests.lances)}).</p>` : ''}
+        ${ec.par_programme.length ? `<p class="discret">Programmes en échec : ${ec.par_programme.map((o) => `${h(o.cle)} (${nf.format(o.n)})`).join(', ')}</p>` : ''}` : '<div class="discret">Aucun échec sur la période.</div>'}</div>
     </div>
     <div class="grille g2 section">
       <div class="carte"><h2>Catalogue</h2><div class="puces">${e.fiches_par_type.map((f) => `<a class="puce" href="#/catalogue?kind=${encodeURIComponent(f.kind)}"><b>${nf.format(f.n)}</b> ${h(type(f.kind))}</a>`).join('')}</div>
@@ -104,7 +112,7 @@ async function projets(params) {
   const carte = (p) => {
     const a = p.activite; const e = p.etape;
     return `<div class="carte projet">
-      <div class="tete"><a class="t" href="#" data-fiche="${h(p.id)}" title="${h(p.chemin || '')}">${h(p.nom)}</a>${p.branche ? ` <span class="mono discret">${h(p.branche)}</span>` : ''} ${tech(p)} <a class="regles discret" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Règle effective du projet : profil, contexte, types, projet">règles</a>${p.ecarts ? ` <a class="badge alerte" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Écarts aux règles trouvés par l’audit, ouverts">${nf.format(p.ecarts)} écart${p.ecarts > 1 ? 's' : ''}</a>` : ''}</div>
+      <div class="tete"><a class="t" href="#" data-fiche="${h(p.id)}" title="${h(p.chemin || '')}">${h(p.nom)}</a>${p.branche ? ` <span class="mono discret">${h(p.branche)}</span>` : ''} ${tech(p)} <a class="regles discret" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Règle effective du projet : profil, contexte, types, projet">règles</a>${p.ecarts ? ` <a class="badge alerte" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Écarts aux règles trouvés par l’audit, ouverts">${nf.format(p.ecarts)} écart${p.ecarts > 1 ? 's' : ''}</a>` : ''}${p.echecs_7?.n ? ` <a class="badge" href="#/sessions?projet=${encodeURIComponent(p.id)}" title="Échecs des 7 derniers jours dans les sessions qui y ont travaillé${p.echecs_7.tests_rouges ? ` ; dont ${nf.format(p.echecs_7.tests_rouges)} tests rouges` : ''}${p.echecs_7.garde ? ` ; ${nf.format(p.echecs_7.garde)} commit(s) refusé(s) par la garde` : ''}">${nf.format(p.echecs_7.n)} échec${p.echecs_7.n > 1 ? 's' : ''} (7 j)</a>` : ''}</div>
       ${e ? `<div class="etape"><a href="#" data-fiche="${h(e.id)}">${h(e.titre)}</a>${e.close ? ' <span class="badge ok">close</span>' : ''} <span class="discret">· ${nf.format(e.faits)} fait${e.faits > 1 ? 's' : ''}</span>
         ${e.dernier_fait ? `<div class="discret">Dernier fait${e.dernier_fait.date ? ` (${jj(e.dernier_fait.date)})` : ''} : ${md(e.dernier_fait.texte || '')}</div>` : ''}
         ${e.reste.length ? `<div class="reste"><b>Reste</b><ul>${e.reste.map((r) => `<li>${md(r)}</li>`).join('')}</ul></div>` : ''}</div>` : p.arbre ? '<div class="discret">Arbre sans spécification d’étape.</div>' : ''}
@@ -154,16 +162,16 @@ async function sessions(params) {
 
 async function journal(params) {
   const kind = params.get('kind') || ''; const session = params.get('session') || ''; const origine = params.get('origine') || ''; const serveur = params.get('serveur') || '';
-  const outil = params.get('outil') || '';
+  const outil = params.get('outil') || ''; const motif = params.get('motif') || '';
   // Sans filtre, les pages consultées (ui.viewed) restent hors du flux : nombreuses, elles noieraient le reste.
-  const ev = (await api(`/api/evenements?${new URLSearchParams({ limite: 300, ...(kind ? { kind } : { sauf: 'ui' }), ...(session && { session }) })}`)).filter((e) => (!origine || e.data?.origine === origine) && (!serveur || e.data?.serveur === serveur) && (!outil || e.data?.outil === outil));
+  const ev = (await api(`/api/evenements?${new URLSearchParams({ limite: 300, ...(kind ? { kind } : { sauf: 'ui' }), ...(session && { session }) })}`)).filter((e) => (!origine || e.data?.origine === origine) && (!serveur || e.data?.serveur === serveur) && (!outil || e.data?.outil === outil) && (!motif || e.data?.motif === motif));
   const garder = (k) => `#/journal?${new URLSearchParams({ ...(k && { kind: k }), ...(session && { session }) })}`;
-  const familles = ['session', 'cost', 'tool', 'element', 'inventory', 'ui'];
+  const familles = ['session', 'cost', 'tool', 'rule', 'element', 'inventory', 'ui'];
   return `
     <h1>Journal</h1>
     <p class="sous-titre">Les 300 derniers événements. Ce qui n’est pas au journal ne s’est pas passé.</p>
-    <div class="outils"><div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="${garder('')}">Tout</a>${familles.map((f) => `<a class="puce ${f === kind ? 'actif' : ''}" href="${garder(f)}">${f}</a>`).join('')}${session ? `<a class="puce actif" href="#/journal${kind ? `?kind=${kind}` : ''}" title="Retirer le filtre">session ${h(session.slice(0, 8))} ✕</a>` : ''}${origine ? `<a class="puce actif" href="#/journal?kind=tool.denied" title="Retirer le filtre">${h(ORIGINES[origine] || origine)} ✕</a>` : ''}${serveur ? `<a class="puce actif" href="#/journal?kind=tool.called" title="Retirer le filtre">${h(serveur)} ✕</a>` : ''}${outil ? `<a class="puce actif" href="#/journal?kind=tool.denied" title="Retirer le filtre">${h(outil)} ✕</a>` : ''}</div></div>
-    <div class="carte">${ev.map((e) => `<div class="evenement"><span title="${h(e.at)}">${h(dateSec(e.at))}</span><span><span class="badge fam-${h(e.kind.split('.')[0])}${e.kind === 'tool.denied' ? ' refus' : ''}">${h(e.kind)}</span></span><span>${e.subject?.startsWith('holarch:') ? `<a href="#" data-fiche="${h(e.subject)}">${h(e.data?.projet || e.subject)}</a>` : h(e.data?.projet || e.subject || '')}${e.correlation && !session ? ` <a class="discret" href="#/journal?session=${encodeURIComponent(e.correlation.split(':')[0])}" title="Tous les événements de cette session">session</a>` : ''}${e.data?.serveur ? ` · ${h(e.data.serveur)}` : ''}${e.data?.outil ? ` · ${h(e.data.outil)}` : ''}${e.data?.statut && e.data.statut !== 'ok' ? ` · ${h(e.data.statut)}` : ''}${e.data?.origine ? ` · ${h(ORIGINES[e.data.origine] || e.data.origine)}` : ''} <span class="discret">${h(e.actor)}${e.tok_out ? ` · ${abr(e.tok_out)} tokens de sortie` : ''}${e.data?.fiches != null ? ` · ${e.data.fiches} fiches` : ''}</span></span></div>`).join('') || '<div class="vide">Journal vide.</div>'}</div>`;
+    <div class="outils"><div class="puces"><a class="puce ${kind ? '' : 'actif'}" href="${garder('')}">Tout</a>${familles.map((f) => `<a class="puce ${f === kind ? 'actif' : ''}" href="${garder(f)}">${f}</a>`).join('')}${session ? `<a class="puce actif" href="#/journal${kind ? `?kind=${kind}` : ''}" title="Retirer le filtre">session ${h(session.slice(0, 8))} ✕</a>` : ''}${origine ? `<a class="puce actif" href="#/journal?kind=tool.denied" title="Retirer le filtre">${h(ORIGINES[origine] || origine)} ✕</a>` : ''}${serveur ? `<a class="puce actif" href="#/journal?kind=tool.called" title="Retirer le filtre">${h(serveur)} ✕</a>` : ''}${outil ? `<a class="puce actif" href="#/journal?kind=tool.denied" title="Retirer le filtre">${h(outil)} ✕</a>` : ''}${motif ? `<a class="puce actif" href="#/journal?kind=tool.failed" title="Retirer le filtre">${h(MOTIFS[motif] || motif)} ✕</a>` : ''}</div></div>
+    <div class="carte">${ev.map((e) => `<div class="evenement"><span title="${h(e.at)}">${h(dateSec(e.at))}</span><span><span class="badge fam-${h(e.kind.split('.')[0])}${e.kind === 'tool.denied' ? ' refus' : ''}">${h(e.kind)}</span></span><span>${e.subject?.startsWith('holarch:') ? `<a href="#" data-fiche="${h(e.subject)}">${h(e.data?.projet || e.subject)}</a>` : h(e.data?.projet || e.subject || '')}${e.correlation && !session ? ` <a class="discret" href="#/journal?session=${encodeURIComponent(e.correlation.split(':')[0])}" title="Tous les événements de cette session">session</a>` : ''}${e.data?.serveur ? ` · ${h(e.data.serveur)}` : ''}${e.data?.outil ? ` · ${h(e.data.outil)}` : ''}${e.data?.statut && e.data.statut !== 'ok' ? ` · ${h(e.data.statut)}` : ''}${e.data?.origine ? ` · ${h(ORIGINES[e.data.origine] || e.data.origine)}` : ''}${e.data?.motif ? ` · ${h(MOTIFS[e.data.motif] || e.data.motif)}` : ''}${e.data?.programme ? ` · ${h(e.data.programme)}` : ''}${e.kind === 'rule.enforced' ? ` · ${h(e.data.regle)}` : ''} <span class="discret">${h(e.actor)}${e.tok_out ? ` · ${abr(e.tok_out)} tokens de sortie` : ''}${e.data?.fiches != null ? ` · ${e.data.fiches} fiches` : ''}</span></span></div>`).join('') || '<div class="vide">Journal vide.</div>'}</div>`;
 }
 
 async function arbre(params) {
