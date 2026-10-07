@@ -385,6 +385,10 @@ test('garde : crochet de git marqué (posé, inchangé, retiré ; un crochet ét
   ecrire(crochet, '#!/bin/sh\nexit 0\n');
   assert.deepEqual([poserCrochet(d, texte).etat, poserCrochet(d, null).etat, fs.readFileSync(crochet, 'utf8')], ['ignore', 'ignore', '#!/bin/sh\nexit 0\n']);
   assert.equal(poserCrochet(tmp(), texte).etat, 'hors-git');
+  // Un core.hooksPath qui vise un chemin inaccessible (montage d'un conteneur) : dit, sans interrompre la commande.
+  const { d: d2, g: g2 } = depotGit(); const bloque = path.join(tmp(), 'ro'); fs.mkdirSync(bloque, { mode: 0o500 });
+  g2('config', 'core.hooksPath', path.join(bloque, 'hooks'));
+  const e = poserCrochet(d2, texte); if (process.getuid?.() !== 0) assert.deepEqual([e.etat, typeof e.raison], ['erreur', 'string']);
 
   const home = tmp(); const lu = () => JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8'));
   ecrire(path.join(home, 'settings.json'), JSON.stringify({ model: 'x', permissions: { deny: ['Bash(rm -rf / *)', 'Read(//**/.env)'] } }));

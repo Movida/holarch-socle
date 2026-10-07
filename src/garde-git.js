@@ -29,7 +29,8 @@ export function fichierCrochet(depot) {
 
 /**
  * Pose, met à jour ou retire le crochet selon `voulu` (son texte, ou null) : { etat, fichier } avec `etat` parmi
- * pose · modifie · inchange · retire · absent · ignore (crochet non marqué) · hors-git. `ecrire: false` : dit seulement.
+ * pose · modifie · inchange · retire · absent · ignore (crochet non marqué) · hors-git · erreur (emplacement non inscriptible,
+ * par exemple un `core.hooksPath` qui vise un chemin d'un autre montage : `raison` le dit). `ecrire: false` : dit seulement.
  */
 export function poserCrochet(depot, voulu, { ecrire = true } = {}) {
   const fichier = fichierCrochet(depot);
@@ -42,6 +43,8 @@ export function poserCrochet(depot, voulu, { ecrire = true } = {}) {
     return { etat: 'retire', fichier };
   }
   if (present === voulu) return { etat: 'inchange', fichier };
-  if (ecrire) { fs.mkdirSync(path.dirname(fichier), { recursive: true }); fs.writeFileSync(fichier, voulu, { mode: 0o755 }); fs.chmodSync(fichier, 0o755); }
+  if (ecrire) {
+    try { fs.mkdirSync(path.dirname(fichier), { recursive: true }); fs.writeFileSync(fichier, voulu, { mode: 0o755 }); fs.chmodSync(fichier, 0o755); } catch (e) { return { etat: 'erreur', fichier, raison: e.code || e.message }; }
+  }
   return { etat: present == null ? 'pose' : 'modifie', fichier };
 }
