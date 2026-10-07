@@ -1,9 +1,6 @@
 // Le socle d'un site : configuration, journal, catalogue, index, et les opérations de l'étape 1. Les fonctions de
 // lecture sont celles que l'interface web et, à l'étape 2, le hub MCP exposent.
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { chargerConfig, comptesClaudeCode, accueil } from './config.js';
+import { chargerConfig, comptesClaudeCode } from './config.js';
 import { Journal } from './stockage/journal.js';
 import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
@@ -13,10 +10,8 @@ import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
 import { regleEffective, regleDuCompte, projetsDeclares } from './regles.js';
-import { destination, planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions } from './regles-claude-code.js';
-import { listePrivee, trouverOutil, executer, CONTROLES } from './controles.js';
-import { crochetDe, poserCrochet } from './garde-git.js';
-import { racineArbre } from './inventaire/arbre.js';
+import { destination } from './regles-claude-code.js';
+import { contexteControle, garde, ecartsOuverts, audit } from './audit.js';
 import { ulid } from './ulid.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
@@ -24,12 +19,6 @@ function parts(projets) {
   const total = projets.reduce((x, p) => x + p.n, 0);
   return total ? projets.map((p) => [p.id, p.n / total, p.nom]) : [[null, 1, null]];
 }
-
-// La ligne de commande que le crochet de git appelle.
-const BIN = fileURLToPath(new URL('../bin/holarch.js', import.meta.url));
-// Un écart se reconnaît d'un audit à l'autre par son projet, sa règle, son contrôle et sa clé (jamais par son contenu).
-const cleEcart = (projet, d) => [projet ?? '', d.regle, d.controle, d.cle].join('|');
-const donneesEcart = (x) => ({ regle: x.regle, controle: x.controle, cle: x.cle, ...(x.fichier && { fichier: x.fichier }), ...(x.ligne && { ligne: x.ligne }), ...(x.n && { n: x.n }), ...(x.message && { message: x.message }) });
 
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions, agentgateway: importerPasserelle };
 
@@ -307,142 +296,11 @@ export class Socle {
     return { compte: { ...portees(regleDuCompte(fiches), 'sensitive'), ecarts: ouverts.filter((o) => !o.projet) }, projets: resume };
   }
 
-  // ---------- contrôles et audit (étape 3, tranche 4, décision controles-de-regles) ----------
-
-  // Ce qu'un contrôle reçoit pour un projet : son dépôt, la racine de son arbre, ses réglages, la liste privée, gitleaks.
-  contexteControle(projet, r, depot = projet.location) {
-    const fiches = this.fiches({ kind: 'node' });
-    const declares = projetsDeclares(fiches);
-    const publique = (id) => fiches.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public');
-    const projetsPrives = this.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
-    const comptes = comptesClaudeCode(this.config, this.config.inventaire?.['claude-code'] || {});
-    const config = r.config || {};
-    return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, gitleaks: trouverOutil('gitleaks', this.config.controles?.gitleaks),
-      osv: trouverOutil('osv-scanner', this.config.controles?.osv_scanner), cache: path.join(this.config.donnees, 'cache'),
-      termes: depot ? listePrivee({ depot, config, comptes, projetsPrives, nomProjet: projet.name }) : [] };
-  }
-
-  // Contrôles d'un projet à un moment : par règle applicable de l'un des niveaux, ses écarts ; et l'état de chaque contrôle.
-  #controler(projet, r, ctx, moment, niveaux, portee = 'projet') {
-    const memo = new Map(); const ecarts = []; const etats = new Map();
-    for (const e of r.regles.filter((x) => x.applicable && niveaux.includes(x.niveau))) {
-      for (const c of e.controles || []) {
-        if ((CONTROLES[c]?.portee === 'site') !== (portee === 'site')) continue;
-        if (!memo.has(c)) memo.set(c, executer(c, ctx, moment));
-        const res = memo.get(c);
-        if (res.hors_moment) continue;
-        etats.set(c, res.indisponible ? { id: c, etat: 'indisponible', raison: res.indisponible } : { id: c, etat: 'fait' });
-        if (!res.indisponible) ecarts.push(...res.ecarts.map((x) => ({ regle: e.fiche, regle_id: e.id, enonce: e.enonce, controle: c, ...x })));
-      }
-    }
-    return { ecarts, controles: [...etats.values()] };
-  }
-
-  // Garde avant commit (appelée par le crochet de git) : les règles bloquantes du projet du dépôt, sur les changements
-  // indexés. { projet, refus: [{regle, enonce, ecarts}], indisponibles }.
-  garde({ depot = process.cwd(), moment = 'avant-commit' } = {}) {
-    const projets = this.fiches({ kind: 'project' });
-    const p = localiserProjet(projetsDe(projets))(path.resolve(depot));
-    if (!p) return { projet: null, refus: [], indisponibles: [] };
-    const r = regleEffective([...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })], p.id);
-    const { ecarts, controles } = this.#controler(projets.find((x) => x.id === p.id), r, this.contexteControle(projets.find((x) => x.id === p.id), r, path.resolve(depot)), moment, ['blocking']);
-    const refus = new Map();
-    for (const x of ecarts) { if (!refus.has(x.regle_id)) refus.set(x.regle_id, { regle: x.regle_id, enonce: x.enonce, ecarts: [] }); refus.get(x.regle_id).ecarts.push(x); }
-    return { projet: p.id, refus: [...refus.values()], indisponibles: controles.filter((c) => c.etat === 'indisponible') };
-  }
-
-  // Écarts ouverts : derniers `rule.violated` sans `rule.resolved` après eux, avec leur date d'apparition.
-  ecartsOuverts() {
-    const ouverts = new Map();
-    for (const ev of this.index.requete("SELECT at, kind, subject, data FROM evenements WHERE kind IN ('rule.violated','rule.resolved') ORDER BY id")) {
-      const d = JSON.parse(ev.data); const k = cleEcart(ev.subject, d);
-      if (ev.kind === 'rule.violated') ouverts.set(k, { ...d, projet: ev.subject ?? null, depuis: ev.at }); else ouverts.delete(k);
-    }
-    return [...ouverts.values()];
-  }
-
-  /**
-   * Audit de conformité : pour le compte et chaque projet qui a des règles (ou celui demandé), les contrôles de ses règles
-   * `blocking` et `verified`, et la matérialisation (fichiers générés, crochet, permissions, mémoires remplacées).
-   * `journaliser` : un écart apparu s'écrit `rule.violated`, un écart disparu `rule.resolved` (si son contrôle a pu
-   * s'exécuter). Rien d'autre n'est écrit.
-   */
-  audit({ projet = null, journaliser = false } = {}) {
-    const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
-    const projets = this.fiches({ kind: 'project' }); const memoires = this.fiches({ kind: 'memory' });
-    const faits = new Set(); const sorties = [];
-    const regleNommee = (regles, nom) => regles.find((e) => e.id === nom)?.fiche || nom;
-    // Écarts de matérialisation d'un plan (adaptateur Claude Code) dans son dossier, sans rien écrire.
-    const materialisation = (regles, plan, dossier, prefixe) => {
-      const d = appliquer(dossier, plan, { ecrire: false }); const regleDe = new Map(plan.fichiers.map((x) => [x.fichier, x.regle]));
-      const e = (f, message) => ({ regle: regleNommee(regles, regleDe.get(f) || f.replace(/\.md$/, '')), regle_id: regleDe.get(f) || f.replace(/\.md$/, ''), controle: 'regles-a-jour', cle: f, fichier: `${prefixe}/${f}`, message });
-      return [...d.crees.map((f) => e(f, 'fichier de règle absent')), ...d.modifies.map((f) => e(f, 'fichier de règle périmé')),
-        ...d.retires.map((f) => e(f, 'fichier généré sans règle')), ...d.ignores.map((f) => e(f, 'fichier non marqué à la place d’une règle générée'))];
-    };
-    const remplacees = (regles, liste) => regles.filter((e) => e.applicable && e.remplace?.length).flatMap((e) => liste
-      .filter((m) => e.remplace.includes(m.name) || e.remplace.includes(path.basename(m.location || '', '.md')))
-      .map((m) => ({ regle: e.fiche, regle_id: e.id, controle: 'memoire-remplacee', cle: m.id, fichier: m.name, message: 'mémoire encore présente, remplacée par la règle' })));
-
-    // Compte : ce qui vaut pour tous les projets du site.
-    const compte = regleDuCompte(fiches);
-    const rc = { projet: null, nom: 'compte', ecarts: [], controles: [] };
-    if (compte.regles.length) {
-      for (const c of comptesClaudeCode(this.config, this.config.inventaire?.['claude-code'] || {}).filter((x) => x.home)) {
-        rc.ecarts.push(...materialisation(compte.regles, planifier(compte.regles, { portee: 'compte' }), dossierCompte(c.home), 'rules/holarch'));
-        const lectures = compte.regles.filter((e) => e.applicable).flatMap((e) => lecturesRefusees(e).map((x) => [x, e]));
-        try {
-          const pr = appliquerPermissions(c.home, lectures.map(([x]) => x), { ecrire: false });
-          for (const x of pr.ajoutees) { const e = lectures.find(([y]) => y === x)[1]; rc.ecarts.push({ regle: e.fiche, regle_id: e.id, controle: 'permissions-posees', cle: x, fichier: 'settings.json', message: 'lecture non refusée' }); }
-        } catch (err) { rc.controles.push({ id: 'permissions-posees', etat: 'indisponible', raison: err.message }); }
-      }
-      rc.ecarts.push(...remplacees(compte.regles, memoires));
-      for (const c of ['regles-a-jour', 'permissions-posees', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
-      // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
-      const site = this.#controler(null, compte, { config: compte.config || {}, cache: path.join(this.config.donnees, 'cache') }, 'audit', ['blocking', 'verified'], 'site');
-      rc.ecarts.push(...site.ecarts); rc.controles.push(...site.controles);
-      for (const c of site.controles) if (c.etat === 'fait') faits.add(`|${c.id}`);
-      sorties.push(rc);
-    }
-
-    // Projets.
-    const cibles = projet ? [this.projetDe(projet)] : this.regles().projets.map((p) => p.id);
-    for (const id of cibles) {
-      const p = projets.find((x) => x.id === id); if (!p) continue;
-      const r = regleEffective(fiches, id);
-      const ctx = this.contexteControle(p, r);
-      const { ecarts, controles } = this.#controler(p, r, ctx, 'audit', ['blocking', 'verified']);
-      for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
-      const rp = { projet: id, nom: p.name, ecarts, controles };
-      if (p.location && fs.existsSync(p.location)) {
-        rp.ecarts.push(...materialisation(r.regles, planifier(r.regles, { portee: 'projet', classificationDepot: r.arbre?.classification }), dossierProjet(p.location), '.claude/rules/holarch'));
-        const demande = r.regles.find((e) => e.applicable && avantCommit(e));
-        const st = poserCrochet(p.location, demande ? crochetDe({ holarch: BIN, accueil: this.config.accueil || accueil() }) : null, { ecrire: false });
-        const crochet = (e, message) => rp.ecarts.push({ regle: e ? e.fiche : 'crochet', regle_id: e ? e.id : 'crochet', controle: 'crochet-pose', cle: 'pre-commit', fichier: '.git/hooks/pre-commit', message });
-        if (st.etat === 'pose') crochet(demande, 'crochet de git absent');
-        else if (st.etat === 'modifie') crochet(demande, 'crochet de git périmé');
-        else if (st.etat === 'ignore' && demande) crochet(demande, 'un crochet pre-commit non marqué occupe la place');
-        else if (st.etat === 'retire') crochet(null, 'crochet posé sans règle qui le demande');
-        faits.add(`${id}|regles-a-jour`); faits.add(`${id}|crochet-pose`);
-      }
-      rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));
-      faits.add(`${id}|memoire-remplacee`);
-      sorties.push(rp);
-    }
-
-    let journal = null;
-    if (journaliser) {
-      const ouverts = new Map(this.ecartsOuverts().map((o) => [cleEcart(o.projet, o), o]));
-      const actuels = new Map(sorties.flatMap((x) => x.ecarts.map((e) => [cleEcart(x.projet, e), { ...e, projet: x.projet }])));
-      const at = new Date().toISOString(); const evs = [];
-      const ev = (kind, x) => ({ id: ulid(Date.parse(at)), at, kind, actor: 'system:audit', subject: x.projet, data: donneesEcart(x), classification: 'internal' });
-      for (const [k, x] of actuels) if (!ouverts.has(k)) evs.push(ev('rule.violated', x));
-      for (const [k, o] of ouverts) if (!actuels.has(k) && faits.has(`${o.projet ?? ''}|${o.controle}`)) evs.push(ev('rule.resolved', o));
-      const r = this.journal.ajouter(evs);
-      if (r.ajoutes) this.index.inserer(evs.map((e) => ({ ...e, site: this.config.site })), this.config.tarifs);
-      journal = { apparus: evs.filter((e) => e.kind === 'rule.violated').length, resolus: evs.filter((e) => e.kind === 'rule.resolved').length, refuses: r.refuses.length };
-    }
-    return { cibles: sorties, journal };
-  }
+  // ---------- contrôles et audit (étape 3, tranches 4 et 5) : module audit ----------
+  contexteControle(projet, r, depot) { return contexteControle(this, projet, r, depot); }
+  garde(o) { return garde(this, o); }
+  ecartsOuverts() { return ecartsOuverts(this); }
+  audit(o) { return audit(this, o); }
 
   arbre() {
     const noms = new Map(projetsDe(this.fiches({ kind: 'project' })).map((p) => [p.id, p.nom]));

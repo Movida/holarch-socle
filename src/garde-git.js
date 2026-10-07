@@ -4,10 +4,9 @@
 // HOLARCH injoignable, le crochet laisse passer et le dit : l'audit rattrape ce qui serait passé.
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { shell as sh, porteMarque, git } from './commun.js';
 
 export const MARQUE = '# Généré par HOLARCH (holarch regles appliquer) : garde avant commit.';
-const sh = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 
 /** Texte du crochet : le binaire node, la ligne de commande HOLARCH et son répertoire de travail, figés à l'écriture. */
 export function crochetDe({ node = process.execPath, holarch, accueil }) {
@@ -24,7 +23,7 @@ exit 0
 
 /** Chemin du crochet d'un clone (`core.hooksPath` et worktrees compris) ; null hors d'un dépôt git. */
 export function fichierCrochet(depot) {
-  const r = spawnSync('git', ['-C', depot, 'rev-parse', '--git-path', 'hooks/pre-commit'], { encoding: 'utf8' });
+  const r = git(depot, ['rev-parse', '--git-path', 'hooks/pre-commit']);
   return r.status === 0 ? path.resolve(depot, r.stdout.trim()) : null;
 }
 
@@ -36,7 +35,7 @@ export function poserCrochet(depot, voulu, { ecrire = true } = {}) {
   const fichier = fichierCrochet(depot);
   if (!fichier) return { etat: 'hors-git', fichier: null };
   const present = fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : null;
-  if (present != null && !present.includes(MARQUE)) return { etat: 'ignore', fichier };
+  if (present != null && !porteMarque(present, MARQUE)) return { etat: 'ignore', fichier };
   if (!voulu) {
     if (present == null) return { etat: 'absent', fichier };
     if (ecrire) fs.unlinkSync(fichier);

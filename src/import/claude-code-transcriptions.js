@@ -4,6 +4,7 @@
 // issue ; jamais les arguments ni la réponse). Une session se rattache aux projets du catalogue dont ses appels d'outils
 // ont touché le dépôt (`data.projets` : identifiant et nombre d'appels ; jamais les chemins ni les commandes).
 // Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
+import { cleServeur, lireJson, ecrireJson } from '../commun.js';
 // Un fichier se repère par son chemin relatif au répertoire du compte (`projects/…`), pas par son chemin absolu : le
 // même répertoire lu depuis deux points de montage (un conteneur et l'hôte) ne compte qu'une fois.
 // Le coût en USD ne se calcule pas ici mais à la lecture, depuis la grille de tarifs configurée (src/tarifs.js).
@@ -138,9 +139,9 @@ function migrerEtat(etat) {
 
 export default function importerTranscriptions(options, { journal, donnees, passerelles = [], comptes = null, projets = [] }) {
   const projetDe = localiserProjet(projets);
-  const viaPasserelle = new Set(passerelles.map((n) => String(n).replace(/[^A-Za-z0-9_-]/g, '_')));
+  const viaPasserelle = new Set(passerelles.map(cleServeur));
   const etatF = path.join(donnees, 'import', 'claude-code-transcriptions.json');
-  let etat = {}; try { etat = JSON.parse(fs.readFileSync(etatF, 'utf8')); } catch { /* premier import */ }
+  const etat = lireJson(etatF, {}); // premier import : vide
   const anciens = migrerEtat(etat);
   const calme = (options.calme_minutes ?? 10) * 60e3;
   const evenements = []; let lus = 0; let enCours = 0;
@@ -193,7 +194,6 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
   }
   const r = journal.ajouter(evenements);
-  fs.mkdirSync(path.dirname(etatF), { recursive: true });
-  fs.writeFileSync(etatF, JSON.stringify(etat));
+  ecrireJson(etatF, etat, { indent: 0 });
   return { fichiers_lus: lus, en_cours_ignores: enCours, ...r, refuses: r.refuses.length, premiers_refus: r.refuses.slice(0, 3).map((x) => x.erreur) };
 }

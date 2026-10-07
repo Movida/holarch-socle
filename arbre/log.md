@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Consolidation** (tranche 6) : briques communes, matérialisation et audit en modules propres, réglages des
+  contrôles ; relecture adverse par un sous-agent (une régression trouvée et corrigée) ; comportement inchangé sur le
+  site réel. Registre des clients et superviseur interchangeable écartés tant qu'un seul client et un seul système.
+
 * **Veille de sécurité et de versions** (tranche 5) : décision `veille-securite-versions` ; contrôles des dépendances
   vulnérables (osv-scanner, gravité élevée ou critique) et des versions des outils du poste, interrogés une fois par
   jour ; deux règles de profil approuvées, trois projets déclarés ; premier audit : 27 paquets à failles. Une mise à

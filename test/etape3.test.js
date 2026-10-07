@@ -518,3 +518,28 @@ test('audit : un contrôle de portée site s’exécute au compte, jamais dans c
   assert.deepEqual(compte.controles.map((c) => [c.id, c.etat]), [['outils-a-jour', 'indisponible']], 'sans liste d’outils : non disponible, jamais conforme');
   assert.deepEqual(projet.controles, [], 'le projet ne le refait pas');
 });
+
+// ---- Tranche 6 : consolidation (réglages et briques communes).
+import { porteMarque, trouverOutil, shell } from '../src/commun.js';
+
+test('consolidation : les réglages de l’audit agissent, et les briques communes tiennent leurs promesses', () => {
+  const { d, g } = depotGit();
+  const commit = (jour, f) => { ecrire(path.join(d, f), jour); g('add', '.'); const r = spawnSync('git', ['-C', d, 'commit', '-qm', f], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_DATE: `${jour}T12:00:00`, GIT_COMMITTER_DATE: `${jour}T12:00:00` } }); assert.equal(r.status, 0, r.stderr); };
+  commit(jourIl(5), 'arbre/a.md'); commit(jourIl(1), 'arbre/b.md'); ecrire(path.join(d, 'arbre', 'log.md'), '# Journal\n'); g('add', '.'); g('commit', '-qm', 'log');
+  const ctx = { depot: d, arbre: path.join(d, 'arbre'), config: { journal: 'arbre/log.md' } };
+  assert.equal(executer('journal-tenu', ctx, 'audit').ecarts.length, 2);
+  assert.equal(executer('journal-tenu', { ...ctx, reglages: { journal_jours: 3 } }, 'audit').ecarts.length, 1, 'fenêtre réglable');
+  ecrire(path.join(d, 'gros.txt'), 'x'.repeat(2048) + '\nProjet Zeta\n'); g('add', '.'); g('commit', '-qm', 'gros');
+  assert.equal(executer('donnees-personnelles', { depot: d, termes: ['Projet Zeta'] }, 'audit').ecarts.length, 1);
+  assert.equal(executer('donnees-personnelles', { depot: d, termes: ['Projet Zeta'], reglages: { taille_max_mo: 0.001 } }, 'audit').ecarts.length, 0, 'taille maximale réglable');
+  // Briques communes.
+  assert.ok(porteMarque('---\npaths: [x]\n---\n# MARQUE ici\n', '# MARQUE') && !porteMarque('texte\n# MARQUE plus loin'.padStart(2000, '\n'), '# MARQUE'));
+  // Un fichier de règle limité à beaucoup de chemins garde sa marque reconnue (en-tête long).
+  const regle = { id: 'large', fiche: 'f', enonce: 'Une règle.', niveau: 'guided', statut: 'stable', applicable: true, origine: 'projet', applique_a: { paths: Array.from({ length: 15 }, (_, i) => `d${i}/**`) }, provenance: { arbre: 'a', noeud: '/' }, recouvre: [] };
+  const dossier = tmp(); const plan = planifier([regle], { portee: 'projet', classificationDepot: 'internal' });
+  appliquer(dossier, plan);
+  assert.deepEqual(appliquer(dossier, planifier([{ ...regle, enonce: 'Une règle modifiée.' }], { portee: 'projet', classificationDepot: 'internal' })).modifies, ['large.md']);
+  assert.equal(trouverOutil('sh'), trouverOutil('sh') && path.isAbsolute(trouverOutil('sh')) ? trouverOutil('sh') : null, 'chemin absolu seulement');
+  assert.equal(trouverOutil('a b'), null); assert.equal(trouverOutil('../sh'), null); assert.ok(trouverOutil('sh'));
+  assert.equal(shell("l'outil"), `'l'\\''outil'`);
+});

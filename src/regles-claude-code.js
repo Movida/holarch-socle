@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
 import { CONTROLES } from './controles.js';
+import { lireJson, ecrireJson, fichierMarque } from './commun.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
 const SOUS_DOSSIER = path.join('rules', 'holarch');
@@ -56,8 +57,7 @@ export const avantCommit = (e) => e.niveau === 'blocking' && (e.controles || [])
  */
 export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
   const settings = path.join(home, 'settings.json'); const manifeste = path.join(dossierCompte(home), 'permissions.json');
-  const lireJson = (f, d) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : d);
-  const c = lireJson(settings, {}); const nos = new Set(lireJson(manifeste, { deny: [] }).deny || []);
+  const c = lireJson(settings, {}, { strict: true }); const nos = new Set(lireJson(manifeste, { deny: [] }, { strict: true }).deny || []);
   const deny = c.permissions?.deny || []; const voulues = new Set(entrees);
   const ajoutees = entrees.filter((x) => !deny.includes(x));
   const retirees = [...nos].filter((x) => !voulues.has(x) && deny.includes(x));
@@ -70,12 +70,6 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
   const notees = entrees.filter((x) => nos.has(x) || ajoutees.includes(x));
   if (notees.length || fs.existsSync(manifeste)) ecrireJson(manifeste, { deny: notees });
   return r;
-}
-
-function ecrireJson(f, o) {
-  fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(`${f}.holarch`, `${JSON.stringify(o, null, 2)}\n`);
-  fs.renameSync(`${f}.holarch`, f);
 }
 
 /** Texte du fichier d'une règle. */
@@ -104,7 +98,7 @@ export function planifier(regles, { portee, classificationDepot } = {}) {
   return { fichiers, non, signaux };
 }
 
-const marque = (f) => { try { return fs.readFileSync(f, 'utf8').includes(MARQUE); } catch { return false; } };
+const marque = (f) => fichierMarque(f, MARQUE);
 
 /**
  * Écrit un plan dans un dossier de règles : crée ou met à jour les fichiers prévus, retire les fichiers marqués que le

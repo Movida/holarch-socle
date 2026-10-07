@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ulid } from '../ulid.js';
+import { lireJson, ecrireJson } from '../commun.js';
 
 const duree = (d) => { const m = /^([\d.]+)(ms|s|µs|us)$/.exec(String(d || '')); return m ? Math.round(+m[1] * { ms: 1, s: 1000, µs: 1e-3, us: 1e-3 }[m[2]]) : null; };
 const statut = (http) => (http === 401 || http === 403 ? 'refuse' : http >= 400 ? 'erreur' : null);
@@ -52,7 +53,7 @@ export default function importerPasserelle(options, { journal, donnees }) {
   const f = options.fichier;
   if (!f || !fs.existsSync(f)) return { fichiers_lus: 0, ajoutes: 0, ignores: 0, refuses: 0, absent: f || null };
   const etatF = path.join(donnees, 'import', 'agentgateway.json');
-  let etat = {}; try { etat = JSON.parse(fs.readFileSync(etatF, 'utf8')); } catch { /* premier import */ }
+  const etat = lireJson(etatF, {}); // premier import : vide
   const st = fs.statSync(f); const prec = etat[f];
   // Même fichier, qui a grandi : on reprend après la dernière ligne lue ; sinon (rotation, troncature) depuis le début.
   const debut = prec && prec.ino === st.ino && st.size >= prec.position ? prec.position : 0;
@@ -62,7 +63,6 @@ export default function importerPasserelle(options, { journal, donnees }) {
   const texte = tampon.toString('utf8'); const fin = texte.lastIndexOf('\n') + 1; // seulement les lignes complètes
   const r = journal.ajouter(evenementsDe(texte.slice(0, fin).split('\n').filter(Boolean), options.nom || 'passerelle'));
   etat[f] = { ino: st.ino, position: debut + Buffer.byteLength(texte.slice(0, fin)) };
-  fs.mkdirSync(path.dirname(etatF), { recursive: true });
-  fs.writeFileSync(etatF, JSON.stringify(etat));
+  ecrireJson(etatF, etat, { indent: 0 });
   return { fichiers_lus: 1, ...r, refuses: r.refuses.length };
 }

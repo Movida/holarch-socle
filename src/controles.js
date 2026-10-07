@@ -7,9 +7,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { git, trouverOutil, lireJson, ecrireJson } from './commun.js';
 
-const git = (depot, args, o = {}) => spawnSync('git', ['-C', depot, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...o });
-const TAILLE_MAX = 2 * 1024 * 1024;
+// Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
+const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
 
 // ---------- données personnelles ----------
 
@@ -78,7 +79,7 @@ function donneesPersonnelles(ctx, moment) {
     if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
     for (const f of listeZ(r).filter((x) => !exclu.has(x))) {
       if (trouve(f)) trouves.push({ fichier: f, ligne: null });
-      let texte; try { const p = path.join(ctx.depot, f); if (fs.statSync(p).size > TAILLE_MAX) continue; texte = fs.readFileSync(p, 'utf8'); } catch { continue; }
+      let texte; try { const p = path.join(ctx.depot, f); if (fs.statSync(p).size > reglage(ctx, 'taille_max_mo', 2) * 1024 * 1024) continue; texte = fs.readFileSync(p, 'utf8'); } catch { continue; }
       if (texte.includes('\0')) continue;
       texte.split('\n').forEach((l, i) => { if (trouve(l)) trouves.push({ fichier: f, ligne: i + 1 }); });
     }
@@ -88,15 +89,7 @@ function donneesPersonnelles(ctx, moment) {
 
 // ---------- secrets (gitleaks) ----------
 
-/** Chemin d'un outil : réglage du site, sinon le PATH, sinon ~/.local/bin ; null s'il est absent. */
-export function trouverOutil(nom, reglage = null) {
-  if (reglage) return fs.existsSync(reglage) ? reglage : null;
-  // Un nom d'outil peut venir d'un réglage de l'arbre : il ne passe jamais par un shell, et ne contient pas de chemin.
-  if (!/^[A-Za-z0-9._+-]+$/.test(String(nom))) return null;
-  const executable = (f) => { try { fs.accessSync(f, fs.constants.X_OK); return fs.statSync(f).isFile(); } catch { return false; } };
-  const dossiers = [...(process.env.PATH || '').split(path.delimiter).filter(Boolean), path.join(os.homedir(), '.local', 'bin')];
-  return dossiers.map((d) => path.join(d, nom)).find(executable) || null;
-}
+export { trouverOutil } from './commun.js';
 
 function gitleaks(bin, args) {
   const r = spawnSync(bin, [...args, '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -116,7 +109,7 @@ function secrets(ctx, moment) {
     if (git(ctx.depot, ['rev-parse', '--verify', '-q', 'HEAD']).status !== 0) return { ecarts: [] };
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-secrets-'));
     try {
-      const a = spawnSync('git', ['-C', ctx.depot, 'archive', '--format=tar', 'HEAD'], { maxBuffer: 1024 * 1024 * 1024 });
+      const a = git(ctx.depot, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer', maxBuffer: 1024 * 1024 * 1024 });
       if (a.status !== 0 || spawnSync('tar', ['-x', '-C', tmp], { input: a.stdout }).status !== 0) return { indisponible: 'export du dépôt en échec' };
       base = tmp; r = gitleaks(ctx.gitleaks, ['dir', tmp]);
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
@@ -130,12 +123,12 @@ function secrets(ctx, moment) {
 
 // ---------- résultats gardés une journée (sources réseau interrogées une fois par jour) ----------
 
-const JOUR = 864e5;
 function garde(ctx, nom, empreinte, calcul) {
   const f = ctx.cache ? path.join(ctx.cache, `${nom}.json`) : null;
-  if (f) { try { const c = JSON.parse(fs.readFileSync(f, 'utf8')); if (c.empreinte === empreinte && Date.now() - Date.parse(c.at) < JOUR) return c.resultat; } catch { /* rien de gardé */ } }
+  const c = f && lireJson(f);
+  if (c?.empreinte === empreinte && Date.now() - Date.parse(c.at) < reglage(ctx, 'cache_heures', 24) * 3600e3) return c.resultat;
   const resultat = calcul();
-  if (f && !resultat.indisponible) { fs.mkdirSync(ctx.cache, { recursive: true }); fs.writeFileSync(f, JSON.stringify({ at: new Date().toISOString(), empreinte, resultat })); }
+  if (f && !resultat.indisponible) ecrireJson(f, { at: new Date().toISOString(), empreinte, resultat });
   return resultat;
 }
 const hacher = (...x) => createHash('sha256').update(x.join('\0')).digest('hex').slice(0, 16);
@@ -154,7 +147,7 @@ function dependancesVulnerables(ctx) {
   const seuil = +(ctx.config?.dependances?.seuil_cvss ?? 7);
   const empreinte = hacher(seuil, ...verrous.map((f) => `${f}:${fs.readFileSync(path.join(ctx.depot, f)).length}:${hacher(fs.readFileSync(path.join(ctx.depot, f), 'utf8'))}`));
   return garde(ctx, `osv-${hacher(ctx.depot)}`, empreinte, () => {
-    const o = spawnSync(ctx.osv, ['scan', 'source', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'], { cwd: ctx.depot, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 300e3 });
+    const o = spawnSync(ctx.osv, ['scan', 'source', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'], { cwd: ctx.depot, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: reglage(ctx, 'delai_osv_s', 300) * 1e3 });
     if (o.status === 128) return { ecarts: [] };
     let d; try { if (o.status === 0 || o.status === 1) d = JSON.parse(o.stdout); } catch { /* sortie illisible */ }
     if (!d) return { indisponible: `osv-scanner en échec : ${(o.stderr || o.error?.message || `code ${o.status}`).trim().split('\n').at(-1)}` };
@@ -180,16 +173,16 @@ function dependancesVulnerables(ctx) {
 
 const version = (t) => String(t || '').match(/(\d+)\.(\d+)\.(\d+)/)?.slice(1).map(Number) || null;
 const avant = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
-const telecharger = (url) => {
-  const r = spawnSync('curl', ['-sSfL', '--max-time', '20', '-H', 'Accept: application/json', url], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+const telecharger = (url, delai = 20) => {
+  const r = spawnSync('curl', ['-sSfL', '--max-time', String(delai), '-H', 'Accept: application/json', url], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   if (r.status !== 0) throw new Error(`${url} : ${(r.stderr || `code ${r.status}`).trim()}`);
   return JSON.parse(r.stdout);
 };
 
 /** Dernière version publiée d'un outil : publication GitHub (`github: propriétaire/dépôt`) ou dernière LTS de node. */
-export function versionPubliee(o, lire = telecharger) {
-  if (o.github) return lire(`https://api.github.com/repos/${o.github}/releases/latest`).tag_name;
-  if (o.node === 'lts') return lire('https://nodejs.org/dist/index.json').find((x) => x.lts)?.version;
+export function versionPubliee(o, lire = telecharger, reglages = {}) {
+  if (o.github) return lire(`${reglages.url_github ?? 'https://api.github.com'}/repos/${o.github}/releases/latest`).tag_name;
+  if (o.node === 'lts') return lire(reglages.url_node ?? 'https://nodejs.org/dist/index.json').find((x) => x.lts)?.version;
   throw new Error(`source de version inconnue pour ${o.nom}`);
 }
 
@@ -198,7 +191,7 @@ function outilsAJour(ctx) {
   if (!outils.length) return { indisponible: 'réglage outils_surveilles absent' };
   let publiees;
   try {
-    publiees = ctx.publiees || garde(ctx, 'versions-publiees', hacher(JSON.stringify(outils)), () => ({ versions: Object.fromEntries(outils.map((o) => [o.nom, versionPubliee(o)])) })).versions;
+    publiees = ctx.publiees || garde(ctx, 'versions-publiees', hacher(JSON.stringify(outils)), () => ({ versions: Object.fromEntries(outils.map((o) => [o.nom, versionPubliee(o, (u) => telecharger(u, reglage(ctx, 'delai_http_s', 20)), ctx.reglages || {})])) })).versions;
   } catch (e) { return { indisponible: `version publiée introuvable : ${e.message.split('\n')[0]}` }; }
   const ecarts = [];
   for (const o of outils) {
@@ -217,8 +210,6 @@ function outilsAJour(ctx) {
 
 // ---------- journal tenu ----------
 
-const JOURS = 30;
-
 function journalTenu(ctx) {
   const journal = ctx.config?.journal;
   if (!journal) return { indisponible: 'réglage journal absent (chemin du journal du projet, dans sa racine)' };
@@ -226,7 +217,7 @@ function journalTenu(ctx) {
   if (!fs.existsSync(f)) return { indisponible: `journal introuvable : ${journal}` };
   const notes = new Set([...fs.readFileSync(f, 'utf8').matchAll(/^#{1,6}\s.*?(\d{4}-\d{2}-\d{2})/gm)].map((m) => m[1]));
   const arbre = path.relative(ctx.depot, ctx.arbre || ctx.depot) || '.';
-  const r = git(ctx.depot, ['log', `--since=${JOURS}.days`, '--format=%ad', '--date=short', '--', arbre, `:(exclude)${journal}`]);
+  const r = git(ctx.depot, ['log', `--since=${reglage(ctx, 'journal_jours', 30)}.days`, '--format=%ad', '--date=short', '--', arbre, `:(exclude)${journal}`]);
   if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
   const jours = new Map();
   for (const d of r.stdout.split('\n').filter(Boolean)) jours.set(d, (jours.get(d) || 0) + 1);

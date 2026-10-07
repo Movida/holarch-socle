@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import YAML from 'yaml';
+import { configClaude } from './commun.js';
 
 export const accueil = () => process.env.HOLARCH_HOME || path.join(os.homedir(), '.holarch');
 
@@ -14,7 +15,7 @@ const DEFAUTS = () => ({
   donnees: accueil(),
   web: { hote: '127.0.0.1', port: 4280 },
   inventaire: {
-    'claude-code': { actif: true, home: path.join(os.homedir(), '.claude'), config: path.join(os.homedir(), '.claude.json') },
+    'claude-code': { actif: true, home: path.join(os.homedir(), '.claude'), config: configClaude(path.join(os.homedir(), '.claude')) },
     'depots-git': { actif: true, racines: [os.homedir()], profondeur: 3, ignorer: ['node_modules', '.cache', '.npm', '.local'] },
     arbre: { actif: true, depots: [] },
     // API Docker Engine, en lecture : `hote` (unix:///… ou tcp://…) ; sinon DOCKER_HOST, sinon le socket local.
@@ -36,6 +37,10 @@ const DEFAUTS = () => ({
   // Accès distant par projet (`holarch distant`) : `claude`, le binaire (sinon celui du PATH) ; `mode_permissions`, le
   // mode des sessions servies (acceptEdits, auto, default…), celui de Claude Code si vide.
   acces_distant: { claude: null, mode_permissions: null },
+  // Contrôles de l'audit (décisions controles-de-regles, veille-securite-versions) : outils (chemin, sinon le PATH puis
+  // ~/.local/bin), mémoire des sources réseau, fenêtre du journal tenu, taille maximale d'un fichier lu, délais, sources.
+  controles: { gitleaks: null, osv_scanner: null, cache_heures: 24, journal_jours: 30, taille_max_mo: 2, delai_osv_s: 300, delai_http_s: 20,
+    url_github: 'https://api.github.com', url_node: 'https://nodejs.org/dist/index.json' },
   // Grille de tarifs, relevée sur la page officielle du fournisseur : { source, releve, modeles }, où chaque modèle porte
   // { entree, cache_ecrit, cache_ecrit_1h, cache_lu, sortie } en USD par million de tokens (src/tarifs.js).
   // Vide par défaut : aucun tarif n'est inventé ; sans tarif, le coût reste inconnu et seuls les tokens sont comptés.
@@ -69,7 +74,7 @@ export function comptesClaudeCode(config, opts = {}) {
   const liste = (config.comptes_claude_code || []).filter((c) => c && c.home);
   if (!liste.length) return [{ nom: null, home: opts.home, config: opts.config }];
   return liste.map((c) => ({ nom: String(c.nom || path.basename(c.home).replace(/^\.claude-?/, '') || 'defaut'), home: c.home,
-    config: c.config || (path.resolve(c.home) === path.join(os.homedir(), '.claude') ? path.join(os.homedir(), '.claude.json') : path.join(c.home, '.claude.json')) }));
+    config: c.config || configClaude(c.home) }));
 }
 
 // Répertoires de compte Claude Code présents sur le poste (`~/.claude`, `~/.claude-<nom>`, avec des transcriptions) que
@@ -92,6 +97,8 @@ inventaire:
     racines: ["~"]        # répertoires où chercher des dépôts Git (guillemets : en YAML, ~ seul vaut null)
   arbre:
     depots: []            # dépôts qui portent un arbre HOLARCH (dossier arbre/)
+# controles:              # audit : outils (chemins), mémoire des sources (cache_heures), fenêtre du journal tenu
+#   gitleaks: null        # (journal_jours), taille_max_mo, delai_osv_s, delai_http_s, url_github, url_node
 # Un autre site qui partage ce répertoire (HOLARCH_SITE=<nom>) lit aussi config.<nom>.yaml, qui l'emporte sur ce fichier.
 # tarifs:                 # à relever sur la grille officielle du fournisseur, jamais de mémoire
 #   source: https://…     # page relevée

@@ -1,8 +1,8 @@
 // Outils communs aux adaptateurs d'inventaire.
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import YAML from 'yaml';
+import { git as gitCommun } from '../commun.js';
 
 /** En-tête YAML d'un fichier Markdown (`---` … `---`), ou {} ; ne lève jamais. */
 export function enTete(fichier) {
@@ -16,12 +16,13 @@ export function enTete(fichier) {
 
 export const slug = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9/._-]+/g, '-').replace(/^-+|-+$/g, '');
 
-export const lireJson = (f) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } };
+export { lireJson } from '../commun.js';
 
 export const liste = (d, filtre = () => true) => { try { return fs.readdirSync(d, { withFileTypes: true }).filter(filtre); } catch { return []; } };
 
+// Sortie de git pour l'inventaire : texte nettoyé, ou null (dépôt absent, commande en échec, délai dépassé).
 export function git(depot, args) {
-  const r = spawnSync('git', ['-C', depot, ...args], { encoding: 'utf8', timeout: 10000 });
+  const r = gitCommun(depot, args, { timeout: 10000 });
   return r.status === 0 ? r.stdout.trim() : null;
 }
 

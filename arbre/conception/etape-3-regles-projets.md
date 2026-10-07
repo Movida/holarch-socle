@@ -302,6 +302,34 @@ une mise à jour qui corrige une faille résout son écart au journal.
 **Limites connues.** Une faille sans score ni gravité déclarée ne fait pas d'écart. Claude Code et Tailscale se mettent à
 jour seuls et ne sont pas suivis. Un projet que le contexte ne déclare pas n'est pas audité.
 
+## Tranche 6 — Consolidation
+
+Demande de l'auteur (2026-10-07) : que ce qui est conçu soit paramétrable et modulaire. Un audit du code (sous-agent,
+lecture seule) a relevé des doublons, une écriture des règles faite deux fois, des valeurs en dur et un `socle.js` qui
+mêle tout ; une partie vient des tranches 4 et 5.
+
+**Livre.**
+
+1. **Module commun** (`src/commun.js`) : guillemets du shell et de systemd, marque d'un fichier généré (une seule
+   façon de la reconnaître), lecture et écriture atomique de JSON, recherche d'un outil (sans shell), appel de git,
+   chemin de `.claude.json` d'un compte, clé d'un serveur MCP. Chaque doublon relevé disparaît au profit de lui.
+2. **Matérialisation en un seul endroit** (`src/materialisation.js`) : le plan de ce qui s'écrit pour Claude Code (fichiers
+   de règles, lectures refusées, crochet de git), au compte et par projet ; `holarch regles appliquer` l'écrit, l'audit
+   le lit à blanc et en tire ses écarts.
+3. **Audit hors de `socle.js`** (`src/audit.js`) : contexte d'un contrôle, garde avant commit, écarts ouverts, audit ;
+   le socle n'en garde que l'entrée.
+4. **Réglages des contrôles** (`controles:` dans la configuration du site, avec défauts) : chemins de gitleaks et
+   d'osv-scanner, durée de la mémoire des sources, fenêtre du journal tenu, taille maximale d'un fichier lu, délais,
+   adresses des sources de versions.
+5. **Services utilisateur** : une seule fabrique d'unité marquée et un seul `PATH` pour l'accès distant et l'interface.
+6. **Affichage de la ligne de commande** à part (`bin/affichage.js`).
+
+Rien ne change de comportement : la suite de tests reste la mesure, sans test affaibli.
+
+**Écartés pour l'instant (règle « rien à l'avance »).** Un registre des clients (`RUNTIMES`) et un superviseur
+interchangeable (systemd, launchd) : un seul client et un seul système à servir aujourd'hui. Ce qui les ferait venir :
+un second client à adapter, ou un site sous macOS.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -386,6 +414,18 @@ jour seuls et ne sont pas suivis. Un projet que le contexte ne déclare pas n'es
   l'usage : un audit lancé par le service de l'interface, au `PATH` réduit, déclarait les outils introuvables ; la
   recherche d'un outil est désormais la même pour tous les contrôles, et le service reçoit le `PATH` du poste.
   Tranche close.
+- **Ouverture de la tranche 6 (2026-10-07)** : consolidation, sur demande de l'auteur ; audit du code par un
+  sous-agent ; injection possible par un nom d'outil (réglage de l'arbre passé au shell) corrigée aussitôt.
+- **Fait (2026-10-07)** : tranche 6, points 1 à 6. `commun.js` (guillemets, marque, JSON atomique, outil sans shell
+  ni entrée relative du PATH, git, `.claude.json`, clé MCP) remplace dix doublons ; `materialisation.js` est la seule
+  définition de ce que `regles appliquer` écrit, l'audit la lit à blanc ; `audit.js` sort de `socle.js` (452 → 310
+  lignes) ; réglages `controles:` avec défauts ; une fabrique d'unité et un `PATH` pour les services ;
+  `bin/affichage.js`. Relecture adverse par un sous-agent : une régression réelle trouvée et corrigée (marque d'un
+  fichier de règle à long en-tête non reconnue), trois écarts de comportement rétablis (sortie `--json`, code de
+  sortie sur `settings.json` illisible, références vérifiées avant toute écriture). 47 tests ; site réel inchangé
+  (mêmes fichiers, crochet, permissions, écarts). Tranche close.
 - **Reste** :
-  1. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
+  1. **Économie de tokens** (tranche « configuration ») : seuil de compaction posé depuis le profil, signal des sessions
+     trop lourdes, mesure avant et après ; choisie par l'auteur après la consolidation.
+  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

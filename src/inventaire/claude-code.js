@@ -43,7 +43,8 @@ function hooks(settings, fichier, portee, nom, site, p = null) {
 }
 
 // Nom d'un serveur tel qu'il apparaît dans les outils (mcp__<serveur>__<outil>) : « claude.ai Gmail » → claude_ai_Gmail.
-export const cleServeur = (nom) => String(nom).replace(/[^A-Za-z0-9_-]/g, '_');
+export { cleServeur } from '../commun.js';
+import { cleServeur } from '../commun.js';
 
 /** Serveurs MCP d'un fichier de configuration (forme `mcpServers`, commune à Claude Code et Claude Desktop). */
 export function mcp(serveurs, fichier, portee, nom, site, source, p = null) {
