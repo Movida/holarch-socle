@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Envoi** des commits du profil et du socle (accord de l'auteur). okf-phoenix sauvegardé ; sa suppression sur GitHub
+  est refusée par une règle `deny` du compte, valable dans tous les modes : à faire par l'auteur depuis GitHub.
+
 * **Idée de l'auteur** (I24, boîte à idées) : réglages des dépôts local et distant paramétrables ; mesure : 8 dépôts
   GitHub aux valeurs par défaut, seule la visibilité varie ; avis : pas avant un premier réglage voulu. Envoi de 4
   commits (profil, socle) et suppression d'okf-phoenix en attente de l'auteur.
