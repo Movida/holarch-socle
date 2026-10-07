@@ -642,8 +642,8 @@ projet (§5.8).
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande. Migration des quatre projets non
      déclarés : projet par projet, avec l'accord de l'auteur (`--a-blanc` d'abord) ; restent okf-bundle-template,
      pacs-montage-video (introuvable sur GitHub sous le compte perso le 2026-10-07, à éclaircir) et le profil (à
-     déclarer ou non : à décider). okf-phoenix et okf-bundle-template périmés selon l'auteur, à supprimer en local et sur GitHub (compte
-     perso). okf-phoenix : clone propre, sans dépendant ; okf-phoenix : clone propre, sans dépendant ; sauvegardé (bundle vérifié et `settings.local.json`
+     déclarer ou non : à décider). okf-phoenix périmé selon l'auteur, à supprimer en local et sur GitHub.
+     okf-phoenix : clone propre, sans dépendant ; sauvegardé (bundle vérifié et `settings.local.json`
      dans `~/.claude/backups/`, 2026-10-07). Suppression sur GitHub refusée par une règle `deny` du compte
      (`Bash(gh repo delete *)`), qui vaut dans tous les modes de permission : par l'auteur, depuis la page du dépôt
      (Settings, Danger Zone), puis le dossier local par l'agent.
