@@ -730,7 +730,10 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
   4. **Tranche 11** : livrée ; statuts des huit brouillons du profil à écrire par l'auteur ; critère d'usage : une
-     consigne approuvée n'est plus redite ensuite. Coût des rappels en contexte : pistes données à l'auteur le
-     2026-10-08 (niveaux `guided` et `verified`, oubli progressif par la récolte), décision à proposer s'il le souhaite.
+     consigne approuvée n'est plus redite ensuite. Coût des rappels en contexte (accord de l'auteur, 2026-10-08) : décision
+     « règles sur déclencheur » à proposer en premier : mesurer quels rappels ont un déclencheur net (envoi, commit,
+     démarrage, clôture) et les charger seulement quand il survient ; aujourd'hui `guided` ne s'écrit que limité à des
+     chemins (`regles-claude-code.js`, « skill, à venir »), le chargement sur action est à construire (crochet du
+     runtime). L'oubli progressif est l'idée I27 (étape 5).
   5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.

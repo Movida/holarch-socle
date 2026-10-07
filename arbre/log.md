@@ -2,6 +2,9 @@
 
 ## 2026-10-08
 
+* **Coût des rappels** (accord de l'auteur) : décision « règles sur déclencheur » à proposer en premier (mesure des
+  rappels à déclencheur net ; chargement sur action à construire) ; oubli progressif retenu en idée I27 (étape 5).
+
 * **Récolte hebdomadaire** (accord de l'auteur) : minuteur `holarch-recolte` le lundi, posé par la copie de service.
   Huit brouillons du profil : 4 à approuver, 4 à refuser (I26) ; écriture des statuts refusée à l'agent par le
   garde-fou, à faire par l'auteur. Envoi du socle et du profil (accord de l'auteur).
