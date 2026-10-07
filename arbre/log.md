@@ -2,6 +2,11 @@
 
 ## 2026-10-07
 
+* **Migration des projets non déclarés terminée** : okf-bundle-template déclaré par la commande (accord de l'auteur),
+  types `depot-public` et `projet-dormant` (nouveau, en brouillon : ni conteneur ni accès distant) ; `arbre/` retiré à
+  l'instanciation du template ; `NOTICE` soustrait au contrôle par `depot-public`. Défaut corrigé : l'audit tient
+  aussi pour public un projet que ses couches déclarent public (choix de l'auteur) ; audit conforme.
+
 * **okf-phoenix retiré** : supprimé sur GitHub par l'auteur, dossier local supprimé après vérification de la
   sauvegarde. okf-bundle-template à blanc : identité locale à retirer par l'auteur ; conteneur et accès distant en
   question pour un projet peu actif.

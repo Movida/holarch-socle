@@ -637,21 +637,24 @@ projet (§5.8).
   ferait un écart et bloquerait les commits suivants) ; 1 test (création,
   rejeu sans changement, dossier occupé jamais touché, fichier manquant rajouté seul). À blanc sur le poste : un projet
   neuf, et un projet existant (README et `.gitignore` manquants, accès distant absent). Critère : le prochain vrai projet.
+- **Fait (2026-10-07)** : migration des quatre projets non déclarés terminée, projet par projet avec l'accord de
+  l'auteur. Le profil n'est pas un projet (il paramètre HOLARCH). pacs-montage-video retiré : la sortie (deux vidéos
+  finales, crédits) et le retour d'expérience gardés dans `D:\Videos\pacs-montage-video`. okf-phoenix retiré :
+  sauvegardé (bundle vérifié et `settings.local.json` dans `~/.claude/backups/`), supprimé sur GitHub par l'auteur
+  puis en local. okf-bundle-template déclaré par la commande, types `depot-public` et `projet-dormant` (nouveau type,
+  en brouillon : `creation.etapes` sans conteneur ni accès distant, pour un dépôt peu actif, 4 commits dont le
+  dernier le 2026-09-21) ; identité locale divergente retirée (geste de l'auteur, lancé par l'agent à sa demande) ;
+  son `INSTANTIATE.md` fait retirer `arbre/` à l'instanciation (sans quoi chaque base hériterait de la déclaration
+  du template) ; audit : trois écarts sur le nom du hub que le template sert (public, mais déclaré sans type), levés
+  par une exception du projet, un sur `NOTICE` (Apache-2.0), soustrait au contrôle par le type `depot-public` comme la
+  LICENSE. Défaut trouvé à l'usage : l'audit ne tenait un projet pour public que si sa racine se classait `public`, ce
+  que ni la commande ni le socle ne posent ; le nom du template entrait dans la liste privée du socle. Un projet est
+  désormais public aussi quand ses couches le déclarent (`creation.visibilite`, porté par `depot-public`) : une seule
+  notion avec la commande (choix de l'auteur) ; 1 test. Audit conforme pour le socle et le template.
+  Ses 4 commits publics portent une adresse non anonyme, réattribution possible si l'auteur le demande.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande. Migration des quatre projets non
-     déclarés : projet par projet, avec l'accord de l'auteur (`--a-blanc` d'abord) ; reste okf-bundle-template. Le profil n'est
-     pas un projet (avis de l'auteur et de l'agent, 2026-10-07 : il paramètre HOLARCH). pacs-montage-video retiré
-     (choix de l'auteur, 2026-10-07) : seules la sortie (deux vidéos finales, crédits) et le retour d'expérience
-     sont gardés, dans `D:\Videos\pacs-montage-video` ; dépôt déjà absent de GitHub. LICENSE : exception portée par le
-     type `depot-public` pour tout dépôt public (accord de l'auteur), retirée du socle et de la commande ; audit du socle
-     conforme. okf-phoenix retiré (2026-10-07) : sauvegardé (bundle vérifié et `settings.local.json` dans
-     `~/.claude/backups/`), supprimé sur GitHub par l'auteur, puis le dossier local par l'agent.
-     okf-bundle-template : gardé (auteur, 2026-10-07), encore utilisé par un projet actif ; ses 4 commits publics portent
-     une adresse non anonyme, réattribution possible si l'auteur le demande. À blanc (`--type depot-public`) : identité
-     locale divergente (geste réservé), conteneur, accès distant et clé de déploiement à faire ; peu actif (4 commits,
-     le dernier le 2026-09-21), choix à l'auteur entre déclarer puis retirer conteneur et accès distant, ou une option
-     de la commande pour un projet dormant (décision).
+  2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
   4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
