@@ -241,7 +241,7 @@ export class Socle {
       const act = activite.get(f.id) || null;
       const p = {
         id: f.id, nom: f.name, chemin: f.location ?? null, branche: a.branche ?? null,
-        technique: { fichiers_modifies: a.fichiers_modifies ?? 0, amont: a.amont ?? null, en_avance: a.en_avance ?? null, en_retard: a.en_retard ?? null, dernier_fetch: a.dernier_fetch ?? null },
+        technique: { fichiers_modifies: a.fichiers_modifies ?? 0, amont: a.amont ?? null, en_avance: a.en_avance ?? null, en_retard: a.en_retard ?? null, dernier_fetch: a.dernier_fetch ?? null, integration_continue: a.integration_continue ?? null },
         dernier_commit: a.dernier_commit ? { at: a.dernier_commit, sujet: a.dernier_sujet ?? null } : null,
         arbre: ns.length > 0,
         etape: courante ? { id: courante.id, numero: courante.attributes.etape, titre: courante.name, close: close(courante), faits: faits.length,

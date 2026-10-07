@@ -472,6 +472,11 @@ et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
   qui reprend sur lui et l'avancement. Défaut trouvé à l'usage : l'état du dépôt venait de l'inventaire horaire et
   annonçait 4 fichiers non commités dans un dépôt propre ; le résumé le lit désormais en direct (fonction `etatDepot`,
   partagée avec l'inventaire) ; 1 test étendu.
+- **Fait (2026-10-07)** : intégration continue d'un projet détectée par l'inventaire (décision de l'auteur : détectée
+  plutôt que déclarée, une déclaration vieillit) : configuration GitHub Actions ou GitLab CI présente dans le dépôt,
+  pas la preuve qu'elle tourne. Sur la carte d'un projet, dans l'outil MCP `projets` et dans le résumé de reprise
+  (« aucune » : rien à lire après un envoi). Sur le poste personnel : 3 dépôts sur 12 en ont une. Test visuel passé dans
+  le conteneur du socle (utilisateur `node`, qui a Chromium).
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à

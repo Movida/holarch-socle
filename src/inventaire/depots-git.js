@@ -1,5 +1,6 @@
 // Adaptateur d'inventaire des dépôts Git sous des racines configurées : un projet par dépôt, avec ses remotes (sans
-// identifiants), sa branche, son dernier commit, le nombre de fichiers modifiés et son écart à la branche amont.
+// identifiants), sa branche, son dernier commit, le nombre de fichiers modifiés, son écart à la branche amont et son
+// intégration continue.
 // N'interroge jamais le réseau : le retard sur l'amont est celui du dernier `fetch`, dont la date est gardée.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -38,6 +39,15 @@ export function etatDepot(d) {
   return { fichiers_modifies, amont: amont || null, en_avance: Number.isFinite(avance) ? avance : null, en_retard: Number.isFinite(retard) ? retard : null };
 }
 
+// Intégration continue déclarée dans le dépôt : la configuration présente, pas la preuve qu'elle tourne (une
+// configuration peut être désactivée chez l'hébergeur). Liste vide : aucune, rien à lire après un envoi.
+export function integrationContinue(d) {
+  const s = [];
+  if (liste(path.join(d, '.github', 'workflows'), (x) => x.isFile() && /\.ya?ml$/.test(x.name)).length) s.push('GitHub Actions');
+  if (fs.existsSync(path.join(d, '.gitlab-ci.yml'))) s.push('GitLab CI');
+  return s;
+}
+
 function identifiants(depots) {
   const r = depots.map((d) => ({ d, racine: racine(d) }));
   const n = {}; for (const x of r) if (x.racine) n[x.racine] = (n[x.racine] || 0) + 1;
@@ -59,7 +69,7 @@ export default function inventaireDepots(options, ctx) {
       description: sujet ? `dernier commit : ${sujet.slice(0, 120)}` : null, status: 'active',
       provenance: { source: 'inventaire:depots-git' }, classification: 'internal', site: ctx.site, location: d,
       usage: { count: 0, last_used: date || null, cost_usd: null },
-      attributes: { branche: git(d, ['rev-parse', '--abbrev-ref', 'HEAD']), remotes, ...etatDepot(d), dernier_commit: date,
+      attributes: { branche: git(d, ['rev-parse', '--abbrev-ref', 'HEAD']), remotes, ...etatDepot(d), integration_continue: integrationContinue(d), dernier_commit: date,
         dernier_sujet: sujet ? sujet.slice(0, 160) : null, dernier_fetch: commun ? mtimeIso(path.join(path.resolve(d, commun), 'FETCH_HEAD')) : null },
     };
   });

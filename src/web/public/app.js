@@ -97,6 +97,7 @@ async function projets(params) {
     if (t.en_retard) b.push(`<span class="badge" title="Commits de ${h(t.amont)} absents ici, d’après le dernier fetch${t.dernier_fetch ? ` (${h(date(t.dernier_fetch))})` : ''}">${nf.format(t.en_retard)} en retard</span>`);
     if (!t.amont && p.branche && p.branche !== 'HEAD') b.push('<span class="badge" title="La branche n’a pas de branche amont : jamais poussée, ou dépôt sans remote">sans amont</span>');
     if (!b.length && t.amont) b.push(`<span class="badge ok" title="À jour avec ${h(t.amont)}, d’après le dernier fetch">à jour</span>`);
+    if (t.integration_continue) b.push(t.integration_continue.length ? `<span class="badge" title="Intégration continue configurée dans le dépôt">CI : ${h(t.integration_continue.join(', '))}</span>` : '<span class="badge" title="Aucune configuration d’intégration continue dans le dépôt">sans CI</span>');
     return b.join(' ');
   };
   const cout = (u) => (u == null ? '' : ` · ${usd(u)}`);

@@ -89,6 +89,9 @@ test('dépôts Git : identifiés par leur premier commit, stables quand ils chan
   const f1 = inventaireDepots({ racines: [r], profondeur: 2 }, { site: 'local' });
   assert.match(id(f1, 'a'), /^holarch:project:[0-9a-f]{12}$/);
   assert.match(id(f1, 'vide'), /vide$/);
+  assert.deepEqual(f1.find((f) => f.name === 'a').attributes.integration_continue, [], 'sans configuration : aucune');
+  fs.mkdirSync(path.join(a, '.github', 'workflows'), { recursive: true }); fs.writeFileSync(path.join(a, '.github', 'workflows', 'tests.yml'), 'on: push\n');
+  assert.deepEqual(inventaireDepots({ racines: [r], profondeur: 2 }, { site: 'local' }).find((f) => f.name === 'a').attributes.integration_continue, ['GitHub Actions']);
   fs.renameSync(a, path.join(r, 'a-deplace'));
   assert.equal(id(inventaireDepots({ racines: [r], profondeur: 2 }, { site: 'local' }), 'a-deplace'), id(f1, 'a'));
   spawnSync('git', ['clone', '-q', path.join(r, 'a-deplace'), path.join(r, 'clone')]);

@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { projetsDe, localiserProjet } from './projets.js';
-import { etatDepot } from './inventaire/depots-git.js';
+import { etatDepot, integrationContinue } from './inventaire/depots-git.js';
 
 /**
  * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), lu à la fin de
@@ -62,8 +62,11 @@ export function resume(s, dossier, { max = 1500 } = {}) {
   if (v.questions.length) l.push(`Questions ouvertes : ${v.questions.map((q) => q.id).join(', ')}.`);
   if (v.decisions.length) l.push(`Décisions à approuver : ${v.decisions.map((d) => court(d.titre, 60)).join(' ; ')}.`);
   // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente.
-  const t = v.chemin && fs.existsSync(v.chemin) ? etatDepot(v.chemin) : v.technique;
+  const direct = v.chemin && fs.existsSync(v.chemin);
+  const t = direct ? etatDepot(v.chemin) : v.technique;
   if (t.fichiers_modifies || t.en_avance) l.push(`Dépôt : ${t.fichiers_modifies} fichier(s) non commité(s), ${t.en_avance || 0} commit(s) non poussé(s).`);
+  const ci = direct ? integrationContinue(v.chemin) : v.technique.integration_continue;
+  if (ci) l.push(ci.length ? `Intégration continue : ${ci.join(', ')} (lire son résultat après un envoi).` : 'Intégration continue : aucune (rien à lire après un envoi).');
   const texte = l.join('\n');
   return texte.length > max ? `${texte.slice(0, max - 1)}…` : texte;
 }

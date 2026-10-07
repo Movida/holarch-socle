@@ -2,6 +2,8 @@
 
 ## 2026-10-07
 
+* **Intégration continue** d'un projet détectée par l'inventaire, montrée sur sa carte et dans le résumé de reprise.
+
 * **Reprise après `/clear`** constatée (tranche 7) ; l'état du dépôt dans le résumé se lit en direct, celui de
   l'inventaire pouvait dater d'une heure. Reste la mesure du 2026-10-14.
 

@@ -42,7 +42,7 @@ function donneesFictives() {
     fiche('node', 'arbre/contrat', { name: 'Contrat fictif', status: 'proposed', node: '/arbre/contrat.md', attributes: { type: 'contract', statut: 'draft' } }),
     fiche('node', 'arbre/racine', { name: 'Racine fictive', node: '/arbre/index.md', links: { project: ['holarch:project:projet-calme'] }, attributes: { type: 'guideline', statut: 'stable' } }),
     fiche('node', 'arbre/enfant', { name: 'Enfant fictif', node: '/arbre/enfant.md', links: { derives_from: ['/arbre/index.md'], project: ['holarch:project:projet-calme'] }, attributes: { type: 'need', statut: 'draft' } }),
-    fiche('project', 'projet-a', { location: '/ws/projet-a', attributes: { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 3, dernier_commit: il_y_a(1), dernier_sujet: 'Un commit fictif' } }),
+    fiche('project', 'projet-a', { location: '/ws/projet-a', attributes: { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 3, integration_continue: ['GitHub Actions'], dernier_commit: il_y_a(1), dernier_sujet: 'Un commit fictif' } }),
     fiche('project', 'projet-b', { location: '/ws/projet-b', attributes: { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(4) } }),
     fiche('project', 'projet-calme', { location: '/ws/projet-calme', attributes: { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0, dernier_commit: il_y_a(300) } }),
     fiche('node', 'profil/racine', { name: 'Profil fictif', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'profil' } }),
@@ -112,7 +112,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await ouvrir('#/projets', '.carte.projet');
   assert.equal(await page.$$eval('.carte.projet', (c) => c.length), 2, 'une carte par projet en mouvement');
   const carteA = await page.textContent('.carte.projet:first-child');
-  assert.match(carteA, /projet-a[\s\S]*3 non commités[\s\S]*2 non poussés[\s\S]*Étape 2 — Fictive[\s\S]*Une tranche à faire[\s\S]*1 question ouverte[\s\S]*7 j : 1 session/);
+  assert.match(carteA, /projet-a[\s\S]*3 non commités[\s\S]*2 non poussés[\s\S]*CI : GitHub Actions[\s\S]*Étape 2 — Fictive[\s\S]*Une tranche à faire[\s\S]*1 question ouverte[\s\S]*7 j : 1 session/);
   assert.match(await page.textContent('main'), /Sans activité sur 30 jours[\s\S]*projet-calme/);
   await page.click('.carte.projet:first-child .activite a');
   await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=holarch'));
