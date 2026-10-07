@@ -719,12 +719,18 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   0,27 $) : 21 redites, 13 couvertes, 7 règles proposées au profil (toutes ont des sources hors projet), 1 contradiction,
   tranchée par l'auteur (reformuler avant de décider : `reformuler-avant-de-decider` proposée, la consigne contraire
   gardée refusée).
+- **Fait (2026-10-08)** : récolte chaque semaine (accord de l'auteur) : `holarch-recolte.timer`, le lundi à 8 h,
+  rattrapé au démarrage, posé par `holarch service poser` (même mécanique que le minuteur d'import, mise en commun).
+  Avis sur les huit brouillons suivis par l'auteur : 4 à approuver, 4 à refuser (I26 pour l'un) ; l'écriture de ces
+  statuts dans le profil a été refusée à l'agent par le garde-fou de Claude Code (un agent n'approuve pas ses propres
+  consignes) : à faire par l'auteur.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  4. **Tranche 11** : livrée ; huit règles proposées au profil, à approuver par l'auteur ; critère d'usage : une
-     consigne approuvée n'est plus redite ensuite.
+  4. **Tranche 11** : livrée ; statuts des huit brouillons du profil à écrire par l'auteur ; critère d'usage : une
+     consigne approuvée n'est plus redite ensuite. Coût des rappels en contexte : pistes données à l'auteur le
+     2026-10-08 (niveaux `guided` et `verified`, oubli progressif par la récolte), décision à proposer s'il le souhaite.
   5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.

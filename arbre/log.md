@@ -1,5 +1,11 @@
 # Journal de l'arbre
 
+## 2026-10-08
+
+* **Récolte hebdomadaire** (accord de l'auteur) : minuteur `holarch-recolte` le lundi, posé par la copie de service.
+  Huit brouillons du profil : 4 à approuver, 4 à refuser (I26) ; écriture des statuts refusée à l'agent par le
+  garde-fou, à faire par l'auteur. Envoi du socle et du profil (accord de l'auteur).
+
 ## 2026-10-07
 
 * **Tranche 11 livrée** (récolte) : décision `recolte` approuvée telle quelle ; `holarch recolte --proposer` écrit les
