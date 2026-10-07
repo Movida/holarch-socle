@@ -572,24 +572,10 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
   une autre identité refusé dans le socle : `rule.enforced` au journal, compté sur la carte. Tranche close.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Échecs, solutions** : pour ceux qui se répètent (tests rouges, sorties non nulles de `node`, `cat`, `python3`),
-     avec la récolte ; leçons de clôture avec elle.
-  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : idée de l'auteur retenue pour plus tard, avec la
-     récolte : chaque réglage déclare sa mesure, l'audit en tire une valeur par projet, proposée en brouillon (exemple
-     mesuré : délai entre commit et envoi, lu dans le reflog de l'amont) ; règles de profil à proposer :
-     recommandations en choix cliquables, et règle ou contrôle proposé quand un défaut est trouvé à l'usage (lien avec
-     la tranche 9). Limite connue : une règle du compte ne se déroge pas encore par projet (portée locale, à venir).
-     Autres idées proposées, à trier : forme des réponses (profil), coût annoncé avant une action lourde, critère
-     chiffré par tranche, échéances lancées par une routine, bilan de ce qui reste ouvert en fin de tranche. Idée de
-     l'auteur : un mécanisme qui enrichit ces propositions (une habitude nouvelle proposée quand un fait de session la
-     suggère, et un registre des propositions, retenues ou non, pour ne pas les reproposer).
-  4. **Idées de l'auteur (2026-10-07), retenues pour la phase qui les porte** : évolution des skills au fil de l'usage
-     (mesurer d'abord : les appels `Skill` ne sont pas importés) ; charte UI/UX paramétrable par aspect (type de l'arbre,
-     appliquée aux runtimes, contrôlée) ; travaux déterministes repérés au journal et confiés à un outil (timer, script,
-     CI) plutôt qu'à une routine d'IA. Nouvelle idée : limites connues d'un projet affichées dans l'interface. Proposé, à
-     décider : une boîte à idées dès maintenant, le carnet d'idées du §5.9 réduit à un registre `arbre/idees.md` (comme
-     les questions : idée, source, date, phase visée, gain attendu, statut), où passent les idées de ce Reste ; la reprise
-     et la vue Projets montrent celles de l'étape qui démarre. Constat de l'auteur : l'étape 3 déborde sur la régulation
-     (étape 5) ; la clore après la mesure du 2026-10-14.
-  5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
+  2. **Boîte à idées (accord de l'auteur, 2026-10-07)** : registre `arbre/idees.md` ouvert, les idées de ce Reste y
+     sont passées (I1 à I18). Reste à faire : l'inventaire le lit, le résumé de reprise et la vue Projets montrent les
+     idées de l'étape qui s'ouvre. Toute idée nouvelle va dans la boîte, pas dans ce Reste.
+  3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
+     (étape 5). Les idées « à placer » s'y placent.
+  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
      §5.8), à spécifier à leur ouverture.

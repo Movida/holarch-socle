@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Boîte à idées** (accord de l'auteur) : registre `arbre/idees.md`, 18 idées reprises du Reste avec leur phase
+  visée ; lecture par la reprise et la vue Projets à faire.
+
 * **Idées retenues** (skills qui évoluent, charte UI/UX, travaux déterministes) pour leur phase ; boîte à idées
   proposée (registre `arbre/idees.md`), à décider ; étape 3 à clore après la mesure du 2026-10-14 (accord de
   l'auteur). Envoi des 3 commits de la tranche 9 ; interface relancée, elle sert les échecs.
