@@ -208,6 +208,37 @@ function outilsAJour(ctx) {
   return { ecarts };
 }
 
+// ---------- identité de commit (décision identite-par-contexte) ----------
+
+/** Identité déclarée par la configuration effective (`identite: {nom, email}`), ou null si elle manque ou est incomplète. */
+export function identiteDeclaree(config = {}) {
+  const i = config.identite;
+  return i?.nom && i?.email ? { nom: String(i.nom).trim(), email: String(i.email).trim() } : null;
+}
+/** Même identité : nom identique, adresse sans casse. */
+export const memeIdentite = (a, b) => a.nom === b.nom && a.email.toLowerCase() === b.email.toLowerCase();
+
+// Avant un commit, son auteur (`--author` et variables d'environnement compris) ; à l'audit, l'identité que git
+// prendrait dans ce dépôt (réglage local, `includeIf` ou global). Un écart dit ce qui diffère, jamais les valeurs.
+function identiteDeCommit(ctx, moment) {
+  const voulue = identiteDeclaree(ctx.config);
+  if (!voulue) return { indisponible: 'réglage identite absent ou incomplet ({nom, email})' };
+  if (!ctx.declare) return { indisponible: 'projet déclaré par aucun contexte : identité non gardée' };
+  let vue; let ou;
+  if (moment === 'avant-commit') {
+    const r = git(ctx.depot, ['var', 'GIT_AUTHOR_IDENT']);
+    const m = (r.stdout || '').match(/^(.*) <([^>]*)>/);
+    if (r.status !== 0 || !m) return { indisponible: 'auteur du commit illisible' };
+    vue = { nom: m[1].trim(), email: m[2].trim() }; ou = 'auteur du commit';
+  } else {
+    const lire = (cle) => (git(ctx.depot, ['config', '--get', cle]).stdout || '').trim();
+    vue = { nom: lire('user.name'), email: lire('user.email') }; ou = 'identité git du dépôt';
+  }
+  if (memeIdentite(vue, voulue)) return { ecarts: [] };
+  const quoi = [vue.nom !== voulue.nom && 'nom', vue.email.toLowerCase() !== voulue.email.toLowerCase() && 'adresse'].filter(Boolean).join(' et ');
+  return { ecarts: [{ fichier: null, ligne: null, cle: 'identite', message: `${ou} : ne correspond pas à l'identité déclarée (${quoi})` }] };
+}
+
 // ---------- journal tenu ----------
 
 function journalTenu(ctx) {
@@ -233,6 +264,7 @@ export const CONTROLES = {
   'donnees-personnelles': { moments: ['avant-commit', 'audit'], executer: donneesPersonnelles },
   secrets: { moments: ['avant-commit', 'audit'], executer: secrets },
   'journal-tenu': { moments: ['audit'], executer: journalTenu },
+  'identite-de-commit': { moments: ['avant-commit', 'audit'], executer: identiteDeCommit },
   'dependances-vulnerables': { moments: ['audit'], executer: dependancesVulnerables },
   'outils-a-jour': { moments: ['audit'], executer: outilsAJour, portee: 'site' },
 };

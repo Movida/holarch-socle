@@ -4,6 +4,8 @@
 import { fileURLToPath } from 'node:url';
 import { planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions, reglagesVoulus, appliquerReglages } from './regles-claude-code.js';
 import { crochetDe, poserCrochet } from './garde-git.js';
+import { poserIdentite } from './identite-git.js';
+import { identiteDeclaree } from './controles.js';
 
 /** La ligne de commande que le crochet de git appelle. */
 export const BIN = fileURLToPath(new URL('../bin/holarch.js', import.meta.url));
@@ -27,10 +29,14 @@ export function materialiserCompte(compte, comptes, { accueil, holarch = BIN, ec
   });
 }
 
-/** Projet : les fichiers de règles (`.claude/rules/holarch/`) et le crochet de git, si une règle bloquante le demande. */
+/**
+ * Projet : les fichiers de règles (`.claude/rules/holarch/`), le crochet de git si une règle bloquante le demande, et
+ * l'identité de commit que déclare sa configuration, s'il est déclaré par un contexte (décision identite-par-contexte).
+ */
 export function materialiserProjet(r, chemin, { accueil, holarch = BIN, ecrire = true } = {}) {
   const plan = planifier(r.regles, { portee: 'projet', classificationDepot: r.arbre?.classification });
   const demande = r.regles.find((e) => e.applicable && avantCommit(e)) || null;
   return { plan, fichiers: appliquer(dossierProjet(chemin), plan, { ecrire }),
-    crochet: { demande, ...poserCrochet(chemin, demande ? crochetDe({ holarch, accueil }) : null, { ecrire }) } };
+    crochet: { demande, ...poserCrochet(chemin, demande ? crochetDe({ holarch, accueil }) : null, { ecrire }) },
+    identite: poserIdentite(chemin, r.declare ? identiteDeclaree(r.config) : null, { ecrire }) };
 }

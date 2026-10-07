@@ -608,3 +608,64 @@ test('contexte : résumé de reprise du projet du dossier de travail, court ; ri
   assert.match(resume(s, d), /Intégration continue : GitLab CI \(lire son résultat après un envoi\)\./);
   assert.equal(resume(s, tmp()), null);
 });
+
+import { poserIdentite } from '../src/identite-git.js';
+import { materialiserProjet } from '../src/materialisation.js';
+
+test('identité de commit : posée en réglage local, réglage à la main laissé, commit sous une autre identité refusé, écart résolu', () => {
+  // Ni l'identité globale de la machine ni une identité laissée dans l'environnement ne doivent compter : un fichier
+  // global à lui, sans variables GIT_AUTHOR_* ni GIT_COMMITTER_*.
+  const cles = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM', ...['AUTHOR', 'COMMITTER'].flatMap((x) => [`GIT_${x}_NAME`, `GIT_${x}_EMAIL`])];
+  const avant = Object.fromEntries(cles.map((k) => [k, process.env[k]])); for (const k of cles) delete process.env[k];
+  const globale = path.join(tmp(), 'gitconfig'); process.env.GIT_CONFIG_GLOBAL = globale; process.env.GIT_CONFIG_NOSYSTEM = '1';
+  try {
+    const voulue = { nom: 'Alice Exemple', email: 'alice@noreply.test' };
+    const r = tmp(); const accueil = tmp();
+    ecrire(globale, '[user]\n\tname = Alice Exemple\n\temail = alice@noreply.test\n');
+    ecrire(path.join(r, 'profil', 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\nconfig:\n  identite: { nom: ${voulue.nom}, email: ${voulue.email} }\n---\n`);
+    ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: identite-de-commit\n  statement: Chaque commit porte l’identité de son contexte.\n  level: blocking\n  check: [identite-de-commit]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+    ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+    fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));  // réglage local posé à la main
+    ecrire(path.join(d, 'note.md'), 'un\n'); g('add', '.'); g('commit', '-qm', 'départ');
+    const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+    const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+    s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+    s.indexer();
+
+    const re = s.regles({ projet: 'holarch:project:depot' });
+    assert.deepEqual([re.declare, re.config.identite], [true, voulue]);
+    const m = materialiserProjet(re, d, { accueil, ecrire: false });
+    assert.deepEqual([m.identite.etat, m.crochet.demande?.id], ['ignore', 'identite-de-commit'], 'le réglage local posé à la main est laissé');
+    const ecartsDe = (a) => a.cibles.find((c) => c.projet === 'holarch:project:depot').ecarts.map((e) => [e.controle, e.message]);
+    const a0 = s.audit({ journaliser: true });
+    assert.deepEqual(ecartsDe(a0), [['identite-de-commit', "identité git du dépôt : ne correspond pas à l'identité déclarée (adresse)"], ['crochet-pose', 'crochet de git absent']]);
+    assert.ok(!JSON.stringify([...s.journal.lire()]).includes('exemple.test'), 'au journal, jamais l’adresse');
+
+    materialiserProjet(re, d, { accueil, holarch: path.resolve('bin/holarch.js') });
+    ecrire(path.join(d, 'note.md'), 'deux\n'); g('add', '.');
+    const refus = spawnSync('git', ['-C', d, 'commit', '-qm', 'sous la main'], { encoding: 'utf8' });
+    assert.equal(refus.status, 1, refus.stderr); assert.match(refus.stderr, /refusé par la règle identite-de-commit/);
+    assert.ok(!/exemple\.test|noreply\.test/.test(refus.stderr), 'le refus ne répète pas les adresses');
+
+    g('config', '--local', '--unset', 'user.name'); g('config', '--local', '--unset', 'user.email');
+    g('commit', '-qm', 'sous l’identité déclarée');
+    const autre = spawnSync('git', ['-C', d, 'commit', '-q', '--allow-empty', '-m', 'emprunt', '--author', 'Bob <bob@exemple.test>'], { encoding: 'utf8' });
+    assert.equal(autre.status, 1, 'un auteur d’emprunt est refusé');
+    const a1 = s.audit({ journaliser: true });
+    assert.deepEqual([ecartsDe(a1), a1.journal.resolus], [[], 2], 'écart d’identité et crochet absent résolus');
+
+    // Une identité globale différente : HOLARCH pose la déclarée, la met à jour, puis retire ce qu'il a posé.
+    ecrire(globale, '[user]\n\tname = Autre\n\temail = autre@exemple.test\n');
+    const local = () => [g('config', '--local', '--get', 'user.email').trim()];
+    assert.equal(poserIdentite(d, voulue, { ecrire: false }).etat, 'pose');
+    assert.deepEqual([poserIdentite(d, voulue).etat, local(), poserIdentite(d, voulue).etat], ['pose', [voulue.email], 'inchange']);
+    assert.equal(poserIdentite(d, { ...voulue, email: 'alice2@noreply.test' }).etat, 'modifie');
+    assert.deepEqual([poserIdentite(d, null).etat, spawnSync('git', ['-C', d, 'config', '--local', '--get', 'user.email']).status], ['retire', 1]);
+    assert.equal(poserIdentite(d, null).etat, 'absent');
+    assert.equal(poserIdentite(tmp(), voulue).etat, 'hors-git');
+    assert.match(executer('identite-de-commit', { depot: d, config: { identite: voulue }, declare: false }, 'audit').indisponible, /aucun contexte/);
+    assert.match(executer('identite-de-commit', { depot: d, config: {}, declare: true }, 'audit').indisponible, /absent/);
+  } finally {
+    for (const [k, v] of Object.entries(avant)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
+  }
+});

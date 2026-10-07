@@ -106,7 +106,7 @@ export function regleEffective(fiches, projetId) {
   }
   for (const n of [racine, ...couches.map((c) => c.noeud)].filter(Boolean)) if (n.attributes?.erreur_regles) signaux.push(`${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_regles}`);
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
-  return { projet: projetId, arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
+  return { projet: projetId, declare: Boolean(declarants[0]), arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
     regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux: [...new Set(signaux)], rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 

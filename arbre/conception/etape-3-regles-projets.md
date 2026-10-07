@@ -511,11 +511,20 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
 - **Fait (2026-10-07)** : décision `identite-par-contexte` approuvée telle quelle ; Q18 résolue (identité fixe par
   contexte, adresse anonyme GitHub du compte de chaque contexte ; contexte pro déclaré avec son premier projet ; dépôt
   mixte laissé non déclaré). Idée « échecs » placée en tranche 9, avant les réglages de Claude Code par projet.
+- **Fait (2026-10-07)** : tranche 8, points 1 à 5 et critère. Contrôle `identite-de-commit` (auteur du commit avant le
+  commit, identité que git prendrait à l'audit ; un écart dit ce qui diffère, jamais les adresses ; projet non déclaré :
+  non disponible), `identite-git.js` (réglage local posé là où l'identité effective diffère, noté dans
+  `holarch.identite` ; réglage à la main laissé et dit), clé `identite` au registre de configuration (0.2.0) ; 1 test.
+  Profil : identité par défaut et règle `identite-de-commit`, bloquante, approuvée. Appliquée aux cinq projets déclarés
+  (accord de l'auteur) : crochet posé dans deux de plus. Le seul réglage local divergent (un projet à dépendances),
+  signalé puis résolu quand l'auteur l'a retiré ; un commit sous une autre identité refusé dans le socle ; audit sans écart
+  d'identité. Défaut trouvé à l'usage : un crochet impossible à poser (`core.hooksPath` d'un dépôt vers un chemin de
+  conteneur absent de l'hôte) interrompait toute la commande ; il est désormais dit, et les autres projets passent.
+  Reste ouvert : crochet absent de ce dépôt, tant que son `core.hooksPath` vise ce chemin. Tranche close.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 8** : points 1 à 5 (identité perso au profil : adresse anonyme du compte personnel).
-  3. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
+  2. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
      erreurs d'outil, leçons de clôture) et les compter ; les solutions pour ceux qui se répètent viendront avec la
      récolte (boucles « Règles » et « Progrès et recul », §6). À spécifier à l'ouverture.
-  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
+  3. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
      §5.8), à spécifier à leur ouverture.

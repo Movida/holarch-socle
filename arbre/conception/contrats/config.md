@@ -3,10 +3,10 @@ type: contract
 title: Contrat — registre de configuration
 description: Les clés de réglage (`config`) qu'un nœud de l'arbre peut porter, qui les lit, et comment elles se fusionnent d'une couche à l'autre.
 status: draft
-version: 0.1.0
+version: 0.2.0
 links:
   derives_from: [/arbre/conception/contrats/noeud.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-identite-par-contexte.md]
 ---
 
 # Contrat — registre de configuration
@@ -22,6 +22,7 @@ de ce registre n'est lue par personne ; une clé s'y ajoute avec le mécanisme q
 | `dependances` | profil, projet | contrôle `dependances-vulnerables` | `seuil_cvss` (7 par défaut) |
 | `outils_surveilles` | profil | contrôle `outils-a-jour` | `[{nom, commande, github \| node: lts}]` |
 | `claude_code` | profil | adaptateur Claude Code (compte) | `reglages` : clés de `settings.json` (`autoCompactWindow`…) ; `passation` : `{seuil_tokens, reprise}` |
+| `identite` | profil, contexte, projet | `holarch regles appliquer` (réglage local de git), contrôle `identite-de-commit` | `{nom, email}` : l'identité sous laquelle committent les projets déclarés (décision `identite-par-contexte`) |
 
 Les réglages du **site** (outils, délais, interface) ne sont pas des réglages de l'arbre : ils vivent dans la
 configuration du site (`config.yaml`, hors dépôt).

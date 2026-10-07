@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Identité de commit** (tranche 8 close) : identité déclarée au profil, posée en réglage local là où elle diffère,
+  gardée au commit (règle `identite-de-commit`, bloquante) et à l'audit ; cinq projets déclarés gardés ; un réglage à
+  la main divergent signalé puis résolu ; un crochet impossible à poser ne bloque plus `regles appliquer`.
+
 * **Tranche 8 approuvée** : décision `identite-par-contexte` approuvée ; Q18 résolue (identité fixe par contexte,
   adresse anonyme GitHub du compte de chaque contexte) ; idée « échecs » placée en tranche 9.
 

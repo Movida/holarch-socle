@@ -134,7 +134,7 @@ switch (cmd) {
       const r = socle().garde({ depot: process.cwd(), moment: args[0] || 'avant-commit' });
       for (const x of r.indisponibles) console.error(`HOLARCH : contrôle ${x.id} non disponible (${x.raison}) : non vérifié`);
       if (r.refus.length) {
-        for (const x of r.refus) console.error(`HOLARCH : commit refusé par la règle ${x.regle} — ${x.enonce}\n${x.ecarts.map((e) => `  ${e.fichier || ''}${e.ligne ? `:${e.ligne}` : ''} : ${e.message}`).join('\n')}`);
+        for (const x of r.refus) console.error(`HOLARCH : commit refusé par la règle ${x.regle} — ${x.enonce}\n${x.ecarts.map((e) => `  ${e.fichier ? `${e.fichier}${e.ligne ? `:${e.ligne}` : ''} : ` : ''}${e.message}`).join('\n')}`);
         process.exit(1);
       }
     } catch (e) { console.error(`HOLARCH : garde en échec (${e.message}) : commit non contrôlé`); }

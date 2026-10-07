@@ -23,7 +23,7 @@ export function contexteControle(s, projet, r, depot = projet.location) {
   const publique = (id) => noeuds.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public');
   const projetsPrives = s.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
   const config = r.config || {}; const reglages = s.config.controles || {};
-  return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, reglages, cache: path.join(s.config.donnees, 'cache'),
+  return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),
     gitleaks: trouverOutil('gitleaks', reglages.gitleaks), osv: trouverOutil('osv-scanner', reglages.osv_scanner),
     termes: depot ? listePrivee({ depot, config, comptes: comptesDe(s), projetsPrives, nomProjet: projet.name }) : [] };
 }
