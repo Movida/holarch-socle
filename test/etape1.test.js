@@ -328,7 +328,7 @@ test('serveur MCP : outils en lecture, réponses du socle, par le client officie
 test('serveur web : refuse le DNS rebinding et les écritures venues d’un autre site', async () => {
   const { creerServeur } = await import('../src/web/serveur.js');
   const http = await import('node:http');
-  const s = new Socle({ site: 'local', donnees: tmp(), web: { hote: '127.0.0.1' }, tarifs: {}, inventaire: {}, import: {} });
+  const s = new Socle({ site: 'local', donnees: tmp(), web: { hote: '127.0.0.1', hotes_admis: ['poste.reseau-prive.example'] }, tarifs: {}, inventaire: {}, import: {} });
   s.indexer();
   const srv = creerServeur(s); await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
   const port = srv.address().port;
@@ -341,6 +341,11 @@ test('serveur web : refuse le DNS rebinding et les écritures venues d’un autr
     assert.equal(await req('POST', '/api/vue?page=test', { Origin: 'http://evil.example' }), 403, 'écriture depuis un autre site');
     assert.equal(await req('POST', '/api/vue?page=test', { 'Sec-Fetch-Site': 'cross-site' }), 403);
     assert.equal(await req('POST', '/api/vue?page=test', { Origin: `http://127.0.0.1:${port}` }), 200);
+    // Relais d'un réseau privé, déclaré nommément : admis, et lui seul.
+    assert.equal(await req('GET', '/api/etat', { Host: 'poste.reseau-prive.example' }), 200);
+    assert.equal(await req('GET', '/api/etat', { Host: 'autre.reseau-prive.example' }), 403);
+    assert.equal(await req('POST', '/api/vue?page=test', { Host: 'poste.reseau-prive.example', Origin: 'https://poste.reseau-prive.example' }), 200);
+    assert.equal(await req('POST', '/api/vue?page=test', { Host: 'poste.reseau-prive.example', Origin: 'http://poste.reseau-prive.example' }), 403, 'le relais est en HTTPS');
   } finally { srv.close(); }
 });
 

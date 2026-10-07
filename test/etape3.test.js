@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { creerDistant, declarerConfiance, nomDe } from '../src/distant.js';
+import { creerDistant, creerInterface, declarerConfiance, nomDe } from '../src/distant.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -432,4 +432,20 @@ test('audit : un commit fautif est refusé par le crochet ; forcé, il apparaît
   const evs = [...s.journal.lire()].filter((e) => e.kind.startsWith('rule.'));
   assert.deepEqual(evs.map((e) => e.kind), ['rule.violated', 'rule.violated', 'rule.resolved', 'rule.resolved']);
   assert.ok(evs.every((e) => e.actor === 'system:audit' && !/zeta/i.test(JSON.stringify(e))), 'au journal, jamais le terme');
+});
+
+test('interface en service : unité marquée qui relit la même configuration, activée puis retirée ; une unité étrangère jamais touchée', () => {
+  const unites = tmp(); const appels = [];
+  const systemctl = (args) => { appels.push(args.join(' ')); return { status: 0, stdout: args[0] === 'is-active' ? 'active\n' : '', stderr: '' }; };
+  const i = creerInterface({ holarch: '/opt/holarch/bin/holarch.js', accueil: '/srv/donnees holarch' }, { unites, systemctl, node: '/opt/node/bin/node' });
+  assert.deepEqual(i.etat(), { unite: 'holarch-interface.service', presente: false, geree: false, actif: false });
+  i.activer();
+  const texte = fs.readFileSync(path.join(unites, 'holarch-interface.service'), 'utf8');
+  assert.match(texte, /^# Écrit par HOLARCH/); assert.match(texte, /Environment="HOLARCH_HOME=\/srv\/donnees holarch"/);
+  assert.match(texte, /ExecStart="\/opt\/node\/bin\/node" --no-warnings "\/opt\/holarch\/bin\/holarch.js" voir/);
+  assert.deepEqual(appels, ['daemon-reload', 'enable --now holarch-interface.service']);
+  assert.equal(i.etat().actif, true);
+  i.desactiver(); assert.ok(!fs.existsSync(path.join(unites, 'holarch-interface.service')));
+  fs.writeFileSync(path.join(unites, 'holarch-interface.service'), '[Service]\n');
+  assert.throws(() => i.activer(), /pas été écrit par HOLARCH/); assert.throws(() => i.desactiver(), /pas été écrit par HOLARCH/);
 });

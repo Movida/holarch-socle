@@ -48,6 +48,15 @@ défaut). Un service écrit par HOLARCH porte une marque ; un service qu'il n'a 
 **Plus tard.** Devenir une étape de la création de projet (§5.8, « environnement : accès distant ») et de sa fin
 (désactiver), quand la création de projet s'ouvrira.
 
+**Interface depuis le téléphone (2026-10-07).** Demande de l'auteur : lire et cliquer confortablement hors du poste.
+L'interface n'écoute qu'en local et refuse tout nom d'hôte étranger (DNS rebinding) ; elle reste ainsi. Un relais HTTPS
+d'un réseau privé (Tailscale Serve : appareils du compte seulement, certificat émis par le réseau) la publie, et son nom
+se déclare nommément dans `web.hotes_admis` (réglage du site, jamais versionné) : seul ce nom est admis, et une
+écriture n'y est acceptée que depuis son origine HTTPS. `holarch interface activer|desactiver` tient `holarch voir` en
+service utilisateur marqué, qui relit la même configuration. Essayé : le relais transmet son nom d'hôte et
+`x-forwarded-proto: https` ; Windows atteint le port de WSL. Limites : le poste doit être allumé ; tout appareil du
+réseau privé atteint l'interface, sauf règle d'accès (ACL) du réseau.
+
 ## Tranche 2 — Vue Projets
 
 Q14 qualifiée avec l'auteur le 2026-10-05. Pour chaque projet : où il en est (étape en cours, fait et reste à faire,
@@ -320,6 +329,10 @@ laisse passer et le dit.
   refusé ; un `.env` d'essai illisible par l'outil de lecture et par `cat`. Audit des deux projets sans faux positif ;
   le seul écart réel (un jour de commit sans entrée au journal du second projet) corrigé. Rappels : 5 057 → 4 377
   caractères dans le socle, 3 284 → 2 869 dans le second projet. Tranche close.
+- **Fait (2026-10-07)** : interface depuis le téléphone (tranche 1) : `web.hotes_admis`, `holarch interface`, relais
+  Tailscale Serve publié sur le poste personnel ; 2 tests.
 - **Reste** :
-  1. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
+  1. **Tranche 5** : veille de sécurité et de versions (CVE des dépendances, versions publiées des outils), à
+     spécifier.
+  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

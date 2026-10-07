@@ -113,3 +113,52 @@ export function creerDistant(config, {
     },
   };
 }
+
+// Interface web en service (accès depuis le téléphone, par un relais HTTPS d'un réseau privé comme Tailscale Serve) :
+// `holarch voir` tenu par un service utilisateur marqué, qui relit la même configuration (HOLARCH_HOME figé).
+const UNITE_INTERFACE = 'holarch-interface.service';
+export function uniteInterface({ node = process.execPath, holarch, accueil }) {
+  return `${MARQUE} : interface web de HOLARCH. Retirée par \`holarch interface desactiver\`.
+[Unit]
+Description=HOLARCH : interface web
+After=network-online.target
+
+[Service]
+Environment=${systemd(`HOLARCH_HOME=${accueil}`)}
+ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} voir
+Restart=on-failure
+RestartSec=30
+StandardOutput=null
+
+[Install]
+WantedBy=default.target
+`;
+}
+
+export function creerInterface({ holarch, accueil }, {
+  unites = path.join(os.homedir(), '.config', 'systemd', 'user'),
+  systemctl = (args) => spawnSync('systemctl', ['--user', ...args], { encoding: 'utf8' }),
+  node = process.execPath,
+} = {}) {
+  const f = path.join(unites, UNITE_INTERFACE);
+  const geree = () => fs.existsSync(f) && fs.readFileSync(f, 'utf8').startsWith(MARQUE);
+  const lancer = (args) => { const r = systemctl(args); if (r.status !== 0) throw new Error(`systemctl --user ${args.join(' ')} : ${(r.stderr || '').trim() || `code ${r.status}`}`); return r; };
+  return {
+    etat: () => ({ unite: UNITE_INTERFACE, presente: fs.existsSync(f), geree: geree(), actif: fs.existsSync(f) && systemctl(['is-active', UNITE_INTERFACE]).stdout?.trim() === 'active' }),
+    activer() {
+      if (fs.existsSync(f) && !geree()) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+      fs.mkdirSync(unites, { recursive: true });
+      const avant = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null; const texte = uniteInterface({ node, holarch, accueil });
+      fs.writeFileSync(f, texte);
+      lancer(['daemon-reload']); lancer(['enable', '--now', UNITE_INTERFACE]);
+      if (avant != null && avant !== texte) lancer(['restart', UNITE_INTERFACE]);
+      return { unite: UNITE_INTERFACE };
+    },
+    desactiver() {
+      if (!fs.existsSync(f)) throw new Error('interface en service : non activée');
+      if (!geree()) throw new Error(`${f} n'a pas été écrit par HOLARCH : rien n'est retiré`);
+      lancer(['disable', '--now', UNITE_INTERFACE]); fs.rmSync(f); lancer(['daemon-reload']);
+      return { unite: UNITE_INTERFACE };
+    },
+  };
+}

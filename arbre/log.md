@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Interface depuis le téléphone** : l'interface admet un relais HTTPS de réseau privé déclaré par son nom
+  (`web.hotes_admis`) ; `holarch interface` la tient en service ; publiée par Tailscale Serve sur le poste personnel.
+
 * **Audit de conformité réalisé** (tranche 4 close) : contrôles des règles (données personnelles, secrets par
   gitleaks, journal tenu), audit après chaque inventaire avec écarts au journal, crochet `pre-commit` de git, lectures
   de secrets refusées au compte. Trois règles passées du rappel au contrôle avec l'accord de l'auteur ; `LICENSE`

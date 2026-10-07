@@ -5,7 +5,7 @@ import { chargerConfig, ecrireConfigExemple, accueil, comptesClaudeCode } from '
 import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
-import { creerDistant } from '../src/distant.js';
+import { creerDistant, creerInterface } from '../src/distant.js';
 import { planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions } from '../src/regles-claude-code.js';
 import { crochetDe, poserCrochet } from '../src/garde-git.js';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +27,9 @@ const AIDE = `holarch — socle autour des agents d'IA
                        accès distant par projet : un serveur Remote Control de Claude Code par projet, à la demande ;
                        sans argument, liste les projets dont l'accès est actif (<projet> : projet du catalogue, par
                        son nom, un chemin ou son identifiant)
+  holarch interface [activer|desactiver]
+                       l'interface web en service utilisateur (pour un relais HTTPS d'un réseau privé, Tailscale Serve
+                       par exemple, dont le nom se déclare dans web.hotes_admis) ; sans argument, son état
   holarch regles [<projet>]
                        règle effective d'un projet (profil, contexte, types, projet ; provenance, où Claude Code la
                        lit) ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles
@@ -70,6 +73,15 @@ switch (cmd) {
       else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}`); }
       else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
     } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
+    break; }
+  case 'interface': {
+    const [action] = args.filter((a) => !a.startsWith('--'));
+    const i = creerInterface({ holarch: fileURLToPath(import.meta.url), accueil: chargerConfig().accueil });
+    try {
+      if (action === 'activer') afficher(json ? i.activer() : `interface en service : ${i.activer().unite}`);
+      else if (action === 'desactiver') afficher(json ? i.desactiver() : `interface retirée du service : ${i.desactiver().unite}`);
+      else { const e = i.etat(); afficher(json ? e : !e.presente ? 'interface hors service (holarch interface activer)' : `${e.actif ? 'active' : 'arrêtée'} : ${e.unite}${e.geree ? '' : ' (non écrite par HOLARCH)'}`); }
+    } catch (e) { console.error(`holarch interface : ${e.message}`); process.exit(1); }
     break; }
   case 'regles': {
     const s = socle(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));

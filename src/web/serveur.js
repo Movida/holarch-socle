@@ -37,15 +37,18 @@ export function creerServeur(socle) {
   // Un serveur local reste exposé à deux attaques venues d'une page web ordinaire : le DNS rebinding (un domaine qui se
   // fait résoudre en 127.0.0.1, puis lit l'API) et l'écriture depuis un autre site (un POST n'a pas besoin de CORS).
   // Parade : n'accepter que les noms d'hôte locaux attendus, et, pour une écriture, qu'une origine de ce même serveur.
+  // Un relais HTTPS d'un réseau privé (Tailscale Serve) se déclare nommément dans `web.hotes_admis` : son nom, sans port.
   const hotes = new Set(['127.0.0.1', 'localhost', '[::1]', socle.config?.web?.hote].filter(Boolean));
+  const relais = new Set((socle.config?.web?.hotes_admis || []).map((h) => String(h).toLowerCase()));
   const admis = (req) => {
     const port = req.socket.localPort;
     const permis = new Set([...hotes].map((h) => `${h}:${port}`));
-    if (!permis.has(String(req.headers.host || '').toLowerCase())) return false;
+    const hote = String(req.headers.host || '').toLowerCase();
+    if (!permis.has(hote) && !relais.has(hote)) return false;
     if (req.method === 'GET' || req.method === 'HEAD') return true;
     const origine = req.headers.origin;
     if (req.headers['sec-fetch-site'] && !['same-origin', 'none'].includes(req.headers['sec-fetch-site'])) return false;
-    return !origine || [...permis].some((p) => origine === `http://${p}`);
+    return !origine || [...permis].some((p) => origine === `http://${p}`) || [...relais].some((h) => origine === `https://${h}`);
   };
   return http.createServer(async (req, res) => {
     if (!admis(req)) { res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('refusé : hôte ou origine non locale'); }
