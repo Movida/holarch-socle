@@ -2,6 +2,8 @@
 
 ## 2026-10-07
 
+* **Tranche 8 ouverte** (configuration, identité de commit) : décision `identite-par-contexte` proposée ; Q18 ouverte.
+
 * **Intégration continue** d'un projet détectée par l'inventaire, montrée sur sa carte et dans le résumé de reprise.
 
 * **Reprise après `/clear`** constatée (tranche 7) ; l'état du dépôt dans le résumé se lit en direct, celui de

@@ -360,6 +360,34 @@ et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
 **Limites connues.** La taille du contexte lue dans la transcription a un tour de retard. Seul l'auteur peut lancer
 `/clear`. Les sessions des autres clients (Claude Desktop) ne sont pas concernées.
 
+## Tranche 8 — Configuration : identité de commit
+
+Décision `identite-par-contexte` (proposée le 2026-10-07, à approuver). Deuxième tranche « configuration » (§5.2) : un
+réglage porté par l'arbre, appliqué par le mécanisme de git, gardé au commit.
+
+**Livre.**
+
+1. **Registre de configuration** : clé `identite` (`{nom, email}`), portée par le profil, un contexte ou un projet ;
+   lue par l'adaptateur git et le contrôle `identite-de-commit`.
+2. **Application** (`holarch regles appliquer`) : dans chaque dépôt déclaré, l'identité effective (`git config
+   user.name`, `user.email`, lus dans le dépôt) est comparée à la déclarée ; si elle diffère, `user.name` et
+   `user.email` sont posés en réglage local, avec un manifeste de ce que HOLARCH a posé ; un réglage local posé à la
+   main est laissé et signalé ; HOLARCH ne retire que ce qu'il a posé.
+3. **Garde** : règle de profil `identite-de-commit`, bloquante ; `holarch garde avant-commit` compare l'auteur du
+   commit (`git var GIT_AUTHOR_IDENT`) à l'identité déclarée et refuse l'écart (forçable, écart au journal).
+4. **Audit** : la même comparaison sur la configuration du dépôt, après chaque inventaire ; écart sur la page
+   « Règles » et la carte du projet (mécanismes de la tranche 4).
+5. **Profil** : `identite` déclarée au profil (valeur par défaut, celle de l'identité globale actuelle) ;
+   le seul dépôt déclaré à réglage local divergent est signalé ; l'auteur décide de le retirer.
+
+**Critère de la tranche.** Un commit sous une autre identité que celle de son contexte est refusé dans un dépôt
+déclaré ; le réglage divergent du dépôt déclaré est signalé, puis résolu au retrait ; l'audit des projets déclarés
+est sans écart d'identité.
+
+**Hors tranche.** La réécriture de l'historique déjà publié (adresse personnelle dans 8 commits de `holarch-socle` et
+tous ceux d'un autre dépôt public) : geste de l'auteur, à décider à part. Le contexte professionnel (Q18). Les dépôts
+non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -477,7 +505,11 @@ et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
   pas la preuve qu'elle tourne. Sur la carte d'un projet, dans l'outil MCP `projets` et dans le résumé de reprise
   (« aucune » : rien à lire après un envoi). Sur le poste personnel : 3 dépôts sur 12 en ont une. Test visuel passé dans
   le conteneur du socle (utilisateur `node`, qui a Chromium).
+- **Ouverture de la tranche 8 (2026-10-07)** : configuration, identité de commit, sur demande de l'auteur (choix de
+  l'identité parmi identité et réglages Claude Code par projet, ceux-ci en tranche 9) ; décision
+  `identite-par-contexte` proposée ; Q18 ouverte (contexte professionnel).
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
+  2. **Tranche 8** : approbation de la décision `identite-par-contexte`, puis points 1 à 5.
+  3. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.
