@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import YAML from 'yaml';
 import { fichiers } from './import/claude-code-transcriptions.js';
 import { localiserProjet } from './projets.js';
 import { gitleaks } from './controles.js';
@@ -82,11 +83,14 @@ export const SCHEMA = {
       items: {
         type: 'object',
         properties: {
+          id: { type: 'string', pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', description: 'identifiant court de la consigne, en kebab-case, en français' },
           consigne: { type: 'string', description: 'la consigne, en une phrase impérative courte, générale' },
+          pourquoi: { type: 'string', description: 'sa raison en une phrase, générale, sans citer l’auteur' },
           refs: { type: 'array', items: { type: 'string' }, description: 'références des éléments du groupe' },
           couverte_par: { type: ['string', 'null'], description: 'identifiant de la règle existante qui la couvre, sinon null' },
+          contredit: { type: 'array', items: { type: 'string' }, description: 'identifiants des règles existantes ou des autres groupes qu’elle contredit' },
         },
-        required: ['consigne', 'refs', 'couverte_par'],
+        required: ['id', 'consigne', 'pourquoi', 'refs', 'couverte_par', 'contredit'],
       },
     },
   },
@@ -95,11 +99,12 @@ export const SCHEMA = {
 
 export const CONSIGNE = `Tu reçois des éléments écrits par l'auteur d'un système d'agents de code : ses messages aux agents, et des notes de retour qu'un agent a gardées après avoir été corrigé. Chaque élément porte une référence entre crochets.
 Repère les consignes durables : ce que l'auteur demande en général sur la façon de travailler (méthode, vérification, forme des réponses, ton, ce qu'il faut toujours faire ou éviter), au-delà de la tâche du moment. Ignore les demandes ponctuelles, les questions, les acquiescements et les faits propres à une tâche.
-Regroupe les éléments qui expriment la même consigne, même formulée autrement. Pour chaque groupe d'au moins deux éléments : la consigne en une phrase impérative courte en français, générale (sans nom de projet ni de personne), les références de ses éléments, et l'identifiant de la règle existante qui la dit déjà (liste fournie), sinon null. Un élément peut n'appartenir à aucun groupe ; ne crée pas de groupe d'un seul élément.`;
+Regroupe les éléments qui expriment la même consigne, même formulée autrement. Pour chaque groupe d'au moins deux éléments : un identifiant court en kebab-case, la consigne en une phrase impérative courte en français, générale (sans nom de projet ni de personne), sa raison en une phrase (sans citer l'auteur), les références de ses éléments, l'identifiant de la règle existante qui la dit déjà (liste fournie ; une règle proposée ou refusée compte comme existante), sinon null, et les identifiants des règles existantes ou des autres groupes qu'elle contredit (liste vide sinon). Un élément peut n'appartenir à aucun groupe ; ne crée pas de groupe d'un seul élément.`;
 
 /** Le texte envoyé au modèle : les règles existantes (identifiant et énoncé), puis les candidats référencés. */
 export function invite(candidats, regles) {
-  const r = regles.length ? regles.map((x) => `- ${x.id} : ${x.enonce}`).join('\n') : '(aucune)';
+  const etat = { draft: ' (proposée)', deprecated: ' (refusée)' };
+  const r = regles.length ? regles.map((x) => `- ${x.id}${etat[x.statut] || ''} : ${x.enonce}`).join('\n') : '(aucune)';
   const c = candidats.map((x, i) => `[${x.type === 'memoire' ? 'n' : 'm'}${i}] ${x.texte.replace(/\s+/g, ' ')}`).join('\n');
   return `Règles existantes :\n${r}\n\nÉléments :\n${c}\n`;
 }
@@ -120,7 +125,7 @@ export function regroupeurClaude({ claude, modele = 'sonnet', budget = 1, delai 
 /**
  * Redites : pour chaque groupe, les éléments que ses références désignent vraiment, leurs sessions et leurs projets
  * distincts (une mémoire compte comme une source à part). Un groupe est une redite à partir de `seuil` sessions ou de
- * deux projets ; les plus redites d'abord.
+ * deux projets ; les plus redites d'abord. `sources` : les sessions et mémoires, par référence, jamais par leur texte.
  */
 export function redites(groupes, candidats, { seuil = 2 } = {}) {
   const parRef = (ref) => { const m = String(ref).match(/^\[?[mn](\d+)\]?$/); return m ? candidats[+m[1]] : undefined; };
@@ -128,11 +133,42 @@ export function redites(groupes, candidats, { seuil = 2 } = {}) {
     const el = [...new Set(g.refs)].map(parRef).filter(Boolean);
     const sessions = new Set(el.map((e) => e.session || `memoire:${e.memoire}`));
     const projets = [...new Map(el.filter((e) => e.projet).map((e) => [e.projet.id, e.projet])).values()];
-    return { consigne: g.consigne, couverte_par: g.couverte_par || null, elements: el.length, sessions: sessions.size, projets: projets.map((p) => p.nom || p.id),
+    return { id: g.id || null, consigne: g.consigne, pourquoi: g.pourquoi || null, couverte_par: g.couverte_par || null, contredit: [...new Set(g.contredit || [])],
+      elements: el.length, sessions: sessions.size, sources: [...sessions].sort(), projets: projets.map((p) => p.nom || p.id), projets_ids: projets.map((p) => p.id),
       hors_projet: el.filter((e) => !e.projet).length, memoires: el.filter((e) => e.type === 'memoire').length,
       premiere: el.map((e) => e.at).sort()[0] || null, derniere: el.map((e) => e.at).sort().at(-1) || null };
   }).filter((g) => g.sessions >= seuil || g.projets.length >= 2)
     .sort((a, b) => b.sessions - a.sessions || b.projets.length - a.projets.length);
+}
+
+/**
+ * Ce que deviennent les redites (décision recolte) : couverte par une règle existante, à trancher par l'auteur quand elle
+ * en contredit une autre ou une règle, sinon proposée au plus bas nœud commun de ses sources (un seul projet et rien hors
+ * projet : ce projet ; sinon le profil).
+ */
+export function trier(redites) {
+  const r = { proposees: [], a_trancher: [], couvertes: [] };
+  for (const g of redites) {
+    if (g.couverte_par) r.couvertes.push(g);
+    else if (g.contredit.length || !g.id) r.a_trancher.push(g);
+    else r.proposees.push({ ...g, noeud: g.projets_ids.length === 1 && !g.hors_projet ? { projet: g.projets_ids[0], nom: g.projets[0] } : { profil: true } });
+  }
+  return r;
+}
+
+/** Une redite en règle brouillon (contrat règle §4) : sources par référence, niveau le plus bas qui s'écrit sans contrôle. */
+export function regleProposee(g, at) {
+  return { id: g.id, statement: g.consigne, why: g.pourquoi, level: 'reminder', status: 'draft', source: 'harvest',
+    harvest: { at, sessions: g.sessions, ...(g.projets.length && { projects: g.projets }), first: g.premiere?.slice(0, 10) ?? null, last: g.derniere?.slice(0, 10) ?? null, refs: g.sources } };
+}
+
+/** Ajoute des règles à la fin d'un `rules.yaml` sans réécrire ce qui y est (commentaires compris) ; un `id` déjà présent n'est pas repris. */
+export function ajouterRegles(fichier, regles) {
+  const avant = fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : '';
+  const pris = new Set([].concat(YAML.parse(avant) || []).map((x) => x?.id));
+  const neuves = regles.filter((x) => !pris.has(x.id));
+  if (neuves.length) fs.writeFileSync(fichier, `${avant}${avant && !avant.endsWith('\n') ? '\n' : ''}${YAML.stringify(neuves, { lineWidth: 0 })}`);
+  return { ecrites: neuves.map((x) => x.id), deja: regles.filter((x) => pris.has(x.id)).map((x) => x.id) };
 }
 
 /**

@@ -123,7 +123,7 @@ export default function inventaireArbre(options, ctx) {
           attributes: { arbre, noeud_id: noeud.id, porteur: h.type || null, enonce: String(r.statement).trim(), pourquoi: r.why ? String(r.why).trim() : null,
             niveau: r.level || 'reminder', declencheur: r.trigger || null, match: r.match || null, derogeable: r.derogable !== false, applique_a: r.applies_to || null,
             statut: r.status || 'draft', approuve: r.approved || null, source: r.source || null, revue_le: r.review_after || null, remplace: r.replaces || null,
-            controles: r.check ? [].concat(r.check).map(String) : null },
+            controles: r.check ? [].concat(r.check).map(String) : null, ...(r.harvest && { recolte: r.harvest }), ...(r.deprecated && { retrait: r.deprecated }) },
         });
       }
     }

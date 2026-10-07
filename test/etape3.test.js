@@ -88,12 +88,13 @@ test('accès distant : projet introuvable refusé, service étranger jamais touc
 import { spawnSync } from 'node:child_process';
 import { Journal } from '../src/stockage/journal.js';
 import { Socle } from '../src/socle.js';
+import YAML from 'yaml';
 import importerTranscriptions, { cheminsAppel } from '../src/import/claude-code-transcriptions.js';
 import { localiserProjet, resoudreProjet } from '../src/projets.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
 import inventaireDepots from '../src/inventaire/depots-git.js';
 import { ulid } from '../src/ulid.js';
-import { recolter } from '../src/recolte.js';
+import { recolter, trier, ajouterRegles } from '../src/recolte.js';
 
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
 const vieillir = (f) => { const t = new Date(Date.now() - 3600e3); fs.utimesSync(f, t, t); };
@@ -923,18 +924,52 @@ test('récolte : messages de l’auteur et mémoires de retour, sans injections,
   fs.chmodSync(faux, 0o755);
   let envoye = null;
   const regroupeur = (texte) => { envoye = texte; return { modele: 'faux', cout_usd: 0.01, groupes: [
-    { consigne: 'Lancer les tests avant de rendre la main.', refs: ['m0', '[m2]', 'n3', 'm99', 'm0'], couverte_par: 'verifier' },
-    { consigne: 'Répondre en français.', refs: ['m1'], couverte_par: null }] }; };
-  const o = { comptes: [{ nom: null, home }], fiches, projets: [{ id: 'holarch:project:demo', nom: 'demo', location: depot }], regles: [{ id: 'verifier', enonce: 'Les tests sont verts avant de rendre.' }],
+    { id: 'tests-avant-de-rendre', consigne: 'Lancer les tests avant de rendre la main.', pourquoi: 'Un rendu non vérifié casse la suite.', refs: ['m0', '[m2]', 'n3', 'm99', 'm0'], couverte_par: 'verifier', contredit: [] },
+    { id: 'francais', consigne: 'Répondre en français.', pourquoi: 'Langue de l’auteur.', refs: ['m1'], couverte_par: null, contredit: [] }] }; };
+  const o = { comptes: [{ nom: null, home }], fiches, projets: [{ id: 'holarch:project:demo', nom: 'demo', location: depot }], regles: [{ id: 'verifier', enonce: 'Les tests sont verts avant de rendre.', statut: 'stable' }, { id: 'refusee', enonce: 'Une consigne refusée.', statut: 'deprecated' }],
     gitleaksBin: faux, regroupeur, depuis: '2026-09-15T00:00:00Z', jusqua: '2026-10-05T00:00:00Z' };
   const r = recolter(o);
   assert.deepEqual([r.candidats.messages, r.candidats.memoires, r.candidats.sessions, r.secrets_retires], [4, 1, 2, 1], 'un message recopié compte une fois ; sous-agent, méta, injecté, court, ancien écartés');
-  assert.match(envoye, /^Règles existantes :\n- verifier : Les tests sont verts avant de rendre\.\n/);
+  assert.match(envoye, /^Règles existantes :\n- verifier : Les tests sont verts avant de rendre\.\n- refusee \(refusée\) : Une consigne refusée\.\n/);
   assert.match(envoye, /\[m1\] Réponds en français/); assert.match(envoye, /\[n3\] tests-verts : Toujours lancer/);
   assert.doesNotMatch(envoye, /SECRET|ignoré|agent|oui\n/);
-  assert.deepEqual(r.redites, [{ consigne: 'Lancer les tests avant de rendre la main.', couverte_par: 'verifier', elements: 3, sessions: 3, projets: ['demo'], hors_projet: 1, memoires: 1,
+  assert.deepEqual(r.redites, [{ id: 'tests-avant-de-rendre', consigne: 'Lancer les tests avant de rendre la main.', pourquoi: 'Un rendu non vérifié casse la suite.', couverte_par: 'verifier', contredit: [],
+    elements: 3, sessions: 3, sources: ['A', 'B', 'memoire:mem1'], projets: ['demo'], projets_ids: ['holarch:project:demo'], hors_projet: 1, memoires: 1,
     premiere: '2026-10-01T10:00:00Z', derniere: '2026-10-03T00:00:00Z' }], 'une référence inconnue ignorée, un groupe d’une session écarté');
   envoye = null;
   assert.equal(recolter({ ...o, aBlanc: true }).a_blanc, true); assert.equal(envoye, null, 'à blanc : rien n’est envoyé');
   assert.match(recolter({ ...o, gitleaksBin: null }).indisponible, /gitleaks absent/); assert.equal(envoye, null, 'sans gitleaks : rien n’est envoyé');
+});
+
+test('récolte : une redite nouvelle devient une règle brouillon au nœud commun de ses sources ; contradictions à trancher', () => {
+  const g = (id, x = {}) => ({ id, consigne: `Consigne ${id}.`, pourquoi: `Raison ${id}.`, couverte_par: null, contredit: [], elements: 2, sessions: 2, sources: ['s1', 's2'],
+    projets: [], projets_ids: [], hors_projet: 0, memoires: 0, premiere: '2026-10-01T00:00:00Z', derniere: '2026-10-03T00:00:00Z', ...x });
+  const redites = [g('couverte', { couverte_par: 'verifier' }), g('contraire', { contredit: ['avis'] }), g('commune', { projets: ['demo', 'b'], projets_ids: ['holarch:project:demo', 'holarch:project:b'] }),
+    g('du-projet', { projets: ['demo'], projets_ids: ['holarch:project:demo'] }), g('melee', { projets: ['demo'], projets_ids: ['holarch:project:demo'], hors_projet: 1 })];
+  const t = trier(redites);
+  assert.deepEqual([t.couvertes.map((x) => x.id), t.a_trancher.map((x) => x.id), t.proposees.map((x) => [x.id, x.noeud.profil ? 'profil' : x.noeud.nom])],
+    [['couverte'], ['contraire'], [['commune', 'profil'], ['du-projet', 'demo'], ['melee', 'profil']]], 'un projet seul et rien hors projet : ce projet ; sinon le profil');
+  const donnees = tmp(); const profil = tmp(); const demo = tmp();
+  ecrire(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\ntitle: Profil\nstatus: draft\n---\n');
+  ecrire(path.join(profil, 'arbre', 'rules.yaml'), '# Règles du profil (commentaire gardé)\n- id: melee\n  statement: "Déjà là."\n  status: deprecated\n');
+  const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {} });
+  const noeud = (id, location, attributes) => ({ id, kind: 'node', name: id, status: 'proposed', provenance: { source: 't' }, location, node: '/arbre/index.md', attributes });
+  s.catalogue.remplacer([
+    noeud('holarch:node:profil', path.join(profil, 'arbre', 'index.md'), { type: 'guideline', arbre: 'profil', racine: true }),
+    { ...noeud('holarch:node:ctx', path.join(profil, 'arbre', 'contextes', 'perso.md'), { type: 'context', arbre: 'profil', projects: ['holarch:project:demo'] }), node: '/arbre/contextes/perso.md' },
+    { id: 'holarch:project:demo', kind: 'project', name: 'demo', description: 'Un projet sans arbre', status: 'active', provenance: { source: 't' }, location: demo, attributes: {} },
+  ]);
+  s.indexer();
+  const p = s.proposerRegles(redites, { at: '2026-10-07' });
+  const fp = path.join(profil, 'arbre', 'rules.yaml'); const fd = path.join(demo, 'arbre', 'rules.yaml');
+  assert.deepEqual(p.ecrites, [{ id: 'commune', fichier: fp }, { id: 'du-projet', fichier: fd }]);
+  assert.deepEqual([p.deja, p.couvertes, p.a_trancher], [[{ id: 'melee', fichier: fp }], 1, [{ id: 'contraire', consigne: 'Consigne contraire.', contredit: ['avis'] }]], 'un id déjà présent, même refusé, n’est pas repris');
+  const lu = fs.readFileSync(fp, 'utf8');
+  assert.match(lu, /^# Règles du profil \(commentaire gardé\)\n- id: melee\n/, 'ce qui était là reste tel quel');
+  assert.deepEqual(YAML.parse(lu).at(-1), { id: 'commune', statement: 'Consigne commune.', why: 'Raison commune.', level: 'reminder', status: 'draft', source: 'harvest',
+    harvest: { at: '2026-10-07', sessions: 2, projects: ['demo', 'b'], first: '2026-10-01', last: '2026-10-03', refs: ['s1', 's2'] } });
+  assert.match(fs.readFileSync(path.join(demo, 'arbre', 'index.md'), 'utf8'), /^---\ntype: guideline\nid: demo\n/, 'arbre du projet posé comme à la création');
+  assert.equal(YAML.parse(fs.readFileSync(fd, 'utf8'))[0].id, 'du-projet');
+  assert.equal(ajouterRegles(fd, [{ id: 'du-projet', statement: 'x' }]).ecrites.length, 0, 'rejouer n’ajoute rien');
+  assert.throws(() => s.recolte({ jusqua: '2026-10-06T00:00:00Z', proposer: true }), /rejeu/);
 });

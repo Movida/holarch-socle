@@ -1,5 +1,7 @@
 // Le socle d'un site : configuration, journal, catalogue, index, et les opérations de l'étape 1. Les fonctions de
 // lecture sont celles que l'interface web et, à l'étape 2, le hub MCP exposent.
+import fs from 'node:fs';
+import path from 'node:path';
 import { chargerConfig, comptesClaudeCode } from './config.js';
 import { Journal } from './stockage/journal.js';
 import { Catalogue } from './stockage/catalogue.js';
@@ -9,11 +11,13 @@ import importerTranscriptions from './import/claude-code-transcriptions.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
-import { regleEffective, regleDuCompte, projetsDeclares } from './regles.js';
+import { regleEffective, regleDuCompte, projetsDeclares, arbresDe } from './regles.js';
 import { destination } from './regles-claude-code.js';
 import { contexteControle, garde, ecartsOuverts, audit } from './audit.js';
 import { ulid } from './ulid.js';
-import { recolter, regroupeurClaude } from './recolte.js';
+import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
+import { racineIndex } from './creation.js';
+import { racineArbre } from './inventaire/arbre.js';
 import { trouverOutil } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
@@ -355,16 +359,56 @@ export class Socle {
   audit(o) { return audit(this, o); }
 
   // Récolte (étape 3, tranche 11) : consignes redites d'une session ou d'un projet à l'autre. Les règles passées au
-  // regroupement sont celles qui étaient approuvées à la fin de la période : rejouer le passé ne donne pas le corrigé.
-  recolte({ depuis = null, jusqua = null, seuil = 2, aBlanc = false, modele, budget, regroupeur = null } = {}) {
-    const avant = (r) => !jusqua || String(r.attributes?.approuve?.at ?? '').slice(0, 10) < jusqua.slice(0, 10);
-    const regles = [...new Map(this.fiches({ kind: 'rule' }).filter((r) => r.attributes?.statut === 'stable' && avant(r))
-      .map((r) => [r.name, { id: r.name, enonce: r.attributes.enonce }])).values()];
+  // regroupement : toutes, proposées et refusées comprises (une redite déjà proposée ou refusée ne revient pas) ; pour
+  // rejouer le passé, seules celles qui étaient approuvées à la fin de la période, sans quoi on donnerait le corrigé.
+  // `proposer` (décision recolte) : chaque redite nouvelle devient une règle brouillon au nœud commun de ses sources.
+  recolte({ depuis = null, jusqua = null, seuil = 2, aBlanc = false, proposer = false, modele, budget, regroupeur = null } = {}) {
+    if (proposer && jusqua) throw new Error('on ne propose pas depuis un rejeu du passé (--jusqua)');
+    const garde = (r) => (jusqua ? r.attributes?.statut === 'stable' && String(r.attributes?.approuve?.at ?? '').slice(0, 10) < jusqua.slice(0, 10) : true);
+    const regles = [...new Map(this.fiches({ kind: 'rule' }).filter(garde)
+      .map((r) => [r.name, { id: r.name, enonce: r.attributes.enonce, statut: r.attributes.statut }])).values()];
     const o = this.config.import?.['claude-code-transcriptions'] || {};
     const reglages = this.config.controles || {};
-    return recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.fiches({ kind: 'project' })), regles,
+    const r = recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.fiches({ kind: 'project' })), regles,
       gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: trouverOutil('claude'), modele, budget }),
       depuis, jusqua, seuil, aBlanc });
+    if (!proposer || !r.redites) return r;
+    return { ...r, propositions: this.proposerRegles(r.redites) };
+  }
+
+  // Écrit les règles brouillon d'une récolte dans le `rules.yaml` de leur nœud : la racine du profil, ou celle de l'arbre
+  // du projet, posée s'il n'en a pas (comme à la création). Rien n'est commité : l'auteur approuve, puis on commite.
+  proposerRegles(redites, { at = new Date().toISOString().slice(0, 10) } = {}) {
+    const t = trier(redites);
+    const a = arbresDe(this.fiches());
+    const projets = new Map(this.fiches({ kind: 'project' }).map((p) => [p.id, p]));
+    const parFichier = new Map(); const sans = [];
+    for (const g of t.proposees) {
+      let fichier = null;
+      if (g.noeud.profil) fichier = a.profils.length === 1 ? path.join(path.dirname(a.profils[0].location), 'rules.yaml') : null;
+      else {
+        const p = projets.get(g.noeud.projet);
+        if (p?.location) {
+          let racine = racineArbre(p.location);
+          if (!racine) {
+            const index = path.join(p.location, 'arbre', 'index.md');
+            fs.mkdirSync(path.dirname(index), { recursive: true });
+            fs.writeFileSync(index, racineIndex({ nom: p.name, description: p.description || p.name, types: [], journal: null }));
+            racine = racineArbre(p.location);
+          }
+          fichier = path.join(racine.dossier, 'rules.yaml');
+        }
+      }
+      if (!fichier) { sans.push({ id: g.id, raison: g.noeud.profil ? `profil introuvable ou multiple (${a.profils.length})` : `projet sans dépôt connu : ${g.noeud.nom}` }); continue; }
+      if (!parFichier.has(fichier)) parFichier.set(fichier, []);
+      parFichier.get(fichier).push(regleProposee(g, at));
+    }
+    const ecrites = []; const deja = [];
+    for (const [fichier, regles] of parFichier) {
+      const e = ajouterRegles(fichier, regles);
+      ecrites.push(...e.ecrites.map((id) => ({ id, fichier }))); deja.push(...e.deja.map((id) => ({ id, fichier })));
+    }
+    return { ecrites, deja, sans_noeud: sans, a_trancher: t.a_trancher.map((g) => ({ id: g.id, consigne: g.consigne, contredit: g.contredit })), couvertes: t.couvertes.length };
   }
 
   arbre() {

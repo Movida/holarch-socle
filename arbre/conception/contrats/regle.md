@@ -3,10 +3,10 @@ type: contract
 title: Contrat — règle
 description: Une règle est une donnée attachée à un nœud ; elle s'hérite, se déroge explicitement, et s'applique par des adaptateurs selon son niveau.
 status: draft
-version: 0.3.0
+version: 0.4.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-controles-de-regles.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/decisions/2026-10-07-recolte.md]
 ---
 
 # Contrat — règle
@@ -14,7 +14,8 @@ links:
 ## 1. Forme
 
 Les règles d'un nœud vivent dans un fichier `rules.yaml` à côté de lui (ou dans son en-tête sous `rules:` pour une ou
-deux) ; le `rules.yaml` d'un dossier est celui de son `index.md`. Une règle sans `status` est un brouillon. Une règle
+deux) ; le `rules.yaml` d'un dossier est celui de son `index.md`. Une règle sans `status` est un brouillon ; `deprecated`
+la retire (refusée ou abandonnée) sans l'effacer, avec `deprecated: {by, at, why}`. Une règle
 porte la classification de son nœud. Une règle de type transverse dit un comportement ; ce qui varie
 d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`config`), que la règle cite. Exemple fictif :
 
@@ -32,6 +33,8 @@ d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`conf
   approved: { by: human:alice, at: 2026-10-03 }
   source: harvest               # written · harvest · decision
   replaces: [note-de-memoire]   # ce que la règle remplace (récolte) ; facultatif
+  harvest: { at: 2026-10-07, sessions: 3, projects: [demo], first: 2026-09-12, last: 2026-10-02, refs: [<session>, memoire:<fiche>] }
+                                # d'où vient une règle récoltée : sources par référence, jamais par citation ; facultatif
   review_after: 2027-04-01
 ```
 
@@ -74,7 +77,11 @@ les fichiers précédents en place. Seule une règle `stable` se matérialise.
 
 ## 4. Évolution
 
-- **Récolte** : une consigne répétée par l'humain devient une règle proposée (`status: draft`, `source: harvest`).
+- **Récolte** (décision `recolte`) : une consigne répétée par l'humain (deux sources ou deux projets) devient une règle
+  proposée (`status: draft`, `source: harvest`, `harvest`) au plus bas nœud commun de ses sources : le projet si toutes
+  en viennent, sinon le profil. Une consigne déjà dite par une règle, proposée ou refusée, n'est pas reproposée ; une
+  consigne qui en contredit une autre, ou contredit une règle, est une question pour l'humain, pas une règle. Une règle
+  refusée passe en `deprecated` et reste connue de la récolte.
 - **Remontée** : une règle présente chez deux enfants ou plus est proposée au parent ; une règle du parent dérogée par
   la plupart de ses enfants est proposée à la descente.
 - Une règle a une date de revue ; une règle jamais déclenchée depuis longtemps est proposée au retrait.

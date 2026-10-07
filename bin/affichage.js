@@ -76,6 +76,13 @@ export function recolte(r) {
   l.push(`secrets possibles retirés avant l'envoi : ${r.secrets_retires}`);
   if (r.a_blanc) return [...l, 'à blanc : rien n’est envoyé'].join('\n');
   l.push(`${r.groupes} groupe(s) rendu(s) par ${r.modele}${r.cout_usd != null ? ` (${r.cout_usd.toFixed(3)} $)` : ''}, ${r.redites.length} redite(s) :`);
-  for (const g of r.redites) l.push(`  ${g.couverte_par ? `[couverte : ${g.couverte_par}]` : '[nouvelle]'} ${g.consigne}\n      ${g.sessions} session(s), ${g.projets.length ? `projets ${g.projets.join(', ')}` : 'aucun projet'}${g.hors_projet ? `, ${g.hors_projet} hors projet` : ''}${g.memoires ? `, ${g.memoires} mémoire(s)` : ''} ; ${g.premiere?.slice(0, 10)} → ${g.derniere?.slice(0, 10)}`);
+  for (const g of r.redites) l.push(`  ${g.couverte_par ? `[couverte : ${g.couverte_par}]` : g.contredit?.length ? `[contredit ${g.contredit.join(', ')}]` : `[nouvelle${g.id ? ` : ${g.id}` : ''}]`} ${g.consigne}\n      ${g.sessions} session(s), ${g.projets.length ? `projets ${g.projets.join(', ')}` : 'aucun projet'}${g.hors_projet ? `, ${g.hors_projet} hors projet` : ''}${g.memoires ? `, ${g.memoires} mémoire(s)` : ''} ; ${g.premiere?.slice(0, 10)} → ${g.derniere?.slice(0, 10)}`);
+  const p = r.propositions;
+  if (p) {
+    l.push(`règles proposées (brouillon, à approuver) : ${p.ecrites.length}${p.deja.length ? `, ${p.deja.length} déjà présente(s)` : ''}`);
+    for (const e of p.ecrites) l.push(`  ${e.id} → ${e.fichier}`);
+    for (const e of p.sans_noeud) l.push(`  ${e.id} : non écrite, ${e.raison}`);
+    if (p.a_trancher.length) l.push(`à trancher par l'auteur (contradictions) : ${p.a_trancher.length}`, ...p.a_trancher.map((g) => `  ${g.consigne} (contredit ${g.contredit.join(', ') || '?'})`));
+  }
   return l.join('\n');
 }

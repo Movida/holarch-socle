@@ -55,7 +55,7 @@ const AIDE = `holarch — socle autour des agents d'IA
                        audit de conformité : contrôles des règles bloquantes et vérifiées, fichiers générés, crochet,
                        permissions, mémoires remplacées ; les écarts apparus ou résolus vont au journal (aussi après
                        chaque inventaire)
-  holarch recolte [--jours N] [--jusqua AAAA-MM-JJ] [--modele m] [--budget usd] [--a-blanc]
+  holarch recolte [--jours N] [--jusqua AAAA-MM-JJ] [--modele m] [--budget usd] [--a-blanc | --proposer]
                        consignes de l'auteur redites d'une session ou d'un projet à l'autre (messages et mémoires de
                        retour de la période, 30 jours par défaut), regroupées par sens par claude -p, comptées par le
                        socle ; les candidats où gitleaks voit un secret ne partent pas ; --a-blanc : les candidats seuls
@@ -71,7 +71,7 @@ const AIDE = `holarch — socle autour des agents d'IA
 Options : --json (sortie brute), --help. Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
 // Une option inconnue arrête la commande avant qu'elle n'agisse : lancée « pour voir l'aide », elle n'écrit rien.
-const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
+const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc', '--proposer'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
 if (args.includes('--help') || args.includes('-h')) { console.log(AIDE); process.exit(0); }
 const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIONS[cmd] || []).includes(a));
 if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
@@ -175,7 +175,8 @@ switch (cmd) {
       if (!(jours > 0)) throw new Error('--jours attend un nombre de jours');
       const depuis = new Date((jusqua ? Date.parse(jusqua) : Date.now()) - jours * 864e5).toISOString();
       const s = socle(); s.indexer();
-      const r = s.recolte({ depuis, jusqua, aBlanc: args.includes('--a-blanc'), modele: val('--modele'), budget: val('--budget') });
+      const r = s.recolte({ depuis, jusqua, aBlanc: args.includes('--a-blanc'), proposer: args.includes('--proposer'), modele: val('--modele'), budget: val('--budget') });
+      if (r.propositions?.ecrites.length) { await s.inventaire(); s.indexer(); }
       afficher(json ? r : affichage.recolte(r));
     } catch (e) { console.error(`holarch recolte : ${e.message}`); process.exit(1); }
     break; }

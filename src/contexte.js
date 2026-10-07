@@ -74,6 +74,9 @@ export function resume(s, dossier, { max = 1500 } = {}) {
   if (v.questions.length) l.push(`Questions ouvertes : ${v.questions.map((q) => q.id).join(', ')}.`);
   if (v.idees.length) l.push(`Idées pour l’étape ${v.etape.numero} (\`arbre/idees.md\`) : ${v.idees.map((i) => i.id).join(', ')}.`);
   if (v.decisions.length) l.push(`Décisions à approuver : ${v.decisions.map((d) => court(d.titre, 60)).join(' ; ')}.`);
+  // Règles proposées (récolte, décision recolte) que ce projet recevrait : celles de son nœud et de ses couches.
+  const proposees = s.regles({ projet: p.id }).regles.filter((e) => e.statut === 'draft' && !e.derogee);
+  if (proposees.length) l.push(`Règles à approuver : ${proposees.map((e) => e.id).join(', ')} (page « Règles »).`);
   // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente.
   const direct = v.chemin && fs.existsSync(v.chemin);
   const t = direct ? etatDepot(v.chemin) : v.technique;

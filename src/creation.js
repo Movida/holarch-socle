@@ -40,7 +40,7 @@ ${journal ? `
 ` : ''}`;
 }
 
-function racineIndex({ nom, description, types, journal }) {
+export function racineIndex({ nom, description, types, journal }) {
   return `---
 type: guideline
 id: ${nom}
