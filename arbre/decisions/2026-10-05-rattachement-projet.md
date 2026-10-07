@@ -17,7 +17,7 @@ L'audit du code, fait après la tranche 2 de l'étape 3, trouve six façons de d
 
 | Où | Ce qui désigne le projet |
 |---|---|
-| événements importés (`data.projet`), colonne `projet` de l'index, `consommation` par projet, filtre `projet` des sessions | nom du **dossier de départ** de la session (`morva`, `src`… : souvent pas un dépôt) |
+| événements importés (`data.projet`), colonne `projet` de l'index, `consommation` par projet, filtre `projet` des sessions | nom du **dossier de départ** de la session (`utilisateur`, `src`… : souvent pas un dépôt) |
 | `session.finished` (`data.depots`), vue Projets, filtre `depot` | **identifiant** du projet du catalogue |
 | skills, agents, hooks, MCP, consignes d'un dépôt (`attributes.projet`) | nom du dossier du dépôt |
 | mémoires (`attributes.projet`) | nom du dossier de départ lu dans une transcription (vu d'un conteneur : autre chemin) |
