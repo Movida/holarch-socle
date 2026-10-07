@@ -59,3 +59,11 @@ export function creation(r) {
   }
   return sortie.join('\n');
 }
+
+export const service = (e) => (e.copie
+  ? `copie en service : ${e.copie.commit} (posée le ${e.copie.pose_le.slice(0, 16).replace('T', ' ')}, source ${e.copie.source})${e.retard ? ` ; ${e.retard} commit(s) de retard sur HEAD (holarch service poser)` : e.retard === 0 ? ' ; à jour' : ''}\ncopies gardées : ${e.copies.join(', ')}`
+  : `aucune copie de service : les points d'entrée lancent ${e.binaire} (holarch service poser)`);
+
+export const posee = (r) => [`copie en service : ${r.commit}${r.nouvelle ? ' (nouvelle : tests verts, export, npm ci)' : ' (déjà présente : lien basculé)'}${r.precedent ? ` ; précédente gardée : ${r.precedent}` : ''}${r.supprimees.length ? ` ; supprimée(s) : ${r.supprimees.join(', ')}` : ''}`,
+  ...r.points.map((p) => `  ${p.point} : ${p.etat}${p.message ? ` — ${p.message}` : ''}`),
+  'garde avant commit et crochets de Claude Code : holarch regles appliquer (l\'audit signale ceux restés sur la copie de travail)'].join('\n');

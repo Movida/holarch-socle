@@ -38,6 +38,12 @@ function services({ unites, systemctl }) {
       lancer(['daemon-reload']); lancer(['enable', '--now', path.basename(f)]);
       if (avant != null && avant !== texte) lancer(['restart', path.basename(f)]);
     },
+    // Écrit une unité sans la démarrer (le service d'un minuteur), même garde que `poser` ; vrai si le texte a changé.
+    ecrire(f, texte) {
+      if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+      if (fs.existsSync(f) && fs.readFileSync(f, 'utf8') === texte) return false;
+      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(f, texte); return true;
+    },
     retirer(f, absente) {
       if (!fs.existsSync(f)) throw new Error(absente);
       if (!geree(f)) throw new Error(`${f} n'a pas été écrit par HOLARCH : rien n'est retiré`);
@@ -158,5 +164,57 @@ export function creerInterface({ holarch, accueil }, { unites = UNITES, systemct
     etat: () => ({ unite: UNITE_INTERFACE, presente: fs.existsSync(f), geree: sv.geree(f), actif: sv.actif(f) }),
     activer() { sv.poser(f, uniteInterface({ node, holarch, accueil })); return { unite: UNITE_INTERFACE }; },
     desactiver() { sv.retirer(f, 'interface en service : non activée'); return { unite: UNITE_INTERFACE }; },
+    // Après une pose de la copie de service : réécrit l'unité si elle est de HOLARCH, et la relance (même code chargé
+    // sinon) ; absente ou écrite à la main, rien n'est touché.
+    relancer() {
+      if (!fs.existsSync(f)) return { unite: UNITE_INTERFACE, etat: 'absente' };
+      if (!sv.geree(f)) return { unite: UNITE_INTERFACE, etat: 'non écrite par HOLARCH : à relancer à la main' };
+      const avant = fs.readFileSync(f, 'utf8'); const texte = uniteInterface({ node, holarch, accueil });
+      sv.poser(f, texte); if (avant === texte) sv.lancer(['restart', UNITE_INTERFACE]);
+      return { unite: UNITE_INTERFACE, etat: 'relancée' };
+    },
+  };
+}
+
+// Inventaire et import toutes les heures (décision copie-de-service) : un minuteur marqué et son service, qui lancent
+// la copie de service. Le minuteur posé à la main avant cette décision ne porte pas la MARQUE : il n'est pas touché.
+const UNITE_IMPORT = 'holarch-import';
+export function uniteImport({ node = process.execPath, holarch, accueil }) {
+  return `${MARQUE} : inventaire et import du journal, lancés par ${UNITE_IMPORT}.timer. Réécrit par \`holarch service poser\`.
+[Unit]
+Description=HOLARCH : inventaire et import du journal
+
+[Service]
+Type=oneshot
+Environment=${systemd(`HOLARCH_HOME=${accueil}`)}
+Environment=${systemd(`PATH=${pathService(node)}`)}
+ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} inventaire
+ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} importer
+`;
+}
+const MINUTEUR_IMPORT = `${MARQUE} : inventaire et import toutes les heures. Réécrit par \`holarch service poser\`.
+[Unit]
+Description=HOLARCH : inventaire et import toutes les heures
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+`;
+
+export function creerImport({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
+  const sv = services({ unites, systemctl });
+  const f = path.join(unites, `${UNITE_IMPORT}.service`); const m = path.join(unites, `${UNITE_IMPORT}.timer`);
+  return {
+    poser() {
+      // Les deux gardes d'abord : rien ne s'écrit si l'une des unités est de la main de l'auteur.
+      for (const x of [f, m]) if (fs.existsSync(x) && !sv.geree(x)) throw new Error(`${x} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+      const change = sv.ecrire(f, uniteImport({ node, holarch, accueil }));
+      if (change) sv.lancer(['daemon-reload']);
+      sv.poser(m, MINUTEUR_IMPORT);
+      return { unite: `${UNITE_IMPORT}.timer`, etat: change ? 'posé' : 'inchangé' };
+    },
   };
 }

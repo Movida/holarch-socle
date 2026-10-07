@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { projetsDe, localiserProjet } from './projets.js';
 import { etatDepot, integrationContinue } from './inventaire/depots-git.js';
+import { copieEnService, retard } from './service.js';
 
 /**
  * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), lu à la fin de
@@ -77,6 +78,11 @@ export function resume(s, dossier, { max = 1500 } = {}) {
   const direct = v.chemin && fs.existsSync(v.chemin);
   const t = direct ? etatDepot(v.chemin) : v.technique;
   if (t.fichiers_modifies || t.en_avance) l.push(`Dépôt : ${t.fichiers_modifies} fichier(s) non commité(s), ${t.en_avance || 0} commit(s) non poussé(s).`);
+  // La copie que lancent les services, quand ce projet en est la source (décision copie-de-service).
+  const copie = s.config?.accueil ? copieEnService(s.config.accueil) : null;
+  if (direct && copie?.source && path.resolve(copie.source) === path.resolve(v.chemin)) {
+    const n = retard(copie); if (n) l.push(`Copie de service : ${n} commit(s) de retard sur HEAD (\`holarch service poser\`).`);
+  }
   const ci = direct ? integrationContinue(v.chemin) : v.technique.integration_continue;
   if (ci) l.push(ci.length ? `Intégration continue : ${ci.join(', ')} (lire son résultat après un envoi).` : 'Intégration continue : aucune (rien à lire après un envoi).');
   const texte = l.join('\n');

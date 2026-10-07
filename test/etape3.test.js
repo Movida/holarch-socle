@@ -807,3 +807,72 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     for (const [k, v] of Object.entries(avant)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
   }
 });
+
+// Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
+import { creerService, binaireService, copieEnService } from '../src/service.js';
+
+test('copie de service : posée d\'un commit vérifié, bascule, retour arrière, points d\'entrée, copie de travail cassée sans effet', () => {
+  const src = tmp(); const accueil = tmp(); const unites = tmp(); const home = tmp();
+  const g = (...a) => { const r = spawnSync('git', ['-C', src, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+  const version = (n) => { fs.mkdirSync(path.join(src, 'bin'), { recursive: true }); fs.writeFileSync(path.join(src, 'bin', 'holarch.js'), `console.log('v${n}');\n`); g('add', '-A'); g('commit', '-qm', `v${n}`); return g('rev-parse', '--short=12', 'HEAD'); };
+  g('init', '-q'); fs.writeFileSync(path.join(src, 'package.json'), '{}\n');
+  const c1 = version(1);
+  fs.writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ autre: 1, mcpServers: { holarch: { command: 'node', args: ['--no-warnings', '/ancien/bin/holarch.js', 'mcp'] } } }));
+  let testsVerts = false; const appels = [];
+  const lancer = (cmd, args, o) => {
+    if (cmd !== 'npm') return spawnSync(cmd, args, o);
+    appels.push(`${args[0]} ${o.cwd}`);
+    if (args[0] === 'ci') fs.mkdirSync(path.join(o.cwd, 'node_modules'));
+    return { status: args[0] === 'test' && !testsVerts ? 1 : 0, stdout: '', stderr: args[0] === 'test' ? '1 test rouge' : '' };
+  };
+  const systemctl = (args) => ({ status: 0, stdout: '', stderr: '' });
+  const sv = creerService({ accueil, comptes: [{ nom: 'perso', home }] }, { source: src, unites, systemctl, npm: 'npm', lancer, node: '/opt/node/bin/node' });
+
+  assert.equal(sv.etat().copie, null);
+  assert.equal(binaireService(accueil), path.resolve('bin/holarch.js'), 'sans copie : le code qui s\'exécute');
+  assert.throws(() => sv.poser(), /npm test rouge/); assert.ok(!fs.existsSync(path.join(accueil, 'service', c1)));
+  testsVerts = true;
+  fs.writeFileSync(path.join(src, 'brouillon.txt'), 'x');
+  assert.throws(() => sv.poser(), /non propre/); fs.rmSync(path.join(src, 'brouillon.txt'));
+
+  const r1 = sv.poser();
+  assert.equal(r1.commit, c1); assert.ok(r1.nouvelle);
+  assert.deepEqual(appels.map((a) => a.split(' ')[0]), ['test', 'test', 'ci'], 'les tests dans la source, npm ci dans la copie');
+  assert.equal(appels.at(-1), `ci ${path.join(accueil, 'service', `${c1}.pose-${process.pid}`)}`);
+  const bin = binaireService(accueil);
+  assert.equal(bin, path.join(accueil, 'service', 'courant', 'bin', 'holarch.js'));
+  assert.equal(fs.readlinkSync(path.join(accueil, 'service', 'courant')), c1, 'lien relatif');
+  assert.equal(copieEnService(accueil).commit, c1); assert.ok(!fs.existsSync(path.join(accueil, 'service', c1, '.git')), 'un export, pas un dépôt');
+  // Points d'entrée : interface absente laissée, minuteur d'import marqué sur le lien, entrée MCP réécrite (le reste gardé).
+  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['mcp perso', 'posé']]);
+  const unite = fs.readFileSync(path.join(unites, 'holarch-import.service'), 'utf8');
+  assert.match(unite, /^# Écrit par HOLARCH/); assert.ok(unite.includes(`"${bin}" inventaire`)); assert.ok(fs.existsSync(path.join(unites, 'holarch-import.timer')));
+  const cfg = JSON.parse(fs.readFileSync(path.join(home, '.claude.json'), 'utf8'));
+  assert.deepEqual(cfg.mcpServers.holarch.args, ['--no-warnings', bin, 'mcp']); assert.equal(cfg.autre, 1);
+
+  // Critère : la copie de travail cassée, la copie en service tourne.
+  fs.writeFileSync(path.join(src, 'bin', 'holarch.js'), 'console.log(\n');
+  assert.equal(spawnSync(process.execPath, [bin], { encoding: 'utf8' }).stdout, 'v1\n');
+  g('checkout', '-q', '--', '.');
+
+  const c2 = version(2); const c3 = version(3);
+  assert.equal(sv.etat().retard, 2);
+  assert.throws(() => sv.poser(c2), /n'est pas HEAD/, 'une copie neuve ne se tire que de HEAD');
+  const r3 = sv.poser();
+  assert.deepEqual([r3.commit, r3.precedent, r3.supprimees], [c3, c1, []]);
+  assert.equal(r3.points.find((p) => p.point === 'mcp perso').etat, 'inchangé', 'le chemin du lien ne change pas d\'une pose à l\'autre');
+  fs.writeFileSync(path.join(src, 'brouillon.txt'), 'x');
+  const retour = sv.poser(c1);
+  assert.deepEqual([retour.commit, retour.nouvelle, retour.precedent], [c1, false, c3], 'retour arrière sans condition');
+  assert.equal(spawnSync(process.execPath, [bin], { encoding: 'utf8' }).stdout, 'v1\n');
+  fs.rmSync(path.join(src, 'brouillon.txt'));
+  const c4 = version(4); const r4 = sv.poser();
+  assert.deepEqual([r4.commit, r4.precedent, r4.supprimees], [c4, c1, [c3]], 'gardées : la posée et la précédente');
+  assert.deepEqual(sv.etat().copies.sort(), [c1, c4].sort()); assert.equal(sv.etat().retard, 0);
+
+  // Un minuteur posé à la main n'est jamais touché ; le reste passe.
+  fs.writeFileSync(path.join(unites, 'holarch-import.timer'), '[Timer]\nOnCalendar=daily\n');
+  const r5 = sv.poser(c1);
+  assert.equal(r5.points.find((p) => p.point === 'import').etat, 'erreur');
+  assert.equal(fs.readFileSync(path.join(unites, 'holarch-import.timer'), 'utf8'), '[Timer]\nOnCalendar=daily\n');
+});

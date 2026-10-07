@@ -1,14 +1,15 @@
 // Matérialisation de la règle effective (contrat règle §2 ; décisions arbre-des-regles et controles-de-regles) : ce qui
 // s'écrit pour Claude Code et pour git, au compte et par projet. Une seule définition : `holarch regles appliquer`
 // l'exécute (`ecrire: true`), l'audit la lit à blanc (`ecrire: false`) et en tire ses écarts.
-import { fileURLToPath } from 'node:url';
 import { planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions, reglagesVoulus, appliquerReglages } from './regles-claude-code.js';
 import { crochetDe, poserCrochet } from './garde-git.js';
 import { poserIdentite } from './identite-git.js';
 import { identiteDeclaree } from './controles.js';
+import { binaireService } from './service.js';
+import { accueil } from './config.js';
 
-/** La ligne de commande que le crochet de git appelle. */
-export const BIN = fileURLToPath(new URL('../bin/holarch.js', import.meta.url));
+/** La ligne de commande qu'appellent le crochet de git et ceux de Claude Code : la copie de service si elle est posée. */
+export const BIN = binaireService(accueil());
 
 /**
  * Compte : pour chaque compte Claude Code du site, les fichiers de règles (`<compte>/rules/holarch/`), les lectures

@@ -10,6 +10,7 @@ import { materialiserCompte, materialiserProjet, BIN } from '../src/materialisat
 import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
 import { creerProjet } from '../src/creation.js';
+import { creerService } from '../src/service.js';
 import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
@@ -32,6 +33,11 @@ const AIDE = `holarch — socle autour des agents d'IA
   holarch interface [activer|desactiver]
                        l'interface web en service utilisateur (pour un relais HTTPS d'un réseau privé, Tailscale Serve
                        par exemple, dont le nom se déclare dans web.hotes_admis) ; sans argument, son état
+  holarch service [poser [<commit>]]
+                       copie de service : ce que lancent l'import horaire, l'interface, les crochets, le serveur MCP
+                       et la garde (une copie du socle tirée d'un commit, jamais la copie de travail) ; sans argument,
+                       la copie en service et son retard ; poser : HEAD d'une copie de travail propre aux tests verts,
+                       ou une copie déjà posée (retour arrière), puis relance de l'interface et de l'import
   holarch regles [<projet>]
                        règle effective d'un projet (profil, contexte, types, projet ; provenance, où Claude Code la
                        lit) ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles
@@ -92,6 +98,15 @@ switch (cmd) {
       else if (action === 'desactiver') afficher(json ? i.desactiver() : `interface retirée du service : ${i.desactiver().unite}`);
       else { const e = i.etat(); afficher(json ? e : !e.presente ? 'interface hors service (holarch interface activer)' : `${e.actif ? 'active' : 'arrêtée'} : ${e.unite}${e.geree ? '' : ' (non écrite par HOLARCH)'}`); }
     } catch (e) { console.error(`holarch interface : ${e.message}`); process.exit(1); }
+    break; }
+  case 'service': {
+    const config = chargerConfig(); const [action, ref] = args.filter((a) => !a.startsWith('--'));
+    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}) });
+    try {
+      if (action === 'poser') { const r = sv.poser(ref); afficher(json ? r : affichage.posee(r)); if (r.points.some((p) => p.etat === 'erreur')) process.exit(1); }
+      else if (action) throw new Error(`action inconnue : ${action}`);
+      else { const e = sv.etat(); afficher(json ? e : affichage.service(e)); }
+    } catch (e) { console.error(`holarch service : ${e.message}`); process.exit(1); }
     break; }
   case 'regles': {
     const s = socle(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
