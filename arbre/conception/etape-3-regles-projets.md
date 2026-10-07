@@ -373,7 +373,15 @@ jour seuls et ne sont pas suivis. Un projet que le contexte ne déclare pas n'es
   Tailscale Serve publié sur le poste personnel ; 2 tests.
 - **Ouverture de la tranche 5 (2026-10-07)** : veille de sécurité et de versions, décision `veille-securite-versions`
   approuvée sur les choix de l'auteur ; osv-scanner 2.6.0 installé (somme de contrôle vérifiée).
+- **Fait (2026-10-07)** : tranche 5, points 1 à 4. Contrôles `dependances-vulnerables` (seuil, gravité déclarée à défaut
+  de score, un écart par paquet et version) et `outils-a-jour` (portée site, au compte) ; résultats gardés un jour ;
+  3 tests. Règles `dependances-saines` et `outils-a-jour` approuvées, outils suivis listés au profil, trois projets à
+  dépendances déclarés au contexte perso (deux dossiers sans dépôt git restent hors d'atteinte). Premier audit réel :
+  27 paquets à failles élevées ou critiques (23 dans un projet, 3 et 1 dans deux autres), outils à jour ; une seconde
+  exécution ne réinterroge rien ; écarts sur la carte des projets, y compris depuis le téléphone. Critère : reste à
+  constater qu'une mise à jour qui corrige une faille résout son écart (le mécanisme de résolution est celui de la
+  tranche 4, déjà éprouvé).
 - **Reste** :
-  1. **Tranche 5** : points 1 à 4, puis son critère.
+  1. **Tranche 5** : constater la résolution d'un écart à la première mise à jour de dépendances.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

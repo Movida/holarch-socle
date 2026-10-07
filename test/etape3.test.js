@@ -465,7 +465,7 @@ test('contrôles : dépendances vulnérables au-dessus du seuil, gardées une jo
   ecrire(faux, `#!/bin/sh\necho "$@" >> '${appels}'\ncat '${path.join(path.dirname(faux), 'sortie.json')}'\nexit 1\n`); fs.chmodSync(faux, 0o755);
   const ctx = { depot: d, osv: faux, cache: tmp(), config: {} };
   const r = executer('dependances-vulnerables', ctx, 'audit');
-  assert.deepEqual(r.ecarts.map((e) => [e.fichier, e.cle, e.n]), [['package-lock.json', 'package-lock.json:paquet-a', 2], ['package-lock.json', 'package-lock.json:paquet-c', 1]], 'seuil 7 ; à défaut de score, la gravité déclarée');
+  assert.deepEqual(r.ecarts.map((e) => [e.fichier, e.cle, e.n]), [['package-lock.json', 'package-lock.json:paquet-a@1.0.0', 2], ['package-lock.json', 'package-lock.json:paquet-c@3.0.0', 1]], 'seuil 7 ; à défaut de score, la gravité déclarée');
   assert.match(r.ecarts[0].message, /pire 9\.8, GHSA-bbbb/);
   assert.match(fs.readFileSync(appels, 'utf8'), /-L package-lock\.json -L web\/uv\.lock --format json/);
   executer('dependances-vulnerables', ctx, 'audit');

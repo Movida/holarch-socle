@@ -167,7 +167,7 @@ function dependancesVulnerables(ctx) {
           return { id: g.ids?.[0], n };
         }).filter((g) => g.n >= seuil).sort((a, b) => b.n - a.n);
         if (!gravites.length) continue;
-        ecarts.push({ fichier, ligne: null, cle: `${fichier}:${p.package.name}`, n: gravites.length,
+        ecarts.push({ fichier, ligne: null, cle: `${fichier}:${p.package.name}@${p.package.version}`, n: gravites.length,
           message: `${gravites.length} faille(s) de gravité ≥ ${seuil} dans ${p.package.name} ${p.package.version} (pire ${gravites[0].n}, ${gravites[0].id})` });
       }
     }
