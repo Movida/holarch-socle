@@ -640,7 +640,8 @@ projet (§5.8).
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande. Migration des quatre projets non
-     déclarés : projet par projet, avec l'accord de l'auteur (`--a-blanc` d'abord). okf-phoenix et okf-bundle-template périmés selon l'auteur, à supprimer en local et sur GitHub (compte
+     déclarés : projet par projet, avec l'accord de l'auteur (`--a-blanc` d'abord). Envoi en attente de l'accord de
+     l'auteur : 2 commits du profil, 2 du socle et ceux qui suivent. okf-phoenix et okf-bundle-template périmés selon l'auteur, à supprimer en local et sur GitHub (compte
      perso). okf-phoenix : clone propre, sans dépendant ; suppression refusée par la permission de l'outil, à lancer
      par l'auteur (bundle de sauvegarde, puis `gh repo delete --yes`, puis le dossier).
      okf-bundle-template : gardé (auteur, 2026-10-07), encore utilisé par un projet actif ; ses 4 commits publics portent

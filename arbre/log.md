@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Idée de l'auteur** (I24, boîte à idées) : réglages des dépôts local et distant paramétrables ; mesure : 8 dépôts
+  GitHub aux valeurs par défaut, seule la visibilité varie ; avis : pas avant un premier réglage voulu. Envoi de 4
+  commits (profil, socle) et suppression d'okf-phoenix en attente de l'auteur.
+
 * **Tranche 10 livrée** (création de projet) : `holarch projet creer`, huit étapes rejouables, à blanc sans écriture ;
   clé de déploiement en geste réservé (choix de l'auteur) ; clé `creation` (contrat config 0.3.0) portée par les types ;
   critère au prochain vrai projet. Règle `lecon-de-cloture` inversée (décision du profil approuvée), écrite au compte.
