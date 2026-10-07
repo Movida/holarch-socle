@@ -221,8 +221,12 @@ Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils 
   `methode-holarch` (7 règles) et `depot-public` (1), règles propres au socle (6), profil (4 règles récoltées,
   contexte personnel déclarant les deux projets), type déclaré à la racine du second projet (son vérificateur passe,
   son journal le dit). Toutes les règles sont en brouillon : rien n'est encore écrit pour Claude Code.
+- **Fait (2026-10-07)** : les 18 règles approuvées par l'auteur, une à une, sur avis : trois retouches pour retirer des
+  doublons lus à chaque tour (`fait-inconnu-marque` perd la phrase sur les choix de méthode, déjà dans `avis-argumente` ;
+  `principes` perd celle sur les contraintes, déjà dans `contrainte-changee-par-decision`) et déclarer la mémoire que
+  `coherence-globale` remplace. Règle effective : 18 pour le socle, 11 pour le second projet, aucune proposée.
 - **Reste** :
-  1. **Tranche 3, critère** : approbation des règles par l'auteur, `holarch regles appliquer` sur les deux projets,
-     retrait des mémoires remplacées (accord de l'auteur), `CLAUDE.md` du socle réduit à ce qui lui est propre.
+  1. **Tranche 3, critère** : `holarch regles appliquer` sur les deux projets, retrait des mémoires remplacées (accord
+     de l'auteur), `CLAUDE.md` du socle réduit à ce qui lui est propre.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
      de conformité (§5.2, §5.8), à spécifier à leur ouverture.
