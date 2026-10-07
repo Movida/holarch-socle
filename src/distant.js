@@ -258,17 +258,52 @@ Persistent=true
 WantedBy=timers.target
 `;
 
-export function creerImport({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
+// Un service marqué et son minuteur, posés ensemble ; rien ne s'écrit si l'une des unités est de la main de l'auteur.
+function creerMinuteur(nom, unite, minuteur, { unites, systemctl }) {
   const sv = services({ unites, systemctl });
-  const f = path.join(unites, `${UNITE_IMPORT}.service`); const m = path.join(unites, `${UNITE_IMPORT}.timer`);
+  const f = path.join(unites, `${nom}.service`); const m = path.join(unites, `${nom}.timer`);
   return {
     poser() {
-      // Les deux gardes d'abord : rien ne s'écrit si l'une des unités est de la main de l'auteur.
       for (const x of [f, m]) if (fs.existsSync(x) && !sv.geree(x)) throw new Error(`${x} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
-      const change = sv.ecrire(f, uniteImport({ node, holarch, accueil }));
+      const change = sv.ecrire(f, unite);
       if (change) sv.lancer(['daemon-reload']);
-      sv.poser(m, MINUTEUR_IMPORT);
-      return { unite: `${UNITE_IMPORT}.timer`, etat: change ? 'posé' : 'inchangé' };
+      sv.poser(m, minuteur);
+      return { unite: `${nom}.timer`, etat: change ? 'posé' : 'inchangé' };
     },
   };
+}
+
+export function creerImport({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
+  return creerMinuteur(UNITE_IMPORT, uniteImport({ node, holarch, accueil }), MINUTEUR_IMPORT, { unites, systemctl });
+}
+
+// Récolte chaque semaine (décision recolte, accord de l'auteur du 2026-10-08) : les redites nouvelles deviennent des
+// règles brouillon, que la reprise annonce. Le lundi matin ; un poste éteint la rattrape au démarrage.
+const UNITE_RECOLTE = 'holarch-recolte';
+export function uniteRecolte({ node = process.execPath, holarch, accueil }) {
+  return `${MARQUE} : récolte des consignes redites, lancée par ${UNITE_RECOLTE}.timer. Réécrit par \`holarch service poser\`.
+[Unit]
+Description=HOLARCH : récolte des consignes redites
+
+[Service]
+Type=oneshot
+Environment=${systemd(`HOLARCH_HOME=${accueil}`)}
+Environment=${systemd(`PATH=${pathService(node)}`)}
+ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} recolte --proposer
+ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} inventaire
+`;
+}
+const MINUTEUR_RECOLTE = `${MARQUE} : récolte chaque lundi matin. Réécrit par \`holarch service poser\`.
+[Unit]
+Description=HOLARCH : récolte chaque semaine
+
+[Timer]
+OnCalendar=Mon *-*-* 08:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+`;
+export function creerRecolte({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
+  return creerMinuteur(UNITE_RECOLTE, uniteRecolte({ node, holarch, accueil }), MINUTEUR_RECOLTE, { unites, systemctl });
 }

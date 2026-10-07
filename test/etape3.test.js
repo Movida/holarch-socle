@@ -866,9 +866,11 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
   assert.equal(fs.readlinkSync(path.join(accueil, 'service', 'courant')), c1, 'lien relatif');
   assert.equal(copieEnService(accueil).commit, c1); assert.ok(!fs.existsSync(path.join(accueil, 'service', c1, '.git')), 'un export, pas un dépôt');
   // Points d'entrée : interface absente laissée, minuteur d'import marqué sur le lien, entrée MCP réécrite (le reste gardé).
-  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['mcp perso', 'posé']]);
+  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['recolte', 'posé'], ['mcp perso', 'posé']]);
   const unite = fs.readFileSync(path.join(unites, 'holarch-import.service'), 'utf8');
   assert.match(unite, /^# Écrit par HOLARCH/); assert.ok(unite.includes(`"${bin}" inventaire`)); assert.ok(fs.existsSync(path.join(unites, 'holarch-import.timer')));
+  assert.ok(fs.readFileSync(path.join(unites, 'holarch-recolte.service'), 'utf8').includes(`"${bin}" recolte --proposer`));
+  assert.match(fs.readFileSync(path.join(unites, 'holarch-recolte.timer'), 'utf8'), /OnCalendar=Mon \*-\*-\* 08:00\nPersistent=true/);
   const cfg = JSON.parse(fs.readFileSync(path.join(home, '.claude.json'), 'utf8'));
   assert.deepEqual(cfg.mcpServers.holarch.args, ['--no-warnings', bin, 'mcp']); assert.equal(cfg.autre, 1);
 
