@@ -350,10 +350,11 @@ filet, réglages de Claude Code posés depuis le profil, mesure au tableau de bo
    remplacée (signalée) ; l'audit signale ce qui manque.
 5. **Mesure** : au tableau de bord, le contexte moyen relu par tour sur 7 et 30 jours, et les sessions de la semaine
    au-dessus du seuil, avec le conseil de passation.
-6. **Profil** : `claude_code: { reglages: { autoCompactWindow: 300000 }, passation: { seuil_tokens: 150000, reprise: true } }`.
+6. **Profil** : `claude_code: { passation: { seuil_tokens: 150000, reprise: true } }` (la compaction avancée à 300 000,
+   d'abord posée, est retirée à la demande de l'auteur : une compaction coûte des tokens).
 
 **Critère de la tranche.** Une session qui dépasse le seuil reçoit l'avis ; après `/clear`, la session suivante démarre
-avec le résumé du projet ; la compaction est réglée à 300 000 ; après une semaine, le contexte moyen par tour est mesuré
+avec le résumé du projet ; après une semaine, le contexte moyen par tour est mesuré
 et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
 
 **Limites connues.** La taille du contexte lue dans la transcription a un tour de retard. Seul l'auteur peut lancer
@@ -462,8 +463,13 @@ et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
   150 000, reprise au démarrage. Crochets essayés à la main sur la transcription de la session en cours : avis à 608 k
   tokens, résumé de reprise de 767 caractères. Référence de mesure au 2026-10-07 : contexte moyen relu par tour
   232 k sur 30 jours, 272 k sur 7 jours ; 10 sessions au-dessus du seuil cette semaine. Q5 résolue (registre de configuration).
+- **Fait (2026-10-07)** : avis de passation constaté dans une vraie session (617 k tokens). À la demande de l'auteur,
+  compaction avancée retirée (passation et `/clear` seulement), et deux règles de profil approuvées : `lecon-de-cloture`
+  (à la clôture d'un sujet, la demande qui aurait mené au résultat ; reprise dans l'avis de passation) et
+  `proposer-automatisations` (proposer sans exécuter). Proposé, non retenu pour l'instant : un « profil de travail »
+  (biographie) dans le profil privé.
 - **Reste** :
-  1. **Tranche 7, critère** : constater l'avis et la reprise dans une vraie session, puis mesurer le contexte moyen par
-     tour à une semaine (2026-10-14) contre la référence.
+  1. **Tranche 7, critère** : constater la reprise après un `/clear`, puis mesurer le contexte moyen par tour à une
+     semaine (2026-10-14) contre la référence.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

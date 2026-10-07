@@ -29,7 +29,7 @@ la taille du contexte et la lit dans la transcription (dernier usage d'une répo
 |---|---|
 | Alerte | au-delà de 150 000 tokens de contexte, chaque message reçoit un avis : finir la tâche en cours, mettre l'arbre à jour, proposer `/clear` ; l'auteur le voit aussi. Rien sous le seuil |
 | Reprise | au démarrage d'une session (nouvelle, après `/clear` ou une compaction), un résumé du projet de 1 500 caractères au plus : étape, dernier fait, reste, écarts ouverts, questions, décisions à approuver |
-| Filet | `autoCompactWindow` à 300 000 tokens |
+| Filet | aucun réglage : seule la compaction par défaut de Claude Code reste (amendement de l'auteur, 2026-10-07 : une compaction relit tout le contexte et coûte des tokens ; la passation suivie de `/clear` ne coûte rien) |
 | Où | section `claude_code` de la configuration du profil (`reglages`, `passation`), écrite au compte dans `~/.claude/settings.json` ; HOLARCH ne retire que ce qu'il a posé, et ne remplace jamais une valeur posée à la main |
 | Mesure | le tableau de bord montre le contexte moyen relu par tour (7 et 30 jours) et les sessions de la semaine au-dessus du seuil |
 

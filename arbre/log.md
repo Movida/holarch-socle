@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Passation** : avis constaté en vraie session ; compaction avancée retirée (avis de l'auteur) ; règles de profil
+  `lecon-de-cloture` et `proposer-automatisations` approuvées ; « profil de travail » proposé, non retenu pour l'instant.
+
 * **Économie du contexte** (tranche 7, décision `passation-sereine`, idée de l'auteur) : au-delà de 150 000 tokens,
   avis de passation (arbre à jour, puis `/clear`) ; reprise sur un résumé du projet au démarrage ; compaction à 300 000
   en filet ; réglages de Claude Code posés depuis le profil ; mesure au tableau de bord. Registre de configuration

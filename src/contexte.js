@@ -35,7 +35,8 @@ export function alerte({ transcription, seuil }) {
   return {
     tokens: t,
     agent: `Contexte de ${k(t)} tokens, relu à chaque tour (seuil de passation : ${k(seuil)}). Termine la tâche en cours, `
-      + 'mets à jour le journal et l’avancement du projet (passation), puis propose à l’auteur de lancer /clear : la session '
+      + 'mets à jour le journal et l’avancement du projet (passation), donne la leçon de clôture (la demande qui aurait mené '
+      + 'directement au résultat), puis propose à l’auteur de lancer /clear : la session '
       + 'suivante reprendra sur un résumé du projet.',
     auteur: `HOLARCH : contexte de ${k(t)} tokens relu à chaque tour — passation puis /clear conseillés.`,
   };
