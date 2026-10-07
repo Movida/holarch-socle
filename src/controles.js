@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const git = (depot, args, o = {}) => spawnSync('git', ['-C', depot, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...o });
 const TAILLE_MAX = 2 * 1024 * 1024;
@@ -87,12 +88,12 @@ function donneesPersonnelles(ctx, moment) {
 
 // ---------- secrets (gitleaks) ----------
 
-/** Chemin de gitleaks : réglage du site, sinon le PATH, sinon ~/.local/bin ; null s'il est absent. */
-export function trouverGitleaks(reglage = null) {
+/** Chemin d'un outil : réglage du site, sinon le PATH, sinon ~/.local/bin ; null s'il est absent. */
+export function trouverOutil(nom, reglage = null) {
   if (reglage) return fs.existsSync(reglage) ? reglage : null;
-  const r = spawnSync('sh', ['-c', 'command -v gitleaks'], { encoding: 'utf8' });
+  const r = spawnSync('sh', ['-c', `command -v ${nom}`], { encoding: 'utf8' });
   if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();
-  const l = path.join(os.homedir(), '.local', 'bin', 'gitleaks');
+  const l = path.join(os.homedir(), '.local', 'bin', nom);
   return fs.existsSync(l) ? l : null;
 }
 
@@ -126,6 +127,91 @@ function secrets(ctx, moment) {
   }) };
 }
 
+// ---------- résultats gardés une journée (sources réseau interrogées une fois par jour) ----------
+
+const JOUR = 864e5;
+function garde(ctx, nom, empreinte, calcul) {
+  const f = ctx.cache ? path.join(ctx.cache, `${nom}.json`) : null;
+  if (f) { try { const c = JSON.parse(fs.readFileSync(f, 'utf8')); if (c.empreinte === empreinte && Date.now() - Date.parse(c.at) < JOUR) return c.resultat; } catch { /* rien de gardé */ } }
+  const resultat = calcul();
+  if (f && !resultat.indisponible) { fs.mkdirSync(ctx.cache, { recursive: true }); fs.writeFileSync(f, JSON.stringify({ at: new Date().toISOString(), empreinte, resultat })); }
+  return resultat;
+}
+const hacher = (...x) => createHash('sha256').update(x.join('\0')).digest('hex').slice(0, 16);
+
+// ---------- dépendances vulnérables (osv-scanner) ----------
+
+const VERROUS = /(^|\/)(package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|uv\.lock|poetry\.lock|Pipfile\.lock|requirements[^/]*\.txt|go\.sum|Cargo\.lock|Gemfile\.lock|composer\.lock)$/;
+const GRAVITE_DECLAREE = { CRITICAL: 9, HIGH: 7, MODERATE: 4, MEDIUM: 4, LOW: 1 };
+
+function dependancesVulnerables(ctx) {
+  if (!ctx.osv) return { indisponible: 'osv-scanner absent (réglage controles.osv_scanner, PATH ou ~/.local/bin)' };
+  const r = git(ctx.depot, ['ls-files', '-z']);
+  if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
+  const verrous = listeZ(r).filter((f) => VERROUS.test(f) && fs.existsSync(path.join(ctx.depot, f)));
+  if (!verrous.length) return { ecarts: [] };
+  const seuil = +(ctx.config?.dependances?.seuil_cvss ?? 7);
+  const empreinte = hacher(seuil, ...verrous.map((f) => `${f}:${fs.readFileSync(path.join(ctx.depot, f)).length}:${hacher(fs.readFileSync(path.join(ctx.depot, f), 'utf8'))}`));
+  return garde(ctx, `osv-${hacher(ctx.depot)}`, empreinte, () => {
+    const o = spawnSync(ctx.osv, ['scan', 'source', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'], { cwd: ctx.depot, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 300e3 });
+    if (o.status === 128) return { ecarts: [] };
+    let d; try { if (o.status === 0 || o.status === 1) d = JSON.parse(o.stdout); } catch { /* sortie illisible */ }
+    if (!d) return { indisponible: `osv-scanner en échec : ${(o.stderr || o.error?.message || `code ${o.status}`).trim().split('\n').at(-1)}` };
+    const ecarts = [];
+    for (const res of d.results || []) {
+      const fichier = path.relative(ctx.depot, path.resolve(ctx.depot, res.source?.path || ''));
+      for (const p of res.packages || []) {
+        const gravites = (p.groups || []).map((g) => {
+          let n = parseFloat(g.max_severity);
+          if (Number.isNaN(n)) n = Math.max(-1, ...(p.vulnerabilities || []).filter((v) => g.ids?.includes(v.id)).map((v) => GRAVITE_DECLAREE[String(v.database_specific?.severity || '').toUpperCase()] ?? -1));
+          return { id: g.ids?.[0], n };
+        }).filter((g) => g.n >= seuil).sort((a, b) => b.n - a.n);
+        if (!gravites.length) continue;
+        ecarts.push({ fichier, ligne: null, cle: `${fichier}:${p.package.name}`, n: gravites.length,
+          message: `${gravites.length} faille(s) de gravité ≥ ${seuil} dans ${p.package.name} ${p.package.version} (pire ${gravites[0].n}, ${gravites[0].id})` });
+      }
+    }
+    return { ecarts };
+  });
+}
+
+// ---------- outils à jour (portée site) ----------
+
+const version = (t) => String(t || '').match(/(\d+)\.(\d+)\.(\d+)/)?.slice(1).map(Number) || null;
+const avant = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+const telecharger = (url) => {
+  const r = spawnSync('curl', ['-sSfL', '--max-time', '20', '-H', 'Accept: application/json', url], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.status !== 0) throw new Error(`${url} : ${(r.stderr || `code ${r.status}`).trim()}`);
+  return JSON.parse(r.stdout);
+};
+
+/** Dernière version publiée d'un outil : publication GitHub (`github: propriétaire/dépôt`) ou dernière LTS de node. */
+export function versionPubliee(o, lire = telecharger) {
+  if (o.github) return lire(`https://api.github.com/repos/${o.github}/releases/latest`).tag_name;
+  if (o.node === 'lts') return lire('https://nodejs.org/dist/index.json').find((x) => x.lts)?.version;
+  throw new Error(`source de version inconnue pour ${o.nom}`);
+}
+
+function outilsAJour(ctx) {
+  const outils = [].concat(ctx.config?.outils_surveilles || []).filter((o) => o?.nom);
+  if (!outils.length) return { indisponible: 'réglage outils_surveilles absent' };
+  let publiees;
+  try {
+    publiees = ctx.publiees || garde(ctx, 'versions-publiees', hacher(JSON.stringify(outils)), () => ({ versions: Object.fromEntries(outils.map((o) => [o.nom, versionPubliee(o)])) })).versions;
+  } catch (e) { return { indisponible: `version publiée introuvable : ${e.message.split('\n')[0]}` }; }
+  const ecarts = [];
+  for (const o of outils) {
+    const pub = version(publiees[o.nom]);
+    if (!pub) return { indisponible: `version publiée illisible pour ${o.nom}` };
+    const cmd = [].concat(o.commande || [o.nom]).map(String);
+    const r = spawnSync(cmd[0], cmd.slice(1), { encoding: 'utf8', timeout: 20e3 });
+    const inst = version(`${r.stdout || ''} ${r.stderr || ''}`);
+    if (r.error || !inst) ecarts.push({ fichier: null, ligne: null, cle: o.nom, message: `${o.nom} introuvable sur ce site` });
+    else if (avant(inst, pub) < 0) ecarts.push({ fichier: null, ligne: null, cle: o.nom, message: `${o.nom} ${inst.join('.')} installé, ${pub.join('.')} publié` });
+  }
+  return { ecarts };
+}
+
 // ---------- journal tenu ----------
 
 const JOURS = 30;
@@ -145,11 +231,16 @@ function journalTenu(ctx) {
     message: `${n} commit(s) changent l'arbre le ${d}, sans entrée de ce jour au journal` })) };
 }
 
-/** Registre : identifiant → { moments, executer(ctx, moment) }. */
+/**
+ * Registre : identifiant → { moments, executer(ctx, moment), portee }. Un contrôle de portée `site` regarde le poste, pas
+ * un dépôt : il s'exécute une fois, au compte.
+ */
 export const CONTROLES = {
   'donnees-personnelles': { moments: ['avant-commit', 'audit'], executer: donneesPersonnelles },
   secrets: { moments: ['avant-commit', 'audit'], executer: secrets },
   'journal-tenu': { moments: ['audit'], executer: journalTenu },
+  'dependances-vulnerables': { moments: ['audit'], executer: dependancesVulnerables },
+  'outils-a-jour': { moments: ['audit'], executer: outilsAJour, portee: 'site' },
 };
 
 /** Exécute un contrôle ; une erreur le rend non disponible, jamais conforme. */
@@ -157,6 +248,6 @@ export function executer(id, ctx, moment) {
   const c = CONTROLES[id];
   if (!c) return { indisponible: `contrôle inconnu : ${id}` };
   if (!c.moments.includes(moment)) return { ecarts: [], hors_moment: true };
-  if (!ctx.depot || !fs.existsSync(ctx.depot)) return { indisponible: 'dépôt absent de ce site' };
+  if (c.portee !== 'site' && (!ctx.depot || !fs.existsSync(ctx.depot))) return { indisponible: 'dépôt absent de ce site' };
   try { return c.executer(ctx, moment); } catch (e) { return { indisponible: e.message.split('\n')[0] }; }
 }

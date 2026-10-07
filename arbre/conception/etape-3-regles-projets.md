@@ -262,6 +262,46 @@ Code le ferait au niveau du système. Un commit fait ailleurs que dans le clone 
 l'audit. Le crochet fige les chemins de node et de HOLARCH à son écriture : vu d'un conteneur où ils n'existent pas, il
 laisse passer et le dit.
 
+## Tranche 5 — Veille de sécurité et de versions
+
+Décision `veille-securite-versions` (approuvée le 2026-10-07) : failles connues des dépendances et retard des outils du
+poste, en contrôles de l'audit portés par le profil, sources interrogées une fois par jour.
+
+**Constat (2026-10-07).** Six projets ont des dépendances verrouillées (npm, uv) ; l'un porte 104 avis de failles
+connues, toutes gravités confondues, que rien ne signalait. gitleaks et osv-scanner viennent d'être installés à la main,
+sans rien pour dire quand ils prennent du retard.
+
+**Livre.**
+
+1. **Contrôle `dependances-vulnerables`** (audit) : fichiers de verrouillage suivis par git (npm, pnpm, yarn, uv,
+   poetry, pip, Go, Cargo, Bundler, Composer), `osv-scanner scan source -L … --format json` (2.6.0, lu dans son aide :
+   0 rien, 1 failles, 128 aucun paquet, le reste une panne) ; un écart par paquet qui porte un groupe de failles de
+   gravité au moins égale au seuil (`dependances.seuil_cvss`, 7 par défaut ; à défaut de score, la gravité déclarée
+   `HIGH` ou `CRITICAL`). L'écart nomme le fichier de verrouillage, le paquet, sa version, le nombre de failles, la pire
+   et son identifiant.
+2. **Contrôle `outils-a-jour`** (audit, portée site) : pour chaque outil de `outils_surveilles` (profil :
+   `{nom, commande, github | node: lts}`), la version que donne sa commande contre la dernière publiée ; un écart par
+   outil en retard ou introuvable. Il s'exécute une fois, au compte, pas dans chaque projet.
+3. **Une fois par jour** : résultats gardés dans `<données>/cache/` (par projet et empreinte de ses fichiers de
+   verrouillage ; versions publiées) et relus pendant 24 heures.
+4. **Règles du profil** `dependances-saines` et `outils-a-jour` (`verified`), et déclaration dans le contexte perso des
+   projets à surveiller (choix de l'auteur : cinq projets à dépendances, en plus des deux déjà déclarés).
+
+**Critère de la tranche.** L'audit montre, sur la carte de chaque projet surveillé, les paquets à failles élevées ou
+critiques, et au compte les outils en retard ; une seconde exécution dans la journée ne réinterroge pas les sources ;
+une mise à jour qui corrige une faille résout son écart au journal.
+
+**Choix techniques (P12).**
+
+| Choix | Raison | Ce qui le ferait changer |
+|---|---|---|
+| osv-scanner et la base OSV | tous les écosystèmes en une fois, avis agrégés (GitHub, PyPA, Go…) | un écosystème qu'il ne lit pas |
+| un écart par paquet, au-dessus d'un seuil | lisible et actionnable ; un paquet à jour résout son écart | trop d'écarts : un par fichier de verrouillage |
+| versions par l'API publique de GitHub et l'index de node | sans jeton, une fois par jour, loin de la limite horaire | un outil publié ailleurs : une source de plus |
+
+**Limites connues.** Une faille sans score ni gravité déclarée ne fait pas d'écart. Claude Code et Tailscale se mettent à
+jour seuls et ne sont pas suivis. Un projet que le contexte ne déclare pas n'est pas audité.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -331,8 +371,9 @@ laisse passer et le dit.
   caractères dans le socle, 3 284 → 2 869 dans le second projet. Tranche close.
 - **Fait (2026-10-07)** : interface depuis le téléphone (tranche 1) : `web.hotes_admis`, `holarch interface`, relais
   Tailscale Serve publié sur le poste personnel ; 2 tests.
+- **Ouverture de la tranche 5 (2026-10-07)** : veille de sécurité et de versions, décision `veille-securite-versions`
+  approuvée sur les choix de l'auteur ; osv-scanner 2.6.0 installé (somme de contrôle vérifiée).
 - **Reste** :
-  1. **Tranche 5** : veille de sécurité et de versions (CVE des dépendances, versions publiées des outils), à
-     spécifier.
+  1. **Tranche 5** : points 1 à 4, puis son critère.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

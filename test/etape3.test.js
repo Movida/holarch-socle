@@ -449,3 +449,66 @@ test('interface en service : unité marquée qui relit la même configuration, a
   fs.writeFileSync(path.join(unites, 'holarch-interface.service'), '[Service]\n');
   assert.throws(() => i.activer(), /pas été écrit par HOLARCH/); assert.throws(() => i.desactiver(), /pas été écrit par HOLARCH/);
 });
+
+// ---- Tranche 5 : veille de sécurité et de versions (décision veille-securite-versions). Données fictives.
+import { versionPubliee } from '../src/controles.js';
+
+test('contrôles : dépendances vulnérables au-dessus du seuil, gardées une journée, réinterrogées si le verrou change', () => {
+  const { d, g } = depotGit();
+  ecrire(path.join(d, 'package-lock.json'), '{"v":1}\n'); ecrire(path.join(d, 'web', 'uv.lock'), 'v1\n'); g('add', '.'); g('commit', '-qm', 'x');
+  const appels = path.join(tmp(), 'appels');
+  const sortie = JSON.stringify({ results: [{ source: { path: path.join(d, 'package-lock.json') }, packages: [
+    { package: { name: 'paquet-a', version: '1.0.0' }, groups: [{ ids: ['GHSA-aaaa'], max_severity: '8.7' }, { ids: ['GHSA-bbbb'], max_severity: '9.8' }], vulnerabilities: [] },
+    { package: { name: 'paquet-b', version: '2.0.0' }, groups: [{ ids: ['GHSA-cccc'], max_severity: '5.3' }], vulnerabilities: [] },
+    { package: { name: 'paquet-c', version: '3.0.0' }, groups: [{ ids: ['GHSA-dddd'], max_severity: '' }], vulnerabilities: [{ id: 'GHSA-dddd', database_specific: { severity: 'HIGH' } }] }] }] });
+  const faux = path.join(tmp(), 'osv-scanner'); ecrire(path.join(path.dirname(faux), 'sortie.json'), sortie);
+  ecrire(faux, `#!/bin/sh\necho "$@" >> '${appels}'\ncat '${path.join(path.dirname(faux), 'sortie.json')}'\nexit 1\n`); fs.chmodSync(faux, 0o755);
+  const ctx = { depot: d, osv: faux, cache: tmp(), config: {} };
+  const r = executer('dependances-vulnerables', ctx, 'audit');
+  assert.deepEqual(r.ecarts.map((e) => [e.fichier, e.cle, e.n]), [['package-lock.json', 'package-lock.json:paquet-a', 2], ['package-lock.json', 'package-lock.json:paquet-c', 1]], 'seuil 7 ; à défaut de score, la gravité déclarée');
+  assert.match(r.ecarts[0].message, /pire 9\.8, GHSA-bbbb/);
+  assert.match(fs.readFileSync(appels, 'utf8'), /-L package-lock\.json -L web\/uv\.lock --format json/);
+  executer('dependances-vulnerables', ctx, 'audit');
+  assert.equal(fs.readFileSync(appels, 'utf8').trim().split('\n').length, 1, 'une seconde fois dans la journée : rien n’est réinterrogé');
+  ecrire(path.join(d, 'package-lock.json'), '{"v":2}\n');
+  executer('dependances-vulnerables', ctx, 'audit');
+  assert.equal(fs.readFileSync(appels, 'utf8').trim().split('\n').length, 2, 'un verrou changé : réinterrogé');
+  assert.deepEqual(executer('dependances-vulnerables', { ...ctx, cache: null, config: { dependances: { seuil_cvss: 5 } } }, 'audit').ecarts.length, 3);
+  const panne = path.join(tmp(), 'osv-scanner'); ecrire(panne, '#!/bin/sh\necho "base injoignable" >&2\nexit 127\n'); fs.chmodSync(panne, 0o755);
+  assert.match(executer('dependances-vulnerables', { ...ctx, osv: panne, cache: null }, 'audit').indisponible, /osv-scanner en échec : base injoignable/);
+  const vide = path.join(tmp(), 'osv-scanner'); ecrire(vide, '#!/bin/sh\nexit 128\n'); fs.chmodSync(vide, 0o755);
+  assert.deepEqual(executer('dependances-vulnerables', { ...ctx, osv: vide, cache: null }, 'audit').ecarts, []);
+  assert.match(executer('dependances-vulnerables', { ...ctx, osv: null }, 'audit').indisponible, /osv-scanner absent/);
+  const sans = depotGit(); ecrire(path.join(sans.d, 'a.md'), 'x'); sans.g('add', '.'); sans.g('commit', '-qm', 'x');
+  assert.deepEqual(executer('dependances-vulnerables', { ...ctx, depot: sans.d }, 'audit').ecarts, [], 'sans verrou, rien à scanner');
+});
+
+test('contrôles : outils à jour (installé contre publié), introuvable signalé, sources de version', () => {
+  const config = { outils_surveilles: [
+    { nom: 'outil-a', commande: ['sh', '-c', 'echo outil-a version 1.2.3'], github: 'exemple/outil-a' },
+    { nom: 'outil-b', commande: ['sh', '-c', 'echo v2.0.0'], github: 'exemple/outil-b' },
+    { nom: 'outil-c', commande: ['/inexistant/outil-c', '--version'], node: 'lts' }] };
+  const r = executer('outils-a-jour', { config, publiees: { 'outil-a': 'v1.3.0', 'outil-b': '2.0.0', 'outil-c': 'v24.1.0' } }, 'audit');
+  assert.deepEqual(r.ecarts.map((e) => [e.cle, e.message]), [['outil-a', 'outil-a 1.2.3 installé, 1.3.0 publié'], ['outil-c', 'outil-c introuvable sur ce site']]);
+  assert.match(executer('outils-a-jour', { config: {} }, 'audit').indisponible, /outils_surveilles absent/);
+  assert.match(executer('outils-a-jour', { config, publiees: { 'outil-a': 'pas une version' } }, 'audit').indisponible, /illisible pour outil-a/);
+  const lu = []; const lire = (u) => { lu.push(u); return u.includes('github') ? { tag_name: 'v8.30.1' } : [{ version: 'v25.0.0', lts: false }, { version: 'v24.11.0', lts: 'Krypton' }]; };
+  assert.deepEqual([versionPubliee({ github: 'exemple/outil' }, lire), versionPubliee({ node: 'lts' }, lire)], ['v8.30.1', 'v24.11.0']);
+  assert.deepEqual(lu, ['https://api.github.com/repos/exemple/outil/releases/latest', 'https://nodejs.org/dist/index.json']);
+});
+
+test('audit : un contrôle de portée site s’exécute au compte, jamais dans chaque projet', () => {
+  const r = tmp(); const accueil = tmp();
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: outils-a-jour\n  statement: Les outils du poste restent à jour.\n  level: verified\n  check: [outils-a-jour]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  fs.mkdirSync(path.join(r, 'depot')); depotGit(path.join(r, 'depot'));
+  const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: path.join(r, 'depot'), provenance: { source: 't' } }]);
+  s.indexer();
+  const a = s.audit();
+  const compte = a.cibles.find((c) => c.projet === null); const projet = a.cibles.find((c) => c.projet === 'holarch:project:depot');
+  assert.deepEqual(compte.controles.map((c) => [c.id, c.etat]), [['outils-a-jour', 'indisponible']], 'sans liste d’outils : non disponible, jamais conforme');
+  assert.deepEqual(projet.controles, [], 'le projet ne le refait pas');
+});

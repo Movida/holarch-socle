@@ -14,7 +14,7 @@ import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
 import { regleEffective, regleDuCompte, projetsDeclares } from './regles.js';
 import { destination, planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions } from './regles-claude-code.js';
-import { listePrivee, trouverGitleaks, executer } from './controles.js';
+import { listePrivee, trouverOutil, executer, CONTROLES } from './controles.js';
 import { crochetDe, poserCrochet } from './garde-git.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { ulid } from './ulid.js';
@@ -317,15 +317,17 @@ export class Socle {
     const projetsPrives = this.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
     const comptes = comptesClaudeCode(this.config, this.config.inventaire?.['claude-code'] || {});
     const config = r.config || {};
-    return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, gitleaks: trouverGitleaks(this.config.controles?.gitleaks),
+    return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, gitleaks: trouverOutil('gitleaks', this.config.controles?.gitleaks),
+      osv: trouverOutil('osv-scanner', this.config.controles?.osv_scanner), cache: path.join(this.config.donnees, 'cache'),
       termes: depot ? listePrivee({ depot, config, comptes, projetsPrives, nomProjet: projet.name }) : [] };
   }
 
   // Contrôles d'un projet à un moment : par règle applicable de l'un des niveaux, ses écarts ; et l'état de chaque contrôle.
-  #controler(projet, r, ctx, moment, niveaux) {
+  #controler(projet, r, ctx, moment, niveaux, portee = 'projet') {
     const memo = new Map(); const ecarts = []; const etats = new Map();
     for (const e of r.regles.filter((x) => x.applicable && niveaux.includes(x.niveau))) {
       for (const c of e.controles || []) {
+        if ((CONTROLES[c]?.portee === 'site') !== (portee === 'site')) continue;
         if (!memo.has(c)) memo.set(c, executer(c, ctx, moment));
         const res = memo.get(c);
         if (res.hors_moment) continue;
@@ -395,6 +397,10 @@ export class Socle {
       }
       rc.ecarts.push(...remplacees(compte.regles, memoires));
       for (const c of ['regles-a-jour', 'permissions-posees', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
+      // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
+      const site = this.#controler(null, compte, { config: compte.config || {}, cache: path.join(this.config.donnees, 'cache') }, 'audit', ['blocking', 'verified'], 'site');
+      rc.ecarts.push(...site.ecarts); rc.controles.push(...site.controles);
+      for (const c of site.controles) if (c.etat === 'fait') faits.add(`|${c.id}`);
       sorties.push(rc);
     }
 

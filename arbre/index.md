@@ -45,5 +45,6 @@ Racine de l'arbre du système, écrit avec sa propre méthode. Tout nœud ci-des
 - [`decisions/2026-10-05-rattachement-projet.md`](decisions/2026-10-05-rattachement-projet.md) - tout se rattache au projet par son identifiant ; le dépôt en est le support
 - [`decisions/2026-10-06-arbre-des-regles.md`](decisions/2026-10-06-arbre-des-regles.md) - un arbre des règles pour tous les projets, réparti entre dépôts
 - [`decisions/2026-10-07-controles-de-regles.md`](decisions/2026-10-07-controles-de-regles.md) - des contrôles pour les règles, posés là où le runtime arrête déjà
+- [`decisions/2026-10-07-veille-securite-versions.md`](decisions/2026-10-07-veille-securite-versions.md) - veille de sécurité et de versions par l'audit
 - [`questions.md`](questions.md) - les questions ouvertes
 - [`log.md`](log.md) - le journal de l'arbre
