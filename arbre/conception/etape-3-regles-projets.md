@@ -413,6 +413,47 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
 
 **Hors tranche.** Les leçons de clôture (texte de l'agent, avec la récolte) ; les solutions aux échecs répétés.
 
+## Tranche 10 — Création de projet
+
+Décision `creation-de-projet` (approuvée le 2026-10-07) : `holarch projet creer` déroule les étapes de mise en place
+d'un projet ; rejouée, elle fait ce qui manque et rien d'autre. Valeurs par défaut tirées de la mesure des 9 dépôts du
+poste (décision) : dossier sous le répertoire personnel (9 sur 9), branche `main`, dépôt GitHub privé sauf type
+`depot-public` (6 privés, 3 publics), licence MIT pour un dépôt public (2 sur 3 ; Apache pour le troisième), conteneur de
+développement (6 sur 9) sur le modèle le plus récent (image de base Debian, `gh`, `~/.claude` partagé, `~/.ssh` et la
+configuration de `gh` en volumes nommés, `deploy-key.sh`).
+
+**Livre.**
+
+1. **Commande** `holarch projet creer <nom> [--contexte <c>] [--type <t>…] [--a-blanc]` : `--contexte` peut manquer
+   quand le profil n'en a qu'un ; `--a-blanc` dit ce qui serait fait et n'écrit rien (à montrer avant de lancer). Chaque
+   étape dit son résultat : faite, déjà là, désactivée, ou geste réservé (avec la commande ou le lien prêts) ; une étape
+   en échec n'arrête pas les suivantes qui n'en dépendent pas.
+2. **Étapes, dans l'ordre où elles dépendent l'une de l'autre** (l'identité vient avant le premier commit, qui donne
+   au projet son identifiant ; la déclaration avant les règles) :
+   1. dépôt local, branche `main`, identité de commit du contexte posée (`identite-git.js`) ;
+   2. fichiers de base : README (titre seul), `.gitignore` (secrets d'environnement), CLAUDE.md généré (où vivent les
+      règles, comment les changer), LICENSE si `depot-public` ; avec un type, racine `arbre/index.md` qui les déclare,
+      et le journal si `methode-holarch` ; premier commit ;
+   3. déclaration du projet dans le contexte du profil (une ligne `projects`), commit de ce seul fichier dans le profil ;
+   4. inventaire, puis règles et crochet (`regles appliquer` sur le projet), commit des fichiers générés ;
+   5. dépôt GitHub par `gh` (visibilité d'après les types, propriétaire : le compte actif de `gh` ou `creation.github`),
+      remote `origin` en SSH, envoi de `main` ;
+   6. conteneur de développement et `deploy-key.sh` d'après le modèle ; la clé se crée dans le conteneur, son
+      enregistrement sur GitHub est un geste réservé, vu comme fait quand le dépôt porte une clé de déploiement ;
+   7. accès distant (`distant activer`) ;
+   8. audit du projet : aucun écart attendu hors gestes réservés.
+3. **Configuration** : clé `creation` au registre de configuration (contrat config 0.3.0) : `dossier`, `etapes`
+   (`github`, `conteneur`, `distant` : oui ou non), `github` (`proprietaire`), `licence` ; portée par le profil, le
+   contexte et les types, fusionnée comme les autres clés.
+4. **Modèles** dans le socle (`modeles/projet/`) : conteneur, `deploy-key.sh`, `.gitignore`, CLAUDE.md, licences.
+
+**Critère de la tranche** (décision). Le prochain vrai projet est créé par la commande : seuls les gestes réservés
+restent à la main, et l'audit du jour est sans écart.
+
+**Hors tranche.** Le formulaire de l'interface (I22) et le paramétrage depuis l'interface (I23) ; la migration des
+quatre projets non déclarés, projet par projet, avec l'accord de l'auteur (la même commande, rejouée) ; la fin de
+projet (§5.8).
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
