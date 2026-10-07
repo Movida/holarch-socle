@@ -583,5 +583,9 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
      chiffré par tranche, échéances lancées par une routine, bilan de ce qui reste ouvert en fin de tranche. Idée de
      l'auteur : un mécanisme qui enrichit ces propositions (une habitude nouvelle proposée quand un fait de session la
      suggère, et un registre des propositions, retenues ou non, pour ne pas les reproposer).
-  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
+  4. **Idées de l'auteur (2026-10-07), avis donné, à décider** : skills ajustés aux habitudes (aujourd'hui inventoriés
+     seulement, leur usage n'est pas mesuré : les appels `Skill` ne sont pas importés) ; charte UI/UX paramétrable par
+     aspect, portée par l'arbre comme un type, appliquée aux runtimes et contrôlée ; proposition d'automatisation qui
+     préfère un outil déterministe (timer, script, CI) à une routine d'IA quand le gain se mesure au journal.
+  5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
      §5.8), à spécifier à leur ouverture.
