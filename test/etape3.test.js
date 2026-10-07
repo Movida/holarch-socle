@@ -22,7 +22,9 @@ function banc({ mode = 'auto' } = {}) {
   };
   const config = { inventaire: { 'depots-git': { racines: [racine] }, 'claude-code': { config: cfgClaude } }, acces_distant: { mode_permissions: mode } };
   const projets = [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }];
-  return { racine, unites, cfgClaude, appels, d: creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets }) };
+  const horloge = { t: Date.parse('2026-01-01T08:00:00Z') }; const accueil = tmp();
+  const d = creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets, accueil, holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', maintenant: () => horloge.t });
+  return { racine, unites, cfgClaude, appels, horloge, d };
 }
 
 test('accès distant : activer écrit un service marqué, déclare la confiance et démarre ; desactiver le retire', () => {
@@ -41,6 +43,9 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   assert.equal(c.projects[path.join(racine, 'demo')].hasTrustDialogAccepted, true);
   assert.deepEqual([c.autre, c.projects['/x']], [1, { hasTrustDialogAccepted: false, garde: true }]);
   assert.deepEqual(appels.slice(0, 2), ['daemon-reload', 'enable --now holarch-distant-demo.service']);
+  // Avec le premier accès distant, le minuteur de reprise après une veille ; hors de la liste des projets.
+  assert.ok(appels.includes('enable --now holarch-reveil.timer'));
+  assert.match(fs.readFileSync(path.join(unites, 'holarch-reveil.service'), 'utf8'), /^ExecStart="\/opt\/node\/bin\/node" --no-warnings "\/opt\/holarch\/bin\/holarch.js" distant reveil$/m);
   assert.deepEqual(d.liste(), [{ nom: 'demo', chemin: path.join(racine, 'demo'), projet: 'holarch:project:demo', actif: true }]);
   assert.equal(d.activer('holarch:project:demo').projet, 'holarch:project:demo', 'par son identifiant');
   assert.equal(d.activer(path.join(racine, 'demo')).confiance_declaree, false);
@@ -48,6 +53,19 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   assert.ok(!fs.existsSync(path.join(unites, r.unite)));
   assert.ok(appels.includes('disable --now holarch-distant-demo.service'));
   assert.deepEqual(d.liste(), []);
+  assert.ok(!fs.existsSync(path.join(unites, 'holarch-reveil.timer')) && !fs.existsSync(path.join(unites, 'holarch-reveil.service')), 'retiré avec le dernier');
+});
+
+test('accès distant : après une veille du poste (écart entre deux passages du minuteur), les accès actifs sont redémarrés', () => {
+  const { appels, horloge, d } = banc();
+  d.activer('demo');
+  const redemarrages = () => appels.filter((a) => a.startsWith('restart')).length;
+  assert.deepEqual(d.reveil().relances, [], 'premier passage : rien à comparer');
+  horloge.t += 60e3; assert.deepEqual(d.reveil().relances, [], 'une minute : pas de veille');
+  horloge.t += 4 * 3600e3;
+  assert.deepEqual(d.reveil(), { ecart_s: 4 * 3600, relances: ['demo'] });
+  assert.deepEqual(appels.filter((a) => a.startsWith('restart')), ['restart holarch-distant-demo.service']);
+  horloge.t += 60e3; d.reveil(); assert.equal(redemarrages(), 1, 'une seule fois par veille');
 });
 
 test('accès distant : projet introuvable refusé, service étranger jamais touché, mode par défaut omis', () => {

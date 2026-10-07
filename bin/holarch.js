@@ -29,7 +29,8 @@ const AIDE = `holarch — socle autour des agents d'IA
   holarch distant [activer|desactiver <projet>]
                        accès distant par projet : un serveur Remote Control de Claude Code par projet, à la demande ;
                        sans argument, liste les projets dont l'accès est actif (<projet> : projet du catalogue, par
-                       son nom, un chemin ou son identifiant)
+                       son nom, un chemin ou son identifiant) ; reveil : lancé chaque minute par un minuteur, redémarre
+                       les accès actifs après une veille du poste
   holarch interface [activer|desactiver]
                        l'interface web en service utilisateur (pour un relais HTTPS d'un réseau privé, Tailscale Serve
                        par exemple, dont le nom se déclare dans web.hotes_admis) ; sans argument, son état
@@ -87,6 +88,7 @@ switch (cmd) {
     try {
       if (action === 'activer') { const r = d.activer(projet); afficher(json ? r : `accès distant actif : ${r.nom} (${r.chemin}), service ${r.unite}${r.confiance_declaree ? ' ; dossier déclaré de confiance pour Claude Code' : ''}`); }
       else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}`); }
+      else if (action === 'reveil') { const r = d.reveil(); if (json || r.relances.length) afficher(json ? r : `veille de ${r.ecart_s} s : redémarré ${r.relances.join(', ')}`); }
       else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
     } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
     break; }

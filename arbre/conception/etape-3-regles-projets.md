@@ -33,6 +33,7 @@ d'office (un serveur actif coûte de la mémoire, environ 200 Mo).
 | `holarch distant` | liste les projets dont l'accès distant est actif |
 | `holarch distant activer <projet>` | déclare le dossier de confiance pour Claude Code, écrit le service utilisateur du projet, l'active et le démarre ; au démarrage, le serveur reprend la dernière session du dossier (`--continue`, moins de quatre heures environ), sinon en crée une |
 | `holarch distant desactiver <projet>` | arrête et retire le service ; la déclaration de confiance reste |
+| `holarch distant reveil` | lancé chaque minute par un minuteur posé avec le premier accès distant : après une veille du poste (écart de plus de cinq minutes entre deux passages), redémarre les accès distants actifs |
 
 `<projet>` est un projet du catalogue, désigné par son nom, un chemin ou son identifiant (décision `rattachement-projet`).
 Le mode de permission des sessions se règle par site (`acces_distant.mode_permissions`, celui de Claude Code par
@@ -666,6 +667,12 @@ projet (§5.8).
   tournent normalement. Défaut trouvé à l'usage : le binaire attendu se tirait de `HOLARCH_HOME` du processus, pas de
   l'accueil de la configuration ; une fois le lien posé, deux tests (accueil temporaire) voyaient leur crochet périmé.
   Il se tire désormais de l'accueil que reçoit la matérialisation.
+- **Fait (2026-10-07)** : tranche 1, reprise après une veille du poste. Constat : après une mise en veille de Windows,
+  le serveur Remote Control du projet reste `active` des heures sans être joignable depuis l'application ; aucune
+  règle `Restart=` n'y peut rien (rien ne s'arrête) et WSL ne voit pas la veille. Un minuteur marqué
+  (`holarch-reveil.timer`, chaque minute, posé avec le premier accès distant et retiré avec le dernier) lance
+  `holarch distant reveil` : un écart de plus de cinq minutes depuis son passage précédent redémarre les accès
+  distants actifs. 1 test. [À COMPLÉTER : essai sur le poste après une vraie mise en veille] (Q21)
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.

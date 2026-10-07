@@ -10,6 +10,8 @@ import { spawnSync } from 'node:child_process';
 import { Catalogue } from './stockage/catalogue.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 import { shell, systemd, fichierMarque, lireJson, ecrireJson, trouverOutil, configClaude } from './commun.js';
+import { accueil as accueilParDefaut } from './config.js';
+import { binaireService } from './service.js';
 
 const MARQUE = '# Écrit par HOLARCH (holarch distant)';
 const PREFIXE = 'holarch-distant-';
@@ -88,13 +90,53 @@ export function declarerConfiance(fichier, chemin) {
   return true;
 }
 
+// Reprise après une veille du poste : le serveur Remote Control reste en vie mais n'est plus joignable, et aucune règle
+// `Restart=` n'y peut rien (rien ne s'arrête) ; WSL ne voit pas la veille de Windows. Un minuteur passe chaque minute :
+// un écart de plus de SEUIL_REVEIL depuis son passage précédent dit que le poste a dormi, et les accès distants actifs
+// sont redémarrés. Posé avec le premier accès distant, retiré avec le dernier. Nom hors PREFIXE : ce n'est pas un projet.
+const UNITE_REVEIL = 'holarch-reveil';
+const SEUIL_REVEIL = 5 * 60e3;
+export function uniteReveil({ node = process.execPath, holarch, accueil }) {
+  return `${MARQUE} : reprise des accès distants après une veille, lancée par ${UNITE_REVEIL}.timer. Retirée avec le dernier accès distant.
+[Unit]
+Description=HOLARCH : reprise des accès distants après une veille
+
+[Service]
+Type=oneshot
+Environment=${systemd(`HOLARCH_HOME=${accueil}`)}
+Environment=${systemd(`PATH=${pathService(node)}`)}
+ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} distant reveil
+`;
+}
+const MINUTEUR_REVEIL = `${MARQUE} : reprise des accès distants, chaque minute. Retiré avec le dernier accès distant.
+[Unit]
+Description=HOLARCH : reprise des accès distants après une veille
+
+[Timer]
+OnCalendar=minutely
+
+[Install]
+WantedBy=timers.target
+`;
+
 export function creerDistant(config, {
   unites = UNITES, systemctl = SYSTEMCTL,
   claude = config.acces_distant?.claude || null,
   projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
+  accueil = config.accueil || accueilParDefaut(), holarch = binaireService(accueil), node = process.execPath, maintenant = Date.now,
 } = {}) {
   const sv = services({ unites, systemctl });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
+  const reveil = { service: path.join(unites, `${UNITE_REVEIL}.service`), minuteur: path.join(unites, `${UNITE_REVEIL}.timer`), passage: path.join(accueil, 'distant-reveil') };
+  const poserReveil = () => {
+    for (const x of [reveil.service, reveil.minuteur]) if (fs.existsSync(x) && !sv.geree(x)) return;
+    if (sv.ecrire(reveil.service, uniteReveil({ node, holarch, accueil }))) sv.lancer(['daemon-reload']);
+    sv.poser(reveil.minuteur, MINUTEUR_REVEIL);
+  };
+  const retirerReveil = () => {
+    if (fs.existsSync(reveil.minuteur) && sv.geree(reveil.minuteur)) sv.retirer(reveil.minuteur);
+    if (fs.existsSync(reveil.service) && sv.geree(reveil.service)) { fs.rmSync(reveil.service); sv.lancer(['daemon-reload']); }
+  };
 
   // Un projet du catalogue, désigné par son identifiant, son nom ou un chemin (module projets, comme partout ailleurs).
   const resoudre = (ref) => {
@@ -124,6 +166,7 @@ export function creerDistant(config, {
       if (fs.existsSync(f) && !sv.geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
       const confiance = declarerConfiance(config.inventaire?.['claude-code']?.config || configClaude(path.join(os.homedir(), '.claude')), chemin);
       sv.poser(f, uniteDe({ nom, chemin, claude: binaire, mode: config.acces_distant?.mode_permissions || null }));
+      poserReveil();
       return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance };
     },
     // Le service d'un projet sorti du catalogue doit rester retirable : à défaut de projet, la référence est son nom.
@@ -131,7 +174,18 @@ export function creerDistant(config, {
       let p = null; try { p = resoudreProjet(projets, ref); } catch { /* nom ambigu : pris tel quel */ }
       const nom = p?.location ? nomDe(p.location) : String(ref).includes('/') ? nomDe(ref) : ref; const f = fichierUnite(nom);
       sv.retirer(f, `aucun accès distant actif pour ${nom}`);
+      if (!this.liste().length) retirerReveil();
       return { nom, unite: path.basename(f) };
+    },
+    // Passage du minuteur : note l'heure ; après un écart (veille du poste), redémarre les accès distants actifs.
+    reveil() {
+      const t = maintenant(); let avant = null;
+      try { avant = Date.parse(fs.readFileSync(reveil.passage, 'utf8').trim()); } catch { /* premier passage */ }
+      fs.mkdirSync(path.dirname(reveil.passage), { recursive: true }); fs.writeFileSync(reveil.passage, `${new Date(t).toISOString()}\n`);
+      const ecart = Number.isFinite(avant) ? t - avant : 0;
+      if (ecart <= SEUIL_REVEIL) return { ecart_s: Math.round(ecart / 1e3), relances: [] };
+      const relances = this.liste().filter((x) => x.actif).map((x) => { sv.lancer(['restart', `${PREFIXE}${x.nom}.service`]); return x.nom; });
+      return { ecart_s: Math.round(ecart / 1e3), relances };
     },
   };
 }

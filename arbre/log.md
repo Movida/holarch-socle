@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Reprise de l'accès distant après une veille** (tranche 1 de l'étape 3) : le serveur Remote Control restait en vie
+  mais injoignable après une mise en veille du poste ; minuteur `holarch-reveil` et `holarch distant reveil`, qui
+  redémarre les accès distants actifs après un écart de plus de cinq minutes. Essai réel à faire (Q21).
+
 * **Idée I25 retenue** par l'auteur ; envoi des commits du socle (accord de l'auteur).
 
 * **Mesure intermédiaire de la passation** (tranche 7) : sessions commencées après sa pose (8, 651 tours) : contexte
