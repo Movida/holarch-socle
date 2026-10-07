@@ -2,7 +2,8 @@
 type: decision
 title: Relancer l'interface en service quand elle change
 description: La règle verifier-avant-de-rendre s'étend à la relance de l'interface en service, une fois les tests verts, là où elle tourne.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07 : « J'approuve telle quelle, applique et pousse tout »" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/rules.yaml]
@@ -35,4 +36,4 @@ n'existe pas (conteneur, autre site), rien à faire.
 **Ce qui le ferait changer.** Des relances oubliées malgré la règle (un crochet après commit les ferait alors), ou une
 interface qui recharge ses fichiers sans redémarrer.
 
-**Conséquences.** `arbre/rules.yaml` modifié à l'approbation, puis `holarch regles appliquer`.
+**Conséquences.** `arbre/rules.yaml` modifié à l'approbation (2026-10-07), puis `holarch regles appliquer`.

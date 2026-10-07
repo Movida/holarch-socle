@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Décision `relancer-interface` approuvée** telle quelle : règle `verifier-avant-de-rendre` étendue à la relance de
+  l'interface en service, écrite dans le projet (`regles appliquer`) ; audit du socle conforme.
+
 * **Interface relancée** à la demande de l'auteur ; décision `relancer-interface` proposée (la règle
   `verifier-avant-de-rendre` étendue à la relance du service) ; idée I21 (demandes répétées de l'auteur, proposées en
   skill) dans la boîte.
