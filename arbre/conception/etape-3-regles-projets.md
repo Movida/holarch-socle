@@ -533,8 +533,10 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
   2. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
      erreurs d'outil, leçons de clôture) et les compter ; les solutions pour ceux qui se répètent viendront avec la
      récolte (boucles « Règles » et « Progrès et recul », §6). À spécifier à l'ouverture.
-  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : règle `commits-pousses` à approuver ; règles de
-     profil à proposer :
+  3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : règles `commits-pousses` et `reglage-mesure`
+     (mesurer l'habitude avant de proposer un réglage) à approuver ; idée de l'auteur retenue pour plus tard, avec la
+     récolte : chaque réglage déclare sa mesure, l'audit en tire une valeur par projet, proposée en brouillon (exemple
+     mesuré : délai entre commit et envoi, lu dans le reflog de l'amont) ; règles de profil à proposer :
      recommandations en choix cliquables, et règle ou contrôle proposé quand un défaut est trouvé à l'usage (lien avec
      la tranche 9). Limite connue : une règle du compte ne se déroge pas encore par projet (portée locale, à venir).
      Autres idées proposées, à trier : forme des réponses (profil), coût annoncé avant une action lourde, critère

@@ -4,6 +4,9 @@
 
 * **Habitudes (a, b)** : leçon de clôture demandée par l'avis de passation seulement quand sa règle s'applique ;
   contrôle `commits-pousses` (écart au-delà de 4 h, branche sans amont non disponible), règle de profil proposée.
+  Seuil confirmé par la mesure du délai d'envoi (90 % des envois en moins de 0,4 h dans le socle, de 10,6 h dans un
+  autre projet). Idée de l'auteur : réglages proposés d'après les habitudes ; règle `reglage-mesure` proposée,
+  mécanisme placé avec la récolte.
 
 * **Habitudes paramétrables** : leçon de clôture de l'avis de passation à rattacher à sa règle, contrôle des commits
   non poussés, règles « choix cliquables » et « défaut à l'usage » retenus par l'auteur (avancement, Reste) ; un
