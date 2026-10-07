@@ -295,3 +295,15 @@ test('règles : l’adaptateur Claude Code écrit un fichier marqué par règle,
   const compte = planifier(regleDuCompte(fiches).regles, { portee: 'compte' });
   assert.deepEqual(compte.fichiers.map((x) => x.fichier).sort(), ['avis-argumente.md', 'commit-sur-main.md', 'francais.md', 'secret-du-profil.md']);
 });
+
+test('ligne de commande : --help affiche l’aide et une option inconnue arrête tout avant d’agir', () => {
+  const accueil = tmp();
+  const holarch = (...a) => spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), ...a], { encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil } });
+  const aide = holarch('regles', 'appliquer', '--help');
+  assert.equal(aide.status, 0);
+  assert.match(aide.stdout, /holarch regles appliquer/);
+  const r = holarch('regles', 'appliquer', '--essai');
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /option inconnue --essai/);
+  assert.deepEqual(fs.readdirSync(accueil), [], 'rien n’est écrit');
+});

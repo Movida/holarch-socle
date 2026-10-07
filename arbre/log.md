@@ -7,6 +7,10 @@
   Puis appliquées avec son accord : 4 au compte, 14 au socle, 7 au second projet ; cinq mémoires couvertes retirées,
   `CLAUDE.md` réduit à ce qui est propre au socle. Tranche 3 close sur son critère.
 
+* **Règles ajoutées au profil** (sur proposition, approuvées) : `outil-verifie`, `sessions-concurrentes`,
+  `secrets-hors-contexte`, chacune née d'un fait de la session. La ligne de commande refuse une option inconnue avant
+  d'agir et affiche l'aide sur `--help` (une commande lancée « pour voir l'aide » avait écrit des fichiers).
+
 ## 2026-10-06
 
 * **Arbre des règles, réalisation** (tranche 3) : règle effective calculée (profil, contexte, types, projet ;

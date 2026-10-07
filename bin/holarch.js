@@ -35,7 +35,13 @@ const AIDE = `holarch — socle autour des agents d'IA
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier
 
-Options : --json (sortie brute). Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
+Options : --json (sortie brute), --help. Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
+
+// Une option inconnue arrête la commande avant qu'elle n'agisse : lancée « pour voir l'aide », elle n'écrit rien.
+const OPTIONS = { pont: ['--cle'], voir: ['--port'] };
+if (args.includes('--help') || args.includes('-h')) { console.log(AIDE); process.exit(0); }
+const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIONS[cmd] || []).includes(a));
+if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
 
 const socle = () => new Socle(chargerConfig());
 
