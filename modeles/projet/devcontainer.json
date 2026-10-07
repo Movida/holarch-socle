@@ -1,0 +1,22 @@
+{
+  "name": "{{nom}}",
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  },
+  // ~/.ssh et la configuration de gh dans des volumes nommés, jamais la clé personnelle de l'hôte : une clé de
+  // déploiement propre à ce dépôt (deploy-key.sh) y survit aux reconstructions, et sa compromission depuis le conteneur
+  // ne donnerait accès qu'à ce dépôt.
+  "mounts": [
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+    "source={{volume}}-ssh,target=/home/vscode/.ssh,type=volume",
+    "source={{volume}}-gh-config,target=/home/vscode/.config/gh,type=volume"
+  ],
+  "postCreateCommand": "bash .devcontainer/deploy-key.sh origin || true",
+  "remoteUser": "vscode"
+}

@@ -126,5 +126,24 @@ export function regleDuCompte(fiches) {
   return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
+/**
+ * Avant qu'un projet existe (décision creation-de-projet) : le contexte désigné (par le nom de son fichier ou son titre ;
+ * facultatif quand le profil n'en a qu'un) et la configuration fusionnée de ses couches, profil, contexte puis types
+ * dans l'ordre donné, comme la règle effective la calculera une fois le projet déclaré.
+ */
+export function configAvantProjet(fiches, { contexte = null, types = [] } = {}) {
+  const a = arbresDe(fiches);
+  const nomDe = (n) => n.node.split('/').pop().replace(/\.md$/, '');
+  const tous = a.contextes.filter((n) => a.profils.some((p) => p.attributes.arbre === n.attributes.arbre));
+  const choisis = contexte ? tous.filter((n) => nomDe(n) === contexte || n.name === contexte) : tous;
+  const connus = tous.map(nomDe).join(', ') || 'aucun contexte dans le profil';
+  if (choisis.length !== 1) throw new Error(contexte ? `contexte ${choisis.length ? 'ambigu' : 'inconnu'} : ${contexte} (${connus})` : `contexte à préciser (--contexte) : ${connus}`);
+  const inconnus = types.filter((t) => !a.templates.has(t));
+  if (inconnus.length) throw new Error(`type inconnu : ${inconnus.join(', ')} (${[...a.templates.keys()].join(', ')})`);
+  const c = choisis[0];
+  const couches = [...couchesDeclarant(a, c).map((x) => x.noeud), ...types.map((t) => a.templates.get(t))];
+  return { contexte: { nom: nomDe(c), fichier: c.location }, config: fusionnerConfig(...couches.map((n) => n.attributes?.config)) };
+}
+
 /** Les projets qu'un contexte (ou une activité) déclare. */
 export const projetsDeclares = (fiches) => new Set(fiches.filter((f) => f.kind === 'node').flatMap((n) => n.attributes?.projects || []));

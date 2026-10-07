@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Tranche 10 livrée** (création de projet) : `holarch projet creer`, huit étapes rejouables, à blanc sans écriture ;
+  clé de déploiement en geste réservé (choix de l'auteur) ; clé `creation` (contrat config 0.3.0) portée par les types ;
+  critère au prochain vrai projet. Règle `lecon-de-cloture` inversée (décision du profil approuvée), écrite au compte.
+
 * **Retrait de deux projets** (okf-phoenix, okf-bundle-template, accord de l'auteur) : suppression d'okf-phoenix
   refusée par la permission de l'outil, à lancer par l'auteur ; okf-bundle-template gardé (auteur),
   encore utilisé par un projet actif. Règle `lecon-de-cloture` à inverser (plan annoncé à l'ouverture), décision à écrire.

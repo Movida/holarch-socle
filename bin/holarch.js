@@ -9,6 +9,7 @@ import { creerDistant, creerInterface } from '../src/distant.js';
 import { materialiserCompte, materialiserProjet, BIN } from '../src/materialisation.js';
 import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
+import { creerProjet } from '../src/creation.js';
 import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
@@ -38,6 +39,11 @@ const AIDE = `holarch — socle autour des agents d'IA
                        écrit les règles applicables : compte (<compte>/rules/holarch/, lectures refusées dans
                        <compte>/settings.json) et chaque projet cité (.claude/rules/holarch/, à commiter ; crochet
                        pre-commit de git si une règle bloquante le demande) ; ne touche ni CLAUDE.md ni un fichier non marqué
+  holarch projet creer <nom> [--contexte <c>] [--type <t>]… [--description <phrase>] [--a-blanc]
+                       crée un projet ou complète un projet existant : dépôt et identité, fichiers de base,
+                       déclaration au contexte, règles et crochet, dépôt GitHub, clé de déploiement, accès distant,
+                       audit ; rejouée, fait ce qui manque et rien d'autre ; ce que seul l'auteur peut faire sort en
+                       geste réservé ; --a-blanc dit ce qui serait fait et n'écrit rien
   holarch audit [<projet>]
                        audit de conformité : contrôles des règles bloquantes et vérifiées, fichiers générés, crochet,
                        permissions, mémoires remplacées ; les écarts apparus ou résolus vont au journal (aussi après
@@ -54,7 +60,7 @@ const AIDE = `holarch — socle autour des agents d'IA
 Options : --json (sortie brute), --help. Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
 // Une option inconnue arrête la commande avant qu'elle n'agisse : lancée « pour voir l'aide », elle n'écrit rien.
-const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'] };
+const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
 if (args.includes('--help') || args.includes('-h')) { console.log(AIDE); process.exit(0); }
 const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIONS[cmd] || []).includes(a));
 if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
@@ -120,6 +126,24 @@ switch (cmd) {
         if (r) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: r } }));
       }
     } catch (e) { console.error(`holarch contexte : ${e.message}`); }
+    break; }
+  case 'projet': {
+    // Les options à valeur prennent l'argument suivant ; --type se répète.
+    const o = { types: [], positionnels: [] };
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i];
+      if (a === '--contexte') o.contexte = args[++i]; else if (a === '--type') o.types.push(args[++i]);
+      else if (a === '--description') o.description = args[++i]; else if (a === '--a-blanc') o.aBlanc = true;
+      else if (a !== '--json') o.positionnels.push(a);
+    }
+    const [action, nom] = o.positionnels;
+    try {
+      if (action !== 'creer') throw new Error('action attendue : creer (holarch --help)');
+      const s = socle(); s.indexer();
+      const r = await creerProjet(s, { nom, contexte: o.contexte, types: o.types, description: o.description, aBlanc: Boolean(o.aBlanc) });
+      afficher(json ? r : affichage.creation(r));
+      if (r.etapes.some((e) => e.etat === 'echec')) process.exit(1);
+    } catch (e) { console.error(`holarch projet : ${e.message}`); process.exit(1); }
     break; }
   case 'audit': {
     const s = socle(); s.indexer(); const [projet] = args.filter((a) => !a.startsWith('--'));

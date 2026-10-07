@@ -1,0 +1,4 @@
+# Secrets d’environnement : jamais suivis (règle secrets-hors-contexte), un exemple sans valeur peut l’être.
+.env
+.env.*
+!.env.example

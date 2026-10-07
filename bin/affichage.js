@@ -45,3 +45,17 @@ export function appliquer({ comptes, projets }) {
   }
   return sortie.join('\n');
 }
+
+/** Ce que `holarch projet creer` a fait, étape par étape, puis les gestes réservés à l'auteur. */
+export function creation(r) {
+  const signe = { faite: '✓', deja: '·', 'a-faire': '→', desactivee: '-', geste: '!', echec: '✗', ecarts: '✗' };
+  const libelle = { faite: 'fait', deja: 'déjà là', 'a-faire': 'à faire', desactivee: 'désactivé', geste: 'geste réservé', echec: 'échec', ecarts: 'écarts' };
+  const sortie = [`${r.a_blanc ? 'à blanc, rien n’est écrit : ' : ''}projet ${r.nom} (${r.dossier}) ; contexte ${r.contexte}${r.types.length ? ` ; types ${r.types.join(', ')}` : ''}${r.projet ? ` ; ${r.projet}` : ''}`];
+  for (const e of r.etapes) sortie.push(`  ${signe[e.etat] || '?'} ${e.etape.padEnd(12)} ${libelle[e.etat] || e.etat} : ${e.detail}`);
+  const gestes = r.etapes.filter((e) => e.geste);
+  if (gestes.length) {
+    sortie.push('', 'gestes réservés (la commande rejouée les reprend) :');
+    for (const e of gestes) sortie.push(`  - ${e.etape} : ${e.geste.quoi}${e.geste.commande ? `\n      ${e.geste.commande}` : ''}${e.geste.lien ? `\n      ${e.geste.lien}` : ''}`);
+  }
+  return sortie.join('\n');
+}

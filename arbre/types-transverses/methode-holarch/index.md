@@ -4,6 +4,9 @@ id: methode-holarch
 title: Type transverse — méthode HOLARCH
 description: Les règles de la méthode qu'un projet adopte en déclarant ce type ; chacune désigne un registre par son rôle, le projet dit où il est.
 status: draft
+config:
+  # Création de projet (décision creation-de-projet) : un arbre tient son journal, la règle journal-du-projet le lit.
+  creation: { journal: arbre/log.md }
 links:
   derives_from: [/arbre/index.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md]

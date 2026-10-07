@@ -704,3 +704,89 @@ test('identité de commit : posée en réglage local, réglage à la main laiss�
     for (const [k, v] of Object.entries(avant)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
   }
 });
+
+import { creerProjet, declarer } from '../src/creation.js';
+import { configAvantProjet } from '../src/regles.js';
+
+test('création de projet : étapes faites puis, rejouées, déjà là ; gestes réservés dits ; à blanc rien n’est écrit', async () => {
+  const cles = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM', ...['AUTHOR', 'COMMITTER'].flatMap((x) => [`GIT_${x}_NAME`, `GIT_${x}_EMAIL`])];
+  const avant = Object.fromEntries(cles.map((k) => [k, process.env[k]])); for (const k of cles) delete process.env[k];
+  process.env.GIT_CONFIG_GLOBAL = path.join(tmp(), 'gitconfig'); process.env.GIT_CONFIG_NOSYSTEM = '1';
+  try {
+    // « GitHub » : des dépôts nus sous un dossier `github.com`, pour que l'adresse se lise comme celle d'un dépôt GitHub.
+    const r = tmp(); const accueil = tmp(); const github = path.join(tmp(), 'github.com');
+    // Profil (identité, dossier des projets, une règle bloquante), un contexte, et un socle qui porte un type public.
+    ecrire(path.join(r, 'profil', 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  identite: { nom: Alice Exemple, email: alice@noreply.test }\n  creation: { dossier: ${r} }\n---\n`);
+    ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: identite-de-commit\n  statement: Chaque commit porte l’identité de son contexte.\n  level: blocking\n  check: [identite-de-commit]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+    ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n# Les projets du contexte.\nprojects:\n  - holarch:project:ancien   # ancien\n---\n\n# Perso\n');
+    ecrire(path.join(r, 'socle', 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\n---\n');
+    ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'index.md'), '---\ntype: template\nid: public\ntitle: Public\nstatus: draft\nconfig:\n  creation: { visibilite: public, licence: MIT, journal: arbre/log.md }\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+    ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'rules.yaml'), '- id: rien-de-prive\n  statement: Rien de privé dans ce dépôt.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n- id: rien-de-personnel\n  statement: Aucun nom de personne.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+    for (const d of ['profil', 'socle']) { const { g } = depotGit(path.join(r, d)); g('add', '.'); g('commit', '-qm', 'départ'); }
+    const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
+      inventaire: { 'depots-git': { actif: true, racines: [r], profondeur: 2, ignorer: [] }, arbre: { actif: true, depots: [] } } });
+    await s.inventaire(); s.indexer();
+
+    assert.throws(() => configAvantProjet([...s.fiches({ kind: 'node' })], { contexte: 'pro' }), /contexte inconnu : pro \(perso\)/);
+    assert.throws(() => configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['prive'] }), /type inconnu : prive/);
+    assert.deepEqual(configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['public'] }).config.creation, { dossier: r, visibilite: 'public', licence: 'MIT', journal: 'arbre/log.md' });
+    await assert.rejects(creerProjet(s, { nom: '../evasion' }), /nom de projet invalide/);
+
+    const appels = []; let cles = 0; const actifs = [];
+    const gh = (args) => {
+      appels.push(args.join(' '));
+      if (args[0] === 'api' && args[1] === 'user') return { status: 0, stdout: 'alice\n' };
+      if (args[0] === 'repo' && args[1] === 'view') return { status: fs.existsSync(path.join(github, args[2])) ? 0 : 1, stdout: '' };
+      if (args[0] === 'repo' && args[1] === 'create') { spawnSync('git', ['init', '-q', '--bare', path.join(github, args[2])]); return { status: 0, stdout: '' }; }
+      if (args[0] === 'api') return { status: 0, stdout: `${cles}\n` };
+      return { status: 0, stdout: '' };
+    };
+    const distant = { liste: () => actifs, activer: (id) => { actifs.push({ projet: id }); return { unite: 'holarch-distant-neuf.service' }; } };
+    const outils = { gh, distant, urlDepot: (o, n) => path.join(github, o, n) };
+    const etats = (x) => Object.fromEntries(x.etapes.map((e) => [e.etape, e.etat]));
+
+    // À blanc : rien ne s'écrit, ni le dossier ni le catalogue.
+    const blanc = await creerProjet(s, { nom: 'neuf', types: ['public'], description: 'Un projet d’essai.', aBlanc: true }, outils);
+    assert.deepEqual([etats(blanc).depot, etats(blanc).fichiers, etats(blanc).audit, fs.existsSync(path.join(r, 'neuf'))], ['a-faire', 'a-faire', 'a-faire', false]);
+
+    const p1 = await creerProjet(s, { nom: 'neuf', types: ['public'], description: 'Un projet d’essai.' }, outils);
+    const d = path.join(r, 'neuf'); const g = (...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }).stdout.trim();
+    assert.deepEqual(etats(p1), { depot: 'faite', identite: 'faite', fichiers: 'faite', declaration: 'faite', regles: 'faite', github: 'faite', cle: 'geste', distant: 'faite', audit: 'faite' }, JSON.stringify(p1.etapes, null, 1));
+    assert.match(p1.projet, /^holarch:project:[0-9a-f]{12}$/);
+    assert.deepEqual(g('log', '--format=%an <%ae> %s').split('\n'), ['Alice Exemple <alice@noreply.test> Appliquer les règles HOLARCH', 'Alice Exemple <alice@noreply.test> Créer le projet']);
+    assert.deepEqual(g('ls-files').split('\n').sort(), ['.claude/rules/holarch/rien-de-prive.md', '.devcontainer/deploy-key.sh', '.devcontainer/devcontainer.json', '.gitignore', 'CLAUDE.md', 'LICENSE', 'README.md', 'arbre/index.md', 'arbre/log.md']);
+    assert.match(fs.readFileSync(path.join(d, 'LICENSE'), 'utf8'), new RegExp(`Copyright \\(c\\) ${new Date().getFullYear()} Alice Exemple`));
+    assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "neuf"[\s\S]*source=neuf-ssh/);
+    assert.ok(fs.statSync(path.join(d, '.devcontainer', 'deploy-key.sh')).mode & 0o100, 'deploy-key.sh exécutable');
+    assert.match(fs.readFileSync(path.join(d, 'arbre', 'index.md'), 'utf8'), /types: \[public\]\nconfig:\n  journal: arbre\/log.md\n  donnees_personnelles:\n    exceptions:\n      - \{ fichier: LICENSE,/);
+    assert.ok(fs.existsSync(path.join(d, '.git', 'hooks', 'pre-commit')), 'crochet posé (règle bloquante)');
+    assert.ok(appels.includes('repo create alice/neuf --public --description Un projet d’essai.'), appels.join('\n'));
+    assert.equal(g('rev-parse', '--abbrev-ref', '@{upstream}'), 'origin/main');
+    // La déclaration : une ligne ajoutée, le reste du fichier (commentaire compris) intact, commit dans le profil seul.
+    const ctx = fs.readFileSync(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), 'utf8');
+    assert.match(ctx, new RegExp(`# Les projets du contexte\\.\\nprojects:\\n  - holarch:project:ancien   # ancien\\n  - ${p1.projet}   # neuf\\n---`));
+    assert.equal(spawnSync('git', ['-C', path.join(r, 'profil'), 'log', '-1', '--format=%s'], { encoding: 'utf8' }).stdout.trim(), 'Déclarer le projet neuf');
+    const cle = p1.etapes.find((e) => e.etape === 'cle').geste;
+    assert.deepEqual([cle.commande, cle.lien], ['.devcontainer/deploy-key.sh', 'https://github.com/alice/neuf/settings/keys/new']);
+
+    // Rejouée, une fois la clé enregistrée : tout est déjà là, rien ne change.
+    cles = 1; const tete = g('rev-parse', 'HEAD');
+    const p2 = await creerProjet(s, { nom: 'neuf', types: ['public'] }, outils);
+    assert.deepEqual(Object.values(etats(p2)).filter((e) => e !== 'deja' && e !== 'faite'), [], JSON.stringify(p2.etapes, null, 1));
+    assert.deepEqual([etats(p2).fichiers, etats(p2).declaration, etats(p2).regles, etats(p2).github, etats(p2).cle, etats(p2).distant], ['deja', 'deja', 'deja', 'deja', 'deja', 'deja']);
+    assert.equal(g('rev-parse', 'HEAD'), tete);
+
+    // Un dossier non vide hors git n'est jamais touché ; un fichier manquant est rajouté, sans rien réécrire.
+    ecrire(path.join(r, 'occupe', 'note.txt'), 'à moi\n');
+    assert.deepEqual(etats(await creerProjet(s, { nom: 'occupe' }, outils)), { depot: 'echec' });
+    fs.rmSync(path.join(d, '.gitignore')); g('commit', '-qam', 'retirer');
+    const p3 = await creerProjet(s, { nom: 'neuf', types: ['public'] }, outils);
+    assert.deepEqual([etats(p3).fichiers, p3.etapes.find((e) => e.etape === 'fichiers').detail, g('log', '-1', '--format=%s')], ['faite', '.gitignore', 'Compléter les fichiers de base du projet']);
+
+    // Une déclaration en ligne s'allonge ; sans liste, elle se crée.
+    assert.equal(declarer('---\ntype: context\nprojects: [a, b] # deux\n---\n', 'c', 'x'), '---\ntype: context\nprojects: [a, b, c] # deux\n---\n');
+    assert.equal(declarer('---\ntype: context\n---\n', 'c', 'x'), '---\ntype: context\nprojects:\n  - c   # x\n---\n');
+  } finally {
+    for (const [k, v] of Object.entries(avant)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
+  }
+});

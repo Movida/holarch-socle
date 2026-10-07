@@ -4,6 +4,10 @@ id: depot-public
 title: Type transverse — dépôt public
 description: Ce que doit respecter un projet dont le dépôt est public.
 status: draft
+config:
+  # Création de projet (décision creation-de-projet) : un dépôt public est public sur GitHub et porte une licence (MIT,
+  # celle de 2 des 3 dépôts publics du poste).
+  creation: { visibilite: public, licence: MIT }
 links:
   derives_from: [/arbre/index.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md]

@@ -424,22 +424,24 @@ configuration de `gh` en volumes nommés, `deploy-key.sh`).
 
 **Livre.**
 
-1. **Commande** `holarch projet creer <nom> [--contexte <c>] [--type <t>…] [--a-blanc]` : `--contexte` peut manquer
+1. **Commande** `holarch projet creer <nom> [--contexte <c>] [--type <t>…] [--description <phrase>] [--a-blanc]`
+   (sans description, une marque `[À COMPLÉTER]`) : `--contexte` peut manquer
    quand le profil n'en a qu'un ; `--a-blanc` dit ce qui serait fait et n'écrit rien (à montrer avant de lancer). Chaque
    étape dit son résultat : faite, déjà là, désactivée, ou geste réservé (avec la commande ou le lien prêts) ; une étape
    en échec n'arrête pas les suivantes qui n'en dépendent pas.
 2. **Étapes, dans l'ordre où elles dépendent l'une de l'autre** (l'identité vient avant le premier commit, qui donne
    au projet son identifiant ; la déclaration avant les règles) :
    1. dépôt local, branche `main`, identité de commit du contexte posée (`identite-git.js`) ;
-   2. fichiers de base : README (titre seul), `.gitignore` (secrets d'environnement), CLAUDE.md généré (où vivent les
-      règles, comment les changer), LICENSE si `depot-public` ; avec un type, racine `arbre/index.md` qui les déclare,
-      et le journal si `methode-holarch` ; premier commit ;
+   2. fichiers de base : README (titre et description), `.gitignore` (secrets d'environnement), CLAUDE.md généré (où
+      vivent les règles, comment les changer), LICENSE si `depot-public`, conteneur de développement et
+      `deploy-key.sh` d'après le modèle ; avec un type et sans arbre, racine `arbre/index.md` qui les déclare, et son
+      journal si `methode-holarch` ; premier commit ;
    3. déclaration du projet dans le contexte du profil (une ligne `projects`), commit de ce seul fichier dans le profil ;
    4. inventaire, puis règles et crochet (`regles appliquer` sur le projet), commit des fichiers générés ;
    5. dépôt GitHub par `gh` (visibilité d'après les types, propriétaire : le compte actif de `gh` ou `creation.github`),
       remote `origin` en SSH, envoi de `main` ;
-   6. conteneur de développement et `deploy-key.sh` d'après le modèle ; la clé se crée dans le conteneur, son
-      enregistrement sur GitHub est un geste réservé, vu comme fait quand le dépôt porte une clé de déploiement ;
+   6. clé de déploiement : elle se crée dans le conteneur, son enregistrement sur GitHub est un geste réservé (choix
+      de l'auteur, 2026-10-07), vu comme fait quand le dépôt porte une clé de déploiement ;
    7. accès distant (`distant activer`) ;
    8. audit du projet : aucun écart attendu hors gestes réservés.
 3. **Configuration** : clé `creation` au registre de configuration (contrat config 0.3.0) : `dossier`, `etapes`
@@ -624,18 +626,26 @@ projet (§5.8).
   boîte (I22, I23). Décision `creation-de-projet` proposée, sur la mesure des 9 dépôts du poste : oublis rattrapés de 1 à
   158 jours, quatre projets non déclarés. Relevé au passage : deux dépôts ont une identité locale à adresse non anonyme,
   dont un public, hors du contrôle d'identité car non déclarés.
+- **Fait (2026-10-07)** : règle `lecon-de-cloture` inversée, décision du profil approuvée telle quelle (déroulé annoncé
+  à l'ouverture d'un sujet de plus d'une étape, leçon comparée au déroulé à la clôture) ; écrite au compte.
+- **Fait (2026-10-07)** : tranche 10, points 1 à 4, sur le choix de l'auteur pour la clé de déploiement (geste réservé).
+  `src/creation.js` (`holarch projet creer`, huit étapes rejouables, à blanc sans aucune écriture, catalogue compris) ;
+  `configAvantProjet` (module `regles`) lit le contexte et les types avant que le projet existe ; clé `creation` au
+  registre de configuration (contrat config 0.3.0), portée par les types `depot-public` (public, MIT) et
+  `methode-holarch` (journal) ; modèles du socle (`modeles/projet/`) tirés du conteneur le plus récent ; la LICENSE d'un projet public créé
+  est soustraite au contrôle des données personnelles dans sa racine, comme pour le socle (sans quoi son titulaire
+  ferait un écart et bloquerait les commits suivants) ; 1 test (création,
+  rejeu sans changement, dossier occupé jamais touché, fichier manquant rajouté seul). À blanc sur le poste : un projet
+  neuf, et un projet existant (README et `.gitignore` manquants, accès distant absent). Critère : le prochain vrai projet.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 10** : décision `creation-de-projet` approuvée telle quelle (2026-10-07) ; à spécifier et livrer.
-     okf-phoenix et okf-bundle-template périmés selon l'auteur, à supprimer en local et sur GitHub (compte
+  2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande. Migration des quatre projets non
+     déclarés : projet par projet, avec l'accord de l'auteur (`--a-blanc` d'abord). okf-phoenix et okf-bundle-template périmés selon l'auteur, à supprimer en local et sur GitHub (compte
      perso). okf-phoenix : clone propre, sans dépendant ; suppression refusée par la permission de l'outil, à lancer
      par l'auteur (bundle de sauvegarde, puis `gh repo delete --yes`, puis le dossier).
      okf-bundle-template : gardé (auteur, 2026-10-07), encore utilisé par un projet actif ; ses 4 commits publics portent
      une adresse non anonyme, réattribution possible si l'auteur le demande.
-  3. **Règle `lecon-de-cloture` inversée** (accord de l'auteur, 2026-10-07) : décision à écrire dans le profil ; à
-     l'ouverture d'un sujet, l'agent annonce le déroulé (étapes, mesures, choix qui reviendront à l'auteur) ; à la
-     clôture, la leçon compare au plan annoncé et nomme ce qui l'a fait dévier.
-  4. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
+  3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
+  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.
