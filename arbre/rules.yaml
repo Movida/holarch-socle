@@ -30,11 +30,11 @@
   approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07, avis rendu règle par règle, choix cliquables" }
   source: harvest
 - id: verifier-avant-de-rendre
-  statement: "Avant de rendre la main, `npm test` est vert ; quand l'interface change, le test visuel (`npm run test:visuel`) passe aussi, puis l'interface en service est relancée là où elle tourne (`systemctl --user restart holarch-interface.service`)."
-  why: "Un changement non vérifié casse la session suivante ; une interface non relancée montre l'ancienne version."
+  statement: "Avant de rendre la main, `npm test` est vert ; quand l'interface change, le test visuel (`npm run test:visuel`) passe aussi ; puis la copie de service est posée là où elle tourne (`holarch service poser`), ce qui relance l'interface."
+  why: "Un changement non vérifié casse la session suivante ; un service qui lance la copie de travail tourne sur du code inachevé, une copie non posée montre l'ancienne version."
   level: reminder
   status: stable
-  approved: { by: human:auteur, at: 2026-10-07, ref: "décision relancer-interface approuvée telle quelle, échange du 2026-10-07" }
+  approved: { by: human:auteur, at: 2026-10-07, ref: "décision copie-de-service approuvée telle quelle, échange du 2026-10-07" }
   source: harvest
 - id: commits
   statement: "Commits — résumé impératif court, en français ; un commit, une intention."
