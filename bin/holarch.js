@@ -8,7 +8,7 @@ import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface } from '../src/distant.js';
 import { materialiserCompte, materialiserProjet, BIN } from '../src/materialisation.js';
 import * as affichage from './affichage.js';
-import { alerte, resume } from '../src/contexte.js';
+import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
 import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
@@ -113,7 +113,7 @@ switch (cmd) {
     try {
       const entree = JSON.parse(lire(0, 'utf8') || '{}');
       if (args[0] === 'alerte') {
-        const i = args.indexOf('--seuil'); const a = alerte({ transcription: entree.transcript_path, seuil: +args[i + 1] });
+        const i = args.indexOf('--seuil'); const a = alerte({ transcription: entree.transcript_path, seuil: +args[i + 1], regles: () => reglesDuDossier(socle(), entree.cwd || process.cwd()) });
         if (a) console.log(JSON.stringify({ systemMessage: a.auteur, hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: a.agent } }));
       } else if (args[0] === 'debut') {
         const s = socle(); const r = resume(s, entree.cwd || process.cwd());

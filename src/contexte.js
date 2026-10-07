@@ -29,21 +29,32 @@ export function tailleContexte(transcription, { octets = 1024 * 1024 } = {}) {
 
 const k = (n) => `${Math.round(n / 1000)} k`;
 
-/** Avis de passation pour un message, ou null sous le seuil (crochet `UserPromptSubmit`). */
-export function alerte({ transcription, seuil }) {
+/**
+ * Avis de passation pour un message, ou null sous le seuil (crochet `UserPromptSubmit`). `regles` donne la règle
+ * effective du dossier de travail, lue seulement au-delà du seuil : l'avis ne demande la leçon de clôture que si sa
+ * règle s'applique, sans en recopier le texte (une seule source).
+ */
+export function alerte({ transcription, seuil, regles = () => [] }) {
   const t = tailleContexte(transcription);
   if (t == null || !(seuil > 0) || t < seuil) return null;
+  let lecon = false; try { lecon = regles().some((e) => e.id === 'lecon-de-cloture' && e.applicable); } catch { /* l'avis passe sans elle */ }
   return {
     tokens: t,
     agent: `Contexte de ${k(t)} tokens, relu à chaque tour (seuil de passation : ${k(seuil)}). Termine la tâche en cours, `
-      + 'mets à jour le journal et l’avancement du projet (passation), donne la leçon de clôture (la demande qui aurait mené '
-      + 'directement au résultat), puis propose à l’auteur de lancer /clear : la session '
-      + 'suivante reprendra sur un résumé du projet.',
+      + 'mets à jour le journal et l’avancement du projet (passation), '
+      + (lecon ? 'applique la règle `lecon-de-cloture`, ' : '')
+      + 'puis propose à l’auteur de lancer /clear : la session suivante reprendra sur un résumé du projet.',
     auteur: `HOLARCH : contexte de ${k(t)} tokens relu à chaque tour — passation puis /clear conseillés.`,
   };
 }
 
 const court = (t, n) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > n ? `${x.slice(0, n - 1)}…` : x; };
+
+/** Règle effective du dossier de travail : celle de son projet, sinon ce qui vaut au compte. */
+export function reglesDuDossier(s, dossier) {
+  const p = localiserProjet(projetsDe(s.fiches({ kind: 'project' })))(path.resolve(dossier));
+  return p ? s.regles({ projet: p.id }).regles : s.regles().compte.regles;
+}
 
 /** Résumé de reprise du projet d'un dossier (crochet `SessionStart`), `max` caractères au plus ; null hors projet. */
 export function resume(s, dossier, { max = 1500 } = {}) {

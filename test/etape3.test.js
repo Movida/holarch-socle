@@ -560,6 +560,12 @@ test('contexte : taille lue à la fin de la transcription, avis au-delà du seui
   assert.equal(alerte({ transcription: t, seuil: 250000 }), null, 'sous le seuil : rien');
   const a = alerte({ transcription: t, seuil: 150000 });
   assert.match(a.agent, /200 k tokens.*passation.*\/clear/); assert.match(a.auteur, /passation puis \/clear/);
+  // La leçon de clôture n'est demandée que si sa règle s'applique ; une règle illisible ne retient pas l'avis.
+  assert.doesNotMatch(a.agent, /lecon-de-cloture/);
+  const avec = (l) => alerte({ transcription: t, seuil: 150000, regles: () => l }).agent;
+  assert.match(avec([{ id: 'lecon-de-cloture', applicable: true }]), /applique la règle `lecon-de-cloture`, puis propose/);
+  assert.doesNotMatch(avec([{ id: 'lecon-de-cloture', applicable: false }]), /lecon-de-cloture/, 'proposée ou dérogée : rien');
+  assert.match(alerte({ transcription: t, seuil: 150000, regles: () => { throw new Error('x'); } }).agent, /passation/);
   assert.equal(tailleContexte(path.join(tmp(), 'absente.jsonl')), null);
   const r = spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), 'contexte', 'alerte', '--seuil', '150000'], { encoding: 'utf8', input: JSON.stringify({ transcript_path: t }), env: { ...process.env, HOLARCH_HOME: tmp() } });
   assert.equal(r.status, 0); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.hookEventName, 'UserPromptSubmit');
