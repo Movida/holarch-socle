@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Tranche 10 choisie** (création de projet, choix de l'auteur sur mesure : environ un projet par semaine, critère de
+  l'étape) : une commande d'abord ; formulaire de l'interface (I22) et paramétrage depuis l'interface (I23) dans la
+  boîte.
+
 * **Décision `relancer-interface` approuvée** telle quelle : règle `verifier-avant-de-rendre` étendue à la relance de
   l'interface en service, écrite dans le projet (`regles appliquer`) ; audit du socle conforme.
 
