@@ -4,6 +4,7 @@
 
 * **Règles approuvées** : `commits-pousses` et `reglage-mesure` (profil) ; contrôle actif, aucun écart. Incident :
   `regles appliquer --help` lancé pour voir l'aide (contraire à `outil-verifie`), rien n'a été écrit.
+  `reglage-mesure` écrite au compte ensuite (accord de l'auteur).
 
 * **Habitudes (a, b)** : leçon de clôture demandée par l'avis de passation seulement quand sa règle s'applique ;
   contrôle `commits-pousses` (écart au-delà de 4 h, branche sans amont non disponible), règle de profil proposée.
