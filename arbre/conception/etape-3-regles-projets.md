@@ -585,7 +585,8 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
   dont un public, hors du contrôle d'identité car non déclarés.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 10** : décision `creation-de-projet` à approuver, puis à spécifier et livrer.
+  2. **Tranche 10** : décision `creation-de-projet` approuvée telle quelle (2026-10-07) ; à spécifier et livrer.
+     okf-phoenix et okf-bundle-template périmés selon l'auteur : à retirer, portée à préciser (local, GitHub).
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
   4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,

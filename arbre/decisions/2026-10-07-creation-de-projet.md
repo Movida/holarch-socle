@@ -2,7 +2,8 @@
 type: decision
 title: Créer un projet par une commande aux étapes rejouables
 description: Tranche 10 de l'étape 3. `holarch projet creer` déroule les étapes de mise en place d'un projet, portées par son contexte et ses types, rejouables sans risque ; ce que l'agent ne peut pas faire sort en gestes réservés, avec la commande ou le lien prêts ; l'audit vérifie le résultat.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07 : « J'approuve telle quelle, pousse tout »" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/conception/contrats/config.md]
@@ -32,7 +33,7 @@ Code, approuver.
 
 La première est recommandée ; le choix « commande d'abord » est de l'auteur (2026-10-07).
 
-**Décision proposée.**
+**Décision.**
 
 | Point | Choix |
 |---|---|

@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Décision `creation-de-projet` approuvée** telle quelle ; okf-phoenix et okf-bundle-template périmés (auteur), à
+  retirer, portée à préciser.
+
 * **Tranche 10 ouverte** (création de projet) : décision `creation-de-projet` proposée, sur la mesure des 9 dépôts
   (oublis rattrapés de 1 à 158 jours, quatre projets non déclarés) ; deux identités locales non anonymes relevées.
 
