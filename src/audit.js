@@ -85,6 +85,11 @@ function ecartsFichiers(regles, m, prefixe) {
 const ecartsPermissions = (m) => (m.permissions.ajoutees || []).map((x) => { const e = m.lectures.find((l) => l.entree === x).regle;
   return { regle: e.fiche, regle_id: e.id, controle: 'permissions-posees', cle: x, fichier: 'settings.json', message: 'lecture non refusée' }; });
 
+// Réglages de Claude Code voulus par le profil et absents (une clé posée à la main n'est pas un écart : elle est dite).
+const ecartsReglages = (m) => [
+  ...m.reglages.cles.posees.map((cle) => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle, fichier: 'settings.json', message: `réglage ${cle} non posé` })),
+  ...m.reglages.crochets.poses.map((c) => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle: c.includes(' alerte ') ? 'crochet:alerte' : 'crochet:debut', fichier: 'settings.json', message: `crochet de passation non posé (${c.includes(' alerte ') ? 'alerte' : 'reprise'})` }))];
+
 function ecartsCrochet({ demande, etat }) {
   const e = (message, r = demande) => [{ regle: r ? r.fiche : 'crochet', regle_id: r ? r.id : 'crochet', controle: 'crochet-pose', cle: 'pre-commit', fichier: '.git/hooks/pre-commit', message }];
   if (etat === 'pose') return e('crochet de git absent');
@@ -113,13 +118,15 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
   const compte = regleDuCompte(fiches);
   if (compte.regles.length) {
     const rc = { projet: null, nom: 'compte', ecarts: [], controles: [] };
-    for (const m of materialiserCompte(compte.regles, comptesDe(s), { ecrire: false })) {
+    for (const m of materialiserCompte(compte, comptesDe(s), { accueil: s.config.accueil || accueil(), ecrire: false })) {
       rc.ecarts.push(...ecartsFichiers(compte.regles, m, 'rules/holarch'));
       if (m.permissions.erreur) rc.controles.push({ id: 'permissions-posees', etat: 'indisponible', raison: m.permissions.erreur });
       else rc.ecarts.push(...ecartsPermissions(m));
+      if (m.reglages.erreur) rc.controles.push({ id: 'reglages-poses', etat: 'indisponible', raison: m.reglages.erreur });
+      else rc.ecarts.push(...ecartsReglages(m));
     }
     rc.ecarts.push(...remplacees(compte.regles, memoires));
-    for (const c of ['regles-a-jour', 'permissions-posees', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
+    for (const c of ['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
     // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
     const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache') }, 'audit', ['blocking', 'verified'], 'site');
     rc.ecarts.push(...site.ecarts); rc.controles.push(...site.controles);

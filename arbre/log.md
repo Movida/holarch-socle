@@ -2,6 +2,11 @@
 
 ## 2026-10-07
 
+* **Économie du contexte** (tranche 7, décision `passation-sereine`, idée de l'auteur) : au-delà de 150 000 tokens,
+  avis de passation (arbre à jour, puis `/clear`) ; reprise sur un résumé du projet au démarrage ; compaction à 300 000
+  en filet ; réglages de Claude Code posés depuis le profil ; mesure au tableau de bord. Registre de configuration
+  créé (Q5 résolue). Mesure de l'effet le 2026-10-14.
+
 * **Consolidation** (tranche 6) : briques communes, matérialisation et audit en modules propres, réglages des
   contrôles ; relecture adverse par un sous-agent (une régression trouvée et corrigée) ; comportement inchangé sur le
   site réel. Registre des clients et superviseur interchangeable écartés tant qu'un seul client et un seul système.

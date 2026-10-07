@@ -27,6 +27,11 @@ export function appliquer({ comptes, projets }) {
     const p = m.permissions;
     if (p.erreur) sortie.push(`  ATTENTION lectures refusées non posées : ${p.erreur}`);
     else if (p.ajoutees.length || p.retirees.length || p.inchangees.length) sortie.push(`  lectures refusées (${p.fichier}) : ${p.ajoutees.length} ajoutée(s), ${p.retirees.length} retirée(s), ${p.inchangees.length} inchangée(s)`);
+    const g = m.reglages;
+    if (g.erreur) sortie.push(`  ATTENTION réglages de Claude Code non posés : ${g.erreur}`);
+    else if (Object.values(g.cles).some((x) => x.length) || Object.values(g.crochets).some((x) => x.length)) {
+      sortie.push(`  réglages de Claude Code : ${g.cles.posees.length} posé(s), ${g.cles.retirees.length} retiré(s), ${g.cles.inchangees.length} inchangé(s)${g.cles.ignorees.length ? `, laissés (posés à la main) : ${g.cles.ignorees.join(', ')}` : ''} ; crochets : ${g.crochets.poses.length} posé(s), ${g.crochets.retires.length} retiré(s), ${g.crochets.inchanges.length} inchangé(s)`);
+    }
   }
   for (const { nom, m } of projets) {
     sortie.push(bilan(nom, m.fichiers), ...m.plan.signaux.map((x) => `  ATTENTION ${x}`));

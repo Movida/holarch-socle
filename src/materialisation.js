@@ -2,23 +2,28 @@
 // s'écrit pour Claude Code et pour git, au compte et par projet. Une seule définition : `holarch regles appliquer`
 // l'exécute (`ecrire: true`), l'audit la lit à blanc (`ecrire: false`) et en tire ses écarts.
 import { fileURLToPath } from 'node:url';
-import { planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions } from './regles-claude-code.js';
+import { planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions, reglagesVoulus, appliquerReglages } from './regles-claude-code.js';
 import { crochetDe, poserCrochet } from './garde-git.js';
 
 /** La ligne de commande que le crochet de git appelle. */
 export const BIN = fileURLToPath(new URL('../bin/holarch.js', import.meta.url));
 
 /**
- * Compte : pour chaque compte Claude Code du site, les fichiers de règles (`<compte>/rules/holarch/`) et les lectures
- * refusées (`<compte>/settings.json`). Un `settings.json` illisible n'est jamais réécrit : `permissions.erreur` le dit.
+ * Compte : pour chaque compte Claude Code du site, les fichiers de règles (`<compte>/rules/holarch/`), les lectures
+ * refusées et les réglages de Claude Code (section `claude_code` de la configuration du compte), dans
+ * `<compte>/settings.json`. Un `settings.json` illisible n'est jamais réécrit : `permissions.erreur` et `reglages.erreur`
+ * le disent. `compte` : la règle effective du compte (module regles : `regles`, `config`).
  */
-export function materialiserCompte(regles, comptes, { ecrire = true } = {}) {
+export function materialiserCompte(compte, comptes, { accueil, holarch = BIN, ecrire = true } = {}) {
+  const regles = compte.regles;
   const plan = planifier(regles, { portee: 'compte' });
   const lectures = regles.filter((e) => e.applicable).flatMap((e) => lecturesRefusees(e).map((entree) => ({ entree, regle: e })));
+  const voulus = reglagesVoulus(compte.config || {}, { holarch, accueil });
   return comptes.filter((c) => c.home).map((c) => {
-    let permissions;
+    let permissions; let reglages;
     try { permissions = appliquerPermissions(c.home, lectures.map((x) => x.entree), { ecrire }); } catch (e) { permissions = { erreur: e.message }; }
-    return { compte: c.nom, home: c.home, plan, fichiers: appliquer(dossierCompte(c.home), plan, { ecrire }), lectures, permissions };
+    try { reglages = appliquerReglages(c.home, voulus, { ecrire }); } catch (e) { reglages = { erreur: e.message }; }
+    return { compte: c.nom, home: c.home, plan, fichiers: appliquer(dossierCompte(c.home), plan, { ecrire }), lectures, permissions, reglages };
   });
 }
 

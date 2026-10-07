@@ -8,6 +8,8 @@ import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface } from '../src/distant.js';
 import { materialiserCompte, materialiserProjet, BIN } from '../src/materialisation.js';
 import * as affichage from './affichage.js';
+import { alerte, resume } from '../src/contexte.js';
+import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
 const [cmd = 'aide', ...args] = process.argv.slice(2);
@@ -42,6 +44,9 @@ const AIDE = `holarch — socle autour des agents d'IA
                        chaque inventaire)
   holarch garde avant-commit
                        appelée par le crochet de git : refuse le commit si une règle bloquante du projet n'est pas tenue
+  holarch contexte alerte --seuil <tokens> | contexte debut
+                       appelés par les crochets de Claude Code (entrée JSON du crochet) : avis de passation au-delà du
+                       seuil ; résumé du projet au démarrage d'une session
   holarch pont <url> --cle <fichier>
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier
@@ -49,7 +54,7 @@ const AIDE = `holarch — socle autour des agents d'IA
 Options : --json (sortie brute), --help. Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
 // Une option inconnue arrête la commande avant qu'elle n'agisse : lancée « pour voir l'aide », elle n'écrit rien.
-const OPTIONS = { pont: ['--cle'], voir: ['--port'] };
+const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'] };
 if (args.includes('--help') || args.includes('-h')) { console.log(AIDE); process.exit(0); }
 const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIONS[cmd] || []).includes(a));
 if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
@@ -88,12 +93,12 @@ switch (cmd) {
       if (action === 'appliquer') {
         // Toutes les références d'abord : rien ne s'écrit si l'une d'elles est fausse. Puis le compte, puis les projets.
         const effectives = refs.map((ref) => { const r = s.regles({ projet: ref }); if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`); return r; });
-        const comptes = materialiserCompte(s.regles().compte.regles, comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {}));
+        const comptes = materialiserCompte(s.regles().compte, comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {}), { accueil: s.config.accueil });
         const projets = effectives.map((r) => ({ nom: r.nom, m: materialiserProjet(r, r.chemin, { accueil: s.config.accueil }) }));
         const texte = affichage.appliquer({ comptes, projets });
         afficher(json ? texte.split('\n') : texte);
         // Un settings.json illisible n'est jamais réécrit, et la commande échoue (comme avant la consolidation).
-        if (comptes.some((m) => m.permissions.erreur)) process.exit(1);
+        if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur)) process.exit(1);
       } else if (action) {
         const r = s.regles({ projet: action });
         afficher(json ? r : affichage.reglesProjet(r));
@@ -102,6 +107,19 @@ switch (cmd) {
         afficher(json ? r : affichage.reglesCompte(r));
       }
     } catch (e) { console.error(`holarch regles : ${e.message}`); process.exit(1); }
+    break; }
+  // Crochets de Claude Code (décision passation-sereine) : ne jamais faire échouer un message ni un démarrage.
+  case 'contexte': {
+    try {
+      const entree = JSON.parse(lire(0, 'utf8') || '{}');
+      if (args[0] === 'alerte') {
+        const i = args.indexOf('--seuil'); const a = alerte({ transcription: entree.transcript_path, seuil: +args[i + 1] });
+        if (a) console.log(JSON.stringify({ systemMessage: a.auteur, hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: a.agent } }));
+      } else if (args[0] === 'debut') {
+        const s = socle(); const r = resume(s, entree.cwd || process.cwd());
+        if (r) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: r } }));
+      }
+    } catch (e) { console.error(`holarch contexte : ${e.message}`); }
     break; }
   case 'audit': {
     const s = socle(); s.indexer(); const [projet] = args.filter((a) => !a.startsWith('--'));

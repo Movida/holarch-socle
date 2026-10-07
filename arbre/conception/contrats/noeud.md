@@ -3,10 +3,10 @@ type: contract
 title: Contrat — nœud de l'arbre
 description: Ce qu'est un nœud (un fichier Markdown à en-tête YAML), ses champs, ses liens typés, son cycle de vie et l'héritage de configuration.
 status: draft
-version: 0.2.0
+version: 0.3.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/decisions/2026-10-03-classification.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/fondations/principes.md]
+  constrained_by: [/arbre/decisions/2026-10-03-classification.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/fondations/principes.md, /arbre/decisions/2026-10-07-passation-sereine.md]
 ---
 
 # Contrat — nœud de l'arbre
@@ -38,7 +38,7 @@ Un nœud n'existe que s'il aide à décider ou à agir (principe P8).
 | `types` | non | types transverses d'un `project`, dans l'ordre d'héritage (`id` de leur nœud `template`) |
 | `projects` | non | pour un `context` ou une `activity` : les projets qu'il porte, par identifiant du catalogue (`holarch:project:<id>`) |
 | `roles` | non (hérité) | `{subject: [human:…], operator: [human:…], …}` |
-| `config` | non (hérité) | réglages, clés prises dans le registre de configuration (étape 1) |
+| `config` | non (hérité) | réglages, clés prises dans le registre de configuration (`contrats/config.md`) |
 | `links` | selon le type | voir §3 |
 | `sources` | non | `[{id, resource, title}]`, citées dans le texte par `[^id]` |
 

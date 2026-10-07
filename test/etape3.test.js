@@ -543,3 +543,57 @@ test('consolidation : les réglages de l’audit agissent, et les briques commun
   assert.equal(trouverOutil('a b'), null); assert.equal(trouverOutil('../sh'), null); assert.ok(trouverOutil('sh'));
   assert.equal(shell("l'outil"), `'l'\\''outil'`);
 });
+
+// ---- Tranche 7 : économie du contexte (décision passation-sereine). Données fictives.
+import { tailleContexte, alerte, resume } from '../src/contexte.js';
+import { reglagesVoulus, appliquerReglages } from '../src/regles-claude-code.js';
+
+test('contexte : taille lue à la fin de la transcription, avis au-delà du seuil seulement', () => {
+  const t = path.join(tmp(), 'session.jsonl');
+  const reponse = (cr) => JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 2, cache_read_input_tokens: cr, cache_creation_input_tokens: 1000, output_tokens: 50 } } });
+  ecrire(t, ['{"tronqu', reponse(90000), JSON.stringify({ type: 'user', message: { content: 'suite' } }), reponse(199000), JSON.stringify({ type: 'user', message: { content: 'encore' } })].join('\n') + '\n');
+  assert.equal(tailleContexte(t), 200002);
+  assert.equal(alerte({ transcription: t, seuil: 250000 }), null, 'sous le seuil : rien');
+  const a = alerte({ transcription: t, seuil: 150000 });
+  assert.match(a.agent, /200 k tokens.*passation.*\/clear/); assert.match(a.auteur, /passation puis \/clear/);
+  assert.equal(tailleContexte(path.join(tmp(), 'absente.jsonl')), null);
+  const r = spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), 'contexte', 'alerte', '--seuil', '150000'], { encoding: 'utf8', input: JSON.stringify({ transcript_path: t }), env: { ...process.env, HOLARCH_HOME: tmp() } });
+  assert.equal(r.status, 0); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.hookEventName, 'UserPromptSubmit');
+  const vide = spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), 'contexte', 'alerte', '--seuil', '150000'], { encoding: 'utf8', input: 'pas du json', env: { ...process.env, HOLARCH_HOME: tmp() } });
+  assert.deepEqual([vide.status, vide.stdout], [0, ''], 'une entrée illisible ne bloque jamais un message');
+});
+
+test('réglages Claude Code : posés depuis le profil, valeur posée à la main laissée, retrait de ce que HOLARCH a posé', () => {
+  const home = tmp(); const lu = () => JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8'));
+  ecrire(path.join(home, 'settings.json'), JSON.stringify({ model: 'x', effortLevel: 'high', hooks: { Stop: [{ hooks: [{ type: 'command', command: 'a-moi' }] }] } }));
+  const config = { claude_code: { reglages: { autoCompactWindow: 300000, effortLevel: 'medium' }, passation: { seuil_tokens: 150000, reprise: true } } };
+  const v = reglagesVoulus(config, { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv/donnees' });
+  assert.match(v.crochets[0].command, /HOLARCH_HOME='\/srv\/donnees' '\/opt\/node' --no-warnings '\/opt\/holarch\.js' contexte alerte --seuil 150000 2>\/dev\/null \|\| true/);
+  assert.equal(v.crochets[1].matcher, 'startup|clear|compact');
+  const r1 = appliquerReglages(home, v);
+  assert.deepEqual([r1.cles.posees, r1.cles.ignorees, r1.crochets.poses.length], [['autoCompactWindow'], ['effortLevel'], 2], 'une valeur posée à la main est laissée');
+  assert.deepEqual([lu().autoCompactWindow, lu().effortLevel, lu().model, lu().hooks.Stop[0].hooks[0].command], [300000, 'high', 'x', 'a-moi']);
+  assert.equal(appliquerReglages(home, v).crochets.inchanges.length, 2, 'idempotent');
+  // Le seuil change : l'ancien crochet part, le nouveau arrive ; plus de réglage : la clé posée par HOLARCH se retire.
+  const v2 = reglagesVoulus({ claude_code: { passation: { seuil_tokens: 200000 } } }, { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv/donnees' });
+  const r2 = appliquerReglages(home, v2);
+  assert.deepEqual([r2.cles.retirees, r2.crochets.retires.length, r2.crochets.poses.length], [['autoCompactWindow'], 2, 1]);
+  assert.deepEqual([lu().autoCompactWindow, Object.keys(lu().hooks).sort()], [undefined, ['Stop', 'UserPromptSubmit']]);
+  ecrire(path.join(home, 'settings.json'), '{ cassé');
+  assert.throws(() => appliquerReglages(home, v2), /illisible/, 'un settings.json illisible n’est jamais réécrit');
+  assert.equal(fs.readFileSync(path.join(home, 'settings.json'), 'utf8'), '{ cassé');
+});
+
+test('contexte : résumé de reprise du projet du dossier de travail, court ; rien hors projet', () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(path.join(d, 'arbre', 'conception', 'etape-2-demo.md'), `---\ntype: specification\ntitle: Étape 2 — démonstration\nstatus: draft\n---\n\n## Avancement\n\n- **Fait (2026-10-01)** : ${'premier lot livré. '.repeat(30)}\n- **Reste** :\n  1. Second lot.\n`);
+  g('add', '.'); g('commit', '-qm', 'x');
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [d], projetDe: () => ({ id: 'holarch:project:depot' }) }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const t = resume(s, path.join(d, 'arbre'));
+  assert.match(t, /reprise du projet depot/); assert.match(t, /Étape 2 : Étape 2 — démonstration/); assert.match(t, /Reste : Second lot\./);
+  assert.ok(t.length <= 1500);
+  assert.equal(resume(s, tmp()), null);
+});

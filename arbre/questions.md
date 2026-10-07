@@ -4,7 +4,6 @@
 |---|---|---|---|
 | Q2 | `besoins/besoins-fondateurs.md` | Qualifier B5 « déléguer une tâche longue en confiance » après le second test comparatif. | gênant |
 | Q4 | `conception/contrats/regle.md` §1 | Vocabulaire des actions (`match`) commun aux adaptateurs : à fixer à l'étape 3 sur les premiers clients (Claude Code, Desktop). | cosmétique d'ici l'étape 3 |
-| Q5 | `conception/contrats/noeud.md` §2 | Registre des clés de `config` des nœuds : à ouvrir avec la première clé réellement portée par un nœud (aucune à ce jour ; les clés de la configuration du site n'en relèvent pas). | cosmétique d'ici là |
 | Q8 | `conception/essai-site-travail.md` §6-7, §13, §18-19 | Vie des sessions de la passerelle : serveurs lourds ou à secrets en serveur partagé (geste de la procédure, §3) ; le pont de Desktop (`holarch pont`) reprend une session expirée et ferme la sienne. Reste : le client HTTP de Claude Code reprend-il une session expirée ? Condition pour raccourcir la durée de vie (30 min). | cosmétique |
 | Q10 | `conception/essai-site-travail.md` §2 | Grille de tarifs : relevable par une commande, ou fournie avec une date et une source plutôt que recopiée d'un autre site ? | cosmétique |
 | Q13 | `conception/essai-site-travail.md` §16 | Brique Savoir : le serveur OKF fédéré en devient-il l'adaptateur, et que doit dire le contrat de la brique (lecture avant, proposition après, porte vérifiée) pour ne pas dépendre de ses outils ? À l'ouverture de l'étape 6. | cosmétique d'ici l'étape 6 |
@@ -14,6 +13,7 @@
 
 | # | Question | Réponse |
 |---|---|---|
+| Q5 | Registre des clés de `config` des nœuds | ouvert avec la première clé réellement portée par un nœud (2026-10-07) : `conception/contrats/config.md`, décision `passation-sereine` |
 | Q17 | Dépôt privé du profil | aucun n'existait ; créé le 2026-10-06 avec l'accord de l'auteur (dépôt privé de son compte, cloné à côté de ses projets) : `decisions/2026-10-06-arbre-des-regles.md` |
 | Q16 | Quel second projet pour essayer l'arbre des règles ? | un bundle de connaissances privé du contexte personnel (choix de l'auteur, 2026-10-06) : autre nature que HOLARCH (pas de code), privé, il éprouve le côté fermé de l'arbre |
 | Q14 | Que montrer d'un projet dans la vue Projets ? | avancement de ses étapes, questions et décisions qui l'attendent, activité récente (sessions, dernier commit, coût 7 et 30 j), état technique du dépôt, plus tard ses écarts aux règles ; une session se rattache aux dépôts où elle a travaillé (accord de l'auteur, 2026-10-05) : `conception/etape-3-regles-projets.md` |

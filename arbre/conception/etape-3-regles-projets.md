@@ -330,6 +330,35 @@ Rien ne change de comportement : la suite de tests reste la mesure, sans test af
 interchangeable (systemd, launchd) : un seul client et un seul système à servir aujourd'hui. Ce qui les ferait venir :
 un second client à adapter, ou un site sous macOS.
 
+## Tranche 7 — Configuration : économie du contexte
+
+Décision `passation-sereine` (approuvée le 2026-10-07) : alerte de passation, reprise au démarrage, compaction en
+filet, réglages de Claude Code posés depuis le profil, mesure au tableau de bord. C'est la première tranche
+« configuration » (§5.2) : des réglages portés par l'arbre et écrits dans les portées du runtime.
+
+**Livre.**
+
+1. **Registre de configuration** (`contrats/config.md`) : les clés `config` en usage, qui les lit, leur fusion.
+2. **`holarch contexte alerte --seuil N`** (crochet `UserPromptSubmit`) : lit la taille du contexte dans la transcription
+   (dernier usage d'une réponse : entrée, cache lu, cache écrit) ; au-delà du seuil, un avis à l'agent
+   (`additionalContext`) et à l'auteur (`systemMessage`) ; rien sous le seuil ; jamais d'échec qui bloque un message.
+3. **`holarch contexte debut`** (crochet `SessionStart`, au démarrage, après `/clear` ou une compaction) : résumé du
+   projet du dossier de travail, 1 500 caractères au plus, tiré des mêmes lectures que la vue Projets.
+4. **Réglages Claude Code du compte** : la section `claude_code` de la configuration effective du profil (`reglages` :
+   clés de `settings.json` ; `passation` : seuil, reprise) devient des clés et des crochets de `~/.claude/settings.json`,
+   par `holarch regles appliquer`, avec un manifeste de ce que HOLARCH a posé ; une valeur posée à la main n'est jamais
+   remplacée (signalée) ; l'audit signale ce qui manque.
+5. **Mesure** : au tableau de bord, le contexte moyen relu par tour sur 7 et 30 jours, et les sessions de la semaine
+   au-dessus du seuil, avec le conseil de passation.
+6. **Profil** : `claude_code: { reglages: { autoCompactWindow: 300000 }, passation: { seuil_tokens: 150000, reprise: true } }`.
+
+**Critère de la tranche.** Une session qui dépasse le seuil reçoit l'avis ; après `/clear`, la session suivante démarre
+avec le résumé du projet ; la compaction est réglée à 300 000 ; après une semaine, le contexte moyen par tour est mesuré
+et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
+
+**Limites connues.** La taille du contexte lue dans la transcription a un tour de retard. Seul l'auteur peut lancer
+`/clear`. Les sessions des autres clients (Claude Desktop) ne sont pas concernées.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -424,8 +453,17 @@ un second client à adapter, ou un site sous macOS.
   fichier de règle à long en-tête non reconnue), trois écarts de comportement rétablis (sortie `--json`, code de
   sortie sur `settings.json` illisible, références vérifiées avant toute écriture). 47 tests ; site réel inchangé
   (mêmes fichiers, crochet, permissions, écarts). Tranche close.
+- **Ouverture de la tranche 7 (2026-10-07)** : économie du contexte, décision `passation-sereine` sur l'idée de
+  l'auteur (une passation plutôt qu'une compaction seule) ; registre de configuration créé, contrat nœud 0.3.0.
+- **Fait (2026-10-07)** : tranche 7, points 1 à 6. `contexte.js` (taille lue dans la transcription, avis de passation,
+  résumé de reprise de 1 500 caractères au plus), `holarch contexte alerte|debut`, réglages et crochets de Claude Code
+  écrits au compte depuis la section `claude_code` du profil (manifeste, valeur posée à la main laissée, retrait de ce
+  que HOLARCH a posé), mesure au tableau de bord ; 3 tests. Posé sur le poste personnel : compaction à 300 000, alerte à
+  150 000, reprise au démarrage. Crochets essayés à la main sur la transcription de la session en cours : avis à 608 k
+  tokens, résumé de reprise de 767 caractères. Référence de mesure au 2026-10-07 : contexte moyen relu par tour
+  232 k sur 30 jours, 272 k sur 7 jours ; 10 sessions au-dessus du seuil cette semaine. Q5 résolue (registre de configuration).
 - **Reste** :
-  1. **Économie de tokens** (tranche « configuration ») : seuil de compaction posé depuis le profil, signal des sessions
-     trop lourdes, mesure avant et après ; choisie par l'auteur après la consolidation.
+  1. **Tranche 7, critère** : constater l'avis et la reprise dans une vraie session, puis mesurer le contexte moyen par
+     tour à une semaine (2026-10-14) contre la référence.
   2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
      leur ouverture.

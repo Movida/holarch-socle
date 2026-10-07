@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
 import { CONTROLES } from './controles.js';
-import { lireJson, ecrireJson, fichierMarque } from './commun.js';
+import { lireJson, ecrireJson, fichierMarque, shell } from './commun.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
 const SOUS_DOSSIER = path.join('rules', 'holarch');
@@ -69,6 +69,61 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
   }
   const notees = entrees.filter((x) => nos.has(x) || ajoutees.includes(x));
   if (notees.length || fs.existsSync(manifeste)) ecrireJson(manifeste, { deny: notees });
+  return r;
+}
+
+/**
+ * Réglages de Claude Code voulus par la configuration effective du compte (section `claude_code`, registre de
+ * configuration) : des clés de `settings.json` et, pour la passation, deux crochets qui appellent `holarch contexte`.
+ * Un crochet laisse passer en silence si HOLARCH est injoignable (autre montage, conteneur).
+ */
+export function reglagesVoulus(config = {}, { node = process.execPath, holarch, accueil }) {
+  const cc = config.claude_code || {}; const p = cc.passation || {};
+  const cmd = (...args) => `HOLARCH_HOME=${shell(accueil)} ${shell(node)} --no-warnings ${shell(holarch)} contexte ${args.join(' ')} 2>/dev/null || true`;
+  const crochets = [];
+  if (+p.seuil_tokens > 0) crochets.push({ evenement: 'UserPromptSubmit', command: cmd('alerte', '--seuil', String(+p.seuil_tokens)) });
+  if (p.reprise) crochets.push({ evenement: 'SessionStart', matcher: 'startup|clear|compact', command: cmd('debut') });
+  return { cles: { ...(cc.reglages || {}) }, crochets };
+}
+
+const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Écrit les réglages voulus dans `<home>/settings.json` : une clé n'est posée que si elle est absente ou posée par HOLARCH
+ * (une valeur mise à la main est laissée, et dite) ; une clé ou un crochet que HOLARCH avait posé et qui n'est plus voulu
+ * se retire (une clé seulement si personne ne l'a changée depuis). Manifeste : `<home>/rules/holarch/reglages.json`.
+ */
+export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
+  const settings = path.join(home, 'settings.json'); const manifeste = path.join(dossierCompte(home), 'reglages.json');
+  const c = lireJson(settings, {}, { strict: true }); const nos = lireJson(manifeste, { cles: {}, crochets: [] }, { strict: true });
+  const r = { fichier: settings, cles: { posees: [], retirees: [], inchangees: [], ignorees: [] }, crochets: { poses: [], retires: [], inchanges: [] } };
+  const notees = { cles: {}, crochets: [] };
+  for (const [cle, v] of Object.entries(voulu.cles)) {
+    if (egal(c[cle], v)) { r.cles.inchangees.push(cle); if (cle in nos.cles) notees.cles[cle] = v; continue; }
+    if (c[cle] === undefined || (cle in nos.cles && egal(c[cle], nos.cles[cle]))) { c[cle] = v; notees.cles[cle] = v; r.cles.posees.push(cle); continue; }
+    r.cles.ignorees.push(cle);
+  }
+  for (const [cle, v] of Object.entries(nos.cles)) if (!(cle in voulu.cles) && egal(c[cle], v)) { delete c[cle]; r.cles.retirees.push(cle); }
+  const voulues = new Set(voulu.crochets.map((x) => x.command));
+  const hooks = (c.hooks ||= {});
+  for (const commande of nos.crochets.filter((x) => !voulues.has(x))) {
+    for (const ev of Object.keys(hooks)) {
+      const avant = hooks[ev].length;
+      hooks[ev] = hooks[ev].map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => h.command !== commande) })).filter((g) => g.hooks.length);
+      if (hooks[ev].length !== avant && !r.crochets.retires.includes(commande)) r.crochets.retires.push(commande);
+      if (!hooks[ev].length) delete hooks[ev];
+    }
+  }
+  for (const x of voulu.crochets) {
+    const groupes = (hooks[x.evenement] ||= []);
+    if (groupes.some((g) => (g.hooks || []).some((h) => h.command === x.command))) r.crochets.inchanges.push(x.command);
+    else { groupes.push({ ...(x.matcher && { matcher: x.matcher }), hooks: [{ type: 'command', command: x.command }] }); r.crochets.poses.push(x.command); }
+    notees.crochets.push(x.command);
+  }
+  if (!Object.keys(hooks).length) delete c.hooks;
+  const change = r.cles.posees.length || r.cles.retirees.length || r.crochets.poses.length || r.crochets.retires.length;
+  if (ecrire && change) ecrireJson(settings, c);
+  if (ecrire && (Object.keys(notees.cles).length || notees.crochets.length || fs.existsSync(manifeste))) ecrireJson(manifeste, notees);
   return r;
 }
 

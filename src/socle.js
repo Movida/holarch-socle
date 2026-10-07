@@ -107,7 +107,21 @@ export class Socle {
       // Mémoires identiques (même nom et même description) dans plusieurs projets : copie oubliée ou savoir à remonter.
       memoires_doubles: q("SELECT name, COUNT(*) n, group_concat(coalesce((SELECT p.name FROM fiches p WHERE p.id=json_extract(m.json,'$.links.project[0]')), json_extract(m.json,'$.attributes.projet_claude')), ', ') projets FROM fiches m WHERE kind='memory' GROUP BY name, coalesce(description,'') HAVING n>1 ORDER BY n DESC"),
       projets_sales: q("SELECT name, json_extract(json,'$.attributes.fichiers_modifies') n FROM fiches WHERE kind='project' AND n>0 ORDER BY n DESC"),
+      contexte: this.contexte(),
     };
+  }
+
+  // Contexte relu par tour (décision passation-sereine) : la mesure de l'économie (moyenne pondérée par les tours, donc
+  // portée par les longues sessions, celles qui coûtent), et les sessions de la semaine au-dessus du seuil de passation.
+  contexte() {
+    const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
+    const seuil = +regleDuCompte(fiches).config?.claude_code?.passation?.seuil_tokens || 150000;
+    const l = this.sessions({ jours: 30 }).filter((x) => x.tours_total && x.cache_lu);
+    const moyen = (a) => { const t = a.reduce((x, y) => x + y.tours_total, 0); return t ? Math.round(a.reduce((x, y) => x + y.cache_lu, 0) / t) : null; };
+    const j7 = new Date(Date.now() - 7 * 864e5).toISOString(); const semaine = l.filter((x) => x.fin >= j7);
+    const lourdes = semaine.map((x) => ({ session: x.session, fin: x.fin, projets: x.projets.map((p) => p.nom || p.id), tours: x.tours_total, moyen: Math.round(x.cache_lu / x.tours_total) }))
+      .filter((x) => x.moyen > seuil).sort((a, b) => b.moyen - a.moyen);
+    return { seuil, moyen_7: moyen(semaine), moyen_30: moyen(l), lourdes: lourdes.slice(0, 8), lourdes_n: lourdes.length };
   }
 
   coutParType(depuis) {
