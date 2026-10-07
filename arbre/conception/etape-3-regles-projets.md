@@ -531,6 +531,9 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
      « commits non poussés » (dépôt déclaré en avance sur son amont, montré à la reprise) ; règles de profil à proposer :
      recommandations en choix cliquables, et règle ou contrôle proposé quand un défaut est trouvé à l'usage (lien avec
      la tranche 9). Limite connue : une règle du compte ne se déroge pas encore par projet (portée locale, à venir).
-     L'auteur demande d'autres idées du même genre : à proposer à l'ouverture.
+     Autres idées proposées, à trier : forme des réponses (profil), coût annoncé avant une action lourde, critère
+     chiffré par tranche, échéances lancées par une routine, bilan de ce qui reste ouvert en fin de tranche. Idée de
+     l'auteur : un mécanisme qui enrichit ces propositions (une habitude nouvelle proposée quand un fait de session la
+     suggère, et un registre des propositions, retenues ou non, pour ne pas les reproposer).
   4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
      §5.8), à spécifier à leur ouverture.
