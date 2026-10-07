@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Retrait de deux projets** (okf-phoenix, okf-bundle-template, accord de l'auteur) : suppression d'okf-phoenix
+  refusée par la permission de l'outil, à lancer par l'auteur ; okf-bundle-template encore utilisé par un projet actif, en
+  attente. Règle `lecon-de-cloture` à inverser (plan annoncé à l'ouverture), décision à écrire.
+
 * **Décision `creation-de-projet` approuvée** telle quelle ; okf-phoenix et okf-bundle-template périmés (auteur), à
   retirer, portée à préciser.
 
