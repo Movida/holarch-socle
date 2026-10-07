@@ -641,10 +641,11 @@ projet (§5.8).
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande. Migration des quatre projets non
      déclarés : projet par projet, avec l'accord de l'auteur (`--a-blanc` d'abord) ; reste okf-bundle-template. Le profil n'est
-     pas un projet (avis de l'auteur et de l'agent, 2026-10-07 : il paramètre HOLARCH). pacs-montage-video : l'auteur
-     ne garde que la sortie (les deux vidéos finales, 280 et 164 Mo, et `output/MENTIONS.md`) ; dépôt absent de GitHub,
-     64 commits jamais poussés ; destination de la sortie et retrait du reste à confirmer par l'auteur. LICENSE d'un
-     projet public : exception dans le type `depot-public` proposée, à décider. okf-phoenix périmé selon l'auteur, à supprimer en local et sur GitHub.
+     pas un projet (avis de l'auteur et de l'agent, 2026-10-07 : il paramètre HOLARCH). pacs-montage-video retiré
+     (choix de l'auteur, 2026-10-07) : seules la sortie (deux vidéos finales, crédits) et le retour d'expérience
+     sont gardés, dans `D:\Videos\pacs-montage-video` ; dépôt déjà absent de GitHub. LICENSE : exception portée par le
+     type `depot-public` pour tout dépôt public (accord de l'auteur), retirée du socle et de la commande ; audit du socle
+     conforme. okf-phoenix périmé selon l'auteur, à supprimer en local et sur GitHub.
      okf-phoenix : clone propre, sans dépendant ; sauvegardé (bundle vérifié et `settings.local.json`
      dans `~/.claude/backups/`, 2026-10-07). Suppression sur GitHub refusée par une règle `deny` du compte
      (`Bash(gh repo delete *)`), qui vaut dans tous les modes de permission : par l'auteur, depuis la page du dépôt

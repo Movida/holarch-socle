@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **pacs-montage-video retiré** (choix de l'auteur) : sortie et retour d'expérience gardés dans les vidéos de
+  Windows, le reste supprimé. Profil hors de la liste des projets (avis partagé). Exception de la LICENSE portée par le
+  type `depot-public` (accord de l'auteur).
+
 * **Envoi** des commits du profil et du socle (accord de l'auteur). okf-phoenix sauvegardé ; sa suppression sur GitHub
   est refusée par une règle `deny` du compte, valable dans tous les modes : à faire par l'auteur depuis GitHub.
 
