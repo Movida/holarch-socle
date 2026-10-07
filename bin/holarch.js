@@ -6,7 +6,9 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant } from '../src/distant.js';
-import { planifier, appliquer, dossierCompte, dossierProjet } from '../src/regles-claude-code.js';
+import { planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions } from '../src/regles-claude-code.js';
+import { crochetDe, poserCrochet } from '../src/garde-git.js';
+import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
 const [cmd = 'aide', ...args] = process.argv.slice(2);
@@ -29,8 +31,15 @@ const AIDE = `holarch — socle autour des agents d'IA
                        règle effective d'un projet (profil, contexte, types, projet ; provenance, où Claude Code la
                        lit) ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles
   holarch regles appliquer [<projet>…]
-                       écrit les règles applicables : compte (<compte>/rules/holarch/) et chaque projet cité
-                       (.claude/rules/holarch/, à commiter) ; ne touche ni CLAUDE.md ni un fichier non marqué
+                       écrit les règles applicables : compte (<compte>/rules/holarch/, lectures refusées dans
+                       <compte>/settings.json) et chaque projet cité (.claude/rules/holarch/, à commiter ; crochet
+                       pre-commit de git si une règle bloquante le demande) ; ne touche ni CLAUDE.md ni un fichier non marqué
+  holarch audit [<projet>]
+                       audit de conformité : contrôles des règles bloquantes et vérifiées, fichiers générés, crochet,
+                       permissions, mémoires remplacées ; les écarts apparus ou résolus vont au journal (aussi après
+                       chaque inventaire)
+  holarch garde avant-commit
+                       appelée par le crochet de git : refuse le commit si une règle bloquante du projet n'est pas tenue
   holarch pont <url> --cle <fichier>
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier
@@ -51,7 +60,7 @@ switch (cmd) {
   // Pont stdio → hub : la sortie standard est le canal du protocole, les traces vont sur stderr.
   case 'pont': { const i = args.indexOf('--cle'); await lancerPont({ url: args.find((a) => /^https?:\/\//.test(a)), fichierCle: i >= 0 ? args[i + 1] : null }); break; }
   case 'init': console.log(ecrireConfigExemple() ? `configuration écrite : ${accueil()}/config.yaml` : 'configuration déjà présente'); break;
-  case 'inventaire': { const s = socle(); const r = await s.inventaire(); s.indexer(); afficher(json ? r : `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.deplacees.length} déplacées, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}${r.comptes_non_lus?.length ? `\nATTENTION comptes Claude Code non lus : ${r.comptes_non_lus.join(', ')}` : ''}`); break; }
+  case 'inventaire': { const s = socle(); const r = await s.inventaire(); s.indexer(); const a = s.audit({ journaliser: true }); r.audit = { ouverts: a.cibles.reduce((t, c) => t + c.ecarts.length, 0), ...a.journal }; afficher(json ? r : `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.deplacees.length} déplacées, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}${r.comptes_non_lus?.length ? `\nATTENTION comptes Claude Code non lus : ${r.comptes_non_lus.join(', ')}` : ''}\naudit : ${r.audit.ouverts} écart(s) ouvert(s) ; ${r.audit.apparus} apparu(s), ${r.audit.resolus} résolu(s)`); break; }
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : Object.entries(r).map(([k, v]) => `${k} : ${v.fichiers_lus} fichier(s) lu(s), ${v.ajoutes} événement(s) ajouté(s), ${v.ignores} déjà connu(s), ${v.refuses} refusé(s)${v.en_cours_ignores ? `, ${v.en_cours_ignores} session(s) en cours laissée(s) pour plus tard` : ''}${v.absent !== undefined ? ` (fichier absent : ${v.absent ?? 'non configuré'})` : ''}`).join('\n')); break; }
   case 'indexer': afficher(socle().indexer()); break;
   case 'distant': {
@@ -64,19 +73,26 @@ switch (cmd) {
     break; }
   case 'regles': {
     const s = socle(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
-    const ligne = (e) => `  [${e.origine}] ${e.id}${e.applicable ? '' : e.derogee ? ' (dérogée)' : ` (${e.statut})`} → ${e.claude_code.non ? `non écrite : ${e.claude_code.non}` : `${e.claude_code.portee} : ${e.claude_code.fichier}`}`;
+    const ligne = (e) => `  [${e.origine}] ${e.id}${e.applicable ? '' : e.derogee ? ' (dérogée)' : ` (${e.statut})`} → ${e.claude_code.non ? `non écrite : ${e.claude_code.non}` : e.claude_code.par ? `${e.niveau} : ${e.claude_code.par.join(', ')}` : `${e.claude_code.portee} : ${e.claude_code.fichier}`}`;
     const bilan = (nom, r) => `${nom} (${r.dossier}) : ${r.crees.length} créé(s), ${r.modifies.length} modifié(s), ${r.retires.length} retiré(s), ${r.inchanges.length} inchangé(s)${r.ignores.length ? ` ; non marqués, laissés : ${r.ignores.join(', ')}` : ''}`;
     try {
       if (action === 'appliquer') {
         const compte = s.regles().compte; const sortie = [];
         for (const c of comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {})) {
-          if (c.home) sortie.push(bilan(`compte${c.nom ? ` ${c.nom}` : ''}`, appliquer(dossierCompte(c.home), planifier(compte.regles, { portee: 'compte' }))));
+          if (!c.home) continue;
+          sortie.push(bilan(`compte${c.nom ? ` ${c.nom}` : ''}`, appliquer(dossierCompte(c.home), planifier(compte.regles, { portee: 'compte' }))));
+          const p = appliquerPermissions(c.home, compte.regles.filter((e) => e.applicable).flatMap(lecturesRefusees));
+          if (p.ajoutees.length || p.retirees.length || p.inchangees.length) sortie.push(`  lectures refusées (${p.fichier}) : ${p.ajoutees.length} ajoutée(s), ${p.retirees.length} retirée(s), ${p.inchangees.length} inchangée(s)`);
         }
         for (const ref of refs) {
           const r = s.regles({ projet: ref });
           if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`);
           const plan = planifier(r.regles, { portee: 'projet', classificationDepot: r.arbre?.classification });
           sortie.push(bilan(r.nom, appliquer(dossierProjet(r.chemin), plan)), ...plan.signaux.map((x) => `  ATTENTION ${x}`));
+          const demande = r.regles.some((e) => e.applicable && avantCommit(e));
+          const c = poserCrochet(r.chemin, demande ? crochetDe({ holarch: fileURLToPath(import.meta.url), accueil: s.config.accueil }) : null);
+          if (c.etat === 'ignore' && demande) sortie.push(`  ATTENTION un crochet pre-commit non marqué existe (${c.fichier}) : la garde n'est pas posée`);
+          else if (c.etat !== 'absent' && c.etat !== 'ignore') sortie.push(`  crochet de git : ${c.etat}`);
         }
         afficher(json ? sortie : sortie.join('\n'));
       } else if (action) {
@@ -90,6 +106,26 @@ switch (cmd) {
           ...(r.projets.length ? r.projets.map((p) => `${p.nom} : ${p.declare ? 'déclaré' : 'non déclaré par un contexte'}, types ${p.types.join(', ') || 'aucun'}, ${p.appliquees} appliquée(s), ${p.proposees} proposée(s)${p.signaux ? `, ${p.signaux} signal(aux)` : ''}`) : ['aucun projet n’a de règles']) ].join('\n'));
       }
     } catch (e) { console.error(`holarch regles : ${e.message}`); process.exit(1); }
+    break; }
+  case 'audit': {
+    const s = socle(); s.indexer(); const [projet] = args.filter((a) => !a.startsWith('--'));
+    try {
+      const a = s.audit({ projet: projet || null, journaliser: true });
+      afficher(json ? a : [...a.cibles.map((c) => [`${c.nom} : ${c.ecarts.length ? `${c.ecarts.length} écart(s)` : 'conforme'}${c.controles.length ? ` ; contrôles : ${c.controles.map((x) => x.etat === 'fait' ? x.id : `${x.id} (non disponible : ${x.raison})`).join(', ')}` : ''}`,
+        ...c.ecarts.map((e) => `  [${e.regle_id}] ${e.controle} : ${e.fichier || ''}${e.ligne ? `:${e.ligne}` : ''}${e.n > 1 ? ` (${e.n})` : ''} — ${e.message}`)].join('\n')),
+        a.cibles.length ? '' : 'aucun projet n’a de règles', `journal : ${a.journal.apparus} apparu(s), ${a.journal.resolus} résolu(s)`].filter((x) => x !== '').join('\n'));
+    } catch (e) { console.error(`holarch audit : ${e.message}`); process.exit(1); }
+    break; }
+  // Appelée par le crochet de git : une panne de HOLARCH laisse passer le commit et le dit (l'audit rattrape).
+  case 'garde': {
+    try {
+      const r = socle().garde({ depot: process.cwd(), moment: args[0] || 'avant-commit' });
+      for (const x of r.indisponibles) console.error(`HOLARCH : contrôle ${x.id} non disponible (${x.raison}) : non vérifié`);
+      if (r.refus.length) {
+        for (const x of r.refus) console.error(`HOLARCH : commit refusé par la règle ${x.regle} — ${x.enonce}\n${x.ecarts.map((e) => `  ${e.fichier || ''}${e.ligne ? `:${e.ligne}` : ''} : ${e.message}`).join('\n')}`);
+        process.exit(1);
+      }
+    } catch (e) { console.error(`HOLARCH : garde en échec (${e.message}) : commit non contrôlé`); }
     break; }
   case 'etat': { const s = socle(); s.indexer(); const e = s.etat(); if (json) { afficher(e); break; }
     console.log(`site ${e.site} · ${e.evenements} événements · sessions ${e.sessions.total} (dont ${e.periode.sessions} sur ${e.periode.jours} jours)`);

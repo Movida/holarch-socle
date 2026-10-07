@@ -102,7 +102,7 @@ async function projets(params) {
   const carte = (p) => {
     const a = p.activite; const e = p.etape;
     return `<div class="carte projet">
-      <div class="tete"><a class="t" href="#" data-fiche="${h(p.id)}" title="${h(p.chemin || '')}">${h(p.nom)}</a>${p.branche ? ` <span class="mono discret">${h(p.branche)}</span>` : ''} ${tech(p)} <a class="regles discret" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Règle effective du projet : profil, contexte, types, projet">règles</a></div>
+      <div class="tete"><a class="t" href="#" data-fiche="${h(p.id)}" title="${h(p.chemin || '')}">${h(p.nom)}</a>${p.branche ? ` <span class="mono discret">${h(p.branche)}</span>` : ''} ${tech(p)} <a class="regles discret" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Règle effective du projet : profil, contexte, types, projet">règles</a>${p.ecarts ? ` <a class="badge alerte" href="#/regles?projet=${encodeURIComponent(p.id)}" title="Écarts aux règles trouvés par l’audit, ouverts">${nf.format(p.ecarts)} écart${p.ecarts > 1 ? 's' : ''}</a>` : ''}</div>
       ${e ? `<div class="etape"><a href="#" data-fiche="${h(e.id)}">${h(e.titre)}</a>${e.close ? ' <span class="badge ok">close</span>' : ''} <span class="discret">· ${nf.format(e.faits)} fait${e.faits > 1 ? 's' : ''}</span>
         ${e.dernier_fait ? `<div class="discret">Dernier fait${e.dernier_fait.date ? ` (${jj(e.dernier_fait.date)})` : ''} : ${md(e.dernier_fait.texte || '')}</div>` : ''}
         ${e.reste.length ? `<div class="reste"><b>Reste</b><ul>${e.reste.map((r) => `<li>${md(r)}</li>`).join('')}</ul></div>` : ''}</div>` : p.arbre ? '<div class="discret">Arbre sans spécification d’étape.</div>' : ''}
@@ -203,21 +203,25 @@ async function regles(params) {
     const cc = e.claude_code;
     return `<tr><td><a href="#" data-fiche="${h(e.fiche)}">${h(e.id)}</a></td><td><span class="badge" title="${h(`${e.provenance.arbre}:${e.provenance.noeud}`)}">${h(ORIGINE_REGLE[e.origine] || e.origine)}</span>${e.origine === 'type' ? ` <span class="mono desc" title="${h(e.provenance.titre)}">${h(e.provenance.type_id || '')}</span>` : ''}${e.recouvre.length ? '<div class="desc">redéfinit une règle plus haute</div>' : ''}</td>
       <td title="${h(e.pourquoi || '')}">${md(e.enonce)}${e.derogee ? `<div class="desc">dérogée : ${h(e.derogee.pourquoi || '')}</div>` : ''}</td><td class="mono desc">${h(e.niveau)}</td>
-      <td><span class="badge ${e.statut === 'stable' ? 'ok' : 'accent'}">${h(e.statut)}</span></td><td class="desc">${cc.non ? h(cc.non) : `<span class="mono">${h(cc.portee)} : ${h(cc.fichier)}</span>`}</td></tr>`;
+      <td><span class="badge ${e.statut === 'stable' ? 'ok' : 'accent'}">${h(e.statut)}</span></td><td class="desc">${cc.non ? h(cc.non) : cc.par ? `contrôlée : ${h(cc.par.join(', '))}` : `<span class="mono">${h(cc.portee)} : ${h(cc.fichier)}</span>`}</td></tr>`;
   }).join('');
   const table = `<div class="carte tableau section"><table class="triable"><thead><tr><th>Règle</th><th>Origine</th><th>Énoncé</th><th>Niveau</th><th>Statut</th><th>Claude Code</th></tr></thead><tbody>${lignes || '<tr><td colspan="6" class="vide">Aucune règle.</td></tr>'}</tbody></table></div>`;
   const signaux = corps.signaux.length ? `<div class="carte section"><b>À regarder</b><ul>${corps.signaux.map((x) => `<li>${h(x)}</li>`).join('')}</ul></div>` : '';
+  const ecarts = corps.ecarts?.length ? `<div class="carte tableau section"><h2>Écarts ouverts</h2><table class="triable"><thead><tr><th>Règle</th><th>Contrôle</th><th>Où</th><th>Nature</th><th>Depuis</th></tr></thead><tbody>${corps.ecarts.map((x) => {
+    const e = corps.regles.find((y) => y.fiche === x.regle);
+    return `<tr><td>${e ? `<a href="#" data-fiche="${h(e.fiche)}">${h(e.id)}</a>` : h(x.regle)}</td><td class="mono desc">${h(x.controle)}</td><td class="mono desc">${h(x.fichier || '')}${x.ligne ? `:${x.ligne}` : ''}${x.n > 1 ? ` (${nf.format(x.n)})` : ''}</td><td class="desc">${h(x.message || '')}</td><td class="date" data-v="${Date.parse(x.depuis)}" title="${h(date(x.depuis))}">${h(depuis(x.depuis))}</td></tr>`;
+  }).join('')}</tbody></table></div>` : '';
   const rappels = `<span title="Texte des règles de niveau rappel, chargé dans le contexte de l’agent à chaque tour">${nf.format(corps.rappels)} caractères chargés à chaque tour${corps.rappels_proposes ? `, ${nf.format(corps.rappels_proposes)} de plus si les proposées sont approuvées` : ''}</span>`;
   if (projet) {
     return `<h1>Règles — ${h(r.nom || projet)}</h1>
       <p class="sous-titre">Règle effective du projet : profil, contexte, types${r.arbre?.types.length ? ` (${r.arbre.types.map(h).join(', ')})` : ''}, puis le projet ; le plus spécifique l’emporte. Seul le <span class="badge ok">stable</span> s’applique. ${rappels}.</p>
-      ${signaux}${table}<p class="discret section"><a href="#/regles">Ce qui vaut pour tout le compte</a></p>`;
+      ${signaux}${ecarts}${table}<p class="discret section"><a href="#/regles">Ce qui vaut pour tout le compte</a></p>`;
   }
   return `<h1>Règles</h1>
     <p class="sous-titre">Ce qui vaut pour tous les projets de ce site (profil et contexte, écrits au niveau du compte) ; ${rappels}. Un projet ajoute ses types et ses propres règles.</p>
-    ${signaux}${table}
-    <div class="carte tableau section"><h2>Projets qui ont des règles</h2><table class="triable"><thead><tr><th>Projet</th><th>Contexte</th><th>Types</th><th class="num">Appliquées</th><th class="num">Proposées</th><th class="num">Rappels</th></tr></thead><tbody>
-      ${r.projets.map((p) => `<tr class="cliquable" data-lien="#/regles?projet=${encodeURIComponent(p.id)}"><td>${h(p.nom)}${p.signaux ? ` <span class="badge alerte" title="Signaux à regarder">${p.signaux}</span>` : ''}</td><td class="desc">${p.declare ? 'déclaré' : 'aucun'}</td><td class="mono desc">${h(p.types.join(', '))}</td>${num(p.appliquees, nf.format(p.appliquees))}${num(p.proposees, nf.format(p.proposees))}${num(p.rappels, nf.format(p.rappels))}</tr>`).join('') || '<tr><td colspan="6" class="vide">Aucun projet n’a de règles.</td></tr>'}
+    ${signaux}${ecarts}${table}
+    <div class="carte tableau section"><h2>Projets qui ont des règles</h2><table class="triable"><thead><tr><th>Projet</th><th>Contexte</th><th>Types</th><th class="num">Appliquées</th><th class="num">Proposées</th><th class="num">Rappels</th><th class="num">Écarts</th></tr></thead><tbody>
+      ${r.projets.map((p) => `<tr class="cliquable" data-lien="#/regles?projet=${encodeURIComponent(p.id)}"><td>${h(p.nom)}${p.signaux ? ` <span class="badge alerte" title="Signaux à regarder">${p.signaux}</span>` : ''}</td><td class="desc">${p.declare ? 'déclaré' : 'aucun'}</td><td class="mono desc">${h(p.types.join(', '))}</td>${num(p.appliquees, nf.format(p.appliquees))}${num(p.proposees, nf.format(p.proposees))}${num(p.rappels, nf.format(p.rappels))}${num(p.ecarts, p.ecarts ? `<span class="badge alerte">${nf.format(p.ecarts)}</span>` : '')}</tr>`).join('') || '<tr><td colspan="7" class="vide">Aucun projet n’a de règles.</td></tr>'}
     </tbody></table></div>`;
 }
 

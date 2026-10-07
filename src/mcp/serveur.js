@@ -52,7 +52,7 @@ export function creerServeurMcp(socle, version) {
   });
 
   s.registerTool('regles', {
-    description: 'Règle effective d’un projet (décision arbre-des-regles) : règles du profil, du contexte, des types transverses et du projet, chacune avec sa provenance, son statut (seul stable s’applique) et l’endroit où Claude Code la lit ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles.',
+    description: 'Règle effective d’un projet (décision arbre-des-regles) : règles du profil, du contexte, des types transverses et du projet, chacune avec sa provenance, son statut (seul stable s’applique) et l’endroit où Claude Code la lit (ou ce qui la contrôle : crochet de git, permissions, audit), et les écarts ouverts trouvés par l’audit ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles.',
     inputSchema: z.object({ projet }), annotations: LECTURE,
   }, async ({ projet: ref }) => texte(socle.regles({ projet: ref || null })));
 

@@ -59,7 +59,8 @@ export function chargerConfig(fichier = path.join(accueil(), 'config.yaml'), sit
   const commune = lireYaml(fichier);
   const nom = site || commune.site || DEFAUTS().site;
   const propre = lireYaml(path.join(path.dirname(fichier), `config.${nom}.yaml`));
-  return developper({ ...fusion(fusion(DEFAUTS(), commune), propre), site: nom });
+  // `accueil` : le répertoire de la configuration lue, que le crochet de git rappelle (HOLARCH_HOME) pour relire la même.
+  return developper({ ...fusion(fusion(DEFAUTS(), commune), propre), site: nom, accueil: path.dirname(path.resolve(fichier)) });
 }
 
 // Les comptes Claude Code qu'un adaptateur doit lire : ceux de `comptes_claude_code`, sinon son seul `home` (sans nom :

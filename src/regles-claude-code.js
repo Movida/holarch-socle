@@ -2,10 +2,13 @@
 // par règle dans les portées que Claude Code lit déjà, `<compte>/rules/holarch/` pour ce qui vaut sur tout le site et
 // `<projet>/.claude/rules/holarch/` pour ce qui est propre au projet. Un fichier écrit porte la MARQUE ; un fichier sans
 // elle n'est jamais touché, `CLAUDE.md` non plus. S'écrivent les règles stables, non dérogées, de niveau `reminder`, ou
-// `guided` limitées à des chemins (chargées à la demande) ; les autres sont dites non appliquées, avec la raison.
+// `guided` limitées à des chemins (chargées à la demande). Une règle `blocking` ou `verified` ne s'écrit pas en consigne :
+// ses contrôles passent par le crochet de git et l'audit, ses lectures refusées par les permissions du compte (décision
+// controles-de-regles). Les autres sont dites non appliquées, avec la raison.
 import fs from 'node:fs';
 import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
+import { CONTROLES } from './controles.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
 const SOUS_DOSSIER = path.join('rules', 'holarch');
@@ -19,12 +22,60 @@ export function destination(e, { classificationDepot = 'internal' } = {}) {
   if (e.statut !== 'stable') return { portee, non: e.statut === 'draft' ? 'à approuver' : `statut ${e.statut}` };
   if (e.derogee) return { portee, non: 'dérogée' };
   const chemins = e.applique_a?.paths;
-  if (e.niveau === 'blocking' || e.niveau === 'verified') return { portee, non: `niveau ${e.niveau} : hook, à venir` };
+  if (e.niveau === 'blocking' || e.niveau === 'verified') {
+    // Une règle contrôlée ne s'écrit pas en consigne : le crochet de git, les permissions et l'audit la tiennent.
+    const lectures = lecturesRefusees(e);
+    if (!e.controles?.length && !lectures.length) return { portee, non: `niveau ${e.niveau} sans contrôle ni permission` };
+    if (lectures.length && portee === 'projet') return { portee, non: 'permissions de projet : à venir' };
+    const par = [];
+    if (e.niveau === 'blocking' && avantCommit(e)) par.push('crochet git');
+    if (lectures.length) par.push('permissions');
+    if (e.controles?.length) par.push('audit');
+    return { portee, par };
+  }
   if (e.niveau === 'guided' && !chemins) return { portee, non: 'guidée sans chemins : skill, à venir' };
   if (portee === 'projet' && CLASSIFICATIONS.indexOf(e.classification) > CLASSIFICATIONS.indexOf(classificationDepot)) {
     return { portee, non: `classification ${e.classification} plus fermée que le dépôt (${classificationDepot}) : portée locale, à venir` };
   }
   return { portee, fichier: nomFichier(e.id) };
+}
+
+/** Entrées `Read(...)` qu'une règle bloquante demande (`match: { action: read, paths }`). */
+export function lecturesRefusees(e) {
+  if (e.niveau !== 'blocking' || e.match?.action !== 'read') return [];
+  return [].concat(e.match.paths || []).map((p) => `Read(${p})`);
+}
+
+/** Une règle bloquante dont un contrôle s'exécute avant un commit : elle demande le crochet de git. */
+export const avantCommit = (e) => e.niveau === 'blocking' && (e.controles || []).some((c) => CONTROLES[c]?.moments.includes('avant-commit'));
+
+/**
+ * Permissions de lecture refusées à la portée du compte (`<home>/settings.json`, `permissions.deny`) : ajoute les
+ * entrées voulues, retire celles que HOLARCH avait posées et qui ne le sont plus (manifeste à côté des règles générées) ;
+ * une entrée posée par quelqu'un d'autre n'est jamais retirée. `ecrire: false` : dit seulement ce qui changerait.
+ */
+export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
+  const settings = path.join(home, 'settings.json'); const manifeste = path.join(dossierCompte(home), 'permissions.json');
+  const lireJson = (f, d) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : d);
+  const c = lireJson(settings, {}); const nos = new Set(lireJson(manifeste, { deny: [] }).deny || []);
+  const deny = c.permissions?.deny || []; const voulues = new Set(entrees);
+  const ajoutees = entrees.filter((x) => !deny.includes(x));
+  const retirees = [...nos].filter((x) => !voulues.has(x) && deny.includes(x));
+  const r = { fichier: settings, ajoutees, retirees, inchangees: entrees.filter((x) => deny.includes(x)) };
+  if (!ecrire) return r;
+  if (ajoutees.length || retirees.length) {
+    c.permissions = { ...(c.permissions || {}), deny: [...deny.filter((x) => !retirees.includes(x)), ...ajoutees] };
+    ecrireJson(settings, c);
+  }
+  const notees = entrees.filter((x) => nos.has(x) || ajoutees.includes(x));
+  if (notees.length || fs.existsSync(manifeste)) ecrireJson(manifeste, { deny: notees });
+  return r;
+}
+
+function ecrireJson(f, o) {
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(`${f}.holarch`, `${JSON.stringify(o, null, 2)}\n`);
+  fs.renameSync(`${f}.holarch`, f);
 }
 
 /** Texte du fichier d'une règle. */
@@ -48,7 +99,7 @@ export function planifier(regles, { portee, classificationDepot } = {}) {
       if (portee === 'projet' && e.derogee) signaux.push(`dérogation à ${e.id} sans effet dans Claude Code : la règle reste chargée au niveau du compte (portée locale, à venir)`);
       continue;
     }
-    if (d.non) non.push({ regle: e.id, raison: d.non }); else fichiers.push({ fichier: d.fichier, contenu: contenu(e), regle: e.id });
+    if (d.non) non.push({ regle: e.id, raison: d.non }); else if (d.fichier) fichiers.push({ fichier: d.fichier, contenu: contenu(e), regle: e.id });
   }
   return { fichiers, non, signaux };
 }

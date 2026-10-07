@@ -44,7 +44,7 @@ function fusionner(couches, signaux) {
     for (const f of regles) {
       const a = f.attributes;
       const e = { id: f.name, fiche: f.id, enonce: a.enonce, pourquoi: a.pourquoi, niveau: a.niveau, statut: a.statut, derogeable: a.derogeable,
-        applique_a: a.applique_a, classification: f.classification, origine, provenance: { arbre: a.arbre, noeud: noeud.node, titre: noeud.name, fichier: f.location, ...(origine === 'type' && { type_id: noeud.attributes.id }) }, recouvre: [] };
+        applique_a: a.applique_a, match: a.match || null, controles: a.controles || null, remplace: a.remplace || null, classification: f.classification, origine, provenance: { arbre: a.arbre, noeud: noeud.node, titre: noeud.name, fichier: f.location, ...(origine === 'type' && { type_id: noeud.attributes.id }) }, recouvre: [] };
       const avant = r.get(e.id);
       if (avant && avant.derogeable === false) { signaux.push(`règle non dérogeable redéfinie : ${e.id} (${avant.provenance.arbre}:${avant.provenance.noeud}, redéfinie par ${e.provenance.arbre}:${e.provenance.noeud}) ; la première tient`); continue; }
       if (avant) e.recouvre = [...avant.recouvre, { ...avant.provenance, origine: avant.origine }];
@@ -85,6 +85,8 @@ export function regleEffective(fiches, projetId) {
   }
   if (racine) couches.push({ origine: 'projet', noeud: racine, regles: a.regles.get(racine.id) || [] });
   const regles = fusionner(couches, signaux);
+  // Réglages (`config`) : même ordre que les règles, une clé posée plus bas l'emporte.
+  const config = Object.assign({}, ...couches.map((c) => c.noeud.attributes?.config || {}));
   for (const d of racine?.attributes?.derogations || []) {
     const e = regles.find((x) => x.id === d?.rule);
     if (!e) { signaux.push(`dérogation à une règle absente : ${d?.rule}`); continue; }
@@ -94,7 +96,7 @@ export function regleEffective(fiches, projetId) {
   for (const n of [racine, ...couches.map((c) => c.noeud)].filter(Boolean)) if (n.attributes?.erreur_regles) signaux.push(`${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_regles}`);
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
   return { projet: projetId, arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
-    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), signaux: [...new Set(signaux)], rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
+    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux: [...new Set(signaux)], rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /**
@@ -109,7 +111,8 @@ export function regleDuCompte(fiches) {
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profils[0], regles: a.regles.get(a.profils[0].id) || [] }];
   const regles = fusionner(couches, signaux);
-  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), signaux, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
+  const config = Object.assign({}, ...couches.map((c) => c.noeud.attributes?.config || {}));
+  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /** Les projets qu'un contexte (ou une activité) déclare. */

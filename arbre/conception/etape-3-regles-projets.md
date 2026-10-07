@@ -199,10 +199,12 @@ peuvent dériver de la règle effective sans que rien ne le dise ; des mémoires
    ou « non disponible » avec sa raison. Premiers contrôles :
    - `donnees-personnelles` : termes de la liste privée, en mots entiers, sans casse, dans les lignes ajoutées et les
      noms de fichiers (avant commit), dans les fichiers suivis (audit). Liste déduite (nom et adresse de l'identité git,
-     dossier personnel, noms des comptes Claude Code, noms des projets non publics du catalogue) et complétée par le
-     réglage `donnees_personnelles` du profil (`termes` à ajouter, `exceptions` à retirer, chacune avec sa raison) ;
-   - `secrets` : gitleaks sur les changements indexés (avant commit) et sur le dépôt (audit)
-     [À COMPLÉTER : sous-commandes et options exactes, lues dans l'aide de la version installée] ;
+     nom d'utilisateur et dossier personnel, dossiers des comptes Claude Code, noms des projets qu'un contexte déclare et
+     dont l'arbre n'est pas public ; jamais le nom du projet contrôlé) et complétée par le réglage `donnees_personnelles`
+     du profil (`termes` à ajouter, `exceptions` à retirer, chacune avec sa raison) ;
+   - `secrets` : gitleaks (8.30.1, lu dans son aide) : `gitleaks git --pre-commit --staged` avant commit, `gitleaks dir`
+     sur le contenu suivi du dernier commit (exporté par `git archive`) à l'audit ; secrets masqués (`--redact`), sortie
+     JSON ; un code de sortie autre que 0 (rien) ou 1 (fuites listées) rend le contrôle non disponible ;
    - `journal-tenu` : un jour où des commits changent l'arbre du projet sans entrée datée de ce jour dans son journal.
 2. **Audit** (`holarch audit [<projet>]`) : pour chaque projet qui a des règles, les contrôles de ses règles stables
    `blocking` et `verified`, et trois vérifications de la matérialisation, qui ne sont pas des règles :
@@ -218,12 +220,14 @@ peuvent dériver de la règle effective sans que rien ne le dise ; des mémoires
 4. **Permissions** : une règle `blocking` sans contrôle de commit et portant `match: { action: read, paths: [...] }`
    devient des entrées `permissions.deny` (`Read(...)`) à sa portée (`~/.claude/settings.json` pour le compte). Les
    entrées posées sont listées dans un manifeste à côté des règles générées ; seules celles-là se retirent.
-5. **Interface et MCP** : la règle effective d'un projet montre ses écarts ouverts et la date de chaque contrôle ; la
-   carte d'un projet en donne le nombre ; la lecture `regles` (page, outil MCP) les porte, sans nouvel outil.
+5. **Interface et MCP** : la règle effective d'un projet montre ses écarts ouverts, chacun avec sa date d'apparition
+   (l'audit suit chaque inventaire, dont la date dit celle du dernier contrôle) ; la carte d'un projet en donne le
+   nombre ; la lecture `regles` (page, outil MCP) les porte, sans nouvel outil.
 6. **Règles passées au contrôle**, une fois les contrôles éprouvés et avec l'approbation de l'auteur :
    `rien-de-personnel` → `blocking`, `check: [donnees-personnelles, secrets]` ; `secrets-hors-contexte` → `blocking`,
-   lecture des fichiers de secrets refusée [À COMPLÉTER : motifs, à fixer à l'essai] ; `journal-du-projet` → `verified`,
-   `check: [journal-tenu]`. Elles quittent les rappels.
+   lecture des fichiers de secrets refusée (`match: { action: read, paths }`, motifs gitignore ancrés à la racine,
+   `//**/.env` par exemple) ; `journal-du-projet` → `verified`, `check: [journal-tenu]`, avec le réglage `journal` de
+   chaque projet. Elles quittent les rappels.
 
 **Critère de la tranche.** Dans le socle, un commit qui contient un terme de la liste privée ou un faux secret est
 refusé ; forcé (`--no-verify`), il apparaît à l'audit suivant et au journal, puis s'y résout une fois retiré. Claude
@@ -240,9 +244,12 @@ contrôle, et les rappels de chaque projet ont diminué d'autant.
 | liste déduite, complétée par le profil | presque rien à tenir ; le profil privé garde ce que la machine ignore | des faux positifs répétés sur un terme déduit |
 | audit après chaque inventaire | pas de nouvelle minuterie ; le journal reçoit l'apparition et la fin des écarts | un audit trop lent pour l'heure |
 
-**Limites connues.** Une lecture faite par une commande du shell (`cat`) n'est pas couverte par une permission de
-lecture [À COMPLÉTER : ce que Claude Code refuse réellement, vérifié à l'essai]. Un commit fait ailleurs que dans le
-clone local (édition sur GitHub) n'est vu qu'à l'audit.
+**Limites connues.** Une permission de lecture refusée couvre les outils de fichiers de Claude Code et les commandes du
+shell qui nomment le fichier (`cat`, `head`, `tail`, `sed`, redirections), pas une commande qui lit sans le nommer
+(`grep -r`) ni un script (documentation des permissions de Claude Code, lue le 2026-10-07) ; le bac à sable de Claude
+Code le ferait au niveau du système. Un commit fait ailleurs que dans le clone local (édition sur GitHub) n'est vu qu'à
+l'audit. Le crochet fige les chemins de node et de HOLARCH à son écriture : vu d'un conteneur où ils n'existent pas, il
+laisse passer et le dit.
 
 ## Avancement
 

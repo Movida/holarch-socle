@@ -100,7 +100,7 @@ export default function inventaireArbre(options, ctx) {
         links: { ...(h.links || {}), ...(projet && { project: [projet.id] }) },
         attributes: { type: h.type || null, statut: h.status || null, approuve: h.approved || null, revue: h.review || null, arbre, ...(estRacine && { racine: true }),
           ...(h.id && { id: String(h.id) }), ...(h.types && { types: [].concat(h.types).map(String) }), ...(h.projects && { projects: [].concat(h.projects).map(String) }),
-          ...(h.derogations && { derogations: h.derogations }), ...(regles.length && { regles: regles.length }), ...(erreur && { erreur_regles: erreur }), ...suivi },
+          ...(h.derogations && { derogations: h.derogations }), ...(h.config && typeof h.config === 'object' && { config: h.config }), ...(regles.length && { regles: regles.length }), ...(erreur && { erreur_regles: erreur }), ...suivi },
       };
       out.push(noeud);
       // Une règle se désigne par son arbre, son nœud (rien pour la racine, l'`id` du nœud s'il en a un) et son `id`.
@@ -113,7 +113,8 @@ export default function inventaireArbre(options, ctx) {
           links: { ...(projet && { project: [projet.id] }) },
           attributes: { arbre, noeud_id: noeud.id, porteur: h.type || null, enonce: String(r.statement).trim(), pourquoi: r.why ? String(r.why).trim() : null,
             niveau: r.level || 'reminder', declencheur: r.trigger || null, match: r.match || null, derogeable: r.derogable !== false, applique_a: r.applies_to || null,
-            statut: r.status || 'draft', approuve: r.approved || null, source: r.source || null, revue_le: r.review_after || null, remplace: r.replaces || null },
+            statut: r.status || 'draft', approuve: r.approved || null, source: r.source || null, revue_le: r.review_after || null, remplace: r.replaces || null,
+            controles: r.check ? [].concat(r.check).map(String) : null },
         });
       }
     }

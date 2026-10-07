@@ -272,7 +272,7 @@ test('règles : l’adaptateur Claude Code écrit un fichier marqué par règle,
   const e = regleEffective(fiches, 'holarch:project:socle');
   const plan = planifier(e.regles, { portee: 'projet', classificationDepot: 'internal' });
   assert.deepEqual(plan.fichiers.map((x) => x.fichier).sort(), ['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md', 'tests-verts.md']);
-  assert.deepEqual(Object.fromEntries(plan.non.map((x) => [x.regle, x.raison])), { garde: 'niveau blocking : hook, à venir' });
+  assert.deepEqual(Object.fromEntries(plan.non.map((x) => [x.regle, x.raison])), { garde: 'niveau blocking sans contrôle ni permission' });
   assert.ok(plan.signaux.some((x) => /dérogation à francais sans effet/.test(x)), 'Claude Code additionne les portées : le dire');
   const avis = plan.fichiers.find((x) => x.regle === 'avis-argumente').contenu;
   assert.ok(avis.startsWith(MARQUE) && /prévaut sur celle du même nom posée au niveau du compte/.test(avis));
@@ -306,4 +306,127 @@ test('ligne de commande : --help affiche l’aide et une option inconnue arrête
   assert.equal(r.status, 2);
   assert.match(r.stderr, /option inconnue --essai/);
   assert.deepEqual(fs.readdirSync(accueil), [], 'rien n’est écrit');
+});
+
+// ---- Tranche 4 : audit de conformité (décision controles-de-regles). Données fictives.
+import { listePrivee, chercheur, executer } from '../src/controles.js';
+import { crochetDe, poserCrochet } from '../src/garde-git.js';
+import { appliquerPermissions, lecturesRefusees } from '../src/regles-claude-code.js';
+
+function depotGit(d = tmp()) {
+  const g = (...a) => { const r = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
+  g('init', '-q'); g('config', 'user.name', 'Alice Exemple'); g('config', 'user.email', 'alice@exemple.test'); g('config', 'commit.gpgsign', 'false');
+  return { d, g };
+}
+const jourIl = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+
+test('contrôles : liste privée déduite et amendée, mots entiers, un écart dit où sans répéter le terme', () => {
+  const { d, g } = depotGit();
+  const t = listePrivee({ depot: d, config: { donnees_personnelles: { termes: ['Projet Zeta', { terme: 'zz' }], exceptions: [{ terme: 'alice@exemple.test', pourquoi: 'adresse de test' }] } },
+    comptes: [{ home: '/srv/comptes/.claude-pro' }], projetsPrives: ['carnet-prive', 'demo'], nomProjet: 'demo' });
+  assert.ok(['Alice Exemple', 'Projet Zeta', 'carnet-prive', '/srv/comptes/.claude-pro', os.homedir()].every((x) => t.includes(x)), t.join(' | '));
+  assert.ok(!t.includes('alice@exemple.test') && !t.includes('demo') && !t.includes('zz'), 'exception, nom du projet, terme trop court');
+  const c = chercheur(['Projet Zeta', 'carnet-prive']);
+  assert.ok(c('voir le projet zeta.') && c('(carnet-prive)') && !c('carnet-priveX') && !c('xcarnet-prive'));
+  ecrire(path.join(d, 'a.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'a');
+  ecrire(path.join(d, 'a.md'), 'propre\nnote du Projet Zeta\nencore projet zeta\n'); ecrire(path.join(d, 'carnet-prive.txt'), 'x\n'); g('add', '.');
+  const ctx = { depot: d, termes: ['Projet Zeta', 'carnet-prive'] };
+  const avant = executer('donnees-personnelles', ctx, 'avant-commit');
+  assert.deepEqual(avant.ecarts.map((e) => [e.fichier, e.ligne, e.n]).sort(), [['a.md', 2, 2], ['carnet-prive.txt', null, 1]]);
+  assert.ok(!/zeta/i.test(JSON.stringify(avant)), 'un écart ne cite jamais le terme trouvé');
+  g('commit', '-qm', 'b');
+  assert.deepEqual(executer('donnees-personnelles', ctx, 'audit').ecarts.map((e) => e.fichier).sort(), ['a.md', 'carnet-prive.txt']);
+  assert.match(executer('donnees-personnelles', { depot: d, termes: [] }, 'audit').indisponible, /vide/);
+  assert.match(executer('inconnu', ctx, 'audit').indisponible, /contrôle inconnu/);
+  assert.match(executer('donnees-personnelles', { depot: path.join(d, 'absent'), termes: ['x'] }, 'audit').indisponible, /absent/);
+});
+
+test('contrôles : secrets par gitleaks (avant commit, audit du contenu suivi), absent ou en panne : non disponible', () => {
+  const { d, g } = depotGit();
+  ecrire(path.join(d, 'conf.txt'), 'a\nb\nc\n'); g('add', '.'); g('commit', '-qm', 'x');
+  // Un gitleaks fictif : il signale conf.txt, ligne 3, sous le chemin qu'on lui donne.
+  const faux = path.join(tmp(), 'gitleaks');
+  ecrire(faux, '#!/bin/sh\nif [ "$1" = dir ]; then f="$2/conf.txt"; else f=conf.txt; fi\nprintf \'[{"RuleID":"cle-fictive","File":"%s","StartLine":3}]\' "$f"\nexit 1\n'); fs.chmodSync(faux, 0o755);
+  assert.deepEqual(executer('secrets', { depot: d, gitleaks: faux }, 'avant-commit').ecarts.map((e) => [e.fichier, e.ligne, e.message]), [['conf.txt', 3, 'secret possible (cle-fictive)']]);
+  assert.deepEqual(executer('secrets', { depot: d, gitleaks: faux }, 'audit').ecarts.map((e) => e.fichier), ['conf.txt'], 'chemin relatif au dépôt');
+  assert.match(executer('secrets', { depot: d, gitleaks: null }, 'audit').indisponible, /gitleaks absent/);
+  const panne = path.join(tmp(), 'gitleaks'); ecrire(panne, '#!/bin/sh\necho panne >&2\nexit 2\n'); fs.chmodSync(panne, 0o755);
+  assert.match(executer('secrets', { depot: d, gitleaks: panne }, 'audit').indisponible, /gitleaks en échec : panne/);
+});
+
+test('contrôles : journal tenu, un jour de commits sur l’arbre sans entrée datée', () => {
+  const { d, g } = depotGit();
+  const [j1, j2, j3] = [jourIl(4), jourIl(3), jourIl(2)];
+  const commit = (jour, f, t = jour) => {
+    ecrire(path.join(d, f), t); g('add', '.');
+    const r = spawnSync('git', ['-C', d, 'commit', '-qm', `${jour} ${f}`], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_DATE: `${jour}T12:00:00`, GIT_COMMITTER_DATE: `${jour}T12:00:00` } });
+    assert.equal(r.status, 0, r.stderr);
+  };
+  commit(j1, 'arbre/a.md'); commit(j1, 'arbre/log.md', `# Journal\n\n## ${j1}\n\n* fait\n`);
+  commit(j2, 'arbre/b.md'); commit(j3, 'src/x.js'); commit(j3, 'arbre/log.md', `# Journal\n\n## ${j1}\n`);
+  const r = executer('journal-tenu', { depot: d, arbre: path.join(d, 'arbre'), config: { journal: 'arbre/log.md' } }, 'audit');
+  assert.deepEqual(r.ecarts.map((e) => [e.cle, e.n]), [[`jour:${j2}`, 1]], 'le journal lui-même et ce qui sort de l’arbre ne comptent pas');
+  assert.match(executer('journal-tenu', { depot: d, config: {} }, 'audit').indisponible, /réglage journal absent/);
+  assert.equal(executer('journal-tenu', { depot: d, config: {} }, 'avant-commit').hors_moment, true);
+});
+
+test('garde : crochet de git marqué (posé, inchangé, retiré ; un crochet étranger jamais touché) et lectures refusées du compte', () => {
+  const { d } = depotGit();
+  const crochet = path.join(d, '.git', 'hooks', 'pre-commit');
+  const texte = crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant' });
+  assert.equal(poserCrochet(d, texte, { ecrire: false }).etat, 'pose'); assert.ok(!fs.existsSync(crochet), 'rien n’est écrit à blanc');
+  assert.equal(poserCrochet(d, texte).etat, 'pose'); assert.equal(poserCrochet(d, texte).etat, 'inchange');
+  const r = spawnSync(crochet, { encoding: 'utf8' });
+  assert.deepEqual([r.status, /injoignable/.test(r.stderr)], [0, true], 'HOLARCH injoignable : le commit passe, et c’est dit');
+  assert.equal(poserCrochet(d, null).etat, 'retire');
+  ecrire(crochet, '#!/bin/sh\nexit 0\n');
+  assert.deepEqual([poserCrochet(d, texte).etat, poserCrochet(d, null).etat, fs.readFileSync(crochet, 'utf8')], ['ignore', 'ignore', '#!/bin/sh\nexit 0\n']);
+  assert.equal(poserCrochet(tmp(), texte).etat, 'hors-git');
+
+  const home = tmp(); const lu = () => JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8'));
+  ecrire(path.join(home, 'settings.json'), JSON.stringify({ model: 'x', permissions: { deny: ['Bash(rm -rf / *)', 'Read(//**/.env)'] } }));
+  const p1 = appliquerPermissions(home, ['Read(//**/.env)', 'Read(~/.ssh/**)']);
+  assert.deepEqual([p1.ajoutees, p1.inchangees], [['Read(~/.ssh/**)'], ['Read(//**/.env)']]);
+  assert.deepEqual([lu().model, lu().permissions.deny], ['x', ['Bash(rm -rf / *)', 'Read(//**/.env)', 'Read(~/.ssh/**)']]);
+  assert.deepEqual(appliquerPermissions(home, []).retirees, ['Read(~/.ssh/**)'], 'seule l’entrée posée par HOLARCH se retire');
+  assert.deepEqual(lu().permissions.deny, ['Bash(rm -rf / *)', 'Read(//**/.env)']);
+  assert.deepEqual(lecturesRefusees({ niveau: 'blocking', match: { action: 'read', paths: ['//**/.env'] } }), ['Read(//**/.env)']);
+  assert.deepEqual(lecturesRefusees({ niveau: 'reminder', match: { action: 'read', paths: ['//**/.env'] } }), []);
+});
+
+test('audit : un commit fautif est refusé par le crochet ; forcé, il apparaît au journal, puis s’y résout', () => {
+  const r = tmp(); const accueil = tmp();
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\nconfig:\n  donnees_personnelles:\n    termes: [Projet Zeta]\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\nclassification: public\n---\n');
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
+  const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+  ecrire(path.join(accueil, 'config.yaml'), 'site: local\ninventaire: { claude-code: { actif: false }, depots-git: { actif: false }, arbre: { actif: false }, docker: { actif: false }, claude-desktop: { actif: false } }\n');
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+
+  const a0 = s.audit({ journaliser: true });
+  assert.deepEqual(a0.cibles.find((c) => c.projet === 'holarch:project:depot').ecarts.map((e) => [e.controle, e.message]), [['crochet-pose', 'crochet de git absent']]);
+  assert.equal(poserCrochet(d, crochetDe({ holarch: path.resolve('bin/holarch.js'), accueil })).etat, 'pose');
+
+  ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', '.');
+  const refus = spawnSync('git', ['-C', d, 'commit', '-qm', 'fautif'], { encoding: 'utf8' });
+  assert.equal(refus.status, 1, refus.stderr);
+  assert.match(refus.stderr, /commit refusé par la règle rien-de-personnel/); assert.match(refus.stderr, /note\.md:1/);
+  assert.ok(!/zeta/i.test(refus.stderr), 'le refus ne répète pas le terme');
+  g('commit', '-qm', 'forcé', '--no-verify');
+
+  const a1 = s.audit({ journaliser: true });
+  assert.deepEqual([a1.journal.apparus, a1.journal.resolus], [1, 1], 'l’écart du commit forcé apparaît, celui du crochet se résout');
+  assert.deepEqual(s.regles({ projet: 'holarch:project:depot' }).ecarts.map((e) => [e.controle, e.fichier, e.ligne]), [['donnees-personnelles', 'note.md', 1]]);
+  assert.equal(s.projets().projets.find((p) => p.id === 'holarch:project:depot').ecarts, 1);
+
+  ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'corrigé');
+  assert.deepEqual([s.audit({ journaliser: true }).journal.resolus, s.ecartsOuverts().length], [1, 0]);
+  const evs = [...s.journal.lire()].filter((e) => e.kind.startsWith('rule.'));
+  assert.deepEqual(evs.map((e) => e.kind), ['rule.violated', 'rule.violated', 'rule.resolved', 'rule.resolved']);
+  assert.ok(evs.every((e) => e.actor === 'system:audit' && !/zeta/i.test(JSON.stringify(e))), 'au journal, jamais le terme');
 });

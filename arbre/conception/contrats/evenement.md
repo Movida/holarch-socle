@@ -38,7 +38,7 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 | `cost` | si l'événement coûte : `{usd_list, usd_real?, provider, model, tokens}` ; `usd_list` est le coût liste que connaît l'émetteur, sinon `null` : la lecture le calcule depuis `tokens` et la grille de tarifs (décision coût liste) |
 | `cost.tokens` | `in`, `cache_write`, `cache_write_1h` (part de `cache_write` écrite pour une heure, facturée plus cher), `cache_read`, `out` ; les sommes font foi : un événement peut compléter la ventilation d'un précédent |
 | `classification` | niveau de l'événement ; un consommateur ne lit que ce que son niveau autorise |
-| `data` d'un écart | `rule.violated` et `rule.resolved` : `{regle, controle, fichier?, ligne?}`, la règle par son identifiant du catalogue ; jamais le contenu trouvé ; `subject` est le projet |
+| `data` d'un écart | `rule.violated` et `rule.resolved` : `{regle, controle, cle, fichier?, ligne?, n?, message?}` ; la règle par son identifiant du catalogue, `cle` reconnaît l'écart d'un audit à l'autre, `n` compte ses occurrences, `message` dit sa nature ; jamais le contenu trouvé ; `subject` est le projet, absent pour la portée du compte |
 
 ## 3. Familles (vocabulaire ouvert, extensible par décision)
 
