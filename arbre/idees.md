@@ -28,7 +28,7 @@ Statuts : `retenue` (l'auteur la veut, pour sa phase) · `à trier` · `proposé
 | I13 | Critère chiffré par tranche | agent, 2026-10-07 | méthode | des clôtures vérifiables | à trier |
 | I14 | Échéances lancées par une routine (exemple : la mesure du 2026-10-14) | agent, 2026-10-07 | étape 3, à placer à sa clôture | une échéance ne s'oublie pas | à trier |
 | I15 | Bilan de ce qui reste ouvert en fin de tranche | agent, 2026-10-07 | méthode | rien ne se perd entre deux tranches | à trier |
-| I16 | Service d'inventaire lancé depuis une copie fixe plutôt que la copie de travail : un import ne tourne jamais avec du code en cours d'écriture (constaté le 2026-10-07, sans dommage) | agent, 2026-10-07 | étape 3 | un journal en ajout seul protégé du code inachevé | proposée |
+| I16 | Service d'inventaire lancé depuis une copie fixe plutôt que la copie de travail : un import ne tourne jamais avec du code en cours d'écriture (constaté le 2026-10-07, sans dommage) | agent, 2026-10-07 | étape 3 | un journal en ajout seul protégé du code inachevé | prise (décision `copie-de-service`, 2026-10-07) |
 | I17 | Une règle du compte dérogeable par projet (portée locale) | agent, 2026-10-07 | étape 3, réglages de Claude Code par projet | une exception sans changer le profil | à trier |
 | I18 | « Profil de travail » (biographie) dans le profil privé | agent, 2026-10-07 | — | contexte de l'auteur connu des sessions | écartée pour l'instant (auteur, 2026-10-07) |
 | I19 | Portée de l'autorisation d'envoi paramétrable (par commit, par session, par projet), déclarée au profil ; touche la règle approuvée `approuver-n-autorise-pas`, donc une décision | auteur, 2026-10-07 | étape 3, récolte (habitudes paramétrables) | moins d'allers-retours pour pousser | retenue |

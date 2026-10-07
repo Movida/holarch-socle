@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Copie de service** (idée I16) : décision `copie-de-service` approuvée telle quelle ; `holarch service poser` pose
+  une copie du socle tirée d'un commit vérifié, que lancent l'import, l'interface, les crochets, le serveur MCP et la
+  garde. Posée sur le poste (accord de l'auteur) ; critère tenu avec la copie de travail cassée.
+
 * **Type `projet-dormant` approuvé** par l'auteur ; envoi du socle, du profil et d'okf-bundle-template (accord de
   l'auteur).
 

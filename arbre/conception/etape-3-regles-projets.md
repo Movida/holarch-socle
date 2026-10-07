@@ -652,6 +652,20 @@ projet (§5.8).
   désormais public aussi quand ses couches le déclarent (`creation.visibilite`, porté par `depot-public`) : une seule
   notion avec la commande (choix de l'auteur) ; 1 test. Audit conforme pour le socle et le template.
   Ses 4 commits publics portent une adresse non anonyme, réattribution possible si l'auteur le demande.
+- **Fait (2026-10-07)** : copie de service (idée I16, décision `copie-de-service` approuvée telle quelle, sur le choix
+  de l'auteur : une copie par commit et un lien). Mesure : cinq points d'entrée (import horaire, interface, crochets de
+  Claude Code, serveur MCP, garde des six dépôts) lançaient la copie de travail, dont trois écrivent au journal.
+  `src/service.js` : `holarch service [poser [<commit>]]`, export du commit (`git archive`), `npm ci --omit=dev`, lien
+  `courant` basculé d'un coup, la copie posée et la précédente gardées, retour arrière en reposant une copie présente ;
+  une copie neuve se tire seulement de `HEAD` d'une copie de travail propre aux tests verts. `BIN` suit le lien ; le
+  minuteur d'import devient une unité marquée ; la reprise dit le retard de la copie sur `HEAD`. Règle
+  `verifier-avant-de-rendre` : poser la copie au lieu de relancer l'interface. 1 test. Posée sur le poste personnel
+  (accord de l'auteur) : minuteur posé à la main mis de côté, interface, import, entrée MCP, garde des six projets et
+  crochets du compte sur le lien ; l'audit a vu puis résolu les huit points restés un temps sur la copie de travail.
+  Critère tenu sur le poste : copie de travail cassée, l'import, la garde d'un autre projet et l'interface relancée
+  tournent normalement. Défaut trouvé à l'usage : le binaire attendu se tirait de `HOLARCH_HOME` du processus, pas de
+  l'accueil de la configuration ; une fois le lien posé, deux tests (accueil temporaire) voyaient leur crochet périmé.
+  Il se tire désormais de l'accueil que reçoit la matérialisation.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
