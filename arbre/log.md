@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Tranche 10 ouverte** (création de projet) : décision `creation-de-projet` proposée, sur la mesure des 9 dépôts
+  (oublis rattrapés de 1 à 158 jours, quatre projets non déclarés) ; deux identités locales non anonymes relevées.
+
 * **Tranche 10 choisie** (création de projet, choix de l'auteur sur mesure : environ un projet par semaine, critère de
   l'étape) : une commande d'abord ; formulaire de l'interface (I22) et paramétrage depuis l'interface (I23) dans la
   boîte.

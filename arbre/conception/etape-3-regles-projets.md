@@ -578,9 +578,15 @@ d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé
   badge dépliable sous le Reste ; outil MCP `projets`) ; le résumé de reprise les nomme. Sur le socle : 11 idées pour
   l'étape 3, résumé de 1 156 caractères ; 2 tests étendus ; test visuel passé dans le conteneur. Toute idée nouvelle va
   dans la boîte, pas dans ce Reste.
+- **Ouverture de la tranche 10 (2026-10-07)** : création de projet, choix de l'auteur sur mesure (environ un projet par
+  semaine ; critère de l'étape) ; commande d'abord, formulaire de l'interface et paramétrage depuis l'interface dans la
+  boîte (I22, I23). Décision `creation-de-projet` proposée, sur la mesure des 9 dépôts du poste : oublis rattrapés de 1 à
+  158 jours, quatre projets non déclarés. Relevé au passage : deux dépôts ont une identité locale à adresse non anonyme,
+  dont un public, hors du contrôle d'identité car non déclarés.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
+  2. **Tranche 10** : décision `creation-de-projet` à approuver, puis à spécifier et livrer.
+  3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  3. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte, création de projet (§5.2,
+  4. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.
