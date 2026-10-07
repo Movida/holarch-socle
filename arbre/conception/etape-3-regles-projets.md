@@ -388,6 +388,29 @@ est sans écart d'identité.
 tous ceux d'un autre dépôt public) : geste de l'auteur, à décider à part. Le contexte professionnel : déclaré avec son premier projet (Q18). Les dépôts
 non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
 
+## Tranche 9 — Échecs au journal
+
+Décision `echecs-au-journal` (approuvée le 2026-10-07, idée de l'auteur) : compter les échecs avant d'en chercher les
+solutions, qui viendront avec la récolte (§6, boucles « Règles » et « Progrès et recul »).
+
+**Livre.**
+
+1. **Import des transcriptions** (état d'import version 6) : `tool.failed` pour un résultat d'outil en erreur qui
+   n'est pas un refus (motif d'une liste fixe, code de sortie et nom du programme pour une commande shell) ; tests
+   rouges reconnus au code de sortie ou au résumé du lanceur ; `tests: {lances, rouges}` en fin de session ;
+   complément pour les transcriptions déjà importées.
+2. **Refus reconnus** : origine `approbation` (demandes d'approbation) et blocages de crochet au format du projet
+   antérieur, ajoutés à la liste de la décision `refus`.
+3. **Garde** : `holarch garde avant-commit` écrit `rule.enforced` à chaque refus.
+4. **Comptes** : échecs sur 7 et 30 jours par famille et motif au tableau de bord, à côté des refus ; échecs du projet
+   sur sa carte ; contrat événement 0.9.0.
+
+**Critère de la tranche.** Sur le poste personnel, les comptes du tableau de bord sur 30 jours égalent ceux d'une
+mesure indépendante des transcriptions (référence du 2026-10-07 : 24 tests rouges sur 183 dans le socle, 338 refus
+d'approbation sur le poste) ; un refus réel de la garde et un test rouge passé par un tube apparaissent au journal.
+
+**Hors tranche.** Les leçons de clôture (texte de l'agent, avec la récolte) ; les solutions aux échecs répétés.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -534,11 +557,12 @@ non déclarés restent hors d'atteinte tant qu'aucun contexte ne les cite.
   et `reglage-mesure` (rappel : mesurer l'habitude avant de proposer un réglage) approuvées ; le contrôle tourne à
   l'audit sur les cinq projets déclarés, sans écart. `reglage-mesure` écrite au compte (`regles appliquer`, accord de
   l'auteur) ; audit du compte sans écart.
+- **Ouverture de la tranche 9 (2026-10-07)** : échecs au journal, idée de l'auteur ; décision `echecs-au-journal`
+  proposée, sur une mesure des transcriptions de 30 jours : 338 refus de permission non reconnus par `tool.denied`, 22
+  des 24 tests rouges du socle sortis en code 0 derrière un tube. Leçons de clôture proposées hors tranche.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 9, échecs (idée de l'auteur)** : d'abord consigner les échecs au journal (refus de garde, tests rouges,
-     erreurs d'outil, leçons de clôture) et les compter ; les solutions pour ceux qui se répètent viendront avec la
-     récolte (boucles « Règles » et « Progrès et recul », §6). À spécifier à l'ouverture.
+  2. **Tranche 9, échecs** : décision `echecs-au-journal` à approuver, puis points 1 à 4 et critère.
   3. **Habitudes paramétrables (choix de l'auteur, 2026-10-07)** : idée de l'auteur retenue pour plus tard, avec la
      récolte : chaque réglage déclare sa mesure, l'audit en tire une valeur par projet, proposée en brouillon (exemple
      mesuré : délai entre commit et envoi, lu dans le reflog de l'amont) ; règles de profil à proposer :

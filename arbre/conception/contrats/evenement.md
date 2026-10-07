@@ -4,10 +4,10 @@ title: Contrat — événement du journal
 description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
-version: 0.8.0
+version: 0.9.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-07-controles-de-regles.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/decisions/2026-10-07-echecs-au-journal.md]
 ---
 
 # Contrat — événement du journal
@@ -39,11 +39,12 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 | `cost.tokens` | `in`, `cache_write`, `cache_write_1h` (part de `cache_write` écrite pour une heure, facturée plus cher), `cache_read`, `out` ; les sommes font foi : un événement peut compléter la ventilation d'un précédent |
 | `classification` | niveau de l'événement ; un consommateur ne lit que ce que son niveau autorise |
 | `data` d'un écart | `rule.violated` et `rule.resolved` : `{regle, controle, cle, fichier?, ligne?, n?, message?}` ; la règle par son identifiant du catalogue, `cle` reconnaît l'écart d'un audit à l'autre, `n` compte ses occurrences, `message` dit sa nature ; jamais le contenu trouvé ; `subject` est le projet, absent pour la portée du compte |
+| `data` d'un échec | `tool.failed` : `{outil, motif, code?, programme?}`, `motif` parmi `sortie`, `tests`, `garde`, `edition-perimee`, `edition-introuvable`, `edition-ambigue`, `edition-non-lue`, `fichier-absent`, `validation`, `delai`, `autre` ; `code` et `programme` (nom seul, sans chemin ni argument) pour une commande shell ; `rule.enforced` (refus d'une garde) : `{regle, controle, n, moment}` ; `session.finished` porte `tests: {lances, rouges}` ; jamais la commande, le chemin ni la sortie (décision échecs au journal) |
 
 ## 3. Familles (vocabulaire ouvert, extensible par décision)
 
-`session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.*` (called, denied) · `rule.*` (applied,
-violated, resolved, derogated, proposed) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
+`session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.*` (called, denied, failed) · `rule.*` (applied,
+violated, resolved, derogated, proposed, enforced) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
 `element.*` (created, updated, moved, suspended, retired) · `cost.recorded` · `budget.*` (warning, exceeded) · `dream.*`
 (started, proposal, finished) · `inventory.finished` · `ui.viewed` (page de l'interface consultée) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded).
 

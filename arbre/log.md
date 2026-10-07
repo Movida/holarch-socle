@@ -2,6 +2,9 @@
 
 ## 2026-10-07
 
+* **Tranche 9 ouverte** (échecs au journal) : décision `echecs-au-journal` proposée ; mesure sur 30 jours : 338 refus
+  de permission non reconnus, 22 des 24 tests rouges du socle invisibles au code de sortie.
+
 * **Règles approuvées** : `commits-pousses` et `reglage-mesure` (profil) ; contrôle actif, aucun écart. Incident :
   `regles appliquer --help` lancé pour voir l'aide (contraire à `outil-verifie`), rien n'a été écrit.
   `reglage-mesure` écrite au compte ensuite (accord de l'auteur).
