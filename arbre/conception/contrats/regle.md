@@ -3,10 +3,10 @@ type: contract
 title: Contrat — règle
 description: Une règle est une donnée attachée à un nœud ; elle s'hérite, se déroge explicitement, et s'applique par des adaptateurs selon son niveau.
 status: draft
-version: 0.2.0
+version: 0.3.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md, /arbre/decisions/2026-10-06-arbre-des-regles.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-controles-de-regles.md]
 ---
 
 # Contrat — règle
@@ -25,6 +25,7 @@ d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`conf
   trigger: after_action        # before_action · after_action · periodic · session_start · session_end · project_creation
   match: { action: git.push }   # sur quoi le déclencheur porte ; vocabulaire des actions : étape 3
   level: verified               # blocking · verified · guided · reminder
+  check: [ci-lue]               # contrôles du registre du socle ; facultatif
   derogable: true
   applies_to: { node_types: [project] }   # paths: [motifs] limite la règle à des chemins du projet
   status: stable
@@ -42,6 +43,12 @@ d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`conf
 | `verified` | contrôlé après coup ; écart journalisé et signalé | nul |
 | `guided` | procédure chargée à la demande quand le déclencheur survient | ponctuel |
 | `reminder` | consigne toujours présente dans le contexte de l'agent | **à chaque tour** — réservé au très court |
+
+**Contrôles.** Une règle `blocking` ou `verified` désigne ses contrôles (`check`), du code du socle connu par un
+identifiant, jamais une commande écrite dans l'arbre. `blocking` : le contrôle s'exécute avant l'action, dans le
+mécanisme du runtime qui la porte (crochet de git pour un commit, permissions du client pour une lecture), puis à
+l'audit pour ce qui serait passé outre ; `verified` : à l'audit seulement. Un contrôle qui ne peut pas s'exécuter (outil
+absent) se dit non disponible, jamais conforme. Un écart ne cite jamais le contenu trouvé, seulement où il est.
 
 Un adaptateur traduit une règle pour un client (hook, permission, consigne de serveur MCP, contrôle d'un runtime). Une
 règle qu'un client ne peut pas appliquer à son niveau descend au niveau applicable suivant, et l'écart est visible

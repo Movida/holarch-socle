@@ -182,6 +182,68 @@ second projet garde son `CLAUDE.md` tant que ses autres agents n'ont pas d'adapt
 **Limites connues.** Les règles du compte valent pour tous les projets du site, même ceux qu'aucun contexte ne déclare.
 Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils n'ont pas d'adaptateur.
 
+## Tranche 4 — Audit de conformité
+
+Décision `controles-de-regles` (approuvée le 2026-10-07) : une règle désigne ses contrôles ; le blocage passe par le
+crochet de git et les permissions de Claude Code, la détection des secrets par gitleaks ; les écarts vont au journal.
+
+**Constat (2026-10-07).** Les règles appliquées sont toutes des rappels : 5 057 caractères relus à chaque tour dans le
+socle (21 règles), 3 284 dans le second projet (14), et rien ne vérifie qu'elles sont tenues. Le dépôt du socle est public : une donnée personnelle commitée ne se reprend pas,
+et seule l'attention de l'agent l'en garde. Aucun outil de détection de secrets n'est installé. Les fichiers générés
+peuvent dériver de la règle effective sans que rien ne le dise ; des mémoires qu'une règle remplace peuvent rester.
+
+**Livre.**
+
+1. **Registre des contrôles** (module `controles`, socle) : un contrôle reçoit un projet (dépôt, règle effective,
+   réglages) et un moment (`avant-commit` ou `audit`), et rend des écarts `{regle, controle, fichier?, ligne?, message}`
+   ou « non disponible » avec sa raison. Premiers contrôles :
+   - `donnees-personnelles` : termes de la liste privée, en mots entiers, sans casse, dans les lignes ajoutées et les
+     noms de fichiers (avant commit), dans les fichiers suivis (audit). Liste déduite (nom et adresse de l'identité git,
+     dossier personnel, noms des comptes Claude Code, noms des projets non publics du catalogue) et complétée par le
+     réglage `donnees_personnelles` du profil (`termes` à ajouter, `exceptions` à retirer, chacune avec sa raison) ;
+   - `secrets` : gitleaks sur les changements indexés (avant commit) et sur le dépôt (audit)
+     [À COMPLÉTER : sous-commandes et options exactes, lues dans l'aide de la version installée] ;
+   - `journal-tenu` : un jour où des commits changent l'arbre du projet sans entrée datée de ce jour dans son journal.
+2. **Audit** (`holarch audit [<projet>]`) : pour chaque projet qui a des règles, les contrôles de ses règles stables
+   `blocking` et `verified`, et trois vérifications de la matérialisation, qui ne sont pas des règles :
+   - fichiers générés à jour (même plan que `holarch regles appliquer`, rien n'est écrit) ;
+   - crochet de git et permissions posés là où une règle le demande ;
+   - mémoires encore présentes qu'une règle stable déclare remplacer.
+   Il suit chaque inventaire (minuterie horaire comprise) ; un écart apparu s'écrit `rule.violated`, un écart disparu
+   `rule.resolved` (contrat événement 0.8.0).
+3. **Garde avant commit** : `holarch regles appliquer <projet>` pose `.git/hooks/pre-commit` (marqué, il appelle
+   `holarch garde avant-commit`) si une règle `blocking` du projet a un contrôle `avant-commit`. Un crochet non marqué
+   n'est jamais remplacé : c'est signalé. Le refus dit la règle, le fichier, la ligne et l'énoncé de la règle, sans
+   répéter le terme trouvé. HOLARCH injoignable : le crochet laisse passer et le dit (l'audit rattrape).
+4. **Permissions** : une règle `blocking` sans contrôle de commit et portant `match: { action: read, paths: [...] }`
+   devient des entrées `permissions.deny` (`Read(...)`) à sa portée (`~/.claude/settings.json` pour le compte). Les
+   entrées posées sont listées dans un manifeste à côté des règles générées ; seules celles-là se retirent.
+5. **Interface et MCP** : la règle effective d'un projet montre ses écarts ouverts et la date de chaque contrôle ; la
+   carte d'un projet en donne le nombre ; la lecture `regles` (page, outil MCP) les porte, sans nouvel outil.
+6. **Règles passées au contrôle**, une fois les contrôles éprouvés et avec l'approbation de l'auteur :
+   `rien-de-personnel` → `blocking`, `check: [donnees-personnelles, secrets]` ; `secrets-hors-contexte` → `blocking`,
+   lecture des fichiers de secrets refusée [À COMPLÉTER : motifs, à fixer à l'essai] ; `journal-du-projet` → `verified`,
+   `check: [journal-tenu]`. Elles quittent les rappels.
+
+**Critère de la tranche.** Dans le socle, un commit qui contient un terme de la liste privée ou un faux secret est
+refusé ; forcé (`--no-verify`), il apparaît à l'audit suivant et au journal, puis s'y résout une fois retiré. Claude
+Code ne peut pas lire un fichier de secrets d'essai. L'audit des deux projets ne remonte que des écarts réels (chaque
+faux positif est corrigé dans le contrôle ou dans le profil, avec sa raison). Les trois règles sont passées au
+contrôle, et les rappels de chaque projet ont diminué d'autant.
+
+**Choix techniques (P12).**
+
+| Choix | Raison | Ce qui le ferait changer |
+|---|---|---|
+| crochet `pre-commit` de git, par clone | arrête tous ceux qui commitent ; mécanisme du runtime (P2) | un dépôt qui a déjà son gestionnaire de crochets : s'y inscrire plutôt que le remplacer |
+| gitleaks pour les secrets | outil de référence, un binaire ; rien à écrire ni à tenir | un outil plus juste sur nos faux positifs |
+| liste déduite, complétée par le profil | presque rien à tenir ; le profil privé garde ce que la machine ignore | des faux positifs répétés sur un terme déduit |
+| audit après chaque inventaire | pas de nouvelle minuterie ; le journal reçoit l'apparition et la fin des écarts | un audit trop lent pour l'heure |
+
+**Limites connues.** Une lecture faite par une commande du shell (`cat`) n'est pas couverte par une permission de
+lecture [À COMPLÉTER : ce que Claude Code refuse réellement, vérifié à l'essai]. Un commit fait ailleurs que dans le
+clone local (édition sur GitHub) n'est vu qu'à l'audit.
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -232,6 +294,10 @@ Les autres agents d'un projet (hors Claude Code) ne reçoivent rien tant qu'ils 
   projet antérieur aussi. `CLAUDE.md` du socle réduit à ce qui lui est propre : où vivent les règles, les questions,
   les décisions et les contrats, et le format du journal. Écart relevé : la règle `modele-par-etape` déclare remplacer
   `feedback-model-per-step`, la mémoire réelle s'écrit `feedback_model_per_step` (laissée en place, elle dit plus).
+- **Ouverture de la tranche 4 (2026-10-07)** : audit de conformité ; décision `controles-de-regles` approuvée sur
+  quatre choix de l'auteur (liste privée déduite et complétée, crochet de git et permissions, gitleaks, écarts au
+  journal) ; contrats règle 0.3.0 et événement 0.8.0.
 - **Reste** :
-  1. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet, audit
-     de conformité (§5.2, §5.8), à spécifier à leur ouverture.
+  1. **Tranche 4** : points 1 à 6, puis son critère.
+  2. **Tranches suivantes** : configuration, adaptateurs, récolte, création de projet (§5.2, §5.8), à spécifier à
+     leur ouverture.

@@ -4,10 +4,10 @@ title: Contrat — événement du journal
 description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
-version: 0.7.0
+version: 0.8.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-07-controles-de-regles.md]
 ---
 
 # Contrat — événement du journal
@@ -38,11 +38,12 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 | `cost` | si l'événement coûte : `{usd_list, usd_real?, provider, model, tokens}` ; `usd_list` est le coût liste que connaît l'émetteur, sinon `null` : la lecture le calcule depuis `tokens` et la grille de tarifs (décision coût liste) |
 | `cost.tokens` | `in`, `cache_write`, `cache_write_1h` (part de `cache_write` écrite pour une heure, facturée plus cher), `cache_read`, `out` ; les sommes font foi : un événement peut compléter la ventilation d'un précédent |
 | `classification` | niveau de l'événement ; un consommateur ne lit que ce que son niveau autorise |
+| `data` d'un écart | `rule.violated` et `rule.resolved` : `{regle, controle, fichier?, ligne?}`, la règle par son identifiant du catalogue ; jamais le contenu trouvé ; `subject` est le projet |
 
 ## 3. Familles (vocabulaire ouvert, extensible par décision)
 
 `session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.*` (called, denied) · `rule.*` (applied,
-violated, derogated, proposed) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
+violated, resolved, derogated, proposed) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
 `element.*` (created, updated, moved, suspended, retired) · `cost.recorded` · `budget.*` (warning, exceeded) · `dream.*`
 (started, proposal, finished) · `inventory.finished` · `ui.viewed` (page de l'interface consultée) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded).
 

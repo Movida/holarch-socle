@@ -2,6 +2,10 @@
 
 ## 2026-10-07
 
+* **Audit de conformité** (étape 3, tranche 4) ouvert : décision `controles-de-regles` approuvée sur quatre choix de
+  l'auteur (liste privée déduite et complétée par le profil, crochet `pre-commit` de git et permissions de Claude Code,
+  gitleaks pour les secrets, écarts au journal) ; contrats règle 0.3.0 (`check`) et événement 0.8.0 (`rule.resolved`).
+
 * **Règles approuvées** : les 18 règles de la tranche 3 (profil, types `methode-holarch` et `depot-public`, socle)
   approuvées par l'auteur, une à une, sur avis ; trois retouches (deux doublons retirés, mémoire remplacée déclarée).
   Puis appliquées avec son accord : 4 au compte, 14 au socle, 7 au second projet ; cinq mémoires couvertes retirées,
