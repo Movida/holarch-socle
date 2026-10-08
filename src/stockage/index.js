@@ -25,12 +25,15 @@ export class Index {
       CREATE TABLE fiches (id TEXT PRIMARY KEY, kind TEXT, name TEXT, description TEXT, node TEXT, context TEXT,
         status TEXT, site TEXT, location TEXT, json TEXT);
       CREATE INDEX ev_kind ON evenements(kind, at); CREATE INDEX ev_corr ON evenements(correlation);`);
-    let n = 0;
-    n = this.inserer(evenements, tarifs);
-    const iff = db.prepare('INSERT OR REPLACE INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?)');
-    for (const f of fiches) iff.run(f.id, f.kind, f.name, f.description ?? null, f.node ?? null, f.context ?? null, f.status, f.site ?? null, f.location ?? null, JSON.stringify(f));
-    db.exec('COMMIT');
-    return { evenements: n, fiches: fiches.length };
+    // En cas d'échec, la transaction s'annule : laissée ouverte, elle garderait le verrou d'écriture tant que vit le
+    // processus (l'interface), et l'import, le serveur MCP, la reprise et la garde échoueraient tous.
+    try {
+      const n = this.inserer(evenements, tarifs);
+      const iff = db.prepare('INSERT OR REPLACE INTO fiches VALUES (?,?,?,?,?,?,?,?,?,?)');
+      for (const f of fiches) iff.run(f.id, f.kind, f.name, f.description ?? null, f.node ?? null, f.context ?? null, f.status, f.site ?? null, f.location ?? null, JSON.stringify(f));
+      db.exec('COMMIT');
+      return { evenements: n, fiches: fiches.length };
+    } catch (e) { db.exec('ROLLBACK'); throw e; }
   }
 
   // Ajoute des événements à l'index sans le reconstruire (ceux que le serveur écrit lui-même, comme ui.viewed).

@@ -9,6 +9,7 @@ export class Journal {
     this.racine = path.join(donnees, 'journal');
     this.site = site;
     this.ids = null;
+    this.illisibles = 0; // lignes illisibles vues par la dernière lecture
   }
 
   #fichiers(site = null) {
@@ -20,10 +21,19 @@ export class Journal {
     });
   }
 
+  // Une ligne illisible (écriture interrompue, ou en cours dans un autre processus) est sautée, pas fatale : elle
+  // arrêterait l'inventaire, l'import et la reprise. Elle se compte et se dit sur la sortie d'erreur.
   *lire({ site = null } = {}) {
+    this.illisibles = 0;
     for (const f of this.#fichiers(site)) {
-      for (const ligne of fs.readFileSync(f, 'utf8').split('\n')) if (ligne.trim()) yield JSON.parse(ligne);
+      for (const ligne of fs.readFileSync(f, 'utf8').split('\n')) {
+        if (!ligne.trim()) continue;
+        let e;
+        try { e = JSON.parse(ligne); } catch { this.illisibles++; continue; }
+        yield e;
+      }
     }
+    if (this.illisibles) process.stderr.write(`holarch : ${this.illisibles} ligne(s) illisible(s) dans le journal, sautée(s)\n`);
   }
 
   #connus() {
@@ -49,7 +59,22 @@ export class Journal {
     }
     const d = path.join(this.racine, this.site);
     if (parMois.size) fs.mkdirSync(d, { recursive: true });
-    for (const [mois, lignes] of parMois) fs.appendFileSync(path.join(d, `${mois}.jsonl`), lignes.join('\n') + '\n');
+    for (const [mois, lignes] of parMois) {
+      // Après une écriture interrompue, le fichier ne finit pas par une fin de ligne : sans elle, le premier événement
+      // ajouté se collerait à la ligne coupée et serait perdu avec elle.
+      const f = path.join(d, `${mois}.jsonl`);
+      fs.appendFileSync(f, (finSansRetour(f) ? '\n' : '') + lignes.join('\n') + '\n');
+    }
     return r;
   }
+}
+
+function finSansRetour(f) {
+  let fd;
+  try {
+    fd = fs.openSync(f, 'r'); const { size } = fs.fstatSync(fd);
+    if (!size) return false;
+    const b = Buffer.alloc(1); fs.readSync(fd, b, 0, 1, size - 1);
+    return b[0] !== 0x0a;
+  } catch { return false; } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
