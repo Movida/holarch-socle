@@ -2,6 +2,9 @@
 
 ## 2026-10-08
 
+* **Idée I30, banc par modèle** (idée de l'auteur) : rejouer les cas de référence avec et sans chaque règle à chaque
+  nouveau modèle, pour retirer ce qui est devenu natif ; retenue pour l'étape 4, rien construit.
+
 * **Annonce unique des sessions coupées** (choix de l'auteur) : la question de 12 h 20, tranchée le soir même, revenait
   à chaque reprise (trois annonces). Une coupure n'est plus annoncée quand une autre session du dossier s'est ouverte
   après elle (elle l'a reçue à sa reprise) ; sans état à tenir, lu au début des transcriptions ; 1 test qui reproduit le
