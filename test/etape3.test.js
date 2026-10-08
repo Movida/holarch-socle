@@ -979,6 +979,41 @@ test('création de projet : rejouée après un commit refusé, elle le refait ; 
   assert.deepEqual([etats(p4).regles, git(d, 'log', '-1', '--format=%s')], ['faite', 'Appliquer les règles HOLARCH']);
 }, '[user]\n\tuseConfigOnly = true\n'));
 
+test('création de projet : à blanc sur un projet déjà créé, rien n’est écrit ni commité (T1)', () => gitIsole(async () => {
+  const { r, s, etats, git } = await bancCreation();
+  const d = path.join(r, 'neuf'); const creer = (aBlanc) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc });
+  assert.deepEqual(Object.values(etats(await creer(false))).filter((e) => !['faite', 'desactivee'].includes(e)), []);
+  const tetes = () => [git(d, 'rev-parse', 'HEAD'), git(path.join(r, 'profil'), 'rev-parse', 'HEAD'), git(d, 'status', '--porcelain'), fs.readFileSync(path.join(s.config.donnees, 'catalogue', 'local.json'), 'utf8')];
+  const avant = tetes();
+  const b = await creer(true);
+  assert.deepEqual(Object.values(etats(b)).filter((e) => !['deja', 'desactivee', 'a-faire'].includes(e)), [], JSON.stringify(b.etapes, null, 1));
+  assert.deepEqual([etats(b).fichiers, etats(b).declaration, etats(b).regles, etats(b).audit], ['deja', 'deja', 'deja', 'a-faire']);
+  assert.deepEqual(tetes(), avant, 'ni commit, ni fichier, ni catalogue');
+}));
+
+test('création de projet : une déclaration refusée par le profil le laisse comme il était (T2)', () => gitIsole(async () => {
+  const { r, s, etats, git } = await bancCreation();
+  const profil = path.join(r, 'profil'); const ctx = path.join(profil, 'arbre', 'contextes', 'perso.md');
+  ecrire(path.join(profil, '.git', 'hooks', 'pre-commit'), '#!/bin/sh\necho refusé >&2\nexit 1\n'); fs.chmodSync(path.join(profil, '.git', 'hooks', 'pre-commit'), 0o755);
+  const texte = fs.readFileSync(ctx, 'utf8');
+  const p = await creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  assert.deepEqual([etats(p).fichiers, etats(p).declaration], ['faite', 'echec'], JSON.stringify(p.etapes, null, 1));
+  assert.match(p.etapes.find((e) => e.etape === 'declaration').detail, /commit dans le profil refusé : refusé/);
+  assert.deepEqual([fs.readFileSync(ctx, 'utf8'), git(profil, 'status', '--porcelain'), git(profil, 'log', '--format=%s')], [texte, '', 'départ'], 'contexte remis en état, rien d’indexé');
+  // Le crochet retiré, rejouée : la déclaration se fait.
+  fs.rmSync(path.join(profil, '.git', 'hooks', 'pre-commit'));
+  assert.equal(etats(await creerProjet(s, { nom: 'neuf', types: ['methode'] })).declaration, 'faite');
+}));
+
+test('création de projet : une licence sans modèle arrête tout avant de créer quoi que ce soit (T3)', () => gitIsole(async () => {
+  for (const licence of ['INCONNUE', '../MIT']) {
+    const { r, s, etats } = await bancCreation({ creation: { licence } });
+    const p = await creerProjet(s, { nom: 'neuf' });
+    assert.deepEqual(etats(p), { fichiers: 'echec' }, JSON.stringify(p.etapes, null, 1));
+    assert.match(p.etapes[0].detail, /licence sans modèle/); assert.ok(!fs.existsSync(path.join(r, 'neuf')), 'aucun dossier, aucun git init');
+  }
+}));
+
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
 import { creerService, binaireService, copieEnService } from '../src/service.js';
 
