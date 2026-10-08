@@ -2,6 +2,9 @@
 
 ## 2026-10-08
 
+* **Idée I28** (accord de l'auteur) : `holarch regles` lisait un catalogue périmé après une règle ajoutée, jusqu'à
+  un inventaire à la main ; notée dans la boîte, pas corrigée.
+
 * **Forme des réponses (I11)** (idée de l'auteur, élargie) : réglages de sortie déclarés au profil, écrits en style de
   sortie de Claude Code ; une seule redite de forme en 30 jours (choix cliquables). Rien construit : l'auteur attend la
   récolte du 2026-10-12. Envoi du socle et du second projet (accord de l'auteur).
