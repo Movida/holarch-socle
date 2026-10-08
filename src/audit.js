@@ -169,7 +169,9 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const r = regleEffective(fiches, id);
     const { ecarts, controles } = controler(r, contexteControle(s, p, r), 'audit', ['blocking', 'verified']);
     for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
-    const rp = { projet: id, nom: p.name, ecarts: [...ecartsIllisibles(r), ...ecarts], controles };
+    // Une source illisible du profil est déjà un écart du compte : le projet ne la compte pas une seconde fois.
+    const propres = { illisibles: r.illisibles.filter((m) => !compte.illisibles.includes(m)) };
+    const rp = { projet: id, nom: p.name, ecarts: [...ecartsIllisibles(propres), ...ecarts], controles };
     faits.add(`${id}|regles-lisibles`);
     if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
     else if (p.location && fs.existsSync(p.location)) {

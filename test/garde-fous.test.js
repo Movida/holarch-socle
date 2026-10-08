@@ -230,3 +230,24 @@ test('Contre-épreuve (6) : des règles illisibles ne résolvent pas l’écart 
   assert.deepEqual(ouverts(), ['memoire-remplacee', 'regles-lisibles']);
   assert.ok(a.cibles[0].controles.some((c) => c.id === 'memoire-remplacee' && c.etat === 'indisponible'));
 });
+
+test('Contre-épreuve (7) : un profil illisible fait un écart au compte, pas un de plus par projet', async () => {
+  const { Socle } = await import('../src/socle.js');
+  const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
+  const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const d = path.join(r, 'depot');
+  spawnSync('git', ['init', '-q', d]);
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: [ouverte\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel fictif.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+    { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
+  const a = s.audit();
+  const lisibles = a.cibles.map((c) => [c.projet, c.ecarts.filter((e) => e.controle === 'regles-lisibles').length]);
+  assert.deepEqual(lisibles, [[null, 1], ['holarch:project:depot', 0]]);
+  assert.ok(a.cibles[1].controles.some((c) => c.id === 'regles-a-jour' && c.etat === 'indisponible'), 'les règles du projet restent incomplètes');
+  assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles'], 'la garde du projet refuse toujours');
+});
