@@ -2,6 +2,13 @@
 
 ## 2026-10-08
 
+* **Annonce unique des sessions coupées** (choix de l'auteur) : la question de 12 h 20, tranchée le soir même, revenait
+  à chaque reprise (trois annonces). Une coupure n'est plus annoncée quand une autre session du dossier s'est ouverte
+  après elle (elle l'a reçue à sa reprise) ; sans état à tenir, lu au début des transcriptions ; 1 test qui reproduit le
+  cas.
+
+* **Q19 résolue** (mesure) : RTX 5070 Ti de 16 Go visible depuis WSL. Envoi de f91dffb (accord de l'auteur).
+
 * **Corrections de la passe globale** (choix de l'auteur) : A1 à A5, A7, A8 corrigés avec un test chacun, T1 à T3
   écrits (70 tests verts). Trouvé en route : un inventaire lancé depuis le crochet de commit lirait les autres dépôts
   avec l'index du commit en cours ; la garde relit donc l'arbre seul, en mémoire. A6 : décision `routines-posees`

@@ -41,17 +41,19 @@ export function tailleContexte(transcription, { octets = 1024 * 1024 } = {}) {
 /**
  * Sessions du même dossier arrêtées en route depuis `heures` : leur dernier message est un appel d'outil resté sans
  * résultat (veille du poste, redémarrage d'un accès distant). La session en cours est exclue. Une interruption voulue
- * (Échap) laisse un message de l'auteur après l'appel : elle n'en est pas une.
+ * (Échap) laisse un message de l'auteur après l'appel : elle n'en est pas une. Une coupure n'est annoncée qu'une fois :
+ * une autre session du dossier ouverte après elle l'a déjà reçue à sa reprise.
  */
 export function sessionsCoupees(transcription, { heures = 24, maintenant = Date.now(), octets = 1024 * 1024 } = {}) {
   if (!transcription) return [];
   const dossier = path.dirname(transcription); let noms;
   try { noms = fs.readdirSync(dossier).filter((n) => n.endsWith('.jsonl') && path.join(dossier, n) !== path.resolve(transcription)); } catch { return []; }
-  const coupees = [];
+  const coupees = []; const debuts = [];
   for (const n of noms) {
     const f = path.join(dossier, n);
     let m; try { m = fs.statSync(f).mtimeMs; } catch { continue; }
     if (maintenant - m > heures * 3600 * 1000) continue;
+    debuts.push({ fichier: f, debut: debutDeTranscription(f) });
     for (const e of evenements(finDeTranscription(f, octets))) {
       if ((e.type !== 'user' && e.type !== 'assistant') || e.isSidechain) continue;
       const appels = e.type === 'assistant' && Array.isArray(e.message?.content) ? e.message.content.filter((c) => c.type === 'tool_use') : [];
@@ -62,7 +64,21 @@ export function sessionsCoupees(transcription, { heures = 24, maintenant = Date.
       break;
     }
   }
-  return coupees.sort((a, b) => b.date.localeCompare(a.date));
+  const annoncee = (c) => debuts.some((d) => d.fichier !== c.fichier && d.debut > Date.parse(c.date));
+  return coupees.filter((c) => !annoncee(c)).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** Date du premier événement daté d'une transcription (ses `octets` premiers), en millisecondes ; NaN sinon. */
+function debutDeTranscription(transcription, octets = 64 * 1024) {
+  let fd;
+  try {
+    fd = fs.openSync(transcription, 'r');
+    const b = Buffer.alloc(octets); const n = fs.readSync(fd, b, 0, octets, 0);
+    for (const e of evenements(b.subarray(0, n).toString('utf8').split('\n'), '"timestamp"')) {
+      const t = Date.parse(e.timestamp); if (!Number.isNaN(t)) return t;
+    }
+  } catch { /* illisible : ne masque rien */ } finally { if (fd !== undefined) fs.closeSync(fd); }
+  return NaN;
 }
 
 const k = (n) => `${Math.round(n / 1000)} k`;

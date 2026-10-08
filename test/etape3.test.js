@@ -784,6 +784,18 @@ test('contexte : une session arrêtée en route (appel d’outil sans résultat)
   assert.match(ligne, /question restée sans réponse : « Comment régler l’autonomie des sessions \? »/); assert.match(ligne, /pendant Bash \(Lancer les tests\)/);
   assert.doesNotMatch(resume(s, d), /arrêtée/, 'sans transcription : rien');
 });
+test('contexte : une session coupée n’est annoncée qu’une fois, à la session ouverte après elle', () => {
+  const dossier = tmp(); const maintenant = Date.parse('2026-10-08T18:40:00Z');
+  const msg = (type, content, timestamp) => JSON.stringify({ type, timestamp, message: { role: type, content } });
+  const session = (nom, lignes) => { const f = path.join(dossier, `${nom}.jsonl`); ecrire(f, lignes.join('\n') + '\n'); return f; };
+  const question = (q, t) => msg('assistant', [{ type: 'tool_use', id: 't', name: 'AskUserQuestion', input: { questions: [{ question: q }] } }], t);
+  session('matin', [msg('user', 'Règle l’autonomie.', '2026-10-08T10:19:00Z'), question('Autonomie ?', '2026-10-08T10:20:00Z')]);
+  session('midi', [msg('user', 'Autre chose.', '2026-10-08T10:00:00Z'), question('Midi ?', '2026-10-08T12:00:00Z')]);
+  // Ouverte après la coupure du matin : elle l’a reçue à sa reprise ; celle de midi, plus tardive, reste à annoncer.
+  session('apres', [msg('user', 'Reprise.', '2026-10-08T11:00:00Z'), msg('assistant', [{ type: 'text', text: 'Fait.' }], '2026-10-08T13:00:00Z')]);
+  const courante = session('courante', [msg('user', 'Pose-moi tes questions.', '2026-10-08T18:30:00Z')]);
+  assert.deepEqual(sessionsCoupees(courante, { maintenant }).map((c) => c.question), ['Midi ?']);
+});
 
 test('règles : une règle ajoutée après l’inventaire se voit tout de suite ; un arbre inchangé ne relance rien', async () => {
   const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot')); const regles = path.join(d, 'arbre', 'rules.yaml');
