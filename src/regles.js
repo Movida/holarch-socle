@@ -47,6 +47,12 @@ function fusionner(couches, signaux) {
         applique_a: a.applique_a, match: a.match || null, controles: a.controles || null, remplace: a.remplace || null, classification: f.classification, origine, provenance: { arbre: a.arbre, noeud: noeud.node, titre: noeud.name, fichier: f.location, ...(origine === 'type' && { type_id: noeud.attributes.id }) }, recouvre: [] };
       const avant = r.get(e.id);
       if (avant && avant.derogeable === false) { signaux.push(`règle non dérogeable redéfinie : ${e.id} (${avant.provenance.arbre}:${avant.provenance.noeud}, redéfinie par ${e.provenance.arbre}:${e.provenance.noeud}) ; la première tient`); continue; }
+      // Un brouillon (une redite récoltée, par exemple) ne retire pas une règle approuvée, ni son crochet ni son audit :
+      // l'approuvée tient, le brouillon reste visible à côté d'elle jusqu'à son approbation.
+      if (avant?.statut === 'stable' && e.statut !== 'stable') {
+        signaux.push(`brouillon sur une règle approuvée : ${e.id} (${e.provenance.arbre}:${e.provenance.noeud}) ; l’approuvée tient jusqu’à approbation`);
+        avant.proposee = { enonce: e.enonce, pourquoi: e.pourquoi, statut: e.statut, fiche: e.fiche, provenance: e.provenance }; continue;
+      }
       if (avant) e.recouvre = [...avant.recouvre, { ...avant.provenance, origine: avant.origine }];
       r.set(e.id, e);
     }
@@ -72,10 +78,14 @@ export function fusionnerConfig(...couches) {
 }
 
 const applicable = (e) => e.statut === 'stable' && !e.derogee;
-const taille = (l) => l.filter((e) => e.niveau === 'reminder').reduce((t, e) => t + e.enonce.length + (e.pourquoi?.length || 0), 0);
+/** Ce qui attend une approbation : une règle en brouillon, ou le brouillon posé sur une règle approuvée de même id. */
+export const aApprouver = (e) => (e.statut === 'draft' || Boolean(e.proposee)) && !e.derogee;
+const longueur = (e) => e.enonce.length + (e.pourquoi?.length || 0);
+const taille = (l) => l.filter((e) => e.niveau === 'reminder').reduce((t, e) => t + longueur(e), 0);
 const tailleRappels = (l) => taille(l.filter(applicable));
 // Ce que les règles proposées ajouteraient à chaque tour si elles étaient approuvées : à savoir avant d'approuver.
-const tailleProposes = (l) => taille(l.filter((e) => e.statut === 'draft' && !e.derogee));
+const tailleProposes = (l) => taille(l.filter((e) => e.statut === 'draft' && !e.derogee))
+  + l.filter((e) => e.proposee && !e.derogee && e.niveau === 'reminder').reduce((t, e) => t + longueur(e.proposee) - longueur(e), 0);
 
 /**
  * Règle effective d'un projet : { regles, signaux, rappels } ; `rappels` compte les caractères chargés à chaque tour.

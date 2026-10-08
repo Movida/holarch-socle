@@ -11,7 +11,7 @@ import importerTranscriptions from './import/claude-code-transcriptions.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 import importerPasserelle from './import/agentgateway.js';
 import { tarifsConfigures, prix, modeleTarife } from './tarifs.js';
-import { regleEffective, regleDuCompte, projetsDeclares, arbresDe } from './regles.js';
+import { regleEffective, regleDuCompte, projetsDeclares, arbresDe, aApprouver } from './regles.js';
 import { destination } from './regles-claude-code.js';
 import { contexteControle, garde, ecartsOuverts, audit } from './audit.js';
 import { ulid } from './ulid.js';
@@ -361,7 +361,7 @@ export class Socle {
     const resume = projets.map((p) => ({ p, r: regleEffective(fiches, p.id) }))
       .filter(({ p, r }) => declares.has(p.id) || r.arbre?.types.length || r.regles.some((e) => e.origine === 'projet'))
       .map(({ p, r }) => ({ id: p.id, nom: p.name, declare: declares.has(p.id), types: r.arbre?.types || [], appliquees: r.regles.filter((e) => e.applicable).length,
-        proposees: r.regles.filter((e) => e.statut === 'draft').length, rappels: r.rappels, signaux: r.signaux.length, ecarts: ouverts.filter((o) => o.projet === p.id).length }));
+        proposees: r.regles.filter(aApprouver).length, rappels: r.rappels, signaux: r.signaux.length, ecarts: ouverts.filter((o) => o.projet === p.id).length }));
     return { compte: { ...portees(regleDuCompte(fiches), 'sensitive'), ecarts: ouverts.filter((o) => !o.projet) }, projets: resume };
   }
 

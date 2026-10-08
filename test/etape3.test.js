@@ -233,7 +233,7 @@ test('projets : l’inventaire lit l’avancement, les questions, les idées et 
 });
 
 // ---- Tranche 3 : arbre des règles (décision arbre-des-regles). Données fictives.
-import { regleEffective, regleDuCompte, fusionnerConfig } from '../src/regles.js';
+import { regleEffective, regleDuCompte, fusionnerConfig, aApprouver } from '../src/regles.js';
 import { planifier, appliquer, MARQUE } from '../src/regles-claude-code.js';
 
 function arbresFictifs() {
@@ -290,6 +290,18 @@ test('règles : règle effective d’un projet (profil, contexte, types, projet)
   assert.ok(sans.signaux.some((x) => /aucun contexte ne déclare/.test(x)) && sans.regles.every((x) => x.origine === 'profil'));
   const c = regleDuCompte(fiches);
   assert.deepEqual(c.regles.map((x) => x.id).sort(), ['avis-argumente', 'commit-sur-main', 'francais', 'proposee', 'secret-du-profil'], 'un seul contexte : profil et contexte au compte');
+});
+
+test('règles : un brouillon plus bas ne remplace pas une règle approuvée de même id ; il reste proposé', () => {
+  const { d } = arbresFictifs();
+  // Une redite récoltée au nœud du projet, sous l'id d'une règle approuvée du type (bloquante, contrôlée).
+  fs.appendFileSync(path.join(d('socle'), 'arbre', 'rules.yaml'), '- id: garde\n  statement: Une redite récoltée.\n');
+  const ctx = { depots: ['profil', 'socle', 'bundle'].map(d), projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) };
+  const e = regleEffective(inventaireArbre({}, ctx), 'holarch:project:socle');
+  const g = e.regles.find((x) => x.id === 'garde');
+  assert.deepEqual([g.origine, g.statut, g.niveau, g.applicable], ['type', 'stable', 'blocking', true], 'l’approuvée tient');
+  assert.equal(g.proposee?.enonce, 'Une redite récoltée.', 'le brouillon reste visible, à approuver');
+  assert.ok(aApprouver(g) && e.signaux.some((x) => /brouillon sur une règle approuvée : garde/.test(x)));
 });
 
 test('règles : l’adaptateur Claude Code écrit un fichier marqué par règle, retire ce qui n’a plus de règle, ne touche pas le reste', () => {

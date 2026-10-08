@@ -6,6 +6,7 @@ import path from 'node:path';
 import { projetsDe, localiserProjet } from './projets.js';
 import { etatDepot, integrationContinue } from './inventaire/depots-git.js';
 import { copieEnService, retard } from './service.js';
+import { aApprouver } from './regles.js';
 
 /** Lignes JSON de la fin d'une transcription (les `octets` derniers), de la plus récente à la plus ancienne. */
 function finDeTranscription(transcription, octets) {
@@ -117,7 +118,7 @@ export function resume(s, dossier, { max = 1500, transcription = null, maintenan
   if (v.idees.length) l.push(`Idées pour l’étape ${v.etape.numero} (\`arbre/idees.md\`) : ${v.idees.map((i) => i.id).join(', ')}.`);
   if (v.decisions.length) l.push(`Décisions à approuver : ${v.decisions.map((d) => court(d.titre, 60)).join(' ; ')}.`);
   // Règles proposées (récolte, décision recolte) que ce projet recevrait : celles de son nœud et de ses couches.
-  const proposees = s.regles({ projet: p.id }).regles.filter((e) => e.statut === 'draft' && !e.derogee);
+  const proposees = s.regles({ projet: p.id }).regles.filter(aApprouver);
   if (proposees.length) l.push(`Règles à approuver : ${proposees.length} (${proposees.slice(0, 4).map((e) => e.id).join(', ')}${proposees.length > 4 ? '…' : ''}), page « Règles ».`);
   // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente.
   const direct = v.chemin && fs.existsSync(v.chemin);
