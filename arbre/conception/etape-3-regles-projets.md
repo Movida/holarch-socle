@@ -806,16 +806,43 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   - A6 : décision `routines-posees` (modifie `recolte` et `copie-de-service`), approuvée telle quelle par l'auteur :
     l'état d'activation de systemd fait foi. `service poser` réécrit une routine coupée à la main sans la rallumer
     (interface comprise) et le dit ; `holarch service` montre l'état des quatre routines ; 1 test (71 verts).
+- **Fait (2026-10-08)** : passe par famille sur tout `src/` (accord de l'auteur, quatre sous-agents en lecture seule,
+  constats les plus graves revérifiés dans le code). Rien corrigé ; choix à l'auteur. Chaque famille propose un contrôle
+  automatique en brouillon (rapports dans la session du 2026-10-08, à réécrire en test à la correction).
+  - **N, écritures non atomiques** : N1 journal lu sans tolérance (`stockage/journal.js:25`, code de l'étape 1) : une
+    ligne coupée arrête inventaire, import horaire et reprise, en silence ; N2 inventaires et imports concurrents
+    (crochet de session, minuteur, interface) : `element.retired` fantômes, événements en double, usage MCP doublé ;
+    N3 `~/.claude.json` réécrit en entier pendant que Claude Code l'écrit (`service.js:73`, `distant.js:86`) ; N4 règles
+    générées, unités systemd, crochet `pre-commit`, `rules.yaml` réécrits en place (fichier coupé pris pour étranger ou
+    garde sautée). Contrôle : tout `writeFileSync` de `src/` passe par un helper atomique, exceptions nommées.
+  - **C, catalogue qui décide** : C1 garde muette sur un dépôt déplacé ou un worktree jusqu'à l'inventaire suivant
+    (`audit.js:58`) ; C2 création : identifiant de chemin périmé déclaré et commité dans le profil (`creation.js:158`) ;
+    C3 `regles appliquer` recrée l'ancien dossier d'un dépôt déplacé ; C4 garde : règles fraîches, liste privée périmée
+    (`audit.js:21`) ; C5 fraîcheur datée en fin d'inventaire et décision lue dans l'index (trouvé aussi par R). Contrôle :
+    toute lecture du catalogue dans une fonction qui écrit ou décide dit pourquoi elle peut être périmée.
+  - **R, rejeu qui dit « déjà »** : R1 « github : deja » avec des commits non poussés (`creation.js:209`, le banc le
+    produit sans le vérifier) ; R2 « accès distant : service actif » sans regarder l'état (`creation.js:249`) ; R3 une
+    pose interrompue passe pour « coupée à la main » et n'est plus rallumée (`distant.js:36`, correction A6) ; R4 un
+    fichier de base ignoré par git bloque tous les rejeux (`creation.js:136`) ; R5 réponse « deja » à l'annonce unique
+    des sessions coupées sans preuve de remise ; plus mineurs : clé de déploiement redemandée, état d'import avancé
+    malgré des refus, crochet sans bit d'exécution dit en place. Contrôle : banc de rejeu après un geste qui défait,
+    oracle lu dans l'état réel.
+  - **M, réglage posé à la main écrasé** : M1 `distant activer` rallume le minuteur de réveil coupé (`distant.js:151`,
+    trou de la décision `routines-posees`) ; M2 crochets et clés de `settings.json` remis ou doublés après un geste à la
+    main ; M3 `service poser` repointe un serveur MCP `holarch` réglé ailleurs ; M4 unités modifiées à la main
+    réécrites ; M5 identité git retirée à la main reposée ; M6 `ecrireJson` remplace un lien et perd les droits.
+    Contrôle : tout écrivain d'un fichier partagé avec l'auteur nomme son test du geste à la main.
+- **Fait (2026-10-08)** : revue page blanche (B4), décision brouillon `revue-page-blanche` : choix A à D à l'auteur
+  (critère de l'étape 3, projet privé le plus coûteux, état des lieux P2, contre-épreuve par tranche). Idée I31 (parcourir l'arbre dans
+  les deux sens).
 - **Reste** :
   1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
      `acces_distant.claude`.
-  2. **Passe globale, au-delà** (l'auteur veut creuser plus loin) : relire tout le code, celui d'avant `a9c40e6` compris, par
-     famille de défaut plutôt que par diff (écritures non atomiques, lectures du catalogue qui décident, rejeu qui dit
-     « déjà » sans regarder l'état réel, réglage posé à la main écrasé), et proposer pour chaque famille un contrôle
-     automatique en brouillon (test qui cherche le motif dans `src/`).
+  2. **Passe par famille** : choisir les corrections (N, C, R, M et la seconde vague) et leurs contrôles ; trancher A à D
+     de la décision `revue-page-blanche` d'abord, ils changent l'ordre et la méthode.
   3. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   4. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
-  5. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
+  5. **Clôture de l'étape 3** (accord de l'auteur, à revoir par le choix A de `revue-page-blanche`) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
   6. **Tranche 11** : livrée ; statuts des huit brouillons du profil écrits le 2026-10-08 ; critère d'usage : une
      consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
