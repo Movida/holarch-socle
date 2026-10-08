@@ -2,6 +2,10 @@
 
 ## 2026-10-08
 
+* **Statuts des huit brouillons du profil écrits** (mode manuel, chaque écriture approuvée par l'auteur) : 4 règles
+  approuvées (`reformuler-avant-de-decider`, `donner-la-commande-systematiquement`, `verifier-avant-depense-api`,
+  `agents-paralleles`), 4 refusées ; l'audit voit les 4 fichiers de règle à écrire au compte.
+
 * **Règles sur déclencheur abandonnées** (avis suivi par l'auteur) : les rappels pèsent 2 % du contexte relu par tour ;
   charger les deux seules règles à déclencheur net (envoi, commit) n'en ôterait que 0,07 %, et un texte injecté avant un
   outil arrive après lui. Rien construit ; le levier reste l'oubli progressif (I27).

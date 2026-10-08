@@ -736,7 +736,7 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  4. **Tranche 11** : livrée ; statuts des huit brouillons du profil à écrire par l'auteur ; critère d'usage : une
+  4. **Tranche 11** : livrée ; statuts des huit brouillons du profil écrits le 2026-10-08 ; critère d'usage : une
      consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
   5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.
