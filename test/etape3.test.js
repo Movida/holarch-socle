@@ -5,26 +5,27 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { creerDistant, creerInterface, declarerConfiance, nomDe } from '../src/distant.js';
+import { creerDistant, creerInterface, creerReveil, declarerConfiance, nomDe } from '../src/distant.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
 function banc({ mode = 'auto' } = {}) {
   const racine = tmp(); const unites = tmp(); const cfgClaude = path.join(tmp(), '.claude.json');
-  fs.mkdirSync(path.join(racine, 'demo'));
+  fs.mkdirSync(path.join(racine, 'demo')); fs.mkdirSync(path.join(racine, 'autre'));
   fs.writeFileSync(cfgClaude, JSON.stringify({ autre: 1, projects: { '/x': { hasTrustDialogAccepted: false, garde: true } } }));
-  const appels = []; const actifs = new Set();
+  const appels = []; const actifs = new Set(); const pannes = new Set();
   const systemctl = (args) => {
     appels.push(args.join(' '));
+    if (args[0] === 'restart' && pannes.has(args[1])) { actifs.delete(args[1]); return { status: 1, stdout: '', stderr: 'Job failed' }; }
     if (args[0] === 'enable') actifs.add(args.at(-1));
     if (args[0] === 'disable') actifs.delete(args.at(-1));
     return { status: 0, stdout: args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : '', stderr: '' };
   };
   const config = { inventaire: { 'depots-git': { racines: [racine] }, 'claude-code': { config: cfgClaude } }, acces_distant: { mode_permissions: mode } };
-  const projets = [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }];
+  const projets = ['demo', 'autre'].map((n) => ({ id: `holarch:project:${n}`, nom: n, location: path.join(racine, n) }));
   const horloge = { t: Date.parse('2026-01-01T08:00:00Z') }; const accueil = tmp();
   const d = creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets, accueil, holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', maintenant: () => horloge.t });
-  return { racine, unites, cfgClaude, appels, horloge, d };
+  return { racine, unites, cfgClaude, appels, pannes, horloge, d };
 }
 
 test('accès distant : activer écrit un service marqué, déclare la confiance et démarre ; desactiver le retire', () => {
@@ -63,9 +64,25 @@ test('accès distant : après une veille du poste (écart entre deux passages du
   assert.deepEqual(d.reveil().relances, [], 'premier passage : rien à comparer');
   horloge.t += 60e3; assert.deepEqual(d.reveil().relances, [], 'une minute : pas de veille');
   horloge.t += 4 * 3600e3;
-  assert.deepEqual(d.reveil(), { ecart_s: 4 * 3600, relances: ['demo'] });
+  assert.deepEqual(d.reveil(), { ecart_s: 4 * 3600, relances: ['demo'], echecs: [] });
   assert.deepEqual(appels.filter((a) => a.startsWith('restart')), ['restart holarch-distant-demo.service']);
   horloge.t += 60e3; d.reveil(); assert.equal(redemarrages(), 1, 'une seule fois par veille');
+});
+
+test('accès distant : un redémarrage en échec au réveil n’arrête pas les suivants, il se dit ; la copie de service réécrit l’unité de réveil', () => {
+  const { appels, pannes, horloge, unites, d } = banc();
+  d.activer('demo'); d.activer('autre'); d.reveil();
+  pannes.add('holarch-distant-autre.service'); horloge.t += 3600e3;
+  const r = d.reveil();
+  assert.deepEqual(r.relances, ['demo'], 'l’accès suivant est relancé malgré l’échec');
+  assert.deepEqual(r.echecs.map((e) => e.nom), ['autre']); assert.match(r.echecs[0].message, /Job failed/);
+  // Unité de réveil écrite avant la copie de service : `service poser` la fait pointer sur la copie posée.
+  const systemctl = (args) => { appels.push(args.join(' ')); return { status: 0, stdout: '', stderr: '' }; };
+  const f = path.join(unites, 'holarch-reveil.service');
+  const pose = creerReveil({ holarch: '/accueil/service/courant/bin/holarch.js', accueil: '/accueil' }, { unites, systemctl, node: '/opt/node/bin/node' });
+  assert.equal(pose.reecrire().etat, 'réécrite'); assert.match(fs.readFileSync(f, 'utf8'), /"\/accueil\/service\/courant\/bin\/holarch.js" distant reveil$/m);
+  assert.equal(pose.reecrire().etat, 'inchangée');
+  fs.rmSync(f); assert.equal(pose.reecrire().etat, 'absente', 'sans accès distant, rien n’est posé');
 });
 
 test('accès distant : projet introuvable refusé, service étranger jamais touché, mode par défaut omis', () => {
@@ -930,7 +947,7 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
   assert.equal(fs.readlinkSync(path.join(accueil, 'service', 'courant')), c1, 'lien relatif');
   assert.equal(copieEnService(accueil).commit, c1); assert.ok(!fs.existsSync(path.join(accueil, 'service', c1, '.git')), 'un export, pas un dépôt');
   // Points d'entrée : interface absente laissée, minuteur d'import marqué sur le lien, entrée MCP réécrite (le reste gardé).
-  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['recolte', 'posé'], ['mcp perso', 'posé']]);
+  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['recolte', 'posé'], ['reveil', 'absente'], ['mcp perso', 'posé']]);
   const unite = fs.readFileSync(path.join(unites, 'holarch-import.service'), 'utf8');
   assert.match(unite, /^# Écrit par HOLARCH/); assert.ok(unite.includes(`"${bin}" inventaire`)); assert.ok(fs.existsSync(path.join(unites, 'holarch-import.timer')));
   assert.ok(fs.readFileSync(path.join(unites, 'holarch-recolte.service'), 'utf8').includes(`"${bin}" recolte --proposer`));

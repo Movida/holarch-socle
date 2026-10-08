@@ -119,6 +119,22 @@ OnCalendar=minutely
 WantedBy=timers.target
 `;
 
+/**
+ * L'unité de réveil, après une pose de la copie de service : réécrite si elle est de HOLARCH, pour lancer la copie posée
+ * (écrite avant, elle lancerait la copie de travail). Absente, rien n'est posé : elle vient avec le premier accès distant.
+ */
+export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
+  const sv = services({ unites, systemctl }); const f = path.join(unites, `${UNITE_REVEIL}.service`);
+  return {
+    reecrire() {
+      if (!fs.existsSync(f)) return { unite: path.basename(f), etat: 'absente' };
+      if (!sv.geree(f)) return { unite: path.basename(f), etat: 'non écrite par HOLARCH : laissée' };
+      if (!sv.ecrire(f, uniteReveil({ node, holarch, accueil }))) return { unite: path.basename(f), etat: 'inchangée' };
+      sv.lancer(['daemon-reload']); return { unite: path.basename(f), etat: 'réécrite' };
+    },
+  };
+}
+
 export function creerDistant(config, {
   unites = UNITES, systemctl = SYSTEMCTL,
   claude = config.acces_distant?.claude || null,
@@ -177,15 +193,19 @@ export function creerDistant(config, {
       if (!this.liste().length) retirerReveil();
       return { nom, unite: path.basename(f) };
     },
-    // Passage du minuteur : note l'heure ; après un écart (veille du poste), redémarre les accès distants actifs.
+    // Passage du minuteur : note l'heure ; après un écart (veille du poste), redémarre les accès distants actifs, un par
+    // un : un échec n'arrête pas les suivants, il se dit (un accès en échec n'est plus actif, le passage suivant le laisse).
     reveil() {
       const t = maintenant(); let avant = null;
       try { avant = Date.parse(fs.readFileSync(reveil.passage, 'utf8').trim()); } catch { /* premier passage */ }
       fs.mkdirSync(path.dirname(reveil.passage), { recursive: true }); fs.writeFileSync(reveil.passage, `${new Date(t).toISOString()}\n`);
       const ecart = Number.isFinite(avant) ? t - avant : 0;
-      if (ecart <= SEUIL_REVEIL) return { ecart_s: Math.round(ecart / 1e3), relances: [] };
-      const relances = this.liste().filter((x) => x.actif).map((x) => { sv.lancer(['restart', `${PREFIXE}${x.nom}.service`]); return x.nom; });
-      return { ecart_s: Math.round(ecart / 1e3), relances };
+      if (ecart <= SEUIL_REVEIL) return { ecart_s: Math.round(ecart / 1e3), relances: [], echecs: [] };
+      const relances = []; const echecs = [];
+      for (const x of this.liste().filter((u) => u.actif)) {
+        try { sv.lancer(['restart', `${PREFIXE}${x.nom}.service`]); relances.push(x.nom); } catch (e) { echecs.push({ nom: x.nom, message: e.message }); }
+      }
+      return { ecart_s: Math.round(ecart / 1e3), relances, echecs };
     },
   };
 }

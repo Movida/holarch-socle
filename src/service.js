@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { git, lireJson, ecrireJson, trouverOutil, configClaude } from './commun.js';
-import { creerInterface, creerImport, creerRecolte } from './distant.js';
+import { creerInterface, creerImport, creerRecolte, creerReveil } from './distant.js';
 
 const SOI = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const FICHE = '.holarch-service.json';
@@ -69,6 +69,7 @@ export function creerService({ accueil, comptes = [] }, {
       essai('interface', () => creerInterface({ holarch, accueil }, o).relancer()),
       essai('import', () => creerImport({ holarch, accueil }, o).poser()),
       essai('recolte', () => creerRecolte({ holarch, accueil }, o).poser()),
+      essai('reveil', () => creerReveil({ holarch, accueil }, o).reecrire()),
       ...comptes.filter((c) => c.home).map((c) => essai(`mcp ${c.nom || c.home}`, () => {
         const f = configClaude(c.home); const cfg = lireJson(f, null, { strict: true });
         const s = cfg?.mcpServers?.holarch;
