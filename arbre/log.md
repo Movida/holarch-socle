@@ -2,6 +2,11 @@
 
 ## 2026-10-08
 
+* **Corrections de la passe globale** (choix de l'auteur) : A1 à A5, A7, A8 corrigés avec un test chacun, T1 à T3
+  écrits (70 tests verts). Trouvé en route : un inventaire lancé depuis le crochet de commit lirait les autres dépôts
+  avec l'index du commit en cours ; la garde relit donc l'arbre seul, en mémoire. A6 : décision `routines-posees`
+  proposée en brouillon (une routine coupée à la main reste coupée), à approuver.
+
 * **Passe globale** (accord de l'auteur) : trois relectures du code écrit depuis `a9c40e6` ; huit défauts réels sur des
   chemins qui écrivent ou décident (A1 à A8 dans l'avancement), trois tests prioritaires manquants, trois contrats en
   usage jamais approuvés. Corrections choisies par l'auteur (A1 à A5, A7, A8, T1 à T3 ; A6 par décision), puis une passe

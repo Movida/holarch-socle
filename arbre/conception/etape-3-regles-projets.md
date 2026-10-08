@@ -786,9 +786,27 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   recopiées, fichier temporaire de `~/.claude.json` à nom fixe, récolte sans gitleaks en code 0, `claude -p` lancé
   depuis `/tmp`, copies d'installation interrompues jamais retirées, import en double dans `bin/holarch.js`. Arbre :
   contrats `noeud` (0.3.0), `regle` (0.4.0) et `config` (0.3.0) en usage sans approbation ; Q4 à trancher ou reporter.
+- **Fait (2026-10-08)** : corrections de la passe globale, un commit et un test chacune (70 tests verts).
+  - A1 : un brouillon plus bas ne remplace plus une règle approuvée de même `id` ; l'approuvée tient, le brouillon se
+    montre à côté (`proposee`) et compte parmi les règles à approuver (`aApprouver`, partagé par la reprise et la page) ;
+  - A2 : reposer la copie en service garde celle du retour arrière ;
+  - A3 : catalogue écrit d'un coup (`ecrireJson`, temporaire au numéro du processus) ; un instantané coupé se lit vide,
+    et l'inventaire suivant le remplace sans fausses apparitions ;
+  - A4 : la garde avant commit relit l'arbre changé en mémoire (`arbreFrais`), sans inventaire : dans un crochet de git,
+    `GIT_INDEX_FILE` fausserait la lecture des autres dépôts ; `projet creer` lit l'arbre frais et remet le catalogue à
+    jour avant les règles (celles du type écrit à la création) ;
+  - A5 : `projet creer` rejouée commite les fichiers présents mais jamais commités, et les règles indexées sans commit ;
+    une licence sans modèle arrête tout avant `git init` ;
+  - A7 : au réveil, un redémarrage en échec n'arrête plus les suivants, il se dit (code de sortie 1) ; `service poser`
+    réécrit l'unité de réveil ;
+  - A8 : `claude` se cherche d'une seule façon (`binaireClaude`, réglage `acces_distant.claude` compris), pour la récolte
+    comme pour l'accès distant ;
+  - T1 à T3 : création à blanc sur un projet créé, déclaration refusée par le profil (contexte remis en état), licence
+    sans modèle ; aucun nouveau défaut.
+  - A6 : décision `routines-posees` proposée (brouillon, modifie `recolte` et `copie-de-service`) : l'état
+    d'activation de systemd fait foi, une routine coupée à la main reste coupée ; correction après approbation.
 - **Reste** :
-  1. **Passe globale, corrections** (choix de l'auteur, 2026-10-08) : A1 à A5, A7, A8 avec un test chacun
-     (`defaut-a-l-usage`), T1 à T3 ; A6 : modification de la décision `recolte` en brouillon, puis correction.
+  1. **A6** : approbation de la décision `routines-posees`, puis correction avec un test.
   2. **Passe globale, au-delà** (l'auteur veut creuser plus loin) : relire tout le code, celui d'avant `a9c40e6` compris, par
      famille de défaut plutôt que par diff (écritures non atomiques, lectures du catalogue qui décident, rejeu qui dit
      « déjà » sans regarder l'état réel, réglage posé à la main écrasé), et proposer pour chaque famille un contrôle
