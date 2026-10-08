@@ -204,3 +204,29 @@ test('Contre-épreuve (4) : regles appliquer n’écrit pas le compte quand un p
   const ok = appliquerRegles(s, [], [{ nom: 'essai', home }]);
   assert.deepEqual(ok.comptes[0].fichiers.crees, ['francais.md']);
 });
+
+test('Contre-épreuve (6) : des règles illisibles ne résolvent pas l’écart d’une mémoire remplacée', async () => {
+  const { Socle } = await import('../src/socle.js');
+  const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
+  const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const d = path.join(r, 'depot');
+  spawnSync('git', ['init', '-q', d]);
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  const regles = path.join(d, 'arbre', 'rules.yaml');
+  ecrire(regles, '- id: tests-verts\n  statement: Les tests passent avant de rendre.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n  replaces: [vieille-memoire]\n');
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
+  const relire = () => { s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+    { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: null, provenance: { source: 't' } },
+    { id: 'holarch:memory:mem1', kind: 'memory', name: 'vieille-memoire', status: 'active', classification: 'internal', location: '/memoires/vieille-memoire.md', links: { project: ['holarch:project:depot'] }, provenance: { source: 't' } }]); s.indexer(); };
+  relire();
+  const ouverts = () => s.ecartsOuverts().map((o) => o.controle).sort();
+  s.audit({ projet: 'depot', journaliser: true }); s.indexer();
+  assert.deepEqual(ouverts(), ['memoire-remplacee']);
+  fs.writeFileSync(regles, '- id: [ouverte\n'); relire();
+  const a = s.audit({ projet: 'depot', journaliser: true }); s.indexer();
+  assert.equal(a.journal.resolus, 0, 'la règle qui remplace la mémoire n’est plus lue : rien n’est résolu');
+  assert.deepEqual(ouverts(), ['memoire-remplacee', 'regles-lisibles']);
+  assert.ok(a.cibles[0].controles.some((c) => c.id === 'memoire-remplacee' && c.etat === 'indisponible'));
+});

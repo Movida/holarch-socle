@@ -144,7 +144,8 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
   if (compte.regles.length || compte.illisibles.length) {
     const rc = { projet: null, nom: 'compte', ecarts: ecartsIllisibles(compte), controles: [] };
     faits.add('|regles-lisibles');
-    if (compte.illisibles.length) rc.controles.push(...['regles-a-jour', 'permissions-posees', 'reglages-poses'].map((id) => ({ id, etat: 'indisponible', raison: 'règles illisibles' })));
+    // Règles illisibles : une règle qui remplace une mémoire peut manquer ; ni ses écarts ni leur résolution ne se disent.
+    if (compte.illisibles.length) rc.controles.push(...['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee'].map((id) => ({ id, etat: 'indisponible', raison: 'règles illisibles' })));
     else for (const m of materialiserCompte(compte, comptesDe(s), { accueil: s.config.accueil || accueil(), ecrire: false })) {
       rc.ecarts.push(...ecartsFichiers(compte.regles, m, 'rules/holarch'));
       if (m.permissions.erreur) rc.controles.push({ id: 'permissions-posees', etat: 'indisponible', raison: m.permissions.erreur });
@@ -152,7 +153,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
       if (m.reglages.erreur) rc.controles.push({ id: 'reglages-poses', etat: 'indisponible', raison: m.reglages.erreur });
       else rc.ecarts.push(...ecartsReglages(m));
     }
-    rc.ecarts.push(...remplacees(compte.regles, memoires));
+    if (!compte.illisibles.length) rc.ecarts.push(...remplacees(compte.regles, memoires));
     for (const c of ['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
     // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
     const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache') }, 'audit', ['blocking', 'verified'], 'site');
@@ -170,14 +171,16 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
     const rp = { projet: id, nom: p.name, ecarts: [...ecartsIllisibles(r), ...ecarts], controles };
     faits.add(`${id}|regles-lisibles`);
-    if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
+    if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
     else if (p.location && fs.existsSync(p.location)) {
       const m = materialiserProjet(r, p.location, { accueil: s.config.accueil || accueil(), ecrire: false });
       rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch'), ...ecartsCrochet(m.crochet));
       faits.add(`${id}|regles-a-jour`); faits.add(`${id}|crochet-pose`);
     }
-    rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));
-    faits.add(`${id}|memoire-remplacee`);
+    if (!r.illisibles.length) {
+      rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));
+      faits.add(`${id}|memoire-remplacee`);
+    }
     sorties.push(rp);
   }
 
