@@ -724,16 +724,19 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   Avis sur les huit brouillons suivis par l'auteur : 4 à approuver, 4 à refuser (I26 pour l'un) ; l'écriture de ces
   statuts dans le profil a été refusée à l'agent par le garde-fou de Claude Code (un agent n'approuve pas ses propres
   consignes) : à faire par l'auteur.
+- **Fait (2026-10-08)** : coût des rappels mesuré, décision « règles sur déclencheur » abandonnée (avis suivi par
+  l'auteur). Les 21 rappels du socle font 9 340 caractères, environ 2,7 k tokens par tour, 2 % du contexte relu par
+  tour ; les lignes « Pourquoi » en font 23 %. Deux règles seulement ont un déclencheur net (envoi, commit : 571
+  caractères) ; sur 311 sessions de 30 jours, 75 % des tours précèdent le premier envoi et 45 % le premier commit (ou
+  n'en ont pas) : gain d'environ 360 caractères par tour, 0,07 % du contexte. Un texte injecté avant un outil
+  n'arrive qu'à côté de son résultat (documentation des crochets), trop tard pour un message de commit ; injecté au
+  démarrage, il reste dans le contexte. Rien construit ; le levier est l'oubli progressif (I27).
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
   3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
   4. **Tranche 11** : livrée ; statuts des huit brouillons du profil à écrire par l'auteur ; critère d'usage : une
-     consigne approuvée n'est plus redite ensuite. Coût des rappels en contexte (accord de l'auteur, 2026-10-08) : décision
-     « règles sur déclencheur » à proposer en premier : mesurer quels rappels ont un déclencheur net (envoi, commit,
-     démarrage, clôture) et les charger seulement quand il survient ; aujourd'hui `guided` ne s'écrit que limité à des
-     chemins (`regles-claude-code.js`, « skill, à venir »), le chargement sur action est à construire (crochet du
-     runtime). L'oubli progressif est l'idée I27 (étape 5).
+     consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
   5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
      §5.8), à spécifier à leur ouverture.

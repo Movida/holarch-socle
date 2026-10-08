@@ -2,6 +2,10 @@
 
 ## 2026-10-08
 
+* **Règles sur déclencheur abandonnées** (avis suivi par l'auteur) : les rappels pèsent 2 % du contexte relu par tour ;
+  charger les deux seules règles à déclencheur net (envoi, commit) n'en ôterait que 0,07 %, et un texte injecté avant un
+  outil arrive après lui. Rien construit ; le levier reste l'oubli progressif (I27).
+
 * **Coût des rappels** (accord de l'auteur) : décision « règles sur déclencheur » à proposer en premier (mesure des
   rappels à déclencheur net ; chargement sur action à construire) ; oubli progressif retenu en idée I27 (étape 5).
 
