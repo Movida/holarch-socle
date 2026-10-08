@@ -21,3 +21,18 @@ test('X2 : la configuration locale d’un dépôt lu par l’inventaire n’exé
   assert.equal(e.fichiers_modifies, 1);
   assert.equal(fs.existsSync(temoin), false, 'le core.fsmonitor du dépôt a été exécuté');
 });
+
+test('X3 : l’interface est servie avec une politique de contenu qui n’admet que ses propres scripts', async () => {
+  const { creerServeur } = await import('../src/web/serveur.js');
+  const { Socle } = await import('../src/socle.js');
+  const s = new Socle({ site: 'local', donnees: tmp(), web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const srv = creerServeur(s); await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  try {
+    for (const chemin of ['/', '/app.js']) {
+      const r = await fetch(`http://127.0.0.1:${srv.address().port}${chemin}`);
+      const csp = r.headers.get('content-security-policy') || '';
+      assert.match(csp, /default-src 'self'/, chemin);
+      assert.doesNotMatch(csp, /script-src[^;]*unsafe/, chemin);
+    }
+  } finally { srv.close(); }
+});

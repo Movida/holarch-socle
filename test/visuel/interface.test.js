@@ -158,5 +158,9 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.ok(!(await page.textContent('main')).includes('ui.viewed'), 'pages consultées hors du flux par défaut');
   await ouvrir('', 'svg.histo');
   assert.doesNotMatch(await page.textContent('body'), /Interface ouverte 0 jour/, 'la page en cours est comptée');
+  // X3 : un filtre de l'URL recopié dans un lien ne sort pas de son attribut (balise injectée, script lancé).
+  await ouvrir(`#/journal?session=s&kind=${encodeURIComponent('x"><img src=x onerror="window.injecte=1">')}`, '.puces');
+  assert.equal(await page.$('img[src="x"]'), null, 'balise injectée par le filtre kind');
+  assert.equal(await page.evaluate(() => window.injecte), undefined);
   assert.deepEqual(erreurs, []);
 });

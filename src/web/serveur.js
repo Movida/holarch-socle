@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
+// Politique de contenu : rien d'autre que les scripts et styles servis ici ; une donnée du journal ou de l'URL glissée
+// dans la page par erreur ne peut pas lancer de script (styles en ligne admis : l'interface en pose quelques-uns).
+const POLITIQUE = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 
 // L'interface se charge une fois, au démarrage, avec le code de l'API : les deux viennent toujours de la même version
 // (sans quoi une page récente interroge une API ancienne et casse). Une mise à jour demande de relancer le serveur.
@@ -63,7 +66,7 @@ export function creerServeur(socle) {
       if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
       const cle = u.pathname === '/' ? '/index.html' : u.pathname;
       if (!Object.hasOwn(INTERFACE, cle)) { res.writeHead(404); return res.end('introuvable'); }
-      res.writeHead(200, { 'content-type': TYPES[path.extname(cle)] || 'application/octet-stream', 'cache-control': 'no-cache' });
+      res.writeHead(200, { 'content-type': TYPES[path.extname(cle)] || 'application/octet-stream', 'cache-control': 'no-cache', 'content-security-policy': POLITIQUE });
       res.end(INTERFACE[cle]);
     } catch (e) {
       res.writeHead(500, { 'content-type': 'application/json' });
