@@ -63,11 +63,37 @@ export function trouverOutil(nom, reglage = null) {
 export const binaireClaude = (config) => trouverOutil('claude', config?.acces_distant?.claude || null);
 
 /**
- * git dans un dépôt : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges. Le dépôt peut
- * être n'importe lequel sous les racines inventoriées (une archive extraite, un clone tiers) : `core.fsmonitor`, que sa
- * configuration locale pourrait faire exécuter à chaque `status`, est neutralisé.
+ * Ce que la configuration propre d'un dépôt (portées `local` et `worktree`, inclusions comprises) pourrait faire
+ * exécuter à une lecture, annulé en `-c` : `core.fsmonitor`, la vérification des signatures, et chaque pilote qu'elle
+ * déclare (`filter.<x>` vidé, `diff.<x>.textconv` remplacé par `cat`, qui ne change rien : une valeur vide ferait
+ * lancer un programme vide). Les diffs externes sont coupés par `--no-ext-diff` (voir `git`). Les pilotes du compte
+ * (git-lfs installé normalement) restent.
  */
-export const git = (depot, args, o = {}) => spawnSync('git', ['-c', 'core.fsmonitor=false', '-C', depot, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 60e3, ...o });
+function neutralisation(depot) {
+  const r = spawnSync('git', ['-C', depot, 'config', '--show-scope', '-z', '--get-regexp', '^(filter|diff)\\..+\\.'], { encoding: 'utf8', timeout: 10e3 });
+  const pilotes = new Set();
+  const champs = (r.stdout || '').split('\0'); // portée, puis clé et valeur séparées par une fin de ligne
+  for (let i = 0; i + 1 < champs.length; i += 2) {
+    const m = champs[i + 1].split('\n')[0].match(/^(filter|diff)\.(.+)\.[^.]+$/);
+    if (m && (champs[i] === 'local' || champs[i] === 'worktree')) pilotes.add(`${m[1]}.${m[2]}`);
+  }
+  const cles = ['core.fsmonitor=false', 'log.showSignature=false'];
+  for (const p of pilotes) {
+    if (p.startsWith('filter.')) cles.push(`${p}.clean=`, `${p}.smudge=`, `${p}.process=`, `${p}.required=false`);
+    else cles.push(`${p}.textconv=cat`);
+  }
+  return cles.flatMap((c) => ['-c', c]);
+}
+
+/**
+ * git dans un dépôt : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges. Le dépôt peut
+ * être n'importe lequel sous les racines inventoriées (une archive extraite, un clone tiers) : rien de ce que sa
+ * configuration déclare comme programme ne s'exécute (`neutralisation`, et `--no-ext-diff` pour ce qui produit un diff).
+ */
+export function git(depot, args, o = {}) {
+  const diff = ['diff', 'log', 'show'].includes(args[0]) ? [args[0], '--no-ext-diff', ...args.slice(1)] : args;
+  return spawnSync('git', [...neutralisation(depot), '-C', depot, ...diff], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 60e3, ...o });
+}
 
 /** Fichier de configuration de Claude Code d'un compte : `~/.claude.json` pour `~/.claude`, sinon `<home>/.claude.json`. */
 export const configClaude = (home) => (path.resolve(home) === path.join(os.homedir(), '.claude') ? path.join(os.homedir(), '.claude.json') : path.join(home, '.claude.json'));

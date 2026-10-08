@@ -12,6 +12,7 @@ import { Journal } from '../src/stockage/journal.js';
 import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
 import { executer } from '../src/controles.js';
+import { git } from '../src/commun.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -25,6 +26,33 @@ test('X2 : la configuration locale d’un dépôt lu par l’inventaire n’exé
   const e = etatDepot(d);
   assert.equal(e.fichiers_modifies, 1);
   assert.equal(fs.existsSync(temoin), false, 'le core.fsmonitor du dépôt a été exécuté');
+});
+
+test('X2 : les filtres et pilotes de diff déclarés par un dépôt ne s’exécutent pas, ceux du compte si', () => {
+  const d = tmp(); const temoin = path.join(tmp(), 'execute');
+  const g = (...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' });
+  spawnSync('git', ['init', '-q', d]);
+  const script = path.join(d, '.git', 'piege.sh');
+  fs.writeFileSync(script, `#!/bin/sh\ntouch '${temoin}'."$1"\ncat\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(d, '.gitattributes'), '*.txt filter=x diff=x\n*.md filter="a b"\n*.cfg diff=y\n');
+  fs.writeFileSync(path.join(d, 'f.txt'), 'x\n'); fs.writeFileSync(path.join(d, 'g.md'), 'y\n'); fs.writeFileSync(path.join(d, 'h.cfg'), 'a\n');
+  g('add', '.'); g('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'i');
+  for (const [cle, mot] of [['filter.x.clean', 'clean'], ['filter.x.smudge', 'smudge'], ['filter.x.process', 'process'], ['filter.a b.clean', 'espace'],
+    ['diff.x.textconv', 'textconv'], ['diff.x.command', 'command'], ['diff.external', 'external']]) g('config', cle, `${script} ${mot}`);
+  g('config', 'filter.x.required', 'true');
+  fs.appendFileSync(path.join(d, 'f.txt'), 'z\n'); fs.appendFileSync(path.join(d, 'g.md'), 'z\n'); fs.appendFileSync(path.join(d, 'h.cfg'), 'z\n');
+  assert.equal(etatDepot(d).fichiers_modifies, 3);
+  assert.equal(git(d, ['diff']).status, 0);
+  assert.equal(git(d, ['log', '-p', '-1']).status, 0);
+  assert.equal(git(d, ['diff', '--cached']).status, 0);
+  assert.equal(git(d, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer' }).status, 0);
+  const executes = fs.readdirSync(path.dirname(temoin));
+  assert.deepEqual(executes, [], `programmes du dépôt exécutés : ${executes.join(', ')}`);
+  // Un pilote déclaré par le compte (portée globale) reste appliqué.
+  const globale = path.join(tmp(), 'gitconfig');
+  fs.writeFileSync(globale, '[diff "y"]\n\ttextconv = tr a-z A-Z <\n');
+  const r = git(d, ['diff', '--', 'h.cfg'], { env: { ...process.env, GIT_CONFIG_GLOBAL: globale } });
+  assert.match(r.stdout, /^\+Z$/m, 'le textconv du compte a été ignoré');
 });
 
 test('X3 : l’interface est servie avec une politique de contenu qui n’admet que ses propres scripts', async () => {
