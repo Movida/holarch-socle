@@ -62,8 +62,12 @@ export function trouverOutil(nom, reglage = null) {
  */
 export const binaireClaude = (config) => trouverOutil('claude', config?.acces_distant?.claude || null);
 
-/** git dans un dépôt : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges. */
-export const git = (depot, args, o = {}) => spawnSync('git', ['-C', depot, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 60e3, ...o });
+/**
+ * git dans un dépôt : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges. Le dépôt peut
+ * être n'importe lequel sous les racines inventoriées (une archive extraite, un clone tiers) : `core.fsmonitor`, que sa
+ * configuration locale pourrait faire exécuter à chaque `status`, est neutralisé.
+ */
+export const git = (depot, args, o = {}) => spawnSync('git', ['-c', 'core.fsmonitor=false', '-C', depot, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 60e3, ...o });
 
 /** Fichier de configuration de Claude Code d'un compte : `~/.claude.json` pour `~/.claude`, sinon `<home>/.claude.json`. */
 export const configClaude = (home) => (path.resolve(home) === path.join(os.homedir(), '.claude') ? path.join(os.homedir(), '.claude.json') : path.join(home, '.claude.json'));
