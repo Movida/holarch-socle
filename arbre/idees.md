@@ -15,7 +15,7 @@ Statuts : `retenue` (l'auteur la veut, pour sa phase) · `à trier` · `proposé
 |---|---|---|---|---|---|
 | I1 | Chaque réglage déclare sa mesure ; l'audit en tire une valeur par projet, proposée en brouillon (exemple mesuré : délai entre commit et envoi, lu dans le reflog de l'amont) | auteur, 2026-10-07 | étape 3, récolte | des réglages tirés de l'usage plutôt que devinés | retenue |
 | I2 | Règle de profil : les recommandations se présentent en choix cliquables | auteur, 2026-10-07 | étape 3, récolte | moins de frappe, décisions plus rapides | retenue |
-| I3 | Règle ou contrôle proposé quand un défaut est trouvé à l'usage | auteur, 2026-10-07 | étape 3, récolte | un défaut vu une fois ne revient pas | retenue |
+| I3 | Règle ou contrôle proposé quand un défaut est trouvé à l'usage | auteur, 2026-10-07 | étape 3, récolte | un défaut vu une fois ne revient pas | prise (règle `defaut-a-l-usage` du type `methode-holarch`, 2026-10-08) |
 | I4 | Une habitude nouvelle proposée quand un fait de session la suggère, et un registre des propositions, retenues ou non, pour ne pas les reproposer | auteur, 2026-10-07 | étape 5 (régulation) | des propositions qui s'enrichissent sans se répéter | retenue |
 | I5 | Solutions aux échecs qui se répètent (tests rouges, sorties non nulles de `node`, `cat`, `python3`), à partir des comptes de la tranche 9 | auteur, 2026-10-07 | étape 5, boucles « Règles » et « Progrès et recul » | moins d'échecs répétés | retenue |
 | I6 | Leçons de clôture consignées et comptées (texte de l'agent devenu proposition) | auteur, 2026-10-07 | étape 3, récolte | des demandes plus directes au fil du temps | retenue |

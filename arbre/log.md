@@ -2,6 +2,11 @@
 
 ## 2026-10-08
 
+* **Défaut à l'usage (I3)** (choix de l'auteur) : sur 7 défauts consignés depuis l'étape 2, tous de code et presque
+  tous corrigés avec un test, un seul revenu : le `PATH` réduit d'un service, quatre fois avant sa mise en commun. Pas
+  de mécanisme ; règle `defaut-a-l-usage` proposée au type `methode-holarch` (test qui reproduit le défaut, règle ou
+  contrôle en brouillon quand la cause peut toucher ailleurs), environ 300 caractères par tour.
+
 * **Permissions par projet (I26) non construites** (avis suivi par l'auteur) : sur 7 jours, 37 refus d'approbation,
   tous dans un banc d'essai du 2026-10-03 ; les 446 de 30 jours viennent surtout du projet antérieur, en `acceptEdits` ;
   le reste sont des garde-fous voulus. Suite : I3, une règle ou un contrôle proposé à chaque défaut trouvé à l'usage.

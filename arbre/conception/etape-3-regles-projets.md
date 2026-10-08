@@ -736,6 +736,11 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   banc d'essai du 2026-10-03 ; le travail courant tourne en mode `auto` et le mode des accès distants est posé par site
   (tranche 1). Les autres refus de la semaine sont des garde-fous voulus (41 du classifieur du mode `auto`, 6 lectures
   refusées par `secrets-hors-contexte`). Une approbation accordée ne laisse pas de trace sûre : non mesurée.
+- **Fait (2026-10-08)** : idée I3 (défaut trouvé à l'usage), sur mesure et choix de l'auteur. Sept défauts consignés
+  depuis l'étape 2, tous de code, presque tous corrigés avec un test ; un seul revenu, le `PATH` réduit d'un service
+  (essai du site de travail, deux fois, tranches 1 et 5), jusqu'à sa mise en commun en tranche 6 ; deux autres relèvent
+  déjà de `coherence-globale`. Aucun mécanisme : règle `defaut-a-l-usage` proposée au type `methode-holarch`
+  (brouillon), vue par le catalogue dans les deux projets du type.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.

@@ -49,3 +49,9 @@
   status: stable
   approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07, passage au contrôle (tranche 4), choix cliquable" }
   source: harvest
+- id: defaut-a-l-usage
+  statement: "Un défaut trouvé à l'usage se corrige avec un test qui le reproduit ; quand sa cause peut toucher d'autres endroits, proposer aussi une règle ou un contrôle en brouillon."
+  why: "Le `PATH` réduit d'un service a cassé quatre fois (essai du site de travail, tranches 1 et 5) avant d'être mis en commun."
+  level: reminder
+  status: draft
+  source: written
