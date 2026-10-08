@@ -934,6 +934,50 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
   }
 });
 
+// Banc de création (passe globale : défauts A4, A5, tests T1 à T3). Git isolé de la configuration du poste ; un profil
+// à un contexte, un socle qui porte un type à une règle ; étapes GitHub, conteneur et accès distant coupées.
+async function gitIsole(f, global = '') {
+  const cles = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM', ...['AUTHOR', 'COMMITTER'].flatMap((x) => [`GIT_${x}_NAME`, `GIT_${x}_EMAIL`])];
+  const avant = Object.fromEntries(cles.map((k) => [k, process.env[k]])); for (const k of cles) delete process.env[k];
+  const cfg = path.join(tmp(), 'gitconfig'); fs.writeFileSync(cfg, global);
+  process.env.GIT_CONFIG_GLOBAL = cfg; process.env.GIT_CONFIG_NOSYSTEM = '1';
+  try { await f(); } finally { for (const [k, v] of Object.entries(avant)) if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+}
+async function bancCreation({ identite = true, creation = {} } = {}) {
+  const r = tmp(); const accueil = tmp();
+  const profil = (id) => `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n${id ? '  identite: { nom: Alice Exemple, email: alice@noreply.test }\n' : ''}  creation: ${JSON.stringify({ dossier: r, etapes: { github: false, conteneur: false, distant: false }, ...creation })}\n---\n`;
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), profil(identite));
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+  ecrire(path.join(r, 'socle', 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\n---\n');
+  ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'index.md'), '---\ntype: template\nid: methode\ntitle: Méthode\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+  ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'rules.yaml'), '- id: tests-verts\n  statement: Les tests passent avant de rendre la main.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  for (const d of ['profil', 'socle']) { const { g } = depotGit(path.join(r, d)); g('add', '.'); g('commit', '-qm', 'départ'); }
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
+    inventaire: { 'depots-git': { actif: true, racines: [r], profondeur: 2, ignorer: [] }, arbre: { actif: true, depots: [] } } });
+  await s.inventaire(); s.indexer();
+  const toucher = (f) => { const t = new Date(Date.now() + 2000); fs.utimesSync(f, t, t); };
+  return { r, s, profil, toucher, etats: (x) => Object.fromEntries(x.etapes.map((e) => [e.etape, e.etat])), git: (d, ...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }).stdout.trim() };
+}
+
+test('création de projet : rejouée après un commit refusé, elle le refait ; un geste fait dans le profil vaut sans attendre l’inventaire', () => gitIsole(async () => {
+  const { r, s, profil, toucher, etats, git } = await bancCreation({ identite: false });
+  const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  const p1 = await creer();
+  assert.deepEqual([etats(p1).identite, etats(p1).fichiers], ['geste', 'echec'], JSON.stringify(p1.etapes, null, 1));
+  const p2 = await creer();
+  assert.equal(etats(p2).fichiers, 'echec', 'des fichiers présents mais jamais commités ne sont pas « déjà là » (A5)');
+  // Le geste demandé : déclarer l'identité dans le profil, puis relancer, sans inventaire entre les deux (A4).
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), profil(true)); toucher(path.join(r, 'profil', 'arbre', 'index.md'));
+  const p3 = await creer();
+  assert.deepEqual([etats(p3).identite, etats(p3).fichiers, etats(p3).regles], ['faite', 'faite', 'faite'], JSON.stringify(p3.etapes, null, 1));
+  assert.deepEqual(git(d, 'log', '--format=%s').split('\n'), ['Appliquer les règles HOLARCH', 'Créer le projet']);
+  assert.ok(git(d, 'ls-files').split('\n').includes('.claude/rules/holarch/tests-verts.md'), 'la règle du type, déclaré à la création');
+  // Les règles écrites et indexées, leur commit défait : rejouée, elle le refait (A5).
+  spawnSync('git', ['-C', d, 'reset', '-q', '--soft', 'HEAD~1']);
+  const p4 = await creer();
+  assert.deepEqual([etats(p4).regles, git(d, 'log', '-1', '--format=%s')], ['faite', 'Appliquer les règles HOLARCH']);
+}, '[user]\n\tuseConfigOnly = true\n'));
+
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
 import { creerService, binaireService, copieEnService } from '../src/service.js';
 

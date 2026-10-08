@@ -77,7 +77,8 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   gh = GH, distant = null, urlDepot = (proprietaire, n) => `git@github.com:${proprietaire}/${n}.git`, maintenant = new Date(),
 } = {}) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(nom || '')) throw new Error(`nom de projet invalide : ${nom ?? '(absent)'} (lettres, chiffres, . _ -)`);
-  const noeuds = () => [...socle.fiches({ kind: 'node' }), ...socle.fiches({ kind: 'rule' })];
+  // L'arbre relu s'il a changé depuis l'inventaire : un geste fait dans le profil (« puis relancer ») vaut tout de suite.
+  const noeuds = () => socle.arbreFrais();
   const avant = configAvantProjet(noeuds(), { contexte, types });
   const cfg = fusionnerConfig(DEFAUTS, avant.config.creation || {});
   const identite = identiteDeclaree(avant.config);
@@ -90,6 +91,9 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     const c = g('commit', '-q', '-m', message, '--', ...fichiers);
     if (c.status !== 0) throw new Error(`commit refusé : ${erreur(c)}`);
   };
+
+  // Une licence sans modèle arrête tout avant le premier geste : rien n'est créé.
+  if (cfg.licence && (!/^[A-Za-z0-9.-]+$/.test(String(cfg.licence)) || !fs.existsSync(path.join(MODELES, 'licences', String(cfg.licence))))) { noter('fichiers', 'echec', `licence sans modèle : ${cfg.licence}`); return r; }
 
   // 1. Dépôt local et identité de commit, avant tout commit.
   const estGit = fs.existsSync(path.join(dossier, '.git'));
@@ -126,15 +130,17 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     ...(typee && !arbreExistant ? [['arbre/index.md', () => racineIndex({ nom, description, types, journal: cfg.journal })],
       ...(cfg.journal ? [[cfg.journal, () => `# Journal de l'arbre\n\n## ${maintenant.toISOString().slice(0, 10)}\n\n* **Création** : projet créé par \`holarch projet creer\`.\n`]] : [])] : []),
   ];
-  if (cfg.licence && (!/^[A-Za-z0-9.-]+$/.test(String(cfg.licence)) || !fs.existsSync(path.join(MODELES, 'licences', String(cfg.licence))))) { noter('fichiers', 'echec', `licence sans modèle : ${cfg.licence}`); return r; }
   const manquants = fichiers.filter(([f]) => !fs.existsSync(path.join(dossier, f)));
+  // Un fichier présent mais jamais commité (commit refusé à un passage précédent) n'est pas réécrit : il est commité.
+  const commite = (f) => g('cat-file', '-e', `HEAD:${f}`).status === 0;
+  const aCommiter = fichiers.filter(([f]) => !fs.existsSync(path.join(dossier, f)) || (fs.existsSync(path.join(dossier, '.git')) && !commite(f)));
   if (typee && arbreExistant) {
-    const declares = [].concat(socle.fiches({ kind: 'node' }).find((n) => n.location === arbreExistant.fichier)?.attributes?.types || []);
+    const declares = [].concat(noeuds().find((n) => n.location === arbreExistant.fichier)?.attributes?.types || []);
     const absents = types.filter((t) => !declares.includes(t));
     if (absents.length) noter('types', 'geste', `la racine de l'arbre existe (${path.relative(dossier, arbreExistant.fichier)}) sans déclarer ${absents.join(', ')}`, { quoi: `ajouter ${absents.join(', ')} à sa liste \`types\`, puis relancer` });
   }
-  if (!manquants.length) noter('fichiers', 'deja', fichiers.map(([f]) => f).join(', '));
-  else if (aBlanc) noter('fichiers', 'a-faire', manquants.map(([f]) => f).join(', '));
+  if (!aCommiter.length) noter('fichiers', 'deja', fichiers.map(([f]) => f).join(', '));
+  else if (aBlanc) noter('fichiers', 'a-faire', aCommiter.map(([f]) => f).join(', '));
   else {
     for (const [f, contenu, mode] of manquants) {
       const p = path.join(dossier, f); fs.mkdirSync(path.dirname(p), { recursive: true });
@@ -142,9 +148,9 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     }
     const premier = g('rev-parse', '--verify', '-q', 'HEAD').status !== 0;
     try {
-      const a = g('add', '--', ...manquants.map(([f]) => f)); if (a.status !== 0) throw new Error(erreur(a));
-      commiter(premier ? 'Créer le projet' : 'Compléter les fichiers de base du projet', manquants.map(([f]) => f));
-      noter('fichiers', 'faite', manquants.map(([f]) => f).join(', '));
+      const a = g('add', '--', ...aCommiter.map(([f]) => f)); if (a.status !== 0) throw new Error(erreur(a));
+      commiter(premier ? 'Créer le projet' : 'Compléter les fichiers de base du projet', aCommiter.map(([f]) => f));
+      noter('fichiers', 'faite', aCommiter.map(([f]) => f).join(', '));
     } catch (e) { noter('fichiers', 'echec', e.message); return r; }
   }
 
@@ -170,7 +176,9 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     await socle.inventaire(); socle.indexer();
   }
 
-  // 4. Règles, crochet et identité du projet déclaré (`regles appliquer`), puis commit des fichiers générés.
+  // 4. Règles, crochet et identité du projet déclaré (`regles appliquer`), puis commit des fichiers générés. L'arbre écrit
+  // plus haut (racine et ses types) entre au catalogue d'abord, sans quoi les règles du type manqueraient.
+  if (!aBlanc && await socle.arbreAJour()) socle.indexer();
   const re = socle.regles({ projet: projet.id });
   if (!re.declare) noter('regles', aBlanc ? 'a-faire' : 'echec', aBlanc ? 'après la déclaration' : 'projet toujours non déclaré après l’inventaire');
   else {
@@ -178,10 +186,12 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     const changes = m.fichiers.crees.length + m.fichiers.modifies.length + m.fichiers.retires.length;
     const detail = `${m.fichiers.crees.length} créé(s), ${m.fichiers.modifies.length} modifié(s), ${m.fichiers.retires.length} retiré(s) ; crochet ${m.crochet.etat}`;
     if (m.crochet.etat === 'erreur' || (m.crochet.etat === 'ignore' && m.crochet.demande)) noter('crochet', 'geste', `crochet de git non posé (${m.crochet.fichier})`, { quoi: 'retirer ou fusionner le crochet pre-commit existant, puis relancer' });
-    if (!changes && ['inchange', 'absent'].includes(m.crochet.etat)) noter('regles', 'deja', detail);
+    // Des règles écrites mais pas commitées (commit refusé à un passage précédent) restent à commiter.
+    const dossierRegles = path.join('.claude', 'rules', 'holarch');
+    const enAttente = (g('status', '--porcelain', '--', dossierRegles).stdout || '').trim() !== '';
+    if (!changes && !enAttente && ['inchange', 'absent'].includes(m.crochet.etat)) noter('regles', 'deja', detail);
     else if (aBlanc) noter('regles', 'a-faire', detail);
     else {
-      const dossierRegles = path.join('.claude', 'rules', 'holarch');
       g('add', '-A', '--', dossierRegles);
       if (g('diff', '--cached', '--quiet', '--', dossierRegles).status !== 0) {
         try { commiter('Appliquer les règles HOLARCH', [dossierRegles]); } catch (e) { noter('regles', 'echec', e.message); return r; }
