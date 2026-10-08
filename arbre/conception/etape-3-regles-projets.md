@@ -740,7 +740,8 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   depuis l'étape 2, tous de code, presque tous corrigés avec un test ; un seul revenu, le `PATH` réduit d'un service
   (essai du site de travail, deux fois, tranches 1 et 5), jusqu'à sa mise en commun en tranche 6 ; deux autres relèvent
   déjà de `coherence-globale`. Aucun mécanisme : règle `defaut-a-l-usage` proposée au type `methode-holarch`
-  (brouillon), vue par le catalogue dans les deux projets du type.
+  (brouillon), vue par le catalogue dans les deux projets du type ; approuvée telle quelle par l'auteur et écrite dans
+  les deux (`regles appliquer`).
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
