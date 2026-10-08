@@ -2,6 +2,18 @@
 
 ## 2026-10-08
 
+* **Constats de la contre-épreuve corrigés** (suite de la séance ; X2 sur le choix de l'auteur : neutraliser les pilotes
+  déclarés par le dépôt plutôt que refuser le dépôt, aucun dépôt du poste n'en déclarant) : neuf constats et un détail,
+  dix commits avec un test chacun, 87 tests verts ; test visuel passé dans un conteneur jetable de l'image du socle.
+  Seconde contre-épreuve par un sous-agent neuf : huit corrections complètes ; X2 et E2 incomplets (crochet
+  `post-index-change` et filtre d'un sous-module encore exécutés, régression latente sur les écritures dans un dépôt à
+  filtre local, en-tête illisible d'un projet sans rapport qui bloque, `erreur_entete` montrée nulle part), au Reste.
+  Leçon de clôture : déroulé annoncé (corrections (2) à (9), X2 au choix de l'auteur, contre-épreuve, pose, puis le
+  projet privé) ; réalisé jusqu'à la contre-épreuve, le projet privé n'est pas atteint. Ce qui a fait dévier : X2 étendu
+  sans le dire de la lecture des dépôts tiers à toutes les commandes git, écritures comprises (la question posée portait
+  sur l'inventaire), et le test visuel, qui a demandé de reconstituer un navigateur hors du conteneur. La demande qui y
+  aurait mené : « corrige les constats ; X2 seulement pour ce que l'inventaire lit ».
+
 * **Corrections courtes des garde-fous** (choix de l'auteur, avant la pose dans le projet privé) : X2, X3, N1 avec E1,
   E2, E3, un commit et un test qui reproduit chacune (`test/garde-fous.test.js`, 78 tests verts). Contre-épreuve par un
   sous-agent neuf avant de rendre (D) : X2 et E2 incomplets (un filtre de git déclaré en local s'exécute encore ; un

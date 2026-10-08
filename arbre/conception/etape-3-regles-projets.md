@@ -873,24 +873,40 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   connecteurs de maquettes, Claude in Chrome (pas sous WSL), Axe MCP (payant), services de régression visuelle.
 - **Fait (2026-10-08)** : corrections courtes X2, X3, N1 avec E1, E2, E3 (un commit et un test chacune, 78 tests verts) ;
   contre-épreuve par un sous-agent neuf : constats au Reste. Test visuel à passer dans le conteneur du socle.
+- **Fait (2026-10-08)** : constats (1) à (9) de cette contre-épreuve et le détail du message `claude introuvable`, un
+  commit et un test chacun (87 tests verts). X2 sur le choix de l'auteur (mesure : aucun des 10 dépôts du poste ne
+  déclare de filtre local, git-lfs absent) : les pilotes `filter.<x>` et `diff.<x>` de la configuration propre d'un dépôt
+  sont neutralisés à chaque appel (`textconv=cat`, une valeur vide ferait lancer un programme vide), `--no-ext-diff` pour
+  `diff`, `log` et `show`, `log.showSignature` coupé ; ceux du compte restent ; 2,5 ms de plus par appel. E2 : un en-tête
+  illisible garde son nœud (`erreur_entete`) ; la règle effective n'est plus dite complète quand il est une couche, dans
+  l'arbre du profil, ou quand un type ou le déclarant manque. `regles appliquer` vérifie tout avant d'écrire
+  (`appliquerRegles`) ; création : étape en échec ; refus journalisé ; `memoire-remplacee` indisponible ; écart du profil
+  compté au compte seul ; index annulé aussi sur un échec du schéma ; trois insertions échappées dans l'interface, avec un
+  contrôle statique. Test visuel passé (politique de contenu de X3 comprise) dans un conteneur jetable de l'image du socle,
+  Chromium et 99 bibliothèques extraits de l'ancien conteneur (il ne démarre plus hors de VS Code). Seconde contre-épreuve
+  par un sous-agent neuf : (3) à (10) complets, X2 et E2 incomplets, constats au Reste.
 - **Reste** :
-  0. **D'abord, constats de la contre-épreuve (2026-10-08)** : (1) X2 incomplet, bloquant : `filter.<x>.clean` (et
-     `diff.<x>.textconv`) d'une configuration locale s'exécutent au `git status` de l'inventaire ; refuser un dépôt qui
-     déclare un programme casserait git-lfs : choix à l'auteur ; (2) E2 incomplet : `enTete()` (`inventaire/outils.js`)
-     rend `{}` sur un en-tête illisible et le nœud disparaît sans `erreur_regles` (garde muette) ; (3) `creation.js:185`
-     abandonne la création sur règles illisibles au lieu de noter l'étape en échec ; (4) `regles appliquer` écrit le
-     compte avant de lever sur un projet illisible (vérifier en amont) ; (5) refus `regles-lisibles` de la garde sans
-     `rule.enforced` ; (6) `memoire-remplacee` dit fait quand les règles sont illisibles ; (7) écart en double compte et
-     projets pour un profil illisible ; (8) `DROP/CREATE` de l'index hors du `try`, `ROLLBACK` qui masque l'erreur si
-     SQLite a déjà annulé ; (9) `e.data.fiches` non échappé (`app.js:175`).
+  0. **D'abord, constats de la seconde contre-épreuve (2026-10-08, soir)** : (A) bloquant, reproduit : le crochet
+     `post-index-change` (`.git/hooks` ou `core.hooksPath` local) s'exécute au `git status` de l'inventaire ;
+     `--no-optional-locks` ou `-c core.hooksPath=/dev/null` l'empêchent (le premier n'écrit plus l'index d'un dépôt
+     tiers) ; (B) bloquant, reproduit : le `filter.<x>.clean` déclaré dans la configuration d'un sous-module
+     (`.git/modules/<s>/config`) s'exécute au `status` du parent (`core.fsmonitor`, passé en `-c`, est bien transmis) ;
+     (C) un nom de pilote contenant `=` (`filter.a=b.clean`) échappe au `-c` : passer par `GIT_CONFIG_COUNT/KEY/VALUE` ;
+     (D) régression introduite par X2 : `git()` sert aussi aux écritures dans les dépôts de l'auteur (`creation.js`,
+     commit du contexte dans le profil, `archive` de `controles.js` et `service.js`) ; un filtre local (git-crypt, LFS en
+     `--local`) y serait neutralisé : fichier vu modifié, commit en clair ; latent (aucun dépôt du poste) ; piste : ne
+     neutraliser que pour l'inventaire des dépôts lus ; (E) un type inconnu (faute de frappe) ou un projet non déclaré
+     compte tout en-tête illisible connu, même d'un projet sans rapport : garde et `regles appliquer` bloquées à tort ;
+     (F) `erreur_entete` n'est montrée nulle part ; ce dépôt en a deux aujourd'hui (« Nested mappings », `description`
+     non citée) : `arbre/decisions/2026-10-03-passerelle-par-site.md` (décision `stable`) et
+     `arbre/conception/essai-site-travail.md` ; (G) mineur : le contrôle statique d'échappement de `app.js` ne voit que
+     cinq noms de variables ; (H) mineur : avec `acces_distant.claude` réglé mais faux, le message dit « PATH ».
   0. **Pose dans le projet privé, contenu retenu par l'auteur (2026-10-08)** : les quatre adoptions (comparaison
      d'images native, skill `verify`, relecteur UX, essai de Playwright CLI), règles dans son arbre, et cinq éléments :
      documents d'état allégés, sous-ensemble rapide de ses vérificateurs de tailles dans sa vérification, tests tirés des
      redites (cohérence entre scènes, parité à plusieurs tailles d'ordinateur, place d'un contrôle), crochet de démarrage
      (récupérer, démarrer et vérifier le serveur), déclaration du projet (et lecture de ses trois écarts). Mesure des
      sous-agents (56 % de sa dépense) à faire. Écriture dans son dépôt après `git pull`, rien poussé sans demande.
-  1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
-     `acces_distant.claude`.
   0. **Fait le 2026-10-08, sauf constats ci-dessus** : les corrections courtes qui rendent les
      garde-fous muets ou ouvrent le poste : X2 (`-c core.fsmonitor=false`), X3 (échapper `kind`), N1 avec E1 (journal
      tolérant, transaction annulée), E2 et E3 (règles illisibles ou contrôle des secrets sans git qui se disent
