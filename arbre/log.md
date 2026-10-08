@@ -12,7 +12,7 @@
   le choix de l'auteur de corriger d'abord, et la contre-épreuve qui a trouvé deux corrections incomplètes, ce que la
   relecture seule de l'agent n'avait pas vu.
 
-* **Autres éléments proposés pour le projet privé** (question de l'auteur, sans réponse encore) : alléger ses documents
+* **Autres éléments proposés pour le projet privé** (question de l'auteur ; il retient les cinq recommandés) : alléger ses documents
   d'état (19 % de la dépense à relire le dépôt), mesurer ses sous-agents (56 %), regarder moins d'images, sous-ensemble
   rapide de ses vérificateurs de tailles dans sa vérification, tests tirés des redites (cohérence entre scènes, parité
   à plusieurs tailles d'ordinateur, place d'un contrôle), clavier et mouvement réduit, Lighthouse CI, crochet de

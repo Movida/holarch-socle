@@ -883,6 +883,12 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
      `rule.enforced` ; (6) `memoire-remplacee` dit fait quand les règles sont illisibles ; (7) écart en double compte et
      projets pour un profil illisible ; (8) `DROP/CREATE` de l'index hors du `try`, `ROLLBACK` qui masque l'erreur si
      SQLite a déjà annulé ; (9) `e.data.fiches` non échappé (`app.js:175`).
+  0. **Pose dans le projet privé, contenu retenu par l'auteur (2026-10-08)** : les quatre adoptions (comparaison
+     d'images native, skill `verify`, relecteur UX, essai de Playwright CLI), règles dans son arbre, et cinq éléments :
+     documents d'état allégés, sous-ensemble rapide de ses vérificateurs de tailles dans sa vérification, tests tirés des
+     redites (cohérence entre scènes, parité à plusieurs tailles d'ordinateur, place d'un contrôle), crochet de démarrage
+     (récupérer, démarrer et vérifier le serveur), déclaration du projet (et lecture de ses trois écarts). Mesure des
+     sous-agents (56 % de sa dépense) à faire. Écriture dans son dépôt après `git pull`, rien poussé sans demande.
   1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
      `acces_distant.claude`.
   0. **Fait le 2026-10-08, sauf constats ci-dessus** : les corrections courtes qui rendent les
