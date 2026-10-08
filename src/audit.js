@@ -59,9 +59,11 @@ export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journ
   const fiche = projets.find((x) => x.id === p.id);
   // L'arbre relu s'il a changé : une exception ajoutée vaut au commit suivant, pas une heure plus tard.
   const r = regleEffective(s.arbreFrais(), p.id);
-  // Règles illisibles : une règle bloquante peut manquer ; le commit est refusé plutôt que dit conforme.
-  if (r.illisibles.length) return { projet: p.id, refus: [{ regle: 'regles-lisibles', enonce: 'les règles du projet ne se lisent pas toutes : la garde ne peut pas dire ce commit conforme', ecarts: r.illisibles.map((message) => ({ message })) }], indisponibles: [] };
-  const { ecarts, controles } = controler(r, contexteControle(s, fiche, r, path.resolve(depot)), moment, ['blocking']);
+  // Règles illisibles : une règle bloquante peut manquer ; le commit est refusé plutôt que dit conforme, et journalisé
+  // comme tout refus.
+  const enonce = 'les règles du projet ne se lisent pas toutes : la garde ne peut pas dire ce commit conforme';
+  const { ecarts, controles } = r.illisibles.length ? { ecarts: ecartsIllisibles(r).map((x) => ({ ...x, enonce })), controles: [] }
+    : controler(r, contexteControle(s, fiche, r, path.resolve(depot)), moment, ['blocking']);
   const refus = new Map();
   for (const x of ecarts) { if (!refus.has(x.regle_id)) refus.set(x.regle_id, { regle: x.regle_id, enonce: x.enonce, ecarts: [] }); refus.get(x.regle_id).ecarts.push(x); }
   // Un refus est un échec au journal (décision echecs-au-journal) : un `rule.enforced` par règle et contrôle, compté,

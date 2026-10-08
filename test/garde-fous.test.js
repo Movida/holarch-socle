@@ -126,6 +126,9 @@ test('E2 : un rules.yaml illisible ne fait pas passer la garde, n’efface rien 
   const plusTard = new Date(Date.now() + 2000); fs.utimesSync(regles, plusTard, plusTard);
   ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', '.');
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles'], 'la garde ne dit pas conforme ce qu’elle ne peut pas lire');
+  s.garde({ depot: d, journaliser: true }); s.indexer();
+  assert.deepEqual(s.index.requete("SELECT data FROM evenements WHERE kind='rule.enforced'").map((e) => JSON.parse(e.data)),
+    [{ regle: 'regles-lisibles', controle: 'regles-lisibles', n: 1, moment: 'avant-commit' }], 'le refus est un échec au journal, comme les autres');
   relire();
   const re = s.regles({ projet: 'depot' });
   assert.ok(re.illisibles.length, 'la règle effective dit qu’elle est incomplète');
