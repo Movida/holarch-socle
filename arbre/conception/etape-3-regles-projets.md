@@ -731,6 +731,11 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   n'en ont pas) : gain d'environ 360 caractères par tour, 0,07 % du contexte. Un texte injecté avant un outil
   n'arrive qu'à côté de son résultat (documentation des crochets), trop tard pour un message de commit ; injecté au
   démarrage, il reste dans le contexte. Rien construit ; le levier est l'oubli progressif (I27).
+- **Fait (2026-10-08)** : permissions par projet (I26) mesurées, tranche non ouverte (avis suivi par l'auteur). Sur 30
+  jours, 446 refus d'approbation, surtout dans le projet antérieur (mode `acceptEdits`) ; sur 7 jours, 37, tous dans un
+  banc d'essai du 2026-10-03 ; le travail courant tourne en mode `auto` et le mode des accès distants est posé par site
+  (tranche 1). Les autres refus de la semaine sont des garde-fous voulus (41 du classifieur du mode `auto`, 6 lectures
+  refusées par `secrets-hors-contexte`). Une approbation accordée ne laisse pas de trace sûre : non mesurée.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.

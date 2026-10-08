@@ -2,6 +2,10 @@
 
 ## 2026-10-08
 
+* **Permissions par projet (I26) non construites** (avis suivi par l'auteur) : sur 7 jours, 37 refus d'approbation,
+  tous dans un banc d'essai du 2026-10-03 ; les 446 de 30 jours viennent surtout du projet antérieur, en `acceptEdits` ;
+  le reste sont des garde-fous voulus. Suite : I3, une règle ou un contrôle proposé à chaque défaut trouvé à l'usage.
+
 * **Statuts des huit brouillons du profil écrits** (mode manuel, chaque écriture approuvée par l'auteur) : 4 règles
   approuvées (`reformuler-avant-de-decider`, `donner-la-commande-systematiquement`, `verifier-avant-depense-api`,
   `agents-paralleles`), 4 refusées ; l'audit voit les 4 fichiers de règle à écrire au compte.
