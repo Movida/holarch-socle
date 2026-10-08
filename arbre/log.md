@@ -4,8 +4,8 @@
 
 * **Catalogue relu quand l'arbre change (I28)** (choix de l'auteur) : `holarch regles`, `audit`, `recolte` et la reprise
   refont l'inventaire avant de lire quand un fichier d'un arbre connu est plus récent que le catalogue (comparaison
-  des dates seules, inventaire sans audit ni import) ; 1 test qui reproduit le cas. L'interface et le serveur MCP lisent encore le catalogue de
-  l'heure.
+  des dates seules, inventaire sans audit ni import) : 0,62 s au lieu de 0,31 s quand il a changé ; 1 test qui
+  reproduit le cas. L'interface et le serveur MCP lisent encore le catalogue de l'heure.
 
 * **Idée I28** (accord de l'auteur) : `holarch regles` lisait un catalogue périmé après une règle ajoutée, jusqu'à
   un inventaire à la main ; notée dans la boîte, pas corrigée.

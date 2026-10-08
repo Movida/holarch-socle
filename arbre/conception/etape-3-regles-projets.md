@@ -747,7 +747,8 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   I28 et le dernier fait du journal. `arbreModifieDepuis` (adaptateur de l'arbre, dates des fichiers et des dossiers,
   retrait compris) et `Socle.arbreAJour` refont l'inventaire quand un arbre connu est plus récent que le catalogue ;
   appelé par `holarch regles` (dont `appliquer`, qui écrivait d'après le catalogue de l'heure), `audit`, `recolte` et la
-  reprise. Inventaire seul mesuré à environ 0,25 s (adaptateurs), l'audit et l'import n'en font pas partie. 1 test.
+  reprise. Copie posée, mesuré sur le poste : `holarch regles` en 0,62 s quand un arbre a changé (inventaire compris,
+  sans audit ni import), 0,31 s sinon ; la reprise nomme aussitôt le dernier fait. 1 test.
   Restent sur le catalogue de l'heure : l'interface et le serveur MCP.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
