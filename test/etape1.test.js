@@ -53,6 +53,19 @@ test('catalogue : instantané par site, apparitions et disparitions', () => {
   assert.deepEqual(r.disparues, ['holarch:skill:a']); assert.equal(r.refusees.length, 1); assert.equal(c.lire().length, 1);
 });
 
+test('catalogue : un instantané coupé ne bloque ni la lecture ni l’inventaire suivant, qui le remplace sans fausse apparition', () => {
+  const donnees = tmp(); const c = new Catalogue(donnees, 'local');
+  const f = (id) => ({ id: `holarch:skill:${id}`, kind: 'skill', name: id, status: 'active', provenance: { source: 't' } });
+  c.remplacer([f('a')]);
+  const fichier = path.join(donnees, 'catalogue', 'local.json');
+  fs.writeFileSync(fichier, fs.readFileSync(fichier, 'utf8').slice(0, 40)); // une écriture coupée (défaut A3)
+  assert.deepEqual([c.lire(), c.date()], [[], null], 'illisible : vide et sans date, donc refait');
+  const r = c.remplacer([f('a'), f('b')]);
+  assert.deepEqual([r.apparues, r.disparues, r.precedent_illisible], [[], [], true], 'rien d’inventé contre un instantané illisible');
+  assert.equal(c.lire().length, 2);
+  assert.deepEqual(fs.readdirSync(path.join(donnees, 'catalogue')), ['local.json'], 'aucun temporaire laissé');
+});
+
 test('inventaire Claude Code : skills, hooks, MCP sans arguments ni secrets, mémoires', async () => {
   const home = tmp(); const cfg = path.join(home, '..', `${path.basename(home)}.json`);
   ecrire(path.join(home, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\ndescription: Une skill fictive.\n---\n');

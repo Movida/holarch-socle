@@ -32,11 +32,15 @@ export function lireJson(f, defaut = null, { strict = false } = {}) {
   try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { if (strict) throw new Error(`${f} illisible : ${e.message}`); return defaut; }
 }
 
-/** Écriture atomique (fichier temporaire puis renommage) : une panne ne laisse jamais un JSON à moitié écrit. */
+/**
+ * Écriture atomique (fichier temporaire puis renommage) : une panne ne laisse jamais un JSON à moitié écrit. Le temporaire
+ * porte le numéro du processus : deux écrivains simultanés (crochet et inventaire horaire) n'écrivent pas le même.
+ */
 export function ecrireJson(f, o, { indent = 2 } = {}) {
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(`${f}.holarch`, `${JSON.stringify(o, null, indent || undefined)}\n`);
-  fs.renameSync(`${f}.holarch`, f);
+  const tmp = `${f}.${process.pid}.holarch`;
+  fs.writeFileSync(tmp, `${JSON.stringify(o, null, indent || undefined)}\n`);
+  fs.renameSync(tmp, f);
 }
 
 /**

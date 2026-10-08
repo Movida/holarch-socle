@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { valider } from '../contrats/valider.js';
+import { lireJson, ecrireJson } from '../commun.js';
 
 export class Catalogue {
   constructor(donnees, site) {
@@ -19,9 +20,13 @@ export class Catalogue {
       if (vus.has(f.id)) continue;
       vus.add(f.id); valides.push(f);
     }
-    fs.mkdirSync(this.dossier, { recursive: true });
-    const precedent = this.lire({ site: this.site });
-    fs.writeFileSync(path.join(this.dossier, `${this.site}.json`), JSON.stringify({ site: this.site, at: new Date().toISOString(), fiches: valides }, null, 1));
+    // Écrit d'un coup (temporaire puis renommage) : le crochet de démarrage et l'inventaire horaire le lisent à tout moment.
+    // Un instantané précédent illisible ne sert pas de référence : rien n'apparaît ni ne disparaît contre lui.
+    const fichier = path.join(this.dossier, `${this.site}.json`);
+    const lu = lireJson(fichier, null);
+    const illisible = fs.existsSync(fichier) && !Array.isArray(lu?.fiches);
+    const precedent = illisible ? valides : lu?.fiches || [];
+    ecrireJson(fichier, { site: this.site, at: new Date().toISOString(), fiches: valides }, { indent: 1 });
     // Un élément qui change d'emplacement garde son identifiant : c'est un déplacement, pas une disparition suivie d'une
     // création. Un identifiant qui disparaît pendant qu'un autre apparaît au même emplacement, pour le même kind **et sous
     // le même nom**, est le même élément ré-identifié (migration d'un schéma d'identifiants). Les deux deviennent
@@ -45,17 +50,18 @@ export class Catalogue {
     }
     const reidentifies = new Set(deplacees.filter((d) => d.de.id !== d.id).flatMap((d) => [d.id, d.de.id]));
     apparues = apparues.filter((i) => !reidentifies.has(i)); disparues = disparues.filter((i) => !reidentifies.has(i));
-    return { fiches: valides.length, refusees, apparues, disparues, deplacees };
+    return { fiches: valides.length, refusees, apparues, disparues, deplacees, ...(illisible && { precedent_illisible: true }) };
   }
 
   /** Date de l'instantané du site (ms), null s'il n'y en a pas encore. */
   date() {
-    try { return Date.parse(JSON.parse(fs.readFileSync(path.join(this.dossier, `${this.site}.json`), 'utf8')).at) || null; } catch { return null; }
+    return Date.parse(lireJson(path.join(this.dossier, `${this.site}.json`), null)?.at) || null;
   }
 
+  // Un instantané illisible (écrit avant l'écriture atomique, disque plein) se lit vide : l'inventaire suivant le refait.
   lire({ site = null } = {}) {
     if (!fs.existsSync(this.dossier)) return [];
     const fichiers = fs.readdirSync(this.dossier).filter((f) => f.endsWith('.json') && (!site || f === `${site}.json`));
-    return fichiers.flatMap((f) => JSON.parse(fs.readFileSync(path.join(this.dossier, f), 'utf8')).fiches);
+    return fichiers.flatMap((f) => { const fiches = lireJson(path.join(this.dossier, f), null)?.fiches; return Array.isArray(fiches) ? fiches : []; });
   }
 }
