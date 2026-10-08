@@ -17,7 +17,7 @@ import { contexteControle, garde, ecartsOuverts, audit } from './audit.js';
 import { ulid } from './ulid.js';
 import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
 import { racineIndex } from './creation.js';
-import { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
+import inventaireArbre, { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
 import { trouverOutil } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
@@ -42,13 +42,27 @@ export class Socle {
   // un arbre connu a changé depuis, sans quoi une règle ajoutée reste invisible jusqu'à l'heure suivante (idée I28).
   // Rend vrai s'il a fallu l'inventaire ; l'index reste à reconstruire par l'appelant.
   async arbreAJour() {
-    const o = this.config.inventaire?.arbre;
-    if (!o || o.actif === false) return false;
-    const depuis = this.catalogue.date();
-    const depots = new Set([...(o.depots || []), ...this.catalogue.lire({ site: this.config.site }).filter((f) => f.kind === 'project' && f.location).map((f) => f.location)]);
-    if (depuis && ![...depots].some((d) => arbreModifieDepuis(d, depuis))) return false;
+    if (!this.#arbreChange()?.change) return false;
     await this.inventaire();
     return true;
+  }
+
+  // Un arbre connu a-t-il changé depuis le catalogue ? null si l'inventaire de l'arbre est coupé, sinon { change, fiches }.
+  #arbreChange() {
+    const o = this.config.inventaire?.arbre;
+    if (!o || o.actif === false) return null;
+    const depuis = this.catalogue.date(); const fiches = this.catalogue.lire({ site: this.config.site });
+    const depots = new Set([...(o.depots || []), ...fiches.filter((f) => f.kind === 'project' && f.location).map((f) => f.location)]);
+    return { change: !depuis || [...depots].some((d) => arbreModifieDepuis(d, depuis)), fiches, options: o, depots };
+  }
+
+  // Nœuds et règles pour une décision immédiate (garde avant commit) : ceux du catalogue, ou, si un arbre a changé depuis,
+  // relus des fichiers, en mémoire. Ni git ni écriture : la garde tourne dans un crochet de git, où `GIT_INDEX_FILE` fausserait
+  // la lecture des autres dépôts par un inventaire complet.
+  arbreFrais() {
+    const a = this.#arbreChange();
+    if (!a?.change) return [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
+    return inventaireArbre(a.options, { depots: [...a.depots], projetDe: localiserProjet(projetsDe(a.fiches.filter((f) => f.kind === 'project'))) });
   }
 
   importer() {

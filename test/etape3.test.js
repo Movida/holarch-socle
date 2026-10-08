@@ -472,6 +472,29 @@ test('garde : crochet de git marqué (posé, inchangé, retiré ; un crochet ét
   assert.deepEqual(lecturesRefusees({ niveau: 'reminder', match: { action: 'read', paths: ['//**/.env'] } }), []);
 });
 
+test('garde : une exception ajoutée à l’arbre vaut au commit suivant, sans attendre l’inventaire ni écrire le catalogue', () => {
+  const r = tmp(); const accueil = tmp();
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  donnees_personnelles:\n    termes: [Projet Zeta]\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  const racine = (config = '') => ecrire(path.join(d, 'arbre', 'index.md'), `---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\nclassification: public\n${config}---\n`);
+  racine();
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
+  const projetDe = (x) => ({ id: `holarch:project:${path.basename(x)}` });
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', '.');
+  assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['rien-de-personnel']);
+  // L'auteur ajoute l'exception que le refus lui indique, puis relance le commit (défaut A4).
+  racine('config:\n  donnees_personnelles:\n    exceptions: [{ fichier: note.md, pourquoi: essai }]\n');
+  const plusTard = new Date(Date.now() + 2000); fs.utimesSync(path.join(d, 'arbre', 'index.md'), plusTard, plusTard);
+  const catalogue = fs.readFileSync(path.join(accueil, 'catalogue', 'local.json'), 'utf8');
+  assert.deepEqual(s.garde({ depot: d }).refus, [], 'l’exception vaut tout de suite');
+  assert.equal(fs.readFileSync(path.join(accueil, 'catalogue', 'local.json'), 'utf8'), catalogue, 'rien n’est écrit depuis le crochet');
+});
+
 test('audit : un commit fautif est refusé par le crochet ; forcé, il apparaît au journal, puis s’y résout', () => {
   const r = tmp(); const accueil = tmp();
   ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\nconfig:\n  donnees_personnelles:\n    termes: [Projet Zeta]\n---\n');

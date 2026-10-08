@@ -57,7 +57,8 @@ export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journ
   const p = localiserProjet(projetsDe(projets))(path.resolve(depot));
   if (!p) return { projet: null, refus: [], indisponibles: [] };
   const fiche = projets.find((x) => x.id === p.id);
-  const r = regleEffective([...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })], p.id);
+  // L'arbre relu s'il a changé : une exception ajoutée vaut au commit suivant, pas une heure plus tard.
+  const r = regleEffective(s.arbreFrais(), p.id);
   const { ecarts, controles } = controler(r, contexteControle(s, fiche, r, path.resolve(depot)), moment, ['blocking']);
   const refus = new Map();
   for (const x of ecarts) { if (!refus.has(x.regle_id)) refus.set(x.regle_id, { regle: x.regle_id, enonce: x.enonce, ecarts: [] }); refus.get(x.regle_id).ecarts.push(x); }
