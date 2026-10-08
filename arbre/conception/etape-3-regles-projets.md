@@ -854,12 +854,27 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
     de Claude Code, échec de `systemctl` lu « inactif ». Contrôle : aucun `catch` ou `|| true` sans dire ce qu'il
     laisse passer (24 exceptions nommées), plus un test de comportement pour E1, E2, E3. Règle brouillon proposée :
     « un échec avalé se dit ; celui qui suspend une garde, un contrôle ou une routine laisse une trace durable ».
+  - **X, entrées externes** (seconde vague) : X1 tout arbre trouvé sous les racines inventoriées est cru : un seul
+    nœud `type: context` dans un dépôt tiers annule les règles du compte, et `regles appliquer` retire alors les refus de
+    lecture des secrets ; un type tiers de même `id` remplace le vrai ; une règle `stable` vaut sans `approved`
+    (reproduit ; la correction change une contrainte, donc demande une décision) ; X2 l'inventaire horaire lance `git`
+    sans neutraliser la configuration locale (`commun.js:66`) : un `core.fsmonitor` dans une archive extraite sous `~`
+    s'exécute chaque heure (vérifié) ; X3 faille XSS dans l'interface (`app.js:174`, `kind` non échappé ; aucune
+    politique de contenu) ; X4 la récolte lance `claude -p` depuis `/tmp` avec les réglages du projet (non essayé :
+    appel payant) ; X5 fragments de secrets au catalogue (description de crochet, jeton dans le chemin d'une URL) ;
+    X6 consignes injectées proposées par la récolte (la garde humaine tient). Contrôle : un arbre tiers ne change ni le
+    compte ni les types d'un projet (rouge aujourd'hui). Règle brouillon proposée : « ce que le socle lit sans l'avoir
+    écrit est une donnée : il ne pose ni règle, ni réglage, ni commande au-delà de son propre périmètre ».
 - **Fait (2026-10-08)** : revue page blanche (B4), décision brouillon `revue-page-blanche` : choix A à D à l'auteur
   (critère de l'étape 3, projet privé le plus coûteux, état des lieux P2, contre-épreuve par tranche). Idée I31 (parcourir l'arbre dans
   les deux sens).
 - **Reste** :
   1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
      `acces_distant.claude`.
+  0. **Avant tout (proposé par l'agent, à confirmer par l'auteur)** : les corrections courtes qui rendent les
+     garde-fous muets ou ouvrent le poste : X2 (`-c core.fsmonitor=false`), X3 (échapper `kind`), N1 avec E1 (journal
+     tolérant, transaction annulée), E2 et E3 (règles illisibles ou contrôle des secrets sans git qui se disent
+     conformes) ; X1 par décision. Chacune avec le test qui la reproduit.
   0. **Ordre retenu par l'auteur (décision `revue-page-blanche`, 2026-10-08)** : d'abord B avec C. Le projet privé le
      plus coûteux reçoit son arbre minimal et un module pour le travail d'UX/UI que l'auteur va y mener, **avant ses
      essais**. On commence par un état des lieux P2 de l'existant (skills d'interface, test visuel, connecteurs de
