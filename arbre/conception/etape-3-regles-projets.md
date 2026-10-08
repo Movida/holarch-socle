@@ -842,6 +842,18 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
     dire (3 restes sur 7) ; V9 chiffres en infobulle, inaccessibles au toucher. Contrôle : bouclage de la vue Projets
     sur le total du tableau de bord (rouge aujourd'hui sur V1). Choix à l'auteur : où ranger un projet retiré, quelle
     notion de tour, état du dépôt en direct ou daté.
+  - **E, erreurs avalées** (seconde vague) : E1 reconstruction de l'index sans annulation de la transaction
+    (`stockage/index.js:20`) : avec N1, une ligne coupée laisse l'interface verrouiller l'index (import, MCP, reprise et
+    garde en échec, rien au journal) ; E2 un `rules.yaml` illisible fait disparaître les règles bloquantes sans signal,
+    et `regles appliquer` retire alors fichiers, crochet et refus de lecture des secrets ; E3 le contrôle des secrets se
+    dit fait quand git échoue (`controles.js:110`) et ferme l'alerte ; E4 un adaptateur en erreur efface ses fiches du
+    catalogue (règles de tous les projets pour une heure si l'arbre est illisible) ; E5 `git()` de l'inventaire rend
+    null pour tout échec (« 0 fichier modifié », identifiant de projet changé) ; E6 garde en échec et contrôles
+    indisponibles jamais journalisés (`system.degraded` ne couvre que la passerelle : l'étendre change le contrat) ;
+    plus mineurs : `git add` non vérifié à la création, récolte muette sans gitleaks, lecture non stricte des réglages
+    de Claude Code, échec de `systemctl` lu « inactif ». Contrôle : aucun `catch` ou `|| true` sans dire ce qu'il
+    laisse passer (24 exceptions nommées), plus un test de comportement pour E1, E2, E3. Règle brouillon proposée :
+    « un échec avalé se dit ; celui qui suspend une garde, un contrôle ou une routine laisse une trace durable ».
 - **Fait (2026-10-08)** : revue page blanche (B4), décision brouillon `revue-page-blanche` : choix A à D à l'auteur
   (critère de l'étape 3, projet privé le plus coûteux, état des lieux P2, contre-épreuve par tranche). Idée I31 (parcourir l'arbre dans
   les deux sens).
