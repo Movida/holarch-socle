@@ -760,12 +760,44 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   juste après son en-tête, avec la question restée sans réponse. 1 test ; essai sur le poste : la session du matin et sa
   question retrouvées. Limites : les sessions d'un conteneur (autre dossier) ne sont pas vues ; l'annonce se répète à
   chaque démarrage pendant 24 h.
+- **Fait (2026-10-08)** : passe globale sur le code écrit depuis la consolidation (`a9c40e6`, 69 commits, 1 958 lignes),
+  sur proposition de l'agent et accord de l'auteur : trois relectures en parallèle (doublons et lectures périmées,
+  chemins qui écrivent, code mort et tests), vérifiées dans le code. Aucun code mort notable ; 61 tests verts.
+  Défauts réels (à corriger, choix de l'auteur, un commit et un test chacun) :
+  - A1 : une règle `draft` d'une couche plus basse remplace une règle `stable` de même `id` (`regles.js`, `fusionner`) ;
+    une redite récoltée sous un `id` existant retirerait le crochet de commit et couperait l'audit, sans signal ;
+  - A2 : reposer le commit en service supprime la copie de retour arrière (`service.js`, `garder`) ;
+  - A3 : catalogue écrit sans atomicité et relu sans protection (`stockage/catalogue.js`), désormais par le crochet de
+    démarrage aussi : un fichier coupé bloque inventaire, règles, audit et reprise ;
+  - A4 : lectures périmées laissées par I28 : la garde avant commit et `projet creer` lisent le catalogue de l'heure
+    (exception ajoutée refusée encore une heure ; geste « puis relancer » non repris ; règles commitées sans la couche du
+    type) ; contrairement à ce que dit l'entrée I28, ce ne sont pas seulement l'interface et le serveur MCP ;
+  - A5 : `projet creer` rejoué après un commit refusé dit « déjà » sans commit (fichiers présents mais non suivis ;
+    règles indexées) ; licence vérifiée après `git init` ;
+  - A6 : `service poser` réactive les minuteurs et l'interface coupés à la main (`enable --now`), aucun retrait de la
+    récolte payante ; la décision stable `recolte` dit encore « routine proposée, pas posée » : modification à écrire en
+    brouillon, pour l'auteur ;
+  - A7 : un redémarrage en échec arrête `distant reveil` (les accès suivants ne sont pas relancés, l'heure est déjà
+    écrite) ; l'unité de réveil n'est pas réécrite par `service poser` (peut lancer la copie de travail) ;
+  - A8 : `claude` cherché de deux façons ; la récolte, en service au `PATH` réduit, ignore `acces_distant.claude`.
+  Tests manquants prioritaires : création à blanc sur un projet existant (T1), déclaration au profil refusée et remise
+  en état (T2), licence sans modèle (T3). Risques faibles, à la clôture : liste des projets sans filtre de site, compte
+  Claude Code réglé à deux endroits, seuil de 150 000 en dur au tableau de bord, lecture de l'amont et `git config`
+  recopiées, fichier temporaire de `~/.claude.json` à nom fixe, récolte sans gitleaks en code 0, `claude -p` lancé
+  depuis `/tmp`, copies d'installation interrompues jamais retirées, import en double dans `bin/holarch.js`. Arbre :
+  contrats `noeud` (0.3.0), `regle` (0.4.0) et `config` (0.3.0) en usage sans approbation ; Q4 à trancher ou reporter.
 - **Reste** :
-  1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
-  2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
-  3. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
+  1. **Passe globale, corrections** (choix de l'auteur, 2026-10-08) : A1 à A5, A7, A8 avec un test chacun
+     (`defaut-a-l-usage`), T1 à T3 ; A6 : modification de la décision `recolte` en brouillon, puis correction.
+  2. **Passe globale, au-delà** (l'auteur veut creuser plus loin) : relire tout le code, celui d'avant `a9c40e6` compris, par
+     famille de défaut plutôt que par diff (écritures non atomiques, lectures du catalogue qui décident, rejeu qui dit
+     « déjà » sans regarder l'état réel, réglage posé à la main écrasé), et proposer pour chaque famille un contrôle
+     automatique en brouillon (test qui cherche le motif dans `src/`).
+  3. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
+  4. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
+  5. **Clôture de l'étape 3** (accord de l'auteur) : après la mesure du 2026-10-14 ; elle déborde sur la régulation
      (étape 5). Les idées « à placer » s'y placent.
-  4. **Tranche 11** : livrée ; statuts des huit brouillons du profil écrits le 2026-10-08 ; critère d'usage : une
+  6. **Tranche 11** : livrée ; statuts des huit brouillons du profil écrits le 2026-10-08 ; critère d'usage : une
      consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
-  5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
+  7. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.

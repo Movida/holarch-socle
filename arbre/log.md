@@ -2,6 +2,11 @@
 
 ## 2026-10-08
 
+* **Passe globale** (accord de l'auteur) : trois relectures du code écrit depuis `a9c40e6` ; huit défauts réels sur des
+  chemins qui écrivent ou décident (A1 à A8 dans l'avancement), trois tests prioritaires manquants, trois contrats en
+  usage jamais approuvés. Corrections choisies par l'auteur (A1 à A5, A7, A8, T1 à T3 ; A6 par décision), puis une passe
+  plus profonde par famille de défaut. Envoi de Q21 et I29 (accord de l'auteur).
+
 * **Sessions arrêtées en route (I29)** (accord de l'auteur) : la reprise annonce les sessions du même dossier, dans les
   24 h, finies sur un appel d'outil sans résultat, avec la question restée sans réponse (une session du matin, coupée par
   une veille puis le redémarrage de l'accès distant) ; 8 cas sur 309 sessions en 30 jours ; 1 test.
