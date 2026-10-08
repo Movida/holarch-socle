@@ -803,10 +803,12 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
     comme pour l'accès distant ;
   - T1 à T3 : création à blanc sur un projet créé, déclaration refusée par le profil (contexte remis en état), licence
     sans modèle ; aucun nouveau défaut.
-  - A6 : décision `routines-posees` proposée (brouillon, modifie `recolte` et `copie-de-service`) : l'état
-    d'activation de systemd fait foi, une routine coupée à la main reste coupée ; correction après approbation.
+  - A6 : décision `routines-posees` (modifie `recolte` et `copie-de-service`), approuvée telle quelle par l'auteur :
+    l'état d'activation de systemd fait foi. `service poser` réécrit une routine coupée à la main sans la rallumer
+    (interface comprise) et le dit ; `holarch service` montre l'état des quatre routines ; 1 test (71 verts).
 - **Reste** :
-  1. **A6** : approbation de la décision `routines-posees`, puis correction avec un test.
+  1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
+     `acces_distant.claude`.
   2. **Passe globale, au-delà** (l'auteur veut creuser plus loin) : relire tout le code, celui d'avant `a9c40e6` compris, par
      famille de défaut plutôt que par diff (écritures non atomiques, lectures du catalogue qui décident, rejeu qui dit
      « déjà » sans regarder l'état réel, réglage posé à la main écrasé), et proposer pour chaque famille un contrôle
