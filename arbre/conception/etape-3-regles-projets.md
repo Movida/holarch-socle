@@ -868,10 +868,13 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
 - **Fait (2026-10-08)** : revue page blanche (B4), décision brouillon `revue-page-blanche` : choix A à D à l'auteur
   (critère de l'étape 3, projet privé le plus coûteux, état des lieux P2, contre-épreuve par tranche). Idée I31 (parcourir l'arbre dans
   les deux sens).
+- **Fait (2026-10-08)** : état des lieux P2 de l'outillage d'interface (C), choix de l'auteur au journal : comparaison
+  d'images native, skill `verify`, relecteur UX, essai de Playwright CLI ; règles dans l'arbre du projet ; écartés :
+  connecteurs de maquettes, Claude in Chrome (pas sous WSL), Axe MCP (payant), services de régression visuelle.
 - **Reste** :
   1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
      `acces_distant.claude`.
-  0. **Avant tout (proposé par l'agent, à confirmer par l'auteur)** : les corrections courtes qui rendent les
+  0. **Avant tout (confirmé par l'auteur le 2026-10-08, avant la pose dans le projet)** : les corrections courtes qui rendent les
      garde-fous muets ou ouvrent le poste : X2 (`-c core.fsmonitor=false`), X3 (échapper `kind`), N1 avec E1 (journal
      tolérant, transaction annulée), E2 et E3 (règles illisibles ou contrôle des secrets sans git qui se disent
      conformes) ; X1 par décision. Chacune avec le test qui la reproduit.

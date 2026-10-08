@@ -2,6 +2,13 @@
 
 ## 2026-10-08
 
+* **État des lieux P2 de l'outillage d'interface (C)** (décision `revue-page-blanche`) : deux sous-agents en lecture,
+  chiffres porteurs revérifiés. Le projet privé le plus coûteux n'a aucune régression visuelle automatique ; 73 % des
+  images regardées sont des captures jetables hors du dépôt ; ses bons vérificateurs d'interface restent hors de sa
+  vérification d'ensemble. Choix de l'auteur : adopter la comparaison d'images native de Playwright, une skill `verify`
+  du projet (lancée par Claude Code avant chaque commit), un sous-agent relecteur UX, un essai de Playwright CLI ;
+  règles dans l'arbre du projet (type au deuxième projet web) ; corrections courtes des garde-fous d'abord.
+
 * **Revue page blanche (B4)** (demande de l'auteur : couvrir tout le code, prendre de la hauteur) : passe par famille
   sur tout `src/` (N, C, R, M à l'avancement, seconde vague en cours) et revue de hauteur par un sous-agent neuf. Aucune
   étape close sur son critère, l'outil sert surtout à se construire, P2 peu appliqué à ce qui écrit chez les autres.
