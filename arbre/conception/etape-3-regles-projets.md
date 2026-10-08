@@ -871,10 +871,21 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
 - **Fait (2026-10-08)** : état des lieux P2 de l'outillage d'interface (C), choix de l'auteur au journal : comparaison
   d'images native, skill `verify`, relecteur UX, essai de Playwright CLI ; règles dans l'arbre du projet ; écartés :
   connecteurs de maquettes, Claude in Chrome (pas sous WSL), Axe MCP (payant), services de régression visuelle.
+- **Fait (2026-10-08)** : corrections courtes X2, X3, N1 avec E1, E2, E3 (un commit et un test chacune, 78 tests verts) ;
+  contre-épreuve par un sous-agent neuf : constats au Reste. Test visuel à passer dans le conteneur du socle.
 - **Reste** :
+  0. **D'abord, constats de la contre-épreuve (2026-10-08)** : (1) X2 incomplet, bloquant : `filter.<x>.clean` (et
+     `diff.<x>.textconv`) d'une configuration locale s'exécutent au `git status` de l'inventaire ; refuser un dépôt qui
+     déclare un programme casserait git-lfs : choix à l'auteur ; (2) E2 incomplet : `enTete()` (`inventaire/outils.js`)
+     rend `{}` sur un en-tête illisible et le nœud disparaît sans `erreur_regles` (garde muette) ; (3) `creation.js:185`
+     abandonne la création sur règles illisibles au lieu de noter l'étape en échec ; (4) `regles appliquer` écrit le
+     compte avant de lever sur un projet illisible (vérifier en amont) ; (5) refus `regles-lisibles` de la garde sans
+     `rule.enforced` ; (6) `memoire-remplacee` dit fait quand les règles sont illisibles ; (7) écart en double compte et
+     projets pour un profil illisible ; (8) `DROP/CREATE` de l'index hors du `try`, `ROLLBACK` qui masque l'erreur si
+     SQLite a déjà annulé ; (9) `e.data.fiches` non échappé (`app.js:175`).
   1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
      `acces_distant.claude`.
-  0. **Avant tout (confirmé par l'auteur le 2026-10-08, avant la pose dans le projet)** : les corrections courtes qui rendent les
+  0. **Fait le 2026-10-08, sauf constats ci-dessus** : les corrections courtes qui rendent les
      garde-fous muets ou ouvrent le poste : X2 (`-c core.fsmonitor=false`), X3 (échapper `kind`), N1 avec E1 (journal
      tolérant, transaction annulée), E2 et E3 (règles illisibles ou contrôle des secrets sans git qui se disent
      conformes) ; X1 par décision. Chacune avec le test qui la reproduit.

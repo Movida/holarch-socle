@@ -2,6 +2,23 @@
 
 ## 2026-10-08
 
+* **Corrections courtes des garde-fous** (choix de l'auteur, avant la pose dans le projet privé) : X2, X3, N1 avec E1,
+  E2, E3, un commit et un test qui reproduit chacune (`test/garde-fous.test.js`, 78 tests verts). Contre-épreuve par un
+  sous-agent neuf avant de rendre (D) : X2 et E2 incomplets (un filtre de git déclaré en local s'exécute encore ; un
+  en-tête YAML illisible efface toujours des règles en silence, tous deux reproduits), plus trois points à corriger et
+  quatre mineurs ; laissés à la session suivante (contexte au-delà du seuil). Test visuel non passé (pas de Chromium sur
+  l'hôte). Leçon de clôture : déroulé annoncé (état des lieux, synthèse, type et règles, pose, corrections) ; réalisé
+  jusqu'à la synthèse, puis les corrections avancées par l'auteur ; la pose n'est pas atteinte. Ce qui a fait dévier :
+  le choix de l'auteur de corriger d'abord, et la contre-épreuve qui a trouvé deux corrections incomplètes, ce que la
+  relecture seule de l'agent n'avait pas vu.
+
+* **Autres éléments proposés pour le projet privé** (question de l'auteur, sans réponse encore) : alléger ses documents
+  d'état (19 % de la dépense à relire le dépôt), mesurer ses sous-agents (56 %), regarder moins d'images, sous-ensemble
+  rapide de ses vérificateurs de tailles dans sa vérification, tests tirés des redites (cohérence entre scènes, parité
+  à plusieurs tailles d'ordinateur, place d'un contrôle), clavier et mouvement réduit, Lighthouse CI, crochet de
+  démarrage (récupérer, démarrer et vérifier le serveur), scripts de capture dans le dépôt, déclaration du projet et ses
+  trois écarts. Recommandés : documents d'état, vérificateur rapide, tests des redites, crochet de démarrage, déclaration.
+
 * **État des lieux P2 de l'outillage d'interface (C)** (décision `revue-page-blanche`) : deux sous-agents en lecture,
   chiffres porteurs revérifiés. Le projet privé le plus coûteux n'a aucune régression visuelle automatique ; 73 % des
   images regardées sont des captures jetables hors du dépôt ; ses bons vérificateurs d'interface restent hors de sa
