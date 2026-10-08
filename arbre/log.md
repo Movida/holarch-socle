@@ -2,6 +2,10 @@
 
 ## 2026-10-08
 
+* **Sessions arrêtées en route (I29)** (accord de l'auteur) : la reprise annonce les sessions du même dossier, dans les
+  24 h, finies sur un appel d'outil sans résultat, avec la question restée sans réponse (une session du matin, coupée par
+  une veille puis le redémarrage de l'accès distant) ; 8 cas sur 309 sessions en 30 jours ; 1 test.
+
 * **Q21 résolue** : deux veilles du poste vues par le minuteur `holarch-reveil` et suivies d'un redémarrage ; projet
   joignable ensuite depuis l'application (constaté par l'auteur).
 

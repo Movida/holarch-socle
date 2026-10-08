@@ -751,6 +751,15 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   reprise. Copie posée, mesuré sur le poste : `holarch regles` en 0,62 s quand un arbre a changé (inventaire compris,
   sans audit ni import), 0,31 s sinon ; la reprise nomme aussitôt le dernier fait. 1 test.
   Restent sur le catalogue de l'heure : l'interface et le serveur MCP.
+- **Fait (2026-10-08)** : sessions arrêtées en route (idée I29, accord de l'auteur). Constat : une session du socle
+  s'est arrêtée sur une question à l'auteur, le poste s'est mis en veille, et le redémarrage de l'accès distant au
+  réveil l'a laissée sans réponse, sans que rien le signale. Mesure sur 30 jours : 8 sessions sur 309 finies sur un
+  appel d'outil sans résultat, dont une sur une question. `sessionsCoupees` (`contexte.js`, lecture de la fin des
+  transcriptions partagée avec la taille du contexte) : sessions du même dossier, dans les 24 h, dont le dernier message
+  est un appel d'outil sans résultat (une interruption par Échap n'en est pas une) ; le résumé de reprise les annonce
+  juste après son en-tête, avec la question restée sans réponse. 1 test ; essai sur le poste : la session du matin et sa
+  question retrouvées. Limites : les sessions d'un conteneur (autre dossier) ne sont pas vues ; l'annonce se répète à
+  chaque démarrage pendant 24 h.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.
@@ -758,5 +767,5 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
      (étape 5). Les idées « à placer » s'y placent.
   4. **Tranche 11** : livrée ; statuts des huit brouillons du profil écrits le 2026-10-08 ; critère d'usage : une
      consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
-  5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs, récolte (§5.2,
-     §5.8), à spécifier à leur ouverture.
+  5. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
+     ouverture.

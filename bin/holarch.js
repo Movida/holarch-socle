@@ -143,7 +143,7 @@ switch (cmd) {
         const i = args.indexOf('--seuil'); const a = alerte({ transcription: entree.transcript_path, seuil: +args[i + 1], regles: () => reglesDuDossier(socle(), entree.cwd || process.cwd()) });
         if (a) console.log(JSON.stringify({ systemMessage: a.auteur, hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: a.agent } }));
       } else if (args[0] === 'debut') {
-        const s = socle(); if (await s.arbreAJour()) s.indexer(); const r = resume(s, entree.cwd || process.cwd());
+        const s = socle(); if (await s.arbreAJour()) s.indexer(); const r = resume(s, entree.cwd || process.cwd(), { transcription: entree.transcript_path });
         if (r) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: r } }));
       }
     } catch (e) { console.error(`holarch contexte : ${e.message}`); }

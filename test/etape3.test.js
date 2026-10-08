@@ -615,7 +615,7 @@ test('consolidation : les réglages de l’audit agissent, et les briques commun
 });
 
 // ---- Tranche 7 : économie du contexte (décision passation-sereine). Données fictives.
-import { tailleContexte, alerte, resume } from '../src/contexte.js';
+import { tailleContexte, alerte, resume, sessionsCoupees } from '../src/contexte.js';
 import { reglagesVoulus, appliquerReglages } from '../src/regles-claude-code.js';
 
 test('contexte : taille lue à la fin de la transcription, avis au-delà du seuil seulement', () => {
@@ -681,6 +681,34 @@ test('contexte : résumé de reprise du projet du dossier de travail, court ; ri
   ecrire(path.join(d, '.gitlab-ci.yml'), 'test: {}\n');
   assert.match(resume(s, d), /Intégration continue : GitLab CI \(lire son résultat après un envoi\)\./);
   assert.equal(resume(s, tmp()), null);
+});
+
+test('contexte : une session arrêtée en route (appel d’outil sans résultat) est annoncée à la reprise', () => {
+  const dossier = tmp(); const maintenant = Date.parse('2026-10-08T16:40:00Z');
+  const msg = (type, content, extra = {}) => JSON.stringify({ type, timestamp: '2026-10-08T10:20:00.000Z', message: { role: type, content }, ...extra });
+  const appel = (name, input) => msg('assistant', [{ type: 'tool_use', id: `t-${name}`, name, input }]);
+  const session = (nom, lignes, age = 3600) => { const f = path.join(dossier, `${nom}.jsonl`); ecrire(f, lignes.join('\n') + '\n'); const t = (maintenant - age * 1000) / 1000; fs.utimesSync(f, t, t); return f; };
+  session('question', [msg('user', 'Règle l’autonomie.'), appel('AskUserQuestion', { questions: [{ question: 'Comment régler l’autonomie des sessions ?' }] }), msg('assistant', [{ type: 'text', text: 'sous-agent' }], { isSidechain: true })]);
+  session('outil', ['{"début coupé', appel('Bash', { command: 'npm test', description: 'Lancer les tests' })]);
+  session('propre', [appel('Bash', { command: 'ls' }), msg('user', [{ type: 'tool_result', tool_use_id: 't-Bash', content: 'ok' }]), msg('assistant', [{ type: 'text', text: 'Fini.' }])]);
+  session('voulue', [appel('Bash', { command: 'sleep 99' }), msg('user', [{ type: 'text', text: '[Request interrupted by user for tool use]' }])]);
+  session('ancienne', [appel('Bash', { command: 'ls' })], 25 * 3600);
+  const courante = session('courante', [appel('Bash', { command: 'git status' })]);
+  const c = sessionsCoupees(courante, { maintenant });
+  assert.deepEqual(c.map((x) => path.basename(x.fichier)).sort(), ['outil.jsonl', 'question.jsonl'], 'ni la propre, ni l’interruption voulue, ni l’ancienne, ni la courante');
+  assert.equal(c.find((x) => x.question).question, 'Comment régler l’autonomie des sessions ?');
+  assert.deepEqual(sessionsCoupees(null), []); assert.deepEqual(sessionsCoupees(path.join(tmp(), 'absente.jsonl')), []);
+
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n'); g('add', '.'); g('commit', '-qm', 'x');
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [d], projetDe: () => ({ id: 'holarch:project:depot' }) }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const t = resume(s, d, { transcription: courante, maintenant });
+  const ligne = t.split('\n')[1];
+  assert.match(ligne, /^Session\(s\) arrêtée\(s\) en route \(24 h\) : .*\. À signaler à l’auteur\.$/, 'juste après l’en-tête');
+  assert.match(ligne, /question restée sans réponse : « Comment régler l’autonomie des sessions \? »/); assert.match(ligne, /pendant Bash \(Lancer les tests\)/);
+  assert.doesNotMatch(resume(s, d), /arrêtée/, 'sans transcription : rien');
 });
 
 test('règles : une règle ajoutée après l’inventaire se voit tout de suite ; un arbre inchangé ne relance rien', async () => {
