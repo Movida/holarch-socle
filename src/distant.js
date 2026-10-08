@@ -32,6 +32,8 @@ function services({ unites, systemctl }) {
   return {
     unites, geree, lancer,
     actif: (f) => fs.existsSync(f) && systemctl(['is-active', path.basename(f)]).stdout?.trim() === 'active',
+    // Coupée à la main (`systemctl --user disable`) : une pose la réécrit sans la rallumer (décision routines-posees).
+    coupee: (f) => fs.existsSync(f) && systemctl(['is-enabled', path.basename(f)]).stdout?.trim() === 'disabled',
     // Écrit l'unité et la démarre ; une unité déjà active dont le texte change est redémarrée.
     poser(f, texte) {
       if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
@@ -232,6 +234,15 @@ WantedBy=default.target
 `;
 }
 
+/** État des routines que pose la copie de service : absente, activée, coupée (à la main), ou écrite à la main. */
+export function etatRoutines({ unites = UNITES, systemctl = SYSTEMCTL } = {}) {
+  const sv = services({ unites, systemctl });
+  return [UNITE_INTERFACE, `${UNITE_IMPORT}.timer`, `${UNITE_RECOLTE}.timer`, `${UNITE_REVEIL}.timer`].map((unite) => {
+    const f = path.join(unites, unite);
+    return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.coupee(f) ? 'coupée' : 'activée' };
+  });
+}
+
 export function creerInterface({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
   const sv = services({ unites, systemctl }); const f = path.join(unites, UNITE_INTERFACE);
   return {
@@ -244,6 +255,7 @@ export function creerInterface({ holarch, accueil }, { unites = UNITES, systemct
       if (!fs.existsSync(f)) return { unite: UNITE_INTERFACE, etat: 'absente' };
       if (!sv.geree(f)) return { unite: UNITE_INTERFACE, etat: 'non écrite par HOLARCH : à relancer à la main' };
       const avant = fs.readFileSync(f, 'utf8'); const texte = uniteInterface({ node, holarch, accueil });
+      if (sv.coupee(f)) { if (sv.ecrire(f, texte)) sv.lancer(['daemon-reload']); return { unite: UNITE_INTERFACE, etat: 'coupée à la main : laissée' }; }
       sv.poser(f, texte); if (avant === texte) sv.lancer(['restart', UNITE_INTERFACE]);
       return { unite: UNITE_INTERFACE, etat: 'relancée' };
     },
@@ -285,6 +297,10 @@ function creerMinuteur(nom, unite, minuteur, { unites, systemctl }) {
   return {
     poser() {
       for (const x of [f, m]) if (fs.existsSync(x) && !sv.geree(x)) throw new Error(`${x} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+      if (sv.coupee(m)) {
+        if ([sv.ecrire(f, unite), sv.ecrire(m, minuteur)].some(Boolean)) sv.lancer(['daemon-reload']);
+        return { unite: `${nom}.timer`, etat: 'coupé à la main : laissé' };
+      }
       const change = sv.ecrire(f, unite);
       if (change) sv.lancer(['daemon-reload']);
       sv.poser(m, minuteur);

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { creerDistant, creerInterface, creerReveil, declarerConfiance, nomDe } from '../src/distant.js';
+import { creerDistant, creerInterface, creerReveil, creerRecolte, declarerConfiance, nomDe } from '../src/distant.js';
 import { binaireClaude } from '../src/commun.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
@@ -554,6 +554,27 @@ test('interface en service : unité marquée qui relit la même configuration, a
   i.desactiver(); assert.ok(!fs.existsSync(path.join(unites, 'holarch-interface.service')));
   fs.writeFileSync(path.join(unites, 'holarch-interface.service'), '[Service]\n');
   assert.throws(() => i.activer(), /pas été écrit par HOLARCH/); assert.throws(() => i.desactiver(), /pas été écrit par HOLARCH/);
+});
+
+test('routines : une unité coupée à la main reste coupée quand la copie est posée, texte réécrit ; la première pose l’active (décision routines-posees)', () => {
+  const unites = tmp(); const appels = []; const coupees = new Set();
+  const systemctl = (args) => {
+    appels.push(args.join(' '));
+    if (args[0] === 'disable') coupees.add(args.at(-1)); if (args[0] === 'enable') coupees.delete(args.at(-1));
+    return { status: 0, stdout: args[0] === 'is-enabled' ? (coupees.has(args[1]) ? 'disabled\n' : 'enabled\n') : args[0] === 'is-active' ? 'active\n' : '', stderr: '' };
+  };
+  const o = { unites, systemctl, node: '/opt/node/bin/node' };
+  const recolte = (holarch) => creerRecolte({ holarch, accueil: '/a' }, o); const interface_ = (holarch) => creerInterface({ holarch, accueil: '/a' }, o);
+  assert.equal(recolte('/v1/holarch.js').poser().etat, 'posé'); interface_('/v1/holarch.js').activer();
+  assert.ok(appels.includes('enable --now holarch-recolte.timer'), 'la première pose active');
+  systemctl(['disable', '--now', 'holarch-recolte.timer']); systemctl(['disable', '--now', 'holarch-interface.service']); appels.length = 0;
+  assert.equal(recolte('/v2/holarch.js').poser().etat, 'coupé à la main : laissé');
+  assert.equal(interface_('/v2/holarch.js').relancer().etat, 'coupée à la main : laissée');
+  assert.deepEqual(appels.filter((a) => /^(enable|restart|start)/.test(a)), [], 'rien n’est rallumé');
+  assert.ok(fs.readFileSync(path.join(unites, 'holarch-recolte.service'), 'utf8').includes('"/v2/holarch.js" recolte'), 'le texte suit la copie posée');
+  assert.ok(fs.readFileSync(path.join(unites, 'holarch-interface.service'), 'utf8').includes('"/v2/holarch.js" voir'));
+  const routines = creerService({ accueil: tmp() }, { unites, systemctl }).etat().routines;
+  assert.deepEqual(routines.map((r) => [r.unite, r.etat]), [['holarch-interface.service', 'coupée'], ['holarch-import.timer', 'absente'], ['holarch-recolte.timer', 'coupée'], ['holarch-reveil.timer', 'absente']]);
 });
 
 // ---- Tranche 5 : veille de sécurité et de versions (décision veille-securite-versions). Données fictives.

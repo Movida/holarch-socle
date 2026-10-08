@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { git, lireJson, ecrireJson, trouverOutil, configClaude } from './commun.js';
-import { creerInterface, creerImport, creerRecolte, creerReveil } from './distant.js';
+import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 
 const SOI = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const FICHE = '.holarch-service.json';
@@ -86,7 +86,7 @@ export function creerService({ accueil, comptes = [] }, {
     etat() {
       const copie = copieEnService(accueil);
       const copies = fs.existsSync(dossier(accueil)) ? fs.readdirSync(dossier(accueil)).filter((d) => COMMIT.test(d)) : [];
-      return { copie, retard: retard(copie), copies, binaire: binaireService(accueil) };
+      return { copie, retard: retard(copie), copies, binaire: binaireService(accueil), routines: etatRoutines({ unites, systemctl }) };
     },
 
     /**

@@ -62,7 +62,8 @@ export function creation(r) {
 
 export const service = (e) => (e.copie
   ? `copie en service : ${e.copie.commit} (posée le ${new Date(e.copie.pose_le).toLocaleString('sv-SE').slice(0, 16)}, source ${e.copie.source})${e.retard ? ` ; ${e.retard} commit(s) de retard sur HEAD (holarch service poser)` : e.retard === 0 ? ' ; à jour' : ''}\ncopies gardées : ${e.copies.join(', ')}`
-  : `aucune copie de service : les points d'entrée lancent ${e.binaire} (holarch service poser)`);
+  : `aucune copie de service : les points d'entrée lancent ${e.binaire} (holarch service poser)`)
+  + `\nroutines : ${e.routines.map((r) => `${r.unite} ${r.etat}`).join(' · ')}${e.routines.some((r) => r.etat === 'coupée') ? ' (une routine coupée reste coupée : systemctl --user enable --now <unité> pour la rallumer)' : ''}`;
 
 export const posee = (r) => [`copie en service : ${r.commit}${r.nouvelle ? ' (nouvelle : tests verts, export, npm ci)' : ' (déjà présente : lien basculé)'}${r.precedent ? ` ; précédente gardée : ${r.precedent}` : ''}${r.supprimees.length ? ` ; supprimée(s) : ${r.supprimees.join(', ')}` : ''}`,
   ...r.points.map((p) => `  ${p.point} : ${p.etat}${p.message ? ` — ${p.message}` : ''}`),

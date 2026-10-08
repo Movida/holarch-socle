@@ -2,7 +2,8 @@
 type: decision
 title: Une routine coupée à la main reste coupée quand la copie de service est posée
 description: Défaut A6 de la passe globale. `holarch service poser` réactive les minuteurs et l'interface coupés à la main, et la décision recolte dit encore la routine hebdomadaire « proposée, pas posée » alors que l'auteur l'a acceptée le 2026-10-08. L'état d'activation de systemd fait foi ; la décision recolte est mise à jour.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-08, ref: "échange du 2026-10-08 : « On suit ta recommandation pour A6 »" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/decisions/2026-10-07-recolte.md, /arbre/decisions/2026-10-07-copie-de-service.md]
@@ -34,7 +35,7 @@ links:
 La première est recommandée : elle corrige le défaut sans ajouter de notion, et une réinstallation est rare. La
 seconde reste possible si une routine coupée revient sans qu'on le veuille.
 
-**Décision (proposée).**
+**Décision.**
 
 | Point | Choix |
 |---|---|
@@ -45,6 +46,6 @@ seconde reste possible si une routine coupée revient sans qu'on le veuille.
 **Ce qui le ferait changer.** Une routine coupée qui revient après une réinstallation ou un changement de poste : passer
 alors au réglage dans l'arbre.
 
-**Conséquences.** Une fois approuvée : `creerMinuteur` et `creerInterface` (`src/distant.js`) consultent
+**Conséquences.** `creerMinuteur` et `creerInterface` (`src/distant.js`) consultent
 `is-enabled` avant d'activer, avec un test qui coupe une unité puis pose la copie ; `holarch service` affiche l'état
 des routines. La ligne Cadence de la décision `recolte` se lit avec cette modification.
