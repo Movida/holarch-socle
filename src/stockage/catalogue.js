@@ -48,6 +48,11 @@ export class Catalogue {
     return { fiches: valides.length, refusees, apparues, disparues, deplacees };
   }
 
+  /** Date de l'instantané du site (ms), null s'il n'y en a pas encore. */
+  date() {
+    try { return Date.parse(JSON.parse(fs.readFileSync(path.join(this.dossier, `${this.site}.json`), 'utf8')).at) || null; } catch { return null; }
+  }
+
   lire({ site = null } = {}) {
     if (!fs.existsSync(this.dossier)) return [];
     const fichiers = fs.readdirSync(this.dossier).filter((f) => f.endsWith('.json') && (!site || f === `${site}.json`));

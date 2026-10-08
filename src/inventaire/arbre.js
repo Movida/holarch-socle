@@ -65,6 +65,18 @@ export function racineArbre(depot) {
   return fs.existsSync(o) && enTete(o).okf_version != null ? { fichier: o, dossier: depot, okf: true } : null;
 }
 
+/** L'arbre d'un dépôt a-t-il changé après `ms` (fichier modifié, ajouté ou retiré) ? Dates seules, rien n'est parsé. */
+export function arbreModifieDepuis(depot, ms) {
+  const racine = racineArbre(depot);
+  if (!racine) return false;
+  const recent = (p) => { try { return fs.statSync(p).mtimeMs > ms; } catch { return true; } };
+  const parcourir = (d) => {
+    if (recent(d)) return true;
+    try { return fs.readdirSync(d, { withFileTypes: true }).some((e) => (e.isDirectory() ? parcourir(path.join(d, e.name)) : recent(path.join(d, e.name)))); } catch { return true; }
+  };
+  return racine.okf ? recent(racine.fichier) : parcourir(racine.dossier);
+}
+
 // Règles d'un nœud (contrat règle §1) : celles de son en-tête (`rules:`) et, pour l'`index.md` d'un dossier, celles du
 // `rules.yaml` de ce dossier. Un fichier illisible ne fait pas échouer l'inventaire : il est signalé sur le nœud.
 function reglesDe(f, h) {

@@ -683,6 +683,30 @@ test('contexte : résumé de reprise du projet du dossier de travail, court ; ri
   assert.equal(resume(s, tmp()), null);
 });
 
+test('règles : une règle ajoutée après l’inventaire se voit tout de suite ; un arbre inchangé ne relance rien', async () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot')); const regles = path.join(d, 'arbre', 'rules.yaml');
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(regles, '- id: en-place\n  statement: Déjà approuvée.\n  status: stable\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: { 'depots-git': { racines: [r], profondeur: 1 }, arbre: {} }, import: {} });
+  await s.inventaire(); s.indexer();
+  const proposees = () => s.regles({ projet: 'depot' }).regles.filter((e) => e.statut === 'draft').length;
+  assert.equal(proposees(), 0);
+  assert.equal(await s.arbreAJour(), false, 'arbre inchangé : aucun inventaire');
+  // Constaté le 2026-10-08 : une règle ajoutée restait « 0 proposée » jusqu'à l'inventaire suivant (idée I28).
+  fs.appendFileSync(regles, '- id: nouvelle\n  statement: Ajoutée après l’inventaire.\n');
+  // Un changement juste après l'inventaire (même milliseconde que lui ou presque) compte.
+  const apres = () => new Date(s.catalogue.date() + 1);
+  fs.utimesSync(regles, apres(), apres());
+  assert.equal(proposees(), 0, 'le catalogue de l’inventaire précédent ne la voit pas');
+  assert.equal(await s.arbreAJour(), true); s.indexer();
+  assert.equal(proposees(), 1);
+  // Un fichier retiré change aussi l'arbre (date du dossier).
+  assert.equal(await s.arbreAJour(), false);
+  fs.rmSync(regles); fs.utimesSync(path.join(d, 'arbre'), apres(), apres());
+  assert.equal(await s.arbreAJour(), true);
+});
+
 import { poserIdentite } from '../src/identite-git.js';
 import { materialiserProjet } from '../src/materialisation.js';
 

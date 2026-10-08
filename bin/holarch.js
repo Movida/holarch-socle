@@ -115,7 +115,7 @@ switch (cmd) {
     } catch (e) { console.error(`holarch service : ${e.message}`); process.exit(1); }
     break; }
   case 'regles': {
-    const s = socle(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
+    const s = socle(); await s.arbreAJour(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
     try {
       if (action === 'appliquer') {
         // Toutes les références d'abord : rien ne s'écrit si l'une d'elles est fausse. Puis le compte, puis les projets.
@@ -143,7 +143,7 @@ switch (cmd) {
         const i = args.indexOf('--seuil'); const a = alerte({ transcription: entree.transcript_path, seuil: +args[i + 1], regles: () => reglesDuDossier(socle(), entree.cwd || process.cwd()) });
         if (a) console.log(JSON.stringify({ systemMessage: a.auteur, hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: a.agent } }));
       } else if (args[0] === 'debut') {
-        const s = socle(); const r = resume(s, entree.cwd || process.cwd());
+        const s = socle(); if (await s.arbreAJour()) s.indexer(); const r = resume(s, entree.cwd || process.cwd());
         if (r) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: r } }));
       }
     } catch (e) { console.error(`holarch contexte : ${e.message}`); }
@@ -174,14 +174,14 @@ switch (cmd) {
       const jours = +(val('--jours') ?? 30);
       if (!(jours > 0)) throw new Error('--jours attend un nombre de jours');
       const depuis = new Date((jusqua ? Date.parse(jusqua) : Date.now()) - jours * 864e5).toISOString();
-      const s = socle(); s.indexer();
+      const s = socle(); await s.arbreAJour(); s.indexer();
       const r = s.recolte({ depuis, jusqua, aBlanc: args.includes('--a-blanc'), proposer: args.includes('--proposer'), modele: val('--modele'), budget: val('--budget') });
       if (r.propositions?.ecrites.length) { await s.inventaire(); s.indexer(); }
       afficher(json ? r : affichage.recolte(r));
     } catch (e) { console.error(`holarch recolte : ${e.message}`); process.exit(1); }
     break; }
   case 'audit': {
-    const s = socle(); s.indexer(); const [projet] = args.filter((a) => !a.startsWith('--'));
+    const s = socle(); await s.arbreAJour(); s.indexer(); const [projet] = args.filter((a) => !a.startsWith('--'));
     try {
       const a = s.audit({ projet: projet || null, journaliser: true });
       afficher(json ? a : affichage.audit(a));

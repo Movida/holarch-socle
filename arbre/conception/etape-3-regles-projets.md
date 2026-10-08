@@ -742,6 +742,13 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   déjà de `coherence-globale`. Aucun mécanisme : règle `defaut-a-l-usage` proposée au type `methode-holarch`
   (brouillon), vue par le catalogue dans les deux projets du type ; approuvée telle quelle par l'auteur et écrite dans
   les deux (`regles appliquer`).
+- **Fait (2026-10-08)** : idée I28, choix de l'auteur. Défaut trouvé à l'usage : les lectures de l'arbre passaient par
+  le catalogue de l'inventaire horaire ; une règle ajoutée restait « 0 proposée », et la reprise de cette session omettait
+  I28 et le dernier fait du journal. `arbreModifieDepuis` (adaptateur de l'arbre, dates des fichiers et des dossiers,
+  retrait compris) et `Socle.arbreAJour` refont l'inventaire quand un arbre connu est plus récent que le catalogue ;
+  appelé par `holarch regles` (dont `appliquer`, qui écrivait d'après le catalogue de l'heure), `audit`, `recolte` et la
+  reprise. Inventaire seul mesuré à environ 0,25 s (adaptateurs), l'audit et l'import n'en font pas partie. 1 test.
+  Restent sur le catalogue de l'heure : l'interface et le serveur MCP.
 - **Reste** :
   1. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.
   2. **Tranche 10** : livrée ; critère au prochain vrai projet, créé par la commande.

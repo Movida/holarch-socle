@@ -17,7 +17,7 @@ import { contexteControle, garde, ecartsOuverts, audit } from './audit.js';
 import { ulid } from './ulid.js';
 import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
 import { racineIndex } from './creation.js';
-import { racineArbre } from './inventaire/arbre.js';
+import { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
 import { trouverOutil } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
@@ -37,6 +37,19 @@ export class Socle {
   }
 
   async inventaire() { return inventorier(this.config, { catalogue: this.catalogue, journal: this.journal }); }
+
+  // Le catalogue date du dernier inventaire (horaire) : une lecture des règles ou de la reprise le refait d'abord quand
+  // un arbre connu a changé depuis, sans quoi une règle ajoutée reste invisible jusqu'à l'heure suivante (idée I28).
+  // Rend vrai s'il a fallu l'inventaire ; l'index reste à reconstruire par l'appelant.
+  async arbreAJour() {
+    const o = this.config.inventaire?.arbre;
+    if (!o || o.actif === false) return false;
+    const depuis = this.catalogue.date();
+    const depots = new Set([...(o.depots || []), ...this.catalogue.lire({ site: this.config.site }).filter((f) => f.kind === 'project' && f.location).map((f) => f.location)]);
+    if (depuis && ![...depots].some((d) => arbreModifieDepuis(d, depuis))) return false;
+    await this.inventaire();
+    return true;
+  }
 
   importer() {
     const r = {};
