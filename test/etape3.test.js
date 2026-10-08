@@ -957,6 +957,9 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
   const c4 = version(4); const r4 = sv.poser();
   assert.deepEqual([r4.commit, r4.precedent, r4.supprimees], [c4, c1, [c3]], 'gardées : la posée et la précédente');
   assert.deepEqual(sv.etat().copies.sort(), [c1, c4].sort()); assert.equal(sv.etat().retard, 0);
+  // Reposer la copie en service garde celle du retour arrière (défaut trouvé à la passe globale, A2).
+  const r4bis = sv.poser();
+  assert.deepEqual([r4bis.commit, r4bis.supprimees], [c4, []]); assert.deepEqual(sv.etat().copies.sort(), [c1, c4].sort());
 
   // Un minuteur posé à la main n'est jamais touché ; le reste passe.
   fs.writeFileSync(path.join(unites, 'holarch-import.timer'), '[Timer]\nOnCalendar=daily\n');

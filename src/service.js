@@ -114,8 +114,9 @@ export function creerService({ accueil, comptes = [] }, {
       // Bascule d'un coup : un lien neuf renommé sur l'ancien.
       const l = lien(accueil); const tmp = `${l}.pose-${process.pid}`;
       fs.rmSync(tmp, { force: true }); fs.symlinkSync(commit, tmp); fs.renameSync(tmp, l);
+      // Reposer la copie en service ne retire rien : la copie précédente, celle du retour arrière, reste.
       const garder = new Set([commit, precedent]);
-      const supprimees = fs.readdirSync(dossier(accueil)).filter((d) => COMMIT.test(d) && !garder.has(d));
+      const supprimees = precedent === commit ? [] : fs.readdirSync(dossier(accueil)).filter((d) => COMMIT.test(d) && !garder.has(d));
       for (const d of supprimees) fs.rmSync(path.join(dossier(accueil), d), { recursive: true, force: true });
       return { commit, source: src, nouvelle, precedent: precedent === commit ? null : precedent, supprimees, points: pointsDEntree() };
     },
