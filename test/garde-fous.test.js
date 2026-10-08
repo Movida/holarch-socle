@@ -11,6 +11,7 @@ import { etatDepot } from '../src/inventaire/depots-git.js';
 import { Journal } from '../src/stockage/journal.js';
 import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
+import { executer } from '../src/controles.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -105,4 +106,14 @@ test('E2 : un rules.yaml illisible ne fait pas passer la garde, n’efface rien 
   assert.ok(fs.existsSync(path.join(d, '.git', 'hooks', 'pre-commit')), 'le crochet reste');
   const a = s.audit({ projet: 'depot' });
   assert.deepEqual(a.cibles.find((c) => c.projet === 'holarch:project:depot').ecarts.map((e) => e.controle), ['regles-lisibles'], 'un seul écart, sans faux retraits');
+});
+
+test('E3 : le contrôle des secrets ne se dit pas fait quand git ne peut pas lire le dépôt', () => {
+  const faux = path.join(tmp(), 'gitleaks'); fs.writeFileSync(faux, '#!/bin/sh\nprintf "[]"\n', { mode: 0o755 });
+  const pasUnDepot = tmp(); // dossier présent, sans dépôt git (déplacé, .git retiré)
+  assert.match(executer('secrets', { depot: pasUnDepot, gitleaks: faux }, 'audit').indisponible || '', /git/, 'un dossier sans dépôt n’est pas « rien trouvé »');
+  const casse = tmp(); spawnSync('git', ['init', '-q', casse]); fs.writeFileSync(path.join(casse, '.git', 'HEAD'), 'n’importe quoi\n');
+  assert.ok(executer('secrets', { depot: casse, gitleaks: faux }, 'audit').indisponible, 'un dépôt illisible n’est pas « rien trouvé »');
+  const neuf = tmp(); spawnSync('git', ['init', '-q', neuf]);
+  assert.deepEqual(executer('secrets', { depot: neuf, gitleaks: faux }, 'audit'), { ecarts: [] }, 'un dépôt sans commit : rien à lire, fait');
 });

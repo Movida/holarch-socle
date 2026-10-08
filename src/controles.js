@@ -106,7 +106,10 @@ function secrets(ctx, moment) {
   let r; let base = '';
   if (moment === 'avant-commit') r = gitleaks(ctx.gitleaks, ['git', '--pre-commit', '--staged', ctx.depot]);
   else {
-    // Le contenu suivi au dernier commit, exporté : ni les fichiers ignorés, ni l'historique.
+    // Le contenu suivi au dernier commit, exporté : ni les fichiers ignorés, ni l'historique. Un dépôt que git ne lit
+    // pas (dossier sans dépôt, dépôt abîmé, git absent) n'est pas contrôlé ; seul un dépôt sans commit n'a rien à lire.
+    const depot = git(ctx.depot, ['rev-parse', '--git-dir']);
+    if (depot.status !== 0) return { indisponible: `dépôt illisible par git : ${(depot.stderr || depot.error?.message || `code ${depot.status}`).trim().split('\n')[0]}` };
     if (git(ctx.depot, ['rev-parse', '--verify', '-q', 'HEAD']).status !== 0) return { ecarts: [] };
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-secrets-'));
     try {
