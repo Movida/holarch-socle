@@ -11,7 +11,8 @@
   de l'essai, rouverte ensuite au terminal (`claude --resume`) ; rien de perdu, poste vérifié (87 tests verts,
   services actifs, interface servie, copie posée). Refait dans un dossier jetable (`~/essai-rc`) : Q15 résolue (oui :
   « Nouvelle session » fait choisir le dossier ; rien à changer au service, `--continue` suffit) ; Q22 en partie :
-  arrêté par Ctrl+C, le serveur se désinscrit et se relance aussitôt, reste l'arrêt par SIGTERM.
+  arrêté par Ctrl+C, le serveur se désinscrit et se relance aussitôt, reste l'arrêt par SIGTERM. Claude Desktop montre
+  les sessions distantes rangées par dossier : idée I33 (vue Projets recentrée sur ce qu'il ne donne pas).
   Leçon de clôture : déroulé annoncé (arrêter, lancer à la main, regarder sur le téléphone, relancer) ; ce qui a fait
   dévier : une question de mode imprévue, l'inscription gardée par claude.ai, et un essai monté sur le service qui
   servait la conversation en cours. La demande qui y aurait mené : « fais l'essai sans toucher au service du projet ».

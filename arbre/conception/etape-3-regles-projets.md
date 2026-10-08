@@ -495,7 +495,8 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
 - **Fait (2026-10-05)** : sessions vides dans l'application : chaque démarrage d'un serveur Remote Control en crée une
   d'avance. Le service d'un projet reprend désormais la dernière session du dossier (`--continue`), et n'en crée une
   qu'à défaut (essayé : options acceptées, échec propre sans session récente ; ligne vérifiée sous systemd) ; `PATH` du
-  service entre guillemets. Option plus radicale, `--no-create-session-in-dir` : Q15.
+  service entre guillemets. Option plus radicale, `--no-create-session-in-dir` : Q15, résolue le 2026-10-08 (joignable, rien à changer :
+  `--continue` rattache en plus la dernière conversation après une relance).
 - **Fait (2026-10-05)** : décision `rattachement-projet` (approuvée) appliquée : module `projets` partagé ; lien
   `project` sur les fiches (éléments Claude Code d'un dépôt, mémoires, nœuds de l'arbre, conteneurs et volumes ; contrat
   fiche 0.4.0) ; `data.projets` remplace `data.depots` avant tout import réel (contrat événement 0.7.0) ; une seule
