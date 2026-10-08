@@ -61,6 +61,8 @@ export function trouverOutil(nom, reglage = null) {
  * ~/.local/bin. Le réglage compte pour les services, dont le PATH réduit ne voit pas toujours le binaire.
  */
 export const binaireClaude = (config) => trouverOutil('claude', config?.acces_distant?.claude || null);
+/** Ce que dit tout appelant quand `binaireClaude` ne trouve rien. */
+export const CLAUDE_INTROUVABLE = 'claude introuvable dans le PATH ni ~/.local/bin (acces_distant.claude pour le préciser)';
 
 /**
  * Ce que la configuration propre d'un dépôt (portées `local` et `worktree`, inclusions comprises) pourrait faire

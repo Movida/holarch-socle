@@ -272,3 +272,8 @@ test('Contre-épreuve (7) : un profil illisible fait un écart au compte, pas un
   assert.ok(a.cibles[1].controles.some((c) => c.id === 'regles-a-jour' && c.etat === 'indisponible'), 'les règles du projet restent incomplètes');
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles'], 'la garde du projet refuse toujours');
 });
+
+test('claude introuvable : la récolte et l’accès distant disent la même chose, réglage compris', async () => {
+  const { regroupeurClaude } = await import('../src/recolte.js');
+  assert.throws(() => regroupeurClaude({ claude: null })('texte'), /acces_distant\.claude pour le préciser/);
+});
