@@ -1038,6 +1038,16 @@ test('création de projet : une déclaration refusée par le profil le laisse co
   assert.equal(etats(await creerProjet(s, { nom: 'neuf', types: ['methode'] })).declaration, 'faite');
 }));
 
+test('création de projet : des règles illisibles mettent l’étape en échec sans interrompre la commande', () => gitIsole(async () => {
+  const { r, s, etats, toucher } = await bancCreation();
+  const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  assert.equal(etats(await creer()).regles, 'faite');
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: [ouverte\n'); toucher(path.join(d, 'arbre', 'rules.yaml'));
+  const p = await creer();
+  assert.equal(etats(p).regles, 'echec', JSON.stringify(p.etapes, null, 1));
+  assert.match(p.etapes.find((e) => e.etape === 'regles').detail, /règles illisibles, rien n'est écrit : .*rules\.yaml illisible/);
+}));
+
 test('création de projet : une licence sans modèle arrête tout avant de créer quoi que ce soit (T3)', () => gitIsole(async () => {
   for (const licence of ['INCONNUE', '../MIT']) {
     const { r, s, etats } = await bancCreation({ creation: { licence } });

@@ -181,6 +181,8 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   if (!aBlanc && await socle.arbreAJour()) socle.indexer();
   const re = socle.regles({ projet: projet.id });
   if (!re.declare) noter('regles', aBlanc ? 'a-faire' : 'echec', aBlanc ? 'après la déclaration' : 'projet toujours non déclaré après l’inventaire');
+  // Règles illisibles : rien ne s'écrit (materialisation) ; l'étape le dit et la suite attend un rejeu.
+  else if (re.illisibles.length) { noter('regles', 'echec', `règles illisibles, rien n'est écrit : ${re.illisibles.join(' ; ')}`); return r; }
   else {
     const m = materialiserProjet(re, dossier, { accueil: socle.config.accueil, ecrire: !aBlanc });
     const changes = m.fichiers.crees.length + m.fichiers.modifies.length + m.fichiers.retires.length;
