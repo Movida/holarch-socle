@@ -6,7 +6,7 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface } from '../src/distant.js';
-import { materialiserCompte, materialiserProjet } from '../src/materialisation.js';
+import { appliquerRegles } from '../src/materialisation.js';
 import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
 import { creerProjet } from '../src/creation.js';
@@ -123,10 +123,7 @@ switch (cmd) {
     const s = socle(); await s.arbreAJour(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
     try {
       if (action === 'appliquer') {
-        // Toutes les références d'abord : rien ne s'écrit si l'une d'elles est fausse. Puis le compte, puis les projets.
-        const effectives = refs.map((ref) => { const r = s.regles({ projet: ref }); if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`); return r; });
-        const comptes = materialiserCompte(s.regles().compte, comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {}), { accueil: s.config.accueil });
-        const projets = effectives.map((r) => ({ nom: r.nom, m: materialiserProjet(r, r.chemin, { accueil: s.config.accueil }) }));
+        const { comptes, projets } = appliquerRegles(s, refs, comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {}));
         const texte = affichage.appliquer({ comptes, projets });
         afficher(json ? texte.split('\n') : texte);
         // Un settings.json illisible n'est jamais réécrit, et la commande échoue (comme avant la consolidation).

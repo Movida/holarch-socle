@@ -17,6 +17,20 @@ function lisible(r) {
 }
 
 /**
+ * `holarch regles appliquer` : tout est lu et vérifié d'abord (références des projets, lisibilité du compte et de chaque
+ * projet), puis le compte, puis les projets. Rien ne s'écrit si l'un d'eux est faux ou illisible : sans quoi le compte
+ * serait déjà réécrit quand l'erreur d'un projet arrête la commande.
+ */
+export function appliquerRegles(s, refs, comptes) {
+  const effectives = refs.map((ref) => { const r = s.regles({ projet: ref }); if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`); return r; });
+  const compte = s.regles().compte;
+  const illisibles = [...new Set([compte, ...effectives].flatMap((r) => r.illisibles || []))];
+  if (illisibles.length) throw new Error(`règles illisibles, rien n'est écrit : ${illisibles.join(' ; ')}`);
+  return { comptes: materialiserCompte(compte, comptes, { accueil: s.config.accueil }),
+    projets: effectives.map((r) => ({ nom: r.nom, m: materialiserProjet(r, r.chemin, { accueil: s.config.accueil }) })) };
+}
+
+/**
  * Compte : pour chaque compte Claude Code du site, les fichiers de règles (`<compte>/rules/holarch/`), les lectures
  * refusées et les réglages de Claude Code (section `claude_code` de la configuration du compte), dans
  * `<compte>/settings.json`. Un `settings.json` illisible n'est jamais réécrit : `permissions.erreur` et `reglages.erreur`

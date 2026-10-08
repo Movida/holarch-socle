@@ -179,3 +179,25 @@ test('E2 : un en-tête illisible dans l’arbre du profil ne fait pas passer la 
   assert.deepEqual(refus.map((x) => x.regle), ['regles-lisibles'], 'la garde ne dit pas conforme ce qu’elle ne peut pas lire');
   assert.match(refus[0].ecarts[0].message, /perso\.md : en-tête illisible/);
 });
+
+test('Contre-épreuve (4) : regles appliquer n’écrit pas le compte quand un projet demandé a des règles illisibles', async () => {
+  const { Socle } = await import('../src/socle.js');
+  const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
+  const { appliquerRegles } = await import('../src/materialisation.js');
+  const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const home = tmp(); const d = path.join(r, 'depot');
+  spawnSync('git', ['init', '-q', d]);
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: francais\n  statement: Répondre en français.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: [ouverte\n');
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+    { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
+  assert.throws(() => appliquerRegles(s, ['depot'], [{ nom: 'essai', home }]), /règles illisibles, rien n'est écrit : depot:\/arbre\/index\.md/);
+  assert.deepEqual(fs.readdirSync(home), [], 'le compte n’est pas réécrit');
+  // Sans le projet illisible, le compte s'écrit.
+  const ok = appliquerRegles(s, [], [{ nom: 'essai', home }]);
+  assert.deepEqual(ok.comptes[0].fichiers.crees, ['francais.md']);
+});
