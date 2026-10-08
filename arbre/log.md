@@ -2,6 +2,13 @@
 
 ## 2026-10-08
 
+* **Revue page blanche (B4)** (demande de l'auteur : couvrir tout le code, prendre de la hauteur) : passe par famille
+  sur tout `src/` (N, C, R, M à l'avancement, seconde vague en cours) et revue de hauteur par un sous-agent neuf. Aucune
+  étape close sur son critère, l'outil sert surtout à se construire, P2 peu appliqué à ce qui écrit chez les autres.
+  Décision `revue-page-blanche` approuvée : critère de l'étape 3 tenu, module pour l'UX/UI du projet privé le plus
+  coûteux en premier (après un état des lieux P2), puis corrections avec contre-épreuve par tranche. Idée I31 (parcours
+  de l'arbre dans les deux sens, idée de l'auteur).
+
 * **Idée I30, banc par modèle** (idée de l'auteur) : rejouer les cas de référence avec et sans chaque règle à chaque
   nouveau modèle, pour retirer ce qui est devenu natif ; retenue pour l'étape 4, rien construit.
 

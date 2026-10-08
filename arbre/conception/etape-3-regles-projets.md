@@ -832,12 +832,28 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
     main ; M3 `service poser` repointe un serveur MCP `holarch` réglé ailleurs ; M4 unités modifiées à la main
     réécrites ; M5 identité git retirée à la main reposée ; M6 `ecrireJson` remplace un lien et perd les droits.
     Contrôle : tout écrivain d'un fichier partagé avec l'auteur nomme son test du geste à la main.
+  - **V, deux vues, deux chiffres** (seconde vague) : V1 les projets retirés du catalogue sortent de la vue Projets
+    (245,51 $ et 21 sessions sur 307 comptés nulle part en 30 jours ; identifiant brut au tableau de bord) ; V2 état du
+    dépôt de l'heure dans l'interface et le MCP, en direct dans la reprise (2 contre 3 non poussés constaté) ; V3 « Tours »
+    = session seule ou sous-agents compris selon la colonne et le MCP (88 sessions sur 307) ; V4 « écarts ouverts » de
+    l'audit courant contre ceux du journal (contrôle indisponible jamais résolu, contenu figé à la première détection) ;
+    V5 coût d'un projet en part datée sur la carte, en coût entier sur 90 j dans sa liste ; V6 histogramme par jour UTC
+    contre sessions par jour de fin ; V7 deux « seuils de passation » pour deux mesures ; V8 reprise tronquée sans le
+    dire (3 restes sur 7) ; V9 chiffres en infobulle, inaccessibles au toucher. Contrôle : bouclage de la vue Projets
+    sur le total du tableau de bord (rouge aujourd'hui sur V1). Choix à l'auteur : où ranger un projet retiré, quelle
+    notion de tour, état du dépôt en direct ou daté.
 - **Fait (2026-10-08)** : revue page blanche (B4), décision brouillon `revue-page-blanche` : choix A à D à l'auteur
   (critère de l'étape 3, projet privé le plus coûteux, état des lieux P2, contre-épreuve par tranche). Idée I31 (parcourir l'arbre dans
   les deux sens).
 - **Reste** :
   1. **Détail laissé** : le message de `regroupeurClaude` (`src/recolte.js`) ne cite pas le réglage
      `acces_distant.claude`.
+  0. **Ordre retenu par l'auteur (décision `revue-page-blanche`, 2026-10-08)** : d'abord B avec C. Le projet privé le
+     plus coûteux reçoit son arbre minimal et un module pour le travail d'UX/UI que l'auteur va y mener, **avant ses
+     essais**. On commence par un état des lieux P2 de l'existant (skills d'interface, test visuel, connecteurs de
+     maquettes), puis on propose le type et les règles, sur l'accord de l'auteur. Ensuite, les corrections de la passe par
+     famille (2), avec contre-épreuve par un sous-agent neuf avant de rendre (D). Critère de l'étape tenu (A) : redites
+     comptées par les récoltes jusqu'au 2026-11-07 environ, plus un vrai projet créé par la commande.
   2. **Passe par famille** : choisir les corrections (N, C, R, M et la seconde vague) et leurs contrôles ; trancher A à D
      de la décision `revue-page-blanche` d'abord, ils changent l'ordre et la méthode.
   3. **Tranche 7, critère** : mesurer le contexte moyen par tour à une semaine (2026-10-14) contre la référence.

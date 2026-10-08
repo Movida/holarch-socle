@@ -2,7 +2,8 @@
 type: decision
 title: Revue page blanche du 2026-10-08 — ce que le projet construit au regard de ses attendus
 description: Première revue de hauteur (B4), lancée à la main par un sous-agent neuf, sur demande de l'auteur. Aucune étape close sur son critère d'usage, l'outil sert surtout à se construire, P2 peu appliqué à ce qui écrit chez les autres, une méthode qui produit plus vite qu'elle ne vérifie. Quatre choix à l'auteur (A à D).
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-08, ref: "échange du 2026-10-08 : « Tout ce que tu proposes me va » ; A lu comme l'option recommandée par la revue (tenir le critère)" }
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-03-fondation.md]
@@ -66,3 +67,11 @@ plus de trois correctifs du même mécanisme en 48 h (`git log`) ; le projet qui
 celui où l'on travaille. Forme minimale proposée : une règle brouillon au type `methode-holarch` (« à une clôture
 d'étape, à l'ouverture d'une 5ᵉ tranche ou devant un correctif du même mécanisme dans les 48 h, proposer une revue
 page blanche par un sous-agent neuf ; consigner sa décision dans `arbre/decisions/` »), à écrire si l'auteur la retient.
+
+## Décision (2026-10-08)
+
+L'auteur retient les quatre choix : A, tenir le critère de l'étape 3 (pas d'abrogation de la règle n° 7) ; B, en
+premier, et orienté par son prochain travail : il prévoit d'améliorer l'UX et l'UI du projet privé le plus coûteux et veut
+que HOLARCH y apporte le module adapté **avant** ses essais ; C, l'état des lieux P2 précède ce module (outillage d'interface
+existant : skills, tests visuels Playwright, connecteurs de maquettes) ; D, finir la passe par famille et la corriger,
+puis contre-épreuve par tranche et cérémonie allégée. La règle de retour de la revue (B4) reste à écrire en brouillon.
