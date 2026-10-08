@@ -4,15 +4,24 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { git as gitCommun } from '../commun.js';
 
-/** En-tête YAML d'un fichier Markdown (`---` … `---`), ou {} ; ne lève jamais. */
-export function enTete(fichier) {
+/**
+ * En-tête YAML d'un fichier Markdown (`---` … `---`) : { entete, erreur }. Sans en-tête, `entete` est {} et `erreur`
+ * null ; un en-tête présent mais illisible (YAML invalide, autre chose qu'un objet) le dit dans `erreur`. Ne lève jamais.
+ */
+export function lireEnTete(fichier) {
+  let t;
+  try { t = fs.readFileSync(fichier, 'utf8'); } catch (e) { return { entete: {}, erreur: `fichier illisible : ${e.code || e.message}` }; }
+  const m = t.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return { entete: {}, erreur: null };
   try {
-    const t = fs.readFileSync(fichier, 'utf8');
-    const m = t.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!m) return {};
-    return YAML.parse(m[1]) || {};
-  } catch { return {}; }
+    const h = YAML.parse(m[1]);
+    if (h == null) return { entete: {}, erreur: null };
+    return typeof h === 'object' && !Array.isArray(h) ? { entete: h, erreur: null } : { entete: {}, erreur: 'en-tête illisible : un objet est attendu' };
+  } catch (e) { return { entete: {}, erreur: `en-tête illisible : ${e.message.split('\n')[0]}` }; }
 }
+
+/** En-tête YAML d'un fichier Markdown, ou {} (absent ou illisible). */
+export const enTete = (fichier) => lireEnTete(fichier).entete;
 
 export const slug = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9/._-]+/g, '-').replace(/^-+|-+$/g, '');
 
