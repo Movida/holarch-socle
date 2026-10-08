@@ -2,6 +2,9 @@
 
 ## 2026-10-08
 
+* **Q21 résolue** : deux veilles du poste vues par le minuteur `holarch-reveil` et suivies d'un redémarrage ; projet
+  joignable ensuite depuis l'application (constaté par l'auteur).
+
 * **Catalogue relu quand l'arbre change (I28)** (choix de l'auteur) : `holarch regles`, `audit`, `recolte` et la reprise
   refont l'inventaire avant de lire quand un fichier d'un arbre connu est plus récent que le catalogue (comparaison
   des dates seules, inventaire sans audit ni import) : 0,62 s au lieu de 0,31 s quand il a changé ; 1 test qui

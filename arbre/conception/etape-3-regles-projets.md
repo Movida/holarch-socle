@@ -696,7 +696,8 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   règle `Restart=` n'y peut rien (rien ne s'arrête) et WSL ne voit pas la veille. Un minuteur marqué
   (`holarch-reveil.timer`, chaque minute, posé avec le premier accès distant et retiré avec le dernier) lance
   `holarch distant reveil` : un écart de plus de cinq minutes depuis son passage précédent redémarre les accès
-  distants actifs. 1 test. [À COMPLÉTER : essai sur le poste après une vraie mise en veille] (Q21)
+  distants actifs. 1 test. Essai réel le 2026-10-08 : deux veilles (7,4 h et 5,8 h) vues et suivies d'un redémarrage,
+  projet joignable ensuite depuis l'application (constaté par l'auteur) ; Q21 résolue.
 - **Ouverture de la tranche 11 (2026-10-07)** : récolte, choix de l'auteur ; méthode sur mesure (lexical : aucune
   redite trouvée), détecteur en deux temps approuvé (extraction déterministe, regroupement par `claude -p`).
 - **Fait (2026-10-07)** : tranche 11, point 1. `src/recolte.js` et `holarch recolte [--jours] [--jusqua] [--modele]
