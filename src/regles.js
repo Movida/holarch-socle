@@ -78,6 +78,9 @@ export function fusionnerConfig(...couches) {
 }
 
 const applicable = (e) => e.statut === 'stable' && !e.derogee;
+// Sources de règles illisibles parmi les couches (un `rules.yaml` en cours d'édition, un conflit de fusion) : la règle
+// effective est alors incomplète. Ce qui en décide (garde, matérialisation, audit) ne la dit pas conforme pour autant.
+const illisibles = (noeuds) => [...new Set(noeuds.filter((n) => n?.attributes?.erreur_regles).map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_regles}`))];
 /** Ce qui attend une approbation : une règle en brouillon, ou le brouillon posé sur une règle approuvée de même id. */
 export const aApprouver = (e) => (e.statut === 'draft' || Boolean(e.proposee)) && !e.derogee;
 const longueur = (e) => e.enonce.length + (e.pourquoi?.length || 0);
@@ -114,10 +117,10 @@ export function regleEffective(fiches, projetId) {
     if (e.derogeable === false) { signaux.push(`dérogation refusée : ${e.id} n’est pas dérogeable`); continue; }
     e.derogee = { pourquoi: d.why ?? null, par: d.by ?? null, le: d.at ?? null };
   }
-  for (const n of [racine, ...couches.map((c) => c.noeud)].filter(Boolean)) if (n.attributes?.erreur_regles) signaux.push(`${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_regles}`);
+  const lisibles = illisibles([racine, ...couches.map((c) => c.noeud)]); signaux.push(...lisibles);
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
   return { projet: projetId, declare: Boolean(declarants[0]), arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
-    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux: [...new Set(signaux)], rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
+    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /**
@@ -126,14 +129,15 @@ export function regleEffective(fiches, projetId) {
  */
 export function regleDuCompte(fiches) {
   const a = arbresDe(fiches); const signaux = [];
-  if (!a.profils.length) return { regles: [], signaux: ['aucun profil connu sur ce site (un arbre qui porte des nœuds context)'], rappels: 0, rappels_proposes: 0 };
-  if (a.profils.length > 1) return { regles: [], signaux: [`plusieurs profils sur ce site : ${a.profils.map((p) => p.attributes.arbre).join(', ')} ; rien n’est posé au compte`], rappels: 0, rappels_proposes: 0 };
+  if (!a.profils.length) return { regles: [], signaux: ['aucun profil connu sur ce site (un arbre qui porte des nœuds context)'], illisibles: [], rappels: 0, rappels_proposes: 0 };
+  if (a.profils.length > 1) return { regles: [], signaux: [`plusieurs profils sur ce site : ${a.profils.map((p) => p.attributes.arbre).join(', ')} ; rien n’est posé au compte`], illisibles: [], rappels: 0, rappels_proposes: 0 };
   const ctx = a.contextes.filter((n) => n.attributes.arbre === a.profils[0].attributes.arbre);
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profils[0], regles: a.regles.get(a.profils[0].id) || [] }];
   const regles = fusionner(couches, signaux);
   const config = fusionnerConfig(...couches.map((c) => c.noeud.attributes?.config));
-  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
+  const lisibles = illisibles(couches.map((c) => c.noeud)); signaux.push(...lisibles);
+  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /**

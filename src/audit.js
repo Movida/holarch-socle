@@ -59,6 +59,8 @@ export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journ
   const fiche = projets.find((x) => x.id === p.id);
   // L'arbre relu s'il a changé : une exception ajoutée vaut au commit suivant, pas une heure plus tard.
   const r = regleEffective(s.arbreFrais(), p.id);
+  // Règles illisibles : une règle bloquante peut manquer ; le commit est refusé plutôt que dit conforme.
+  if (r.illisibles.length) return { projet: p.id, refus: [{ regle: 'regles-lisibles', enonce: 'les règles du projet ne se lisent pas toutes : la garde ne peut pas dire ce commit conforme', ecarts: r.illisibles.map((message) => ({ message })) }], indisponibles: [] };
   const { ecarts, controles } = controler(r, contexteControle(s, fiche, r, path.resolve(depot)), moment, ['blocking']);
   const refus = new Map();
   for (const x of ecarts) { if (!refus.has(x.regle_id)) refus.set(x.regle_id, { regle: x.regle_id, enonce: x.enonce, ecarts: [] }); refus.get(x.regle_id).ecarts.push(x); }
@@ -90,6 +92,10 @@ export function ecartsOuverts(s) {
 // ---------- écarts de matérialisation (lue à blanc) ----------
 
 const regleNommee = (regles, nom) => regles.find((e) => e.id === nom)?.fiche || nom;
+
+// Une source de règles illisible est un écart (durable au journal jusqu'à sa correction) ; la matérialisation, lue à
+// blanc sur une règle incomplète, donnerait de faux retraits : elle n'est pas comparée tant que dure l'écart.
+const ecartsIllisibles = (r) => r.illisibles.map((message) => ({ regle: 'regles-lisibles', regle_id: 'regles-lisibles', controle: 'regles-lisibles', cle: message.split(' : ')[0], message }));
 
 function ecartsFichiers(regles, m, prefixe) {
   const regleDe = new Map(m.plan.fichiers.map((x) => [x.fichier, x.regle]));
@@ -133,9 +139,11 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
 
   // Compte : ce qui vaut pour tous les projets du site.
   const compte = regleDuCompte(fiches);
-  if (compte.regles.length) {
-    const rc = { projet: null, nom: 'compte', ecarts: [], controles: [] };
-    for (const m of materialiserCompte(compte, comptesDe(s), { accueil: s.config.accueil || accueil(), ecrire: false })) {
+  if (compte.regles.length || compte.illisibles.length) {
+    const rc = { projet: null, nom: 'compte', ecarts: ecartsIllisibles(compte), controles: [] };
+    faits.add('|regles-lisibles');
+    if (compte.illisibles.length) rc.controles.push(...['regles-a-jour', 'permissions-posees', 'reglages-poses'].map((id) => ({ id, etat: 'indisponible', raison: 'règles illisibles' })));
+    else for (const m of materialiserCompte(compte, comptesDe(s), { accueil: s.config.accueil || accueil(), ecrire: false })) {
       rc.ecarts.push(...ecartsFichiers(compte.regles, m, 'rules/holarch'));
       if (m.permissions.erreur) rc.controles.push({ id: 'permissions-posees', etat: 'indisponible', raison: m.permissions.erreur });
       else rc.ecarts.push(...ecartsPermissions(m));
@@ -158,8 +166,10 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const r = regleEffective(fiches, id);
     const { ecarts, controles } = controler(r, contexteControle(s, p, r), 'audit', ['blocking', 'verified']);
     for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
-    const rp = { projet: id, nom: p.name, ecarts, controles };
-    if (p.location && fs.existsSync(p.location)) {
+    const rp = { projet: id, nom: p.name, ecarts: [...ecartsIllisibles(r), ...ecarts], controles };
+    faits.add(`${id}|regles-lisibles`);
+    if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
+    else if (p.location && fs.existsSync(p.location)) {
       const m = materialiserProjet(r, p.location, { accueil: s.config.accueil || accueil(), ecrire: false });
       rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch'), ...ecartsCrochet(m.crochet));
       faits.add(`${id}|regles-a-jour`); faits.add(`${id}|crochet-pose`);

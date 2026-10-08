@@ -10,6 +10,12 @@ import { binaireService } from './service.js';
 // La ligne de commande qu'appellent le crochet de git et ceux de Claude Code : la copie de service posée dans l'accueil
 // de la configuration (`binaireService`), sinon le code qui s'exécute.
 
+// Une règle effective incomplète (source de règles illisible) ne s'écrit pas : elle retirerait les fichiers, le crochet
+// et les lectures refusées des règles qu'elle ne voit plus. Ce qui est posé reste tel quel jusqu'à la correction.
+function lisible(r) {
+  if (r.illisibles?.length) throw new Error(`règles illisibles, rien n'est écrit : ${r.illisibles.join(' ; ')}`);
+}
+
 /**
  * Compte : pour chaque compte Claude Code du site, les fichiers de règles (`<compte>/rules/holarch/`), les lectures
  * refusées et les réglages de Claude Code (section `claude_code` de la configuration du compte), dans
@@ -17,6 +23,7 @@ import { binaireService } from './service.js';
  * le disent. `compte` : la règle effective du compte (module regles : `regles`, `config`).
  */
 export function materialiserCompte(compte, comptes, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
+  if (ecrire) lisible(compte);
   const regles = compte.regles;
   const plan = planifier(regles, { portee: 'compte' });
   const lectures = regles.filter((e) => e.applicable).flatMap((e) => lecturesRefusees(e).map((entree) => ({ entree, regle: e })));
@@ -34,6 +41,7 @@ export function materialiserCompte(compte, comptes, { accueil, holarch = binaire
  * l'identité de commit que déclare sa configuration, s'il est déclaré par un contexte (décision identite-par-contexte).
  */
 export function materialiserProjet(r, chemin, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
+  if (ecrire) lisible(r);
   const plan = planifier(r.regles, { portee: 'projet', classificationDepot: r.arbre?.classification });
   const demande = r.regles.find((e) => e.applicable && avantCommit(e)) || null;
   return { plan, fichiers: appliquer(dossierProjet(chemin), plan, { ecrire }),
