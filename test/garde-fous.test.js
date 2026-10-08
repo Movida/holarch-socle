@@ -97,6 +97,19 @@ test('E1 : une reconstruction de l’index en échec annule sa transaction et ne
   autre.close();
 });
 
+test('Contre-épreuve (8) : un échec du schéma de l’index annule aussi la transaction', () => {
+  const donnees = tmp(); const index = new Index(donnees);
+  index.reconstruire({ evenements: [evenement(1)], fiches: [], tarifs: {} });
+  // Un index du même nom sur une autre table : le CREATE INDEX de la reconstruction échoue, après les DROP.
+  index.db.exec('CREATE TABLE autre (x); CREATE INDEX ev_corr_autre ON autre(x); DROP INDEX ev_corr; CREATE INDEX ev_corr ON autre(x)');
+  assert.throws(() => index.reconstruire({ evenements: [evenement(2)], fiches: [], tarifs: {} }), /ev_corr already exists/);
+  const autre = new DatabaseSync(path.join(donnees, 'index.sqlite'));
+  autre.exec('PRAGMA busy_timeout = 0');
+  autre.exec('BEGIN IMMEDIATE'); autre.exec('ROLLBACK'); // verrou libre : sinon « database is locked »
+  assert.equal(autre.prepare('SELECT count(*) AS n FROM evenements').get().n, 1, 'les tables d’avant ne sont pas retirées');
+  autre.close();
+});
+
 test('E2 : un rules.yaml illisible ne fait pas passer la garde, n’efface rien de ce qui est posé, et se voit à l’audit', async () => {
   const { Socle } = await import('../src/socle.js');
   const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
