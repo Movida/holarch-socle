@@ -18,7 +18,7 @@ import { ulid } from './ulid.js';
 import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
 import { racineIndex } from './creation.js';
 import inventaireArbre, { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
-import { trouverOutil } from './commun.js';
+import { trouverOutil, binaireClaude } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
 function parts(projets) {
@@ -397,7 +397,7 @@ export class Socle {
     const o = this.config.import?.['claude-code-transcriptions'] || {};
     const reglages = this.config.controles || {};
     const r = recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.fiches({ kind: 'project' })), regles,
-      gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: trouverOutil('claude'), modele, budget }),
+      gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: binaireClaude(this.config), modele, budget }),
       depuis, jusqua, seuil, aBlanc });
     if (!proposer || !r.redites) return r;
     return { ...r, propositions: this.proposerRegles(r.redites) };

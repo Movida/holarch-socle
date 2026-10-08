@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { creerDistant, creerInterface, creerReveil, declarerConfiance, nomDe } from '../src/distant.js';
+import { binaireClaude } from '../src/commun.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -1094,6 +1095,24 @@ test('récolte : messages de l’auteur et mémoires de retour, sans injections,
   envoye = null;
   assert.equal(recolter({ ...o, aBlanc: true }).a_blanc, true); assert.equal(envoye, null, 'à blanc : rien n’est envoyé');
   assert.match(recolter({ ...o, gitleaksBin: null }).indisponible, /gitleaks absent/); assert.equal(envoye, null, 'sans gitleaks : rien n’est envoyé');
+});
+
+test('claude : le chemin réglé (acces_distant.claude) sert aussi à la récolte, au PATH réduit d’un service', () => {
+  const avant = { HOME: process.env.HOME, PATH: process.env.PATH };
+  // Aucun vrai claude atteignable : HOME et PATH d'essai (défaut A8).
+  process.env.HOME = tmp(); process.env.PATH = '/usr/bin:/bin';
+  try {
+    const appele = path.join(tmp(), 'appele'); const faux = path.join(tmp(), 'claude-ailleurs');
+    ecrire(faux, `#!/bin/sh\ncat > /dev/null\ntouch "${appele}"\necho '{"structured_output":{"groupes":[]},"total_cost_usd":0}'\n`); fs.chmodSync(faux, 0o755);
+    const gitleaks = path.join(tmp(), 'gitleaks'); ecrire(gitleaks, '#!/bin/sh\necho "[]"\n'); fs.chmodSync(gitleaks, 0o755);
+    assert.deepEqual([binaireClaude({ acces_distant: { claude: faux } }), binaireClaude({}), binaireClaude({ acces_distant: { claude: '/absent/claude' } })], [faux, null, null]);
+    const cc = tmp();
+    ecrire(path.join(cc, 'projects', 'p', 'A.jsonl'), JSON.stringify({ type: 'user', uuid: '1', sessionId: 'A', timestamp: new Date().toISOString(), cwd: '/x', message: { role: 'user', content: 'Vérifie toujours les tests avant de rendre la main, sans exception.' } }));
+    const s = new Socle({ site: 'local', donnees: tmp(), web: {}, inventaire: {}, import: { 'claude-code-transcriptions': { home: cc } }, controles: { gitleaks }, acces_distant: { claude: faux } });
+    s.indexer();
+    const r = s.recolte({ depuis: new Date(Date.now() - 864e5).toISOString() });
+    assert.ok(fs.existsSync(appele), `le claude réglé est celui que lance la récolte : ${JSON.stringify(r).slice(0, 300)}`);
+  } finally { for (const [k, v] of Object.entries(avant)) process.env[k] = v; }
 });
 
 test('récolte : une redite nouvelle devient une règle brouillon au nœud commun de ses sources ; contradictions à trancher', () => {

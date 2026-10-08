@@ -9,7 +9,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { Catalogue } from './stockage/catalogue.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
-import { shell, systemd, fichierMarque, lireJson, ecrireJson, trouverOutil, configClaude } from './commun.js';
+import { shell, systemd, fichierMarque, lireJson, ecrireJson, binaireClaude, configClaude } from './commun.js';
 import { accueil as accueilParDefaut } from './config.js';
 import { binaireService } from './service.js';
 
@@ -137,7 +137,7 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
 
 export function creerDistant(config, {
   unites = UNITES, systemctl = SYSTEMCTL,
-  claude = config.acces_distant?.claude || null,
+  claude = null,
   projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
   accueil = config.accueil || accueilParDefaut(), holarch = binaireService(accueil), node = process.execPath, maintenant = Date.now,
 } = {}) {
@@ -176,7 +176,7 @@ export function creerDistant(config, {
       const p = resoudre(ref); const chemin = p.location;
       if (!fs.existsSync(chemin)) throw new Error(`dossier absent : ${chemin}`);
       // Le chemin trouvé, pas sa cible : un lien (~/.local/bin/claude) survit aux mises à jour de Claude Code.
-      const binaire = claude || trouverOutil('claude');
+      const binaire = claude || binaireClaude(config);
       if (!binaire) throw new Error('claude introuvable dans le PATH (acces_distant.claude pour le préciser)');
       const nom = nomDe(chemin); const f = fichierUnite(nom);
       if (fs.existsSync(f) && !sv.geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);

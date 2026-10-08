@@ -56,6 +56,12 @@ export function trouverOutil(nom, reglage = null) {
   return dossiers.map((d) => path.join(d, nom)).find(executable) || null;
 }
 
+/**
+ * Le binaire de Claude Code, une seule façon de le chercher : `acces_distant.claude` s'il est réglé, sinon le PATH et
+ * ~/.local/bin. Le réglage compte pour les services, dont le PATH réduit ne voit pas toujours le binaire.
+ */
+export const binaireClaude = (config) => trouverOutil('claude', config?.acces_distant?.claude || null);
+
 /** git dans un dépôt : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges. */
 export const git = (depot, args, o = {}) => spawnSync('git', ['-C', depot, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 60e3, ...o });
 
