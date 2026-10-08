@@ -2,6 +2,10 @@
 
 ## 2026-10-08
 
+* **Forme des réponses (I11)** (idée de l'auteur, élargie) : réglages de sortie déclarés au profil, écrits en style de
+  sortie de Claude Code ; une seule redite de forme en 30 jours (choix cliquables). Rien construit : l'auteur attend la
+  récolte du 2026-10-12. Envoi du socle et du second projet (accord de l'auteur).
+
 * **Défaut à l'usage (I3)** (choix de l'auteur) : sur 7 défauts consignés depuis l'étape 2, tous de code et presque
   tous corrigés avec un test, un seul revenu : le `PATH` réduit d'un service, quatre fois avant sa mise en commun. Pas
   de mécanisme ; règle `defaut-a-l-usage` proposée au type `methode-holarch` (test qui reproduit le défaut, règle ou
