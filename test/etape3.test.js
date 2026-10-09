@@ -10,7 +10,7 @@ import { binaireClaude } from '../src/commun.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
-function banc({ mode = 'auto' } = {}) {
+function banc({ mode = 'auto', session } = {}) {
   const racine = tmp(); const unites = tmp(); const cfgClaude = path.join(tmp(), '.claude.json');
   fs.mkdirSync(path.join(racine, 'demo')); fs.mkdirSync(path.join(racine, 'autre'));
   fs.writeFileSync(cfgClaude, JSON.stringify({ autre: 1, projects: { '/x': { hasTrustDialogAccepted: false, garde: true } } }));
@@ -22,7 +22,7 @@ function banc({ mode = 'auto' } = {}) {
     if (args[0] === 'disable') actifs.delete(args.at(-1));
     return { status: 0, stdout: args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : '', stderr: '' };
   };
-  const config = { inventaire: { 'depots-git': { racines: [racine] }, 'claude-code': { config: cfgClaude } }, acces_distant: { mode_permissions: mode } };
+  const config = { inventaire: { 'depots-git': { racines: [racine] }, 'claude-code': { config: cfgClaude } }, acces_distant: { mode_permissions: mode, ...(session ? { session_au_demarrage: session } : {}) } };
   const projets = ['demo', 'autre'].map((n) => ({ id: `holarch:project:${n}`, nom: n, location: path.join(racine, n) }));
   const horloge = { t: Date.parse('2026-01-01T08:00:00Z') }; const accueil = tmp();
   const d = creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets, accueil, holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', maintenant: () => horloge.t });
@@ -37,9 +37,10 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   const texte = fs.readFileSync(path.join(unites, r.unite), 'utf8');
   assert.match(texte, /^# Écrit par HOLARCH/);
   assert.match(texte, new RegExp(`^WorkingDirectory=${path.join(racine, 'demo')}$`, 'm'));
-  // Reprise de la dernière session du dossier, sinon une nouvelle (pas de session vide à chaque redémarrage).
+  // Par défaut, le serveur démarre sans session : ni session vide à chaque redémarrage, ni session archivée reprise.
   const options = "'--name' 'demo' '--remote-control-session-name-prefix' 'demo' '--permission-mode' 'auto'";
-  assert.match(texte, new RegExp(`^ExecStart=/bin/sh -c "'/opt/outils/claude' remote-control --continue ${options} \\|\\| exec '/opt/outils/claude' remote-control ${options}"$`, 'm'));
+  assert.match(texte, new RegExp(`^ExecStart=/bin/sh -c "exec '/opt/outils/claude' remote-control --no-create-session-in-dir ${options}"$`, 'm'));
+  assert.doesNotMatch(texte, /--continue/);
   assert.match(texte, /^Environment="PATH=\/opt\/outils:/m);
   const c = JSON.parse(fs.readFileSync(cfgClaude, 'utf8'));
   assert.equal(c.projects[path.join(racine, 'demo')].hasTrustDialogAccepted, true);
@@ -56,6 +57,18 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   assert.ok(appels.includes('disable --now holarch-distant-demo.service'));
   assert.deepEqual(d.liste(), []);
   assert.ok(!fs.existsSync(path.join(unites, 'holarch-reveil.timer')) && !fs.existsSync(path.join(unites, 'holarch-reveil.service')), 'retiré avec le dernier');
+});
+
+test('accès distant : `session_au_demarrage: reprendre` reprend la dernière session du dossier ; une valeur inconnue n’écrit rien', () => {
+  const r = banc({ session: 'reprendre' });
+  const texte = fs.readFileSync(path.join(r.unites, r.d.activer('demo').unite), 'utf8');
+  const options = "'--name' 'demo' '--remote-control-session-name-prefix' 'demo' '--permission-mode' 'auto'";
+  assert.match(texte, new RegExp(`^ExecStart=/bin/sh -c "'/opt/outils/claude' remote-control --continue ${options} \\|\\| exec '/opt/outils/claude' remote-control ${options}"$`, 'm'));
+  assert.doesNotMatch(texte, /create-session-in-dir/, 'incompatible avec --continue');
+  const x = banc({ session: 'toujours' });
+  assert.throws(() => x.d.activer('demo'), /acces_distant\.session_au_demarrage : toujours inconnu \(aucune ou reprendre\)/);
+  assert.deepEqual(fs.readdirSync(x.unites), []); assert.deepEqual(x.appels, []);
+  assert.equal(JSON.parse(fs.readFileSync(x.cfgClaude, 'utf8')).projects[path.join(x.racine, 'demo')], undefined, 'confiance non déclarée');
 });
 
 test('accès distant : après une veille du poste (écart entre deux passages du minuteur), les accès actifs sont redémarrés', () => {

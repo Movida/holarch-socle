@@ -31,13 +31,14 @@ d'office (un serveur actif coûte de la mémoire, environ 200 Mo).
 | Commande | Effet |
 |---|---|
 | `holarch distant` | liste les projets dont l'accès distant est actif |
-| `holarch distant activer <projet>` | déclare le dossier de confiance pour Claude Code, écrit le service utilisateur du projet, l'active et le démarre ; au démarrage, le serveur reprend la dernière session du dossier (`--continue`, moins de quatre heures environ), sinon en crée une |
+| `holarch distant activer <projet>` | déclare le dossier de confiance pour Claude Code, écrit le service utilisateur du projet, l'active et le démarre ; au démarrage, le serveur n'ouvre aucune session (`--no-create-session-in-dir`), ou reprend la dernière du dossier si le site le règle (tranche 12, livraison A) |
 | `holarch distant desactiver <projet>` | arrête et retire le service ; la déclaration de confiance reste |
 | `holarch distant reveil` | lancé chaque minute par un minuteur posé avec le premier accès distant : après une veille du poste (écart de plus de cinq minutes entre deux passages), redémarre les accès distants actifs |
 
 `<projet>` est un projet du catalogue, désigné par son nom, un chemin ou son identifiant (décision `rattachement-projet`).
 Le mode de permission des sessions se règle par site (`acces_distant.mode_permissions`, celui de Claude Code par
-défaut). Un service écrit par HOLARCH porte une marque ; un service qu'il n'a pas écrit n'est jamais modifié ni retiré.
+défaut), comme la session au démarrage (`acces_distant.session_au_demarrage` : `aucune` par défaut, `reprendre` pour
+`--continue`). Un service écrit par HOLARCH porte une marque ; un service qu'il n'a pas écrit n'est jamais modifié ni retiré.
 
 **Choix techniques (P12).**
 
@@ -957,6 +958,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
   7. **Tranche 12** (ouverte le 2026-10-09) : découpage validé par l'auteur (2026-10-09) ; brouillon réécrit en deux
      décisions à approuver, `partage-et-bac-a-sable` (P7 et §5.4) et `environnement-d-execution` (cinq livraisons A à
-     E, chacune avec son critère). Ordre : A, B, C, D, E. A : voir ci-dessous.
+     E, chacune avec son critère). Ordre : A, B, C, D, E.
+     - **A, démarrage sans session** (2026-10-09) : Q27 résolue par l'aide lue dans le binaire 2.1.295 ; réglage
+       `acces_distant.session_au_demarrage` (`aucune` par défaut : `--no-create-session-in-dir` ; `reprendre` :
+       `--continue`), une valeur inconnue refusée avant toute écriture. Livré sous réserve de l'approbation de la
+       décision ; le service du poste garde son ancienne unité jusqu'à `holarch distant activer holarch-socle`, que
+       l'auteur lance (la relance coupe les sessions servies). Critère à vérifier par l'auteur : après la relance,
+       aucune session créée ni reprise ; une session ouverte depuis l'application répond ; une archivée le reste.
+     - **Suite** : B (essai Q25, un geste de l'auteur sur le téléphone).
   8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.

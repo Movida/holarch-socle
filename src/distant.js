@@ -58,11 +58,17 @@ function services({ unites, systemctl }) {
 const UNITES = path.join(os.homedir(), '.config', 'systemd', 'user');
 const SYSTEMCTL = (args) => spawnSync('systemctl', ['--user', ...args], { encoding: 'utf8' });
 
-// Au démarrage, le serveur reprend la dernière session du dossier (`--continue`, si elle date de moins de quatre heures
-// environ) ; sinon il en crée une. Sans cette reprise, chaque redémarrage laissait une session vide dans l'application.
-export function uniteDe({ nom, chemin, claude, mode }) {
+// Session au démarrage (`acces_distant.session_au_demarrage`, décision environnement-d-execution) : `aucune`, le
+// serveur démarre sans session ouverte et l'auteur en ouvre une depuis l'application (contexte neuf, une session
+// archivée le reste) ; `reprendre`, il reprend la dernière session du dossier (`--continue`, moins de quatre heures
+// environ, et la désarchive), sinon en crée une. Les deux options ne se combinent pas (Claude Code 2.1.295).
+export const SESSIONS_AU_DEMARRAGE = ['aucune', 'reprendre'];
+export function uniteDe({ nom, chemin, claude, mode, session = 'aucune' }) {
+  if (!SESSIONS_AU_DEMARRAGE.includes(session)) throw new Error(`acces_distant.session_au_demarrage : ${session} inconnu (${SESSIONS_AU_DEMARRAGE.join(' ou ')})`);
   const options = ['--name', nom, '--remote-control-session-name-prefix', nom, ...(mode ? ['--permission-mode', mode] : [])].map(shell).join(' ');
-  const script = `${shell(claude)} remote-control --continue ${options} || exec ${shell(claude)} remote-control ${options}`;
+  const script = session === 'reprendre'
+    ? `${shell(claude)} remote-control --continue ${options} || exec ${shell(claude)} remote-control ${options}`
+    : `exec ${shell(claude)} remote-control --no-create-session-in-dir ${options}`;
   return `${MARQUE} : accès distant au projet ${nom}. Retiré par \`holarch distant desactiver ${nom}\`.
 [Unit]
 Description=Claude Code Remote Control : ${nom}
@@ -182,8 +188,10 @@ export function creerDistant(config, {
       if (!binaire) throw new Error(claudeIntrouvable(config));
       const nom = nomDe(chemin); const f = fichierUnite(nom);
       if (fs.existsSync(f) && !sv.geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+      // L'unité d'abord : un réglage refusé n'écrit rien, pas même la confiance.
+      const texte = uniteDe({ nom, chemin, claude: binaire, mode: config.acces_distant?.mode_permissions || null, session: config.acces_distant?.session_au_demarrage || 'aucune' });
       const confiance = declarerConfiance(config.inventaire?.['claude-code']?.config || configClaude(path.join(os.homedir(), '.claude')), chemin);
-      sv.poser(f, uniteDe({ nom, chemin, claude: binaire, mode: config.acces_distant?.mode_permissions || null }));
+      sv.poser(f, texte);
       poserReveil();
       return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance };
     },

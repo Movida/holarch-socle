@@ -35,8 +35,9 @@ const DEFAUTS = () => ({
   // `<home>/.claude.json`. Vide : l'inventaire et l'import ne lisent que leur `home`, sans nom de compte.
   comptes_claude_code: [],
   // Accès distant par projet (`holarch distant`) : `claude`, le binaire (sinon celui du PATH) ; `mode_permissions`, le
-  // mode des sessions servies (acceptEdits, auto, default…), celui de Claude Code si vide.
-  acces_distant: { claude: null, mode_permissions: null },
+  // mode des sessions servies (acceptEdits, auto, default…), celui de Claude Code si vide ; `session_au_demarrage`,
+  // `aucune` (le serveur démarre sans session) ou `reprendre` (la dernière session du dossier).
+  acces_distant: { claude: null, mode_permissions: null, session_au_demarrage: 'aucune' },
   // Contrôles de l'audit (décisions controles-de-regles, veille-securite-versions) : outils (chemin, sinon le PATH puis
   // ~/.local/bin), mémoire des sources réseau, fenêtre du journal tenu, délai avant qu'un commit non poussé soit un
   // écart, taille maximale d'un fichier lu, délais, sources.
