@@ -1024,10 +1024,11 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        (son correctif n'est ni versionné ni audité) en limite connue de `conteneur-isole`.
      - À demander à l'auteur : l'écart `acces-distant` du socle, gardé visible ou levé par une exception du socle
        jusqu'à D.
-     - Gestes de l'auteur pour le déploiement du relais : dans le conteneur du dépôt concerné, `fly auth login` puis,
-       dans `server/`, `fly tokens create deploy -x 8760h` ; sur l'hôte, `gh secret set FLY_API_TOKEN --repo <dépôt>`
-       (coller le jeton) ; retirer l'`export FLY_API_TOKEN` du `~/.bashrc` de l'hôte (plus rien ne s'en sert sur
-       l'hôte) et, si c'est le jeton de tout le compte, le révoquer. Reconstruire les conteneurs corrigés à leur
+     - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
+       l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
+       tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
+       ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
+       un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
      - Puis contre-épreuve de ces corrections par une instance neuve (`xhigh`, lecture seule).
   0. **Suite prévue** : finir ce qui précède ; puis, sur l'accord de l'auteur : approbation du contrat événement 0.10.0
