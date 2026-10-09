@@ -27,6 +27,10 @@ const enVie = ({ pid, debut }) => vivants.get(pid) === debut;
 const session = () => ({ pid: 4242, debut: '777' });
 const note = (accueil, evenement, id = 'sess-1', o = {}) => noter({ evenement, entree: { session_id: id, transcript_path: o.transcription || null, cwd: '/home/x/projet-a' }, accueil, env: DISTANTE, maintenant: o.t ?? T0, session: o.session || session });
 const ligne = (o) => `${JSON.stringify(o)}\n`;
+// L'heure locale se vérifie dans un fuseau loin d'UTC (UTC+14), contre un formatage qui le nomme : l'heure UTC n'y passe pas.
+const FUSEAU = 'Pacific/Kiritimati';
+const auFuseau = (f) => { const avant = process.env.TZ; process.env.TZ = FUSEAU; try { return f(); } finally { if (avant === undefined) delete process.env.TZ; else process.env.TZ = avant; } };
+const heureDuFuseau = (iso) => new Intl.DateTimeFormat('sv-SE', { timeZone: FUSEAU, dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
 // Une transcription a la forme de celles de Claude Code : sous un dossier `projects/`.
 const transcription = (nom = 's.jsonl') => path.join(tmp(), 'projects', '-dossier', nom);
 
@@ -521,8 +525,8 @@ test('veille : une erreur du crochet ne fait pas échouer le tour ; gardée dat�
   const erreur = JSON.parse(fs.readFileSync(fichierErreur(accueil), 'utf8'));
   assert.equal(erreur.evenement, 'Stop'); assert.ok(erreur.message.length > 0);
   const c = () => executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'actif', besoin: false }, accueil }, 'audit').ecarts;
-  const e = c();
-  assert.deepEqual(e.map((x) => x.cle), ['crochet']); assert.match(e[0].message, /^crochet de veille en erreur le \d{4}-\d\d-\d\d \d\d:\d\d \(Stop\)/, 'à l’heure locale, comme holarch veille');
+  const e = auFuseau(c);
+  assert.deepEqual(e.map((x) => x.cle), ['crochet']); assert.ok(e[0].message.startsWith(`crochet de veille en erreur le ${heureDuFuseau(erreur.at)} (Stop)`), 'à l’heure locale, comme holarch veille');
   assert.ok(!e[0].message.includes(accueil), 'ni chemin ni message dans l’écart');
   ecrire(fichierErreur(accueil), JSON.stringify({ ...erreur, at: new Date(Date.now() - 8 * 864e5).toISOString() }));
   assert.deepEqual(c(), [], 'plus d’une semaine : plus dite');
@@ -599,7 +603,10 @@ test('veille : holarch veille et le contrôle disent la même chose de la demand
   const ecarts = executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'arrêté', besoin: true }, accueil }, 'audit').ecarts;
   const retenue = ecarts.find((x) => x.cle === 'retenue').message;
   assert.ok(vue.includes(`à voir : ${retenue}`), 'le même constat, mot pour mot');
-  assert.match(retenue, /dernier passage du gardien le \d{4}-\d\d-\d\d \d\d:\d\d\)/);
+  const maj = JSON.parse(fs.readFileSync(fichierGardien(accueil), 'utf8')).maj;
+  const auLoin = auFuseau(() => [etatGardien({ accueil, gardien: 'arrêté', besoin: true }), affichage.veille({ sessions: [], finies: [], mecanisme: '/ps', unite: 'holarch-veille.service', ...etatGardien({ accueil, gardien: 'arrêté', besoin: true }) })]);
+  assert.ok(auLoin[0].constats[0].message.endsWith(`dernier passage du gardien le ${heureDuFuseau(maj)})`), 'à l’heure locale');
+  assert.ok(auLoin[1].includes(`(dernier passage du gardien à ${heureDuFuseau(maj).slice(11)})`), 'la vue aussi');
   // L'erreur d'un crochet se voit aussi dans la vue.
   ecrire(fichierErreur(accueil), JSON.stringify({ at: new Date().toISOString(), evenement: 'Stop', message: 'x' }));
   const avecErreur = affichage.veille({ sessions: [], finies: [], mecanisme: '/ps', unite: 'holarch-veille.service', ...etatGardien({ accueil, gardien: 'actif', besoin: false }) });
