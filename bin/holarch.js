@@ -5,10 +5,11 @@ import { chargerConfig, ecrireConfigExemple, accueil, comptesClaudeCode } from '
 import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
-import { creerDistant, creerInterface, etatVeille } from '../src/distant.js';
+import { creerDistant, creerInterface, creerReveil, etatVeille } from '../src/distant.js';
 import { noter, evaluer, creerGardien, surveiller, commandeWindows, mecanisme } from '../src/veille.js';
 import { Journal } from '../src/stockage/journal.js';
-import { appliquerRegles } from '../src/materialisation.js';
+import { appliquerRegles, veilleVoulue } from '../src/materialisation.js';
+import { regleDuCompte } from '../src/regles.js';
 import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
 import { creerProjet } from '../src/creation.js';
@@ -84,6 +85,8 @@ const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIO
 if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
 
 const socle = () => new Socle(chargerConfig());
+// La règle veille-retardee s'applique au compte (arbre relu s'il a changé, sans inventaire) : le gardien la suit.
+const veilleDuCompte = (s = socle()) => veilleVoulue(regleDuCompte(s.arbreFrais()));
 
 switch (cmd) {
   // Rien ne s'écrit sur la sortie standard en mode MCP : c'est le canal du protocole.
@@ -95,7 +98,7 @@ switch (cmd) {
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : affichage.importer(r)); break; }
   case 'indexer': afficher(socle().indexer()); break;
   case 'distant': {
-    const d = creerDistant(chargerConfig()); const [action, projet] = args.filter((a) => !a.startsWith('--'));
+    const d = creerDistant(chargerConfig(), { veille: () => veilleDuCompte() }); const [action, projet] = args.filter((a) => !a.startsWith('--'));
     try {
       if (action === 'activer') { const r = d.activer(projet); afficher(json ? r : `accès distant actif : ${r.nom} (${r.chemin}), service ${r.unite}${r.confiance_declaree ? ' ; dossier déclaré de confiance pour Claude Code' : ''}`); }
       else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}`); }
@@ -137,7 +140,7 @@ switch (cmd) {
     break; }
   case 'service': {
     const config = chargerConfig(); const [action, ref] = args.filter((a) => !a.startsWith('--'));
-    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}) });
+    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}), veille: action === 'poser' ? veilleDuCompte() : null });
     try {
       if (action === 'poser') { const r = sv.poser(ref); afficher(json ? r : affichage.posee(r)); if (r.points.some((p) => p.etat === 'erreur')) process.exit(1); }
       else if (action) throw new Error(`action inconnue : ${action}`);
@@ -149,7 +152,9 @@ switch (cmd) {
     try {
       if (action === 'appliquer') {
         const { comptes, projets } = appliquerRegles(s, refs, comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {}));
-        const texte = affichage.appliquer({ comptes, projets });
+        // Le gardien de veille suit la règle, comme les crochets ; posé, il n'est pas relancé pour autant.
+        const gardien = creerReveil({ holarch: binaireService(s.config.accueil), accueil: s.config.accueil }).gardien({ veille: veilleDuCompte(s), relancer: false });
+        const texte = `${affichage.appliquer({ comptes, projets })}\ngardien de veille : ${gardien.etat}`;
         afficher(json ? texte.split('\n') : texte);
         // Un settings.json illisible n'est jamais réécrit, et la commande échoue (comme avant la consolidation).
         if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur)) process.exit(1);

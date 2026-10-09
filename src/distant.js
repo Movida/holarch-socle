@@ -131,8 +131,9 @@ WantedBy=timers.target
 `;
 
 // Veille retardée (décision environnement-d-execution, livraison B) : le gardien qui tient la demande d'éveil de Windows
-// tant qu'une session distante l'interdit (src/veille.js). Posé et retiré avec le minuteur de réveil, comme lui hors
-// PREFIXE ; sans note de session (règle `veille-retardee` non appliquée), il ne tient rien.
+// tant qu'une session distante l'interdit (src/veille.js). Posé avec le minuteur de réveil, comme lui hors PREFIXE, et
+// seulement quand la règle `veille-retardee` s'applique au compte, comme les crochets qui notent les sessions ; retiré
+// avec le dernier accès distant ou avec la règle.
 const UNITE_VEILLE = 'holarch-veille.service';
 export function uniteVeille({ node = process.execPath, holarch, accueil }) {
   return `${MARQUE} : veille retardée sous une session distante. Retirée avec le dernier accès distant.
@@ -168,11 +169,14 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
       if (!sv.ecrire(f, uniteReveil({ node, holarch, accueil }))) return { unite: path.basename(f), etat: 'inchangée' };
       sv.lancer(['daemon-reload']); return { unite: path.basename(f), etat: 'réécrite' };
     },
-    gardien() {
+    // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règles illisibles : rien ne change.
+    gardien({ veille = null, relancer = true } = {}) {
       if (!fs.existsSync(f) || !sv.geree(f)) return { unite: UNITE_VEILLE, etat: 'sans accès distant : non posé' };
+      if (veille === null) return { unite: UNITE_VEILLE, etat: 'règles du compte illisibles : laissé' };
+      if (!veille) return { unite: UNITE_VEILLE, etat: retirerVeille(sv, g) };
       const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
       // Texte inchangé (le lien `courant` ne change pas de chemin) : le gardien tourne encore l'ancien code.
-      if (etat === 'inchangée') { sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
+      if (etat === 'inchangée' && relancer) { sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
       return { unite: UNITE_VEILLE, etat };
     },
   };
@@ -186,6 +190,13 @@ function poserVeille(sv, g, texte) {
   const avant = fs.existsSync(g) ? fs.readFileSync(g, 'utf8') : null;
   sv.poser(g, texte);
   return avant === null ? 'posée' : avant === texte ? 'inchangée' : 'réécrite';
+}
+
+// Retrait du gardien quand la règle ne s'applique plus : une unité de la main n'est jamais touchée.
+function retirerVeille(sv, g) {
+  if (!fs.existsSync(g)) return 'règle veille-retardee non appliquée : non posé';
+  if (!sv.geree(g)) return 'non écrite par HOLARCH : laissée';
+  sv.retirer(g); return 'règle veille-retardee non appliquée : retiré';
 }
 
 /**
@@ -205,6 +216,8 @@ export function creerDistant(config, {
   claude = null,
   projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
   accueil = config.accueil || accueilParDefaut(), holarch = binaireService(accueil), node = process.execPath, maintenant = Date.now,
+  // La règle `veille-retardee` s'applique au compte (vrai, faux, ou null si illisible), lue seulement à la pose.
+  veille = () => null,
 } = {}) {
   const sv = services({ unites, systemctl });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
@@ -213,7 +226,9 @@ export function creerDistant(config, {
     for (const x of [reveil.service, reveil.minuteur]) if (fs.existsSync(x) && !sv.geree(x)) return;
     if (sv.ecrire(reveil.service, uniteReveil({ node, holarch, accueil }))) sv.lancer(['daemon-reload']);
     sv.poser(reveil.minuteur, MINUTEUR_REVEIL);
-    poserVeille(sv, reveil.gardien, uniteVeille({ node, holarch, accueil }));
+    const v = veille();
+    if (v) poserVeille(sv, reveil.gardien, uniteVeille({ node, holarch, accueil }));
+    else if (v === false) retirerVeille(sv, reveil.gardien);
   };
   const retirerReveil = () => {
     if (fs.existsSync(reveil.minuteur) && sv.geree(reveil.minuteur)) sv.retirer(reveil.minuteur);

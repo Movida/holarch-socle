@@ -37,7 +37,7 @@ export function retard(copie) {
   return r.status === 0 ? Number(sortie(r)) : null;
 }
 
-export function creerService({ accueil, comptes = [] }, {
+export function creerService({ accueil, comptes = [], veille = null }, {
   source = null, unites, systemctl, node = process.execPath,
   npm = trouverOutil('npm'),
   lancer = (cmd, args, o) => spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 900e3, ...o }),
@@ -70,7 +70,7 @@ export function creerService({ accueil, comptes = [] }, {
       essai('import', () => creerImport({ holarch, accueil }, o).poser()),
       essai('recolte', () => creerRecolte({ holarch, accueil }, o).poser()),
       essai('reveil', () => creerReveil({ holarch, accueil }, o).reecrire()),
-      essai('veille', () => creerReveil({ holarch, accueil }, o).gardien()),
+      essai('veille', () => creerReveil({ holarch, accueil }, o).gardien({ veille })),
       ...comptes.filter((c) => c.home).map((c) => essai(`mcp ${c.nom || c.home}`, () => {
         const f = configClaude(c.home); const cfg = lireJson(f, null, { strict: true });
         const s = cfg?.mcpServers?.holarch;

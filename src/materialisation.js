@@ -36,13 +36,19 @@ export function appliquerRegles(s, refs, comptes) {
  * `<compte>/settings.json`. Un `settings.json` illisible n'est jamais réécrit : `permissions.erreur` et `reglages.erreur`
  * le disent. `compte` : la règle effective du compte (module regles : `regles`, `config`).
  */
+/**
+ * La veille retardée est voulue au compte : une règle applicable désigne son contrôle (crochets et gardien la suivent) ;
+ * null si les règles du compte sont illisibles (rien ne se retire à l'aveugle).
+ */
+export const veilleVoulue = (compte) => (compte.illisibles?.length ? null : (compte.regles || []).some((e) => e.applicable && (e.controles || []).includes('veille-retardee')));
+
 export function materialiserCompte(compte, comptes, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
   if (ecrire) lisible(compte);
   const regles = compte.regles;
   const plan = planifier(regles, { portee: 'compte' });
   const lectures = regles.filter((e) => e.applicable).flatMap((e) => lecturesRefusees(e).map((entree) => ({ entree, regle: e })));
   // Veille retardée : les crochets qui notent l'état des sessions viennent avec la règle qui désigne son contrôle.
-  const veille = regles.some((e) => e.applicable && (e.controles || []).includes('veille-retardee'));
+  const veille = Boolean(veilleVoulue(compte));
   const voulus = reglagesVoulus(compte.config || {}, { holarch, accueil, veille });
   return comptes.filter((c) => c.home).map((c) => {
     let permissions; let reglages;
