@@ -740,3 +740,11 @@ test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop gra
   const d2 = tmp();
   assert.equal(importerTranscriptions({ calme_minutes: 0, taille_max_mo: 1e-4 }, { journal: new Journal(d2, 'local'), donnees: d2, comptes: [{ nom: null, home }], projets }).trop_grands, 4);
 });
+
+test('Arbre du socle : chaque en-tête se lit (un « : » non cité dans un titre ou une description le rendait illisible sans bloquer)', () => {
+  // Défaut trouvé le 2026-10-09 : l'en-tête de la décision environnement-d-execution, approuvée, ne se lisait pas.
+  const racine = path.join(import.meta.dirname, '..');
+  const noeuds = inventaireArbre({}, { depots: [racine], projetDe: () => ({ id: 'holarch:project:holarch-socle' }) }).filter((f) => f.kind === 'node');
+  assert.ok(noeuds.length > 10);
+  assert.deepEqual(noeuds.filter((n) => n.attributes?.erreur_entete || n.attributes?.erreur_regles).map((n) => `${n.node} : ${n.attributes.erreur_entete || n.attributes.erreur_regles}`), []);
+});
