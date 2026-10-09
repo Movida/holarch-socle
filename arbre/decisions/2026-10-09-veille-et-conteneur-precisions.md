@@ -2,7 +2,8 @@
 type: decision
 title: "Veille retardée et conteneur, après les contre-épreuves : texte aligné sur le code, risques et limites écrits"
 description: Amendement de la décision environnement-d-execution (livraison B) et du contrat événement 0.10.0. La ligne B dit ce que couvre B, la borne d'immobilité de 30 min entre dans la décision et la règle, le gardien suit la seule règle, le risque résiduel du dépôt monté en écriture est accepté ou levé jusqu'à D, les limites connues sont écrites.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-09, ref: "échange du 2026-10-09 au soir, récapitulatif et recommandation, choix cliquables" }
 links:
   derives_from: [/arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/config.md, "profil:/arbre/rules.yaml"]

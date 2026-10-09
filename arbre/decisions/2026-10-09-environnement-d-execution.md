@@ -52,7 +52,7 @@ Livrer d'un bloc attendrait que tout tienne ; découpé, chaque livraison sert s
 | Point | Choix |
 |---|---|
 | Session au démarrage | aucune : le serveur démarre sans session ouverte (`--no-create-session-in-dir`), l'auteur en ouvre une depuis l'application ; une session archivée le reste. Réglage du site `acces_distant.session_au_demarrage` (`aucune` par défaut, `reprendre` : la conduite d'avant, `--continue`) |
-| Veille | règle du profil : le poste ne se met pas en veille d'inactivité tant qu'une session distante travaille, ou attend une réponse depuis moins de 30 min (98 % des réponses mesurées arrivent sous 15 min ; marge du double). Adaptateur : crochets Claude Code générés (début et fin de tour, attente) qui notent l'état de la session, et une demande d'éveil tenue côté Windows tant qu'une session l'interdit. Le socle n'éteint jamais le poste : il retarde la veille de Windows, qui reprend la main si l'adaptateur s'arrête. États des sessions au journal (P4) |
+| Veille | règle du profil : le poste ne se met pas en veille d'inactivité tant qu'une session distante travaille, ou attend une réponse depuis moins de 30 min (98 % des réponses mesurées arrivent sous 15 min ; marge du double). Adaptateur : crochets Claude Code générés (début et fin de tour, attente) qui notent l'état de la session, et une demande d'éveil tenue côté Windows tant qu'une session l'interdit. Le socle n'éteint jamais le poste : il retarde la veille de Windows, qui reprend la main si l'adaptateur s'arrête. Une session dont rien de daté ne s'écrit depuis 30 min, ni dans sa transcription ni dans celles de ses sous-agents, est tenue pour en attente depuis sa dernière écriture : une demande de permission, une élicitation ou une fin de tour manquée ne tiennent pas le poste éveillé sans fin. Un sous-agent de fond retient le poste tant qu'il écrit ; un shell de fond, non. États des sessions au journal (P4) |
 | Clé `conteneur` | au registre de configuration (contrat config 0.4.0), portée par le profil, le contexte, les types et le projet : `devcontainer` (clés du format `devcontainer.json` telles quelles, fusionnées comme les autres clés : aucun vocabulaire refait, P2), `gpu` (`non` par défaut, `optionnel`, `requis` : traduit en `hostRequirements.gpu`), `connexion_claude` (`volume` par défaut : un volume par conteneur et `CLAUDE_CONFIG_DIR`, comme le conseille Anthropic ; `hote` : montage du `~/.claude` de l'hôte, dérogation écrite) |
 | Génération | `holarch projet creer` (étape `conteneur`) écrit `.devcontainer/devcontainer.json` depuis la configuration effective, marqué comme les autres fichiers générés ; l'audit compare le fichier à la configuration ; le modèle recopié (`modeles/projet/devcontainer.json`) est retiré |
 | Lieu de l'accès distant | dans le conteneur du projet : le service de l'hôte lance `devcontainer up` sur le conteneur existant (même étiquette que VS Code), puis `claude remote-control` par `devcontainer exec` ; un projet sans conteneur n'a pas d'accès distant, sauf dérogation écrite |
@@ -63,7 +63,7 @@ Livrer d'un bloc attendrait que tout tienne ; découpé, chaque livraison sert s
 | Livraison | Contenu | Dépend de | Critère | Modèle, effort |
 |---|---|---|---|---|
 | A. Démarrage sans session | point « Session au démarrage » | Q27 (résolue) | après une relance du service, aucune session n'est créée ni reprise ; l'auteur en ouvre une depuis l'application et elle répond ; une session archivée le reste | Opus 5.5, `high` (livrée ainsi) |
-| B. Veille retardée | point « Veille » ; l'état des sessions se lit de l'hôte, même quand elles tourneront en conteneur | Q25 | une session distante qui travaille plus longtemps que le délai de veille ne l'interrompt pas ; sans session active, le poste se met en veille comme avant | Opus 5.5, `xhigh` |
+| B. Veille retardée | point « Veille » ; B couvre les sessions de l'hôte ; le signe de vie d'une session en conteneur se conçoit avec D | Q25 | une session distante qui travaille plus longtemps que le délai de veille ne l'interrompt pas ; sans session active, le poste se met en veille comme avant | Opus 5.5, `xhigh` |
 | C. Conteneur généré | points « Clé `conteneur` » et « Génération » ; le conteneur du socle réparé d'abord | I32, Q23 | `holarch projet creer` rejoué sur `holarch-socle` écrit un `devcontainer.json` sans rien de personnel, que VS Code et `devcontainer up` ouvrent dans le même conteneur ; l'audit signale un écart à la main | Opus 5.5, `xhigh` |
 | D. Accès distant dans le conteneur | point « Lieu de l'accès distant » ; l'accès sur l'hôte gardé jusqu'à ce que D tienne | C, Q24 | critère de la tranche ci-dessous | Opus 5.5, `xhigh` |
 | E. Type `calcul-gpu` | point « Carte graphique » | C, Q26 | un test de rendu du projet three.js tourne dans son conteneur sur la carte, et sans carte en rendu logiciel | Opus 5.5, `high` |
@@ -89,7 +89,7 @@ l'auteur qui dépassent souvent 30 min.
 SSH personnelle ni les conversations des autres projets ; le poste ne s'est pas mis en veille pendant qu'elle
 travaillait.
 
-**Conséquences.** Tranche 12 de l'étape 3 ; contrat config en version mineure (0.4.0, livraison C) ; essais préalables
+**Conséquences.** Tranche 12 de l'étape 3 ; contrat config en version mineure (0.5.0, livraison C ; la 0.4.0 est prise par `veille-et-conteneur-precisions`) ; essais préalables
 Q23 à Q26 avant la livraison qui les attend ; les autres projets migrés par `projet creer` rejoué, avec l'accord de
 l'auteur projet par projet.
 
@@ -98,3 +98,7 @@ session en conteneur ne se vérifie pas par son processus (le `/proc` de l'hôte
 conteneur ne monte plus le `~/.claude` de l'hôte, elle n'a pas les crochets du compte : son signe de vie se conçoit avec
 D, qui y déplace l'accès distant. La décision modifie aussi le contrat événement (0.10.0, famille `power.*` de B) ;
 `evenement.md` ajouté à ses `modifies` (accord de l'auteur, 2026-10-09), le contrat restant à approuver.
+
+**Amendée le 2026-10-09** par [`veille-et-conteneur-precisions`](/arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md)
+(approuvée) : ligne B, borne d'immobilité du point « Veille », gardien qui suit la seule règle, risque résiduel jusqu'à D
+et limites connues.

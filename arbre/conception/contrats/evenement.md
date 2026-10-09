@@ -3,18 +3,14 @@ type: contract
 title: Contrat — événement du journal
 description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
 status: stable
-approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ok pour tes recommandations »" }
-version: 0.9.0
+approved: { by: human:auteur, at: 2026-10-09, ref: "échange du 2026-10-09 au soir, récapitulatif et recommandation, choix cliquables (0.10.0, décision veille-et-conteneur-precisions ; jusqu'à 0.9.0 : échange du 2026-10-03, « ok pour tes recommandations »)" }
+version: 0.10.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/decisions/2026-10-07-echecs-au-journal.md, /arbre/decisions/2026-10-09-environnement-d-execution.md]
 ---
 
 # Contrat — événement du journal
-
-> **Version 0.10.0 proposée, en attente d'approbation** : la ligne `data` de la veille, `data.environnement` et la
-> famille `power.*` (décision [`veille-et-conteneur-precisions`](/arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md),
-> en brouillon). L'en-tête dit la version approuvée, 0.9.0 ; le reste vaut tel qu'approuvé.
 
 ## 1. Forme
 
@@ -44,15 +40,15 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 | `classification` | niveau de l'événement ; un consommateur ne lit que ce que son niveau autorise |
 | `data` d'un écart | `rule.violated` et `rule.resolved` : `{regle, controle, cle, fichier?, ligne?, n?, message?}` ; la règle par son identifiant du catalogue, `cle` reconnaît l'écart d'un audit à l'autre, `n` compte ses occurrences, `message` dit sa nature ; jamais le contenu trouvé ; `subject` est le projet, absent pour la portée du compte |
 | `data` d'un échec | `tool.failed` : `{outil, motif, code?, programme?}`, `motif` parmi `sortie`, `tests`, `garde`, `edition-perimee`, `edition-introuvable`, `edition-ambigue`, `edition-non-lue`, `fichier-absent`, `validation`, `delai`, `autre` ; `code` et `programme` (nom seul, sans chemin ni argument) pour une commande shell ; `rule.enforced` (refus d'une garde) : `{regle, controle, n, moment}` ; `session.finished` porte `tests: {lances, rouges}` ; jamais la commande, le chemin ni la sortie (décision échecs au journal) |
-| `data` de la veille (0.10.0, en attente d'approbation) | `power.held` (demande d'éveil du poste tenue) : `{sessions: [{session, etat, projet?}]}`, les sessions distantes qui la retiennent, émis de nouveau quand l'une arrive ou part pendant la tenue ; une demande reprise après une panne courte pour les mêmes sessions ne se redit qu'une fois tenue plus d'une minute (d'autres sessions la font redire aussitôt) ; `etat` parmi `travaille` et `attend`, `projet` le nom du dossier de départ (affichage seulement) ; `power.released` : `{raison}`, `aucune-session` ou `arret` (l'adaptateur s'arrête) ; `power.failed` : `{motif, code?}`, `motif` parmi `sans-mecanisme`, `non-lancee`, `sans-reponse`, `refusee` et `arretee`, `code` celui de sortie de la demande s'il y en a un ; une fois par panne, le détail (sortie de la demande, chemins) au seul log de l'adaptateur (décision environnement-d-execution) |
-| `data.environnement` (0.10.0, en attente d'approbation) | `conteneur` : l'événement vient d'une session tenue dans le conteneur d'un projet (sa transcription, écrite dans le dossier du conteneur, lue depuis l'hôte) ; elle ne se rattache qu'au projet de ce conteneur. Absent : l'hôte. Distinct de `origine`, qui dit d'où vient un refus d'outil (`tool.denied`) |
+| `data` de la veille (0.10.0) | `power.held` (demande d'éveil du poste tenue) : `{sessions: [{session, etat, projet?}]}`, les sessions distantes qui la retiennent, émis de nouveau quand l'une arrive ou part pendant la tenue ; une demande reprise après une panne courte pour les mêmes sessions ne se redit qu'une fois tenue plus d'une minute (d'autres sessions la font redire aussitôt) ; `etat` parmi `travaille` et `attend`, `projet` le nom du dossier de départ (affichage seulement) ; `power.released` : `{raison}`, `aucune-session` ou `arret` (l'adaptateur s'arrête) ; `power.failed` : `{motif, code?}`, `motif` parmi `sans-mecanisme`, `non-lancee`, `sans-reponse`, `refusee` et `arretee`, `code` celui de sortie de la demande s'il y en a un ; une fois par panne, le détail (sortie de la demande, chemins) au seul log de l'adaptateur (décision environnement-d-execution) |
+| `data.environnement` (0.10.0) | `conteneur` : l'événement vient d'une session tenue dans le conteneur d'un projet (sa transcription, écrite dans le dossier du conteneur, lue depuis l'hôte) ; elle ne se rattache qu'au projet de ce conteneur. Absent : l'hôte. Distinct de `origine`, qui dit d'où vient un refus d'outil (`tool.denied`) |
 
 ## 3. Familles (vocabulaire ouvert, extensible par décision)
 
 `session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.*` (called, denied, failed) · `rule.*` (applied,
 violated, resolved, derogated, proposed, enforced) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
 `element.*` (created, updated, moved, suspended, retired) · `cost.recorded` · `budget.*` (warning, exceeded) · `dream.*`
-(started, proposal, finished) · `inventory.finished` · `ui.viewed` (page de l'interface consultée) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded) · `power.*` (held, released, failed : la veille du poste retardée sous une session distante ; 0.10.0, en attente d'approbation).
+(started, proposal, finished) · `inventory.finished` · `ui.viewed` (page de l'interface consultée) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded) · `power.*` (held, released, failed : la veille du poste retardée sous une session distante ; 0.10.0).
 
 ## 4. Règles
 
