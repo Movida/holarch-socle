@@ -212,7 +212,8 @@ possède, événements qu'elle émet). Son implémentation est libre et remplaç
 - **Contrat d'adaptateur de runtime** : lancer avec un profil et des plafonds, remonter les événements et le coût au
   journal, appliquer les règles par les points d'accroche du runtime (hooks, permissions, consignes), rendre les sorties
   déclarées. Un runtime qui n'offre pas un point d'accroche est gouverné après coup (vérification sur ses sorties).
-- **Bac à sable par exécution** : conteneur, droits minimaux, aucun secret en clair, sorties déclarées.
+- **Bac à sable par exécution** : conteneur, droits minimaux, aucun secret en clair, sorties déclarées. Une session
+  distante est une exécution : elle tourne dans le bac à sable de son projet, jamais sur l'hôte, sauf dérogation écrite.
 
 ### 5.5 Vérification
 

@@ -17,6 +17,10 @@
   Modèle et effort inscrits par livraison, à la demande de l'auteur, d'après l'usage mesuré (Opus 5.5 seul, `high`
   presque partout) : `high` pour A et E, `xhigh` pour B, C et D, contre-épreuve en `xhigh`. La session tournait en
   `high`, pas en `medium` comme supposé.
+  Puis, l'auteur passé en permissions manuelles, trois actions choisies parmi celles proposées : les deux décisions
+  approuvées (P7 et §5.4 réécrits ; l'accès distant sur l'hôte vaut dérogation jusqu'à D), les commits envoyés sur
+  `origin/main`, et la relance de l'accès distant lancée en dernier, puisqu'elle coupe cette session. B attend une
+  session en `xhigh`.
 
 * **Constats des contre-épreuves corrigés** (A à H, puis 1 à 5 d'une troisième) : dix commits avec un test qui
   reproduit chacun (93 tests verts), envoyés sur `origin/main` sur demande de l'auteur. `gitLu` (inventaire, contrôles

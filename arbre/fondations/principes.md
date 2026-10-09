@@ -21,7 +21,7 @@ un arbitrage.
 | P4 | **Visible.** Ce qui n'est pas au catalogue n'existe pas ; ce qui n'est pas au journal ne s'est pas passé. | contrainte |
 | P5 | **L'humain décide de l'irréversible.** L'agent écrit des brouillons et consigne les approbations ; approuver n'autorise pas à agir sans une autorisation qui porte sur une version, une destination et des limites. | contrainte |
 | P6 | **Cloisonné.** Une donnée ne sort jamais du contexte et du niveau de classification qui l'autorisent ; le hub l'applique, pas l'agent. | contrainte |
-| P7 | **Partageable.** Le socle ne contient rien de personnel ; le personnel vit dans un profil privé. | contrainte |
+| P7 | **Partageable.** Le socle et la part partageable d'un projet ne contiennent rien de personnel ; le personnel vit dans un profil privé ou dans la configuration du site. | contrainte |
 | P8 | **Rien n'est créé à l'avance.** Un élément n'existe que s'il aide à décider ou à agir. | contrainte |
 | P9 | **Mesure avant réglage.** Une évolution s'adopte sur une mesure ; le banc grandit avec chaque incident. | contrainte |
 | P10 | **Le recul avant le rapiéçage.** Devant une adaptation qui résiste, comparer explicitement « adapter » et « recréer depuis plus haut ». | préférence |

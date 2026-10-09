@@ -2,7 +2,8 @@
 type: decision
 title: L'environnement des sessions, en cinq livraisons utiles seules
 description: Tranche 12 de l'étape 3, partie mise en œuvre de la décision `partage-et-bac-a-sable`. Cinq livraisons, chacune avec son critère : A démarrage sans session, B veille retardée, C conteneur généré depuis l'arbre (clé `conteneur`, contrat config 0.4.0), D accès distant dans le conteneur, E type `calcul-gpu`.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-09, ref: "échange du 2026-10-09 : « Approuver les décisions » (choix parmi les actions proposées)" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md, /arbre/decisions/2026-10-09-partage-et-bac-a-sable.md]
   modifies: [/arbre/conception/contrats/config.md]

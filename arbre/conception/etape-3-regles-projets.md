@@ -486,7 +486,7 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
 
 Ouverte le 2026-10-09, sur la demande de l'auteur (session joignable au démarrage, poste qui ne s'éteint pas sous une
 session distante, sessions qui travaillent et exécutent dans leur conteneur, carte graphique partagée) ; deux décisions
-en brouillon : `partage-et-bac-a-sable` (P7 et §5.4) et `environnement-d-execution` (mise en œuvre, contexte mesuré).
+approuvées : `partage-et-bac-a-sable` (P7 et §5.4) et `environnement-d-execution` (mise en œuvre, contexte mesuré).
 
 **Livre**, en cinq livraisons utiles seules (critère de chacune dans la décision `environnement-d-execution`), essais
 préalables menés sans toucher au service du projet en cours (leçon du 2026-10-08) :
@@ -957,13 +957,14 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   6. **Tranche 11** : livrée ; statuts des huit brouillons du profil écrits le 2026-10-08 ; critère d'usage : une
      consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
   7. **Tranche 12** (ouverte le 2026-10-09) : découpage validé par l'auteur (2026-10-09) ; brouillon réécrit en deux
-     décisions à approuver, `partage-et-bac-a-sable` (P7 et §5.4) et `environnement-d-execution` (cinq livraisons A à
-     E, chacune avec son critère). Ordre : A, B, C, D, E.
+     décisions, approuvées le 2026-10-09 : `partage-et-bac-a-sable` (P7 et §5.4 réécrits ; l'accès sur l'hôte vaut
+     dérogation jusqu'à D) et `environnement-d-execution` (cinq livraisons A à E, chacune avec son critère, son modèle
+     et son effort). Ordre : A, B, C, D, E.
      - **A, démarrage sans session** (2026-10-09) : Q27 résolue par l'aide lue dans le binaire 2.1.295 ; réglage
        `acces_distant.session_au_demarrage` (`aucune` par défaut : `--no-create-session-in-dir` ; `reprendre` :
-       `--continue`), une valeur inconnue refusée avant toute écriture. Livré sous réserve de l'approbation de la
-       décision ; le service du poste garde son ancienne unité jusqu'à `holarch distant activer holarch-socle`, que
-       l'auteur lance (la relance coupe les sessions servies). Critère à vérifier par l'auteur : après la relance,
+       `--continue`), une valeur inconnue refusée avant toute écriture. Relance du service du poste
+       (`holarch distant activer holarch-socle`) lancée en fin de séance, avec l'accord de l'auteur : elle coupe les
+       sessions servies ; à la reprise, vérifier que l'unité porte `--no-create-session-in-dir`. Critère à vérifier par l'auteur : après la relance,
        aucune session créée ni reprise ; une session ouverte depuis l'application répond ; une archivée le reste.
      - **Suite** : B, en Opus 5.5 `xhigh` (modèle et effort par livraison dans la décision) ; d'abord l'essai Q25, un
        geste de l'auteur sur le téléphone.

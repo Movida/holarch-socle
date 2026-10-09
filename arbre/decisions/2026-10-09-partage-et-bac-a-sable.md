@@ -2,7 +2,8 @@
 type: decision
 title: La part partageable d'un projet ne contient rien de personnel, et une session distante est une exécution
 description: Tranche 12 de l'étape 3, partie principes. P7 couvre la part partageable d'un projet, pas seulement le socle ; §5.4 dit qu'une session distante tourne dans le bac à sable de son projet. La mise en œuvre est la décision `environnement-d-execution`.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-09, ref: "échange du 2026-10-09 : « Approuver les décisions » (choix parmi les actions proposées)" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/fondations/principes.md, /docs/architecture.md]
