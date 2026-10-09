@@ -213,6 +213,9 @@ test('veille : le gardien est posé et retiré avec le premier et le dernier acc
   appels.length = 0;
   const pose = (holarch, o = { node: '/opt/node/bin/node' }) => creerReveil({ holarch, accueil: '/a' }, { unites, systemctl, ...o });
   assert.deepEqual(pose('/v2/holarch.js').gardien(), { unite: 'holarch-veille.service', etat: 'réécrite' }); assert.ok(appels.includes('restart holarch-veille.service'));
+  // Le cas réel : le binaire est le lien `courant`, dont le chemin ne change pas ; le gardien est relancé quand même.
+  appels.length = 0;
+  assert.deepEqual(pose('/v2/holarch.js').gardien(), { unite: 'holarch-veille.service', etat: 'relancée' }); assert.ok(appels.includes('restart holarch-veille.service'));
   // Coupé à la main : réécrit, jamais rallumé (décision routines-posees).
   systemctl(['disable', '--now', 'holarch-veille.service']); appels.length = 0;
   assert.equal(pose('/v3/holarch.js').gardien().etat, 'coupée à la main : laissée');

@@ -157,7 +157,7 @@ WantedBy=default.target
  * elle est de HOLARCH, pour lancer la copie posée (écrite avant, elle lancerait la copie de travail) ; `gardien`, posé
  * avec elle, ou réécrit et relancé (une relance relâche puis reprend la demande). Le réveil absent, rien n'est posé :
  * ils viennent avec le premier accès distant. Un gardien coupé à la main est réécrit sans être rallumé (décision
- * routines-posees).
+ * routines-posees) ; inchangé, il est relancé, comme l'interface : son chemin est celui du lien de la copie en service.
  */
 export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
   const sv = services({ unites, systemctl }); const f = path.join(unites, `${UNITE_REVEIL}.service`); const g = path.join(unites, UNITE_VEILLE);
@@ -170,7 +170,10 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
     },
     gardien() {
       if (!fs.existsSync(f) || !sv.geree(f)) return { unite: UNITE_VEILLE, etat: 'sans accès distant : non posé' };
-      return { unite: UNITE_VEILLE, etat: poserVeille(sv, g, uniteVeille({ node, holarch, accueil })) };
+      const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
+      // Texte inchangé (le lien `courant` ne change pas de chemin) : le gardien tourne encore l'ancien code.
+      if (etat === 'inchangée') { sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
+      return { unite: UNITE_VEILLE, etat };
     },
   };
 }
