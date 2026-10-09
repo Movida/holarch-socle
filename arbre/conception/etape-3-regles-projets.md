@@ -966,6 +966,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        (`holarch distant activer holarch-socle`) lancée en fin de séance, avec l'accord de l'auteur : elle coupe les
        sessions servies ; à la reprise, vérifier que l'unité porte `--no-create-session-in-dir`. Critère à vérifier par l'auteur : après la relance,
        aucune session créée ni reprise ; une session ouverte depuis l'application répond ; une archivée le reste.
+       Vérifié en partie (2026-10-09) : l'unité porte l'option, le serveur démarre sans session (capacité 0/32), une
+       session ouverte depuis l'application a répondu ; l'archivée reste à vérifier. Juste après la relance, le serveur
+       a quitté deux fois en code 1 sans message (`StandardOutput=null` emportait la sortie d'erreur, corrigé :
+       `StandardError=journal`). Cause probable, non confirmée : sans session au démarrage, le serveur ne relit pas le
+       pointeur du dossier (code du binaire 2.1.295) et ne demande donc pas à reprendre l'environnement précédent ;
+       l'ancien, arrêté en servant une session, restait inscrit (Q22). Conséquence à garder en vue : chaque relance
+       (dont celle du réveil) ouvre un environnement neuf, et les sessions ouvertes avant ne sont pas reprises.
      - **Suite** : B, en Opus 5.5 `xhigh` (modèle et effort par livraison dans la décision) ; d'abord l'essai Q25, un
        geste de l'auteur sur le téléphone.
   8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur

@@ -2,6 +2,16 @@
 
 ## 2026-10-09
 
+* **Accès distant injoignable après la relance de la livraison A** : après la relance de 15:27, les sessions ouvertes
+  depuis l'application restaient sans réponse, puis « PC déconnecté ». Le serveur a quitté deux fois en code 1 (15:28,
+  15:30) sans laisser de message : `StandardOutput=null` emportait aussi la sortie d'erreur. Corrigé avec son test
+  (`StandardError=journal`, pour l'accès distant comme pour l'interface). Diagnostic par un complément d'unité
+  temporaire (sortie et fichier de débogage) : une session ouverte à 15:41 a répondu. Cause probable des deux arrêts,
+  non confirmée faute de message : sans session au démarrage, le serveur ne relit pas le pointeur du dossier (code du
+  binaire 2.1.295), donc ne reprend pas l'environnement précédent ; l'ancien, arrêté en servant une session, restait
+  inscrit, d'où un refus (le 409 de Q22), une attente et le code 1, jusqu'à ce que l'inscription expire (environ trois
+  minutes). Un serveur sans session arrêté par SIGTERM puis relancé a été accepté aussitôt (15:37). Q22 complétée.
+
 * **Tranche 12 : deux décisions, livraison A** : le brouillon `environnement-d-execution` réécrit en deux, à approuver :
   `partage-et-bac-a-sable` (P7 étendu à la part partageable d'un projet, §5.4 : une session distante est une
   exécution ; l'accès sur l'hôte vaut dérogation jusqu'à D) et `environnement-d-execution` (mise en œuvre, livraisons A
