@@ -12,7 +12,7 @@ import { Journal } from '../src/stockage/journal.js';
 import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
 import { executer } from '../src/controles.js';
-import { git } from '../src/commun.js';
+import { git, gitLu } from '../src/commun.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -42,17 +42,78 @@ test('X2 : les filtres et pilotes de diff déclarés par un dépôt ne s’exéc
   g('config', 'filter.x.required', 'true');
   fs.appendFileSync(path.join(d, 'f.txt'), 'z\n'); fs.appendFileSync(path.join(d, 'g.md'), 'z\n'); fs.appendFileSync(path.join(d, 'h.cfg'), 'z\n');
   assert.equal(etatDepot(d).fichiers_modifies, 3);
-  assert.equal(git(d, ['diff']).status, 0);
-  assert.equal(git(d, ['log', '-p', '-1']).status, 0);
-  assert.equal(git(d, ['diff', '--cached']).status, 0);
-  assert.equal(git(d, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer' }).status, 0);
+  assert.equal(gitLu(d, ['diff']).status, 0);
+  assert.equal(gitLu(d, ['log', '-p', '-1']).status, 0);
+  assert.equal(gitLu(d, ['diff', '--cached']).status, 0);
+  assert.equal(gitLu(d, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer' }).status, 0);
   const executes = fs.readdirSync(path.dirname(temoin));
   assert.deepEqual(executes, [], `programmes du dépôt exécutés : ${executes.join(', ')}`);
   // Un pilote déclaré par le compte (portée globale) reste appliqué.
   const globale = path.join(tmp(), 'gitconfig');
   fs.writeFileSync(globale, '[diff "y"]\n\ttextconv = tr a-z A-Z <\n');
-  const r = git(d, ['diff', '--', 'h.cfg'], { env: { ...process.env, GIT_CONFIG_GLOBAL: globale } });
+  const r = gitLu(d, ['diff', '--', 'h.cfg'], { env: { ...process.env, GIT_CONFIG_GLOBAL: globale } });
   assert.match(r.stdout, /^\+Z$/m, 'le textconv du compte a été ignoré');
+});
+
+// Seconde contre-épreuve (2026-10-08) : ce qui s'exécutait encore, et la régression d'X2 sur les écritures.
+const piege = (d, temoin) => { const s = path.join(d, '.git', 'piege.sh'); fs.writeFileSync(s, `#!/bin/sh\ntouch '${temoin}'."$1"\ncat\n`, { mode: 0o755 }); return s; };
+const depotAvecCommit = (d, fichiers) => {
+  spawnSync('git', ['init', '-q', d]);
+  for (const [f, t] of Object.entries(fichiers)) fs.writeFileSync(path.join(d, f), t);
+  spawnSync('git', ['-C', d, 'add', '.']); spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'i']);
+};
+
+test('Seconde contre-épreuve (A) : un crochet du dépôt ne s’exécute pas au status de l’inventaire, et l’index n’est pas réécrit', () => {
+  for (const viaHooksPath of [false, true]) {
+    const d = tmp(); const temoin = path.join(tmp(), 'execute');
+    depotAvecCommit(d, { 'f.txt': 'x\n' });
+    const s = piege(d, temoin);
+    const crochets = viaHooksPath ? path.join(d, '.git', 'autres') : path.join(d, '.git', 'hooks');
+    fs.mkdirSync(crochets, { recursive: true }); fs.copyFileSync(s, path.join(crochets, 'post-index-change')); fs.chmodSync(path.join(crochets, 'post-index-change'), 0o755);
+    if (viaHooksPath) spawnSync('git', ['-C', d, 'config', 'core.hooksPath', crochets]);
+    const index = path.join(d, '.git', 'index'); const avant = fs.readFileSync(index);
+    const t = new Date(Date.now() + 5000); fs.utimesSync(path.join(d, 'f.txt'), t, t); // force un rafraîchissement de l'index
+    assert.equal(etatDepot(d).fichiers_modifies, 0);
+    assert.deepEqual(fs.readdirSync(path.dirname(temoin)), [], viaHooksPath ? 'crochet de core.hooksPath exécuté' : 'crochet de .git/hooks exécuté');
+    assert.deepEqual(fs.readFileSync(index), avant, 'index du dépôt lu réécrit');
+  }
+});
+
+test('Seconde contre-épreuve (B) : le filtre déclaré par la configuration d’un sous-module ne s’exécute pas au status du parent', () => {
+  const sous = tmp(); const d = tmp(); const temoin = path.join(tmp(), 'execute');
+  depotAvecCommit(sous, { 'f.txt': 'x\n', '.gitattributes': '*.txt filter=x\n' });
+  depotAvecCommit(d, { 'a.txt': 'a\n' });
+  const r = spawnSync('git', ['-C', d, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', sous, 's'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const s = piege(d, temoin);
+  spawnSync('git', ['-C', path.join(d, 's'), 'config', 'filter.x.clean', `${s} clean`]);
+  const t = new Date(Date.now() + 5000); fs.utimesSync(path.join(d, 's', 'f.txt'), t, t); // même taille : git relit le contenu par le filtre
+  etatDepot(d);
+  assert.deepEqual(fs.readdirSync(path.dirname(temoin)), [], 'filtre du sous-module exécuté');
+});
+
+test('Seconde contre-épreuve (C) : un nom de pilote contenant « = » est neutralisé comme les autres', () => {
+  const d = tmp(); const temoin = path.join(tmp(), 'execute');
+  depotAvecCommit(d, { 'f.txt': 'x\n', '.gitattributes': '*.txt filter=a=b diff=c=d\n' });
+  const s = piege(d, temoin);
+  spawnSync('git', ['-C', d, 'config', 'filter.a=b.clean', `${s} clean`]);
+  spawnSync('git', ['-C', d, 'config', 'diff.c=d.textconv', `${s} textconv`]);
+  fs.appendFileSync(path.join(d, 'f.txt'), 'z\n');
+  assert.equal(etatDepot(d).fichiers_modifies, 1);
+  assert.equal(gitLu(d, ['diff']).status, 0);
+  assert.deepEqual(fs.readdirSync(path.dirname(temoin)), [], 'pilote au nom contenant « = » exécuté');
+});
+
+test('Seconde contre-épreuve (D) : dans un dépôt de l’auteur, git applique ses filtres locaux (écritures, copie de service)', () => {
+  const d = tmp();
+  spawnSync('git', ['init', '-q', d]);
+  // Un filtre réversible déclaré en local, à la manière de git-crypt : le dépôt garde la forme transformée.
+  spawnSync('git', ['-C', d, 'config', 'filter.r.clean', 'tr a-z n-za-m']); spawnSync('git', ['-C', d, 'config', 'filter.r.smudge', 'tr a-z n-za-m']);
+  fs.writeFileSync(path.join(d, '.gitattributes'), '*.txt filter=r\n'); fs.writeFileSync(path.join(d, 'f.txt'), 'secret\n');
+  assert.equal(git(d, ['add', '.']).status, 0);
+  assert.equal(git(d, ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'i']).status, 0);
+  assert.equal(git(d, ['show', 'HEAD:f.txt']).stdout, 'frperg\n', 'le commit a gardé le texte en clair');
+  assert.equal(git(d, ['status', '--porcelain']).stdout, '', 'le dépôt de l’auteur paraît modifié');
 });
 
 test('X3 : l’interface est servie avec une politique de contenu qui n’admet que ses propres scripts', async () => {

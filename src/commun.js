@@ -65,13 +65,22 @@ export const binaireClaude = (config) => trouverOutil('claude', config?.acces_di
 export const CLAUDE_INTROUVABLE = 'claude introuvable dans le PATH ni ~/.local/bin (acces_distant.claude pour le préciser)';
 
 /**
- * Ce que la configuration propre d'un dépôt (portées `local` et `worktree`, inclusions comprises) pourrait faire
- * exécuter à une lecture, annulé en `-c` : `core.fsmonitor`, la vérification des signatures, et chaque pilote qu'elle
- * déclare (`filter.<x>` vidé, `diff.<x>.textconv` remplacé par `cat`, qui ne change rien : une valeur vide ferait
- * lancer un programme vide). Les diffs externes sont coupés par `--no-ext-diff` (voir `git`). Les pilotes du compte
- * (git-lfs installé normalement) restent.
+ * git dans un dépôt de l'auteur : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges.
+ * Sa configuration s'applique comme à la main (filtres, crochets) : c'est par là que passent les écritures (création,
+ * identité, crochet, copie de service). Un dépôt quelconque se lit par `gitLu`.
  */
-function neutralisation(depot) {
+export function git(depot, args, o = {}) {
+  return spawnSync('git', ['-C', depot, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 60e3, ...o });
+}
+
+/**
+ * Ce que la configuration propre d'un dépôt (portées `local` et `worktree`, inclusions comprises) pourrait faire
+ * exécuter à une lecture, annulé : `core.fsmonitor`, les crochets (`core.hooksPath` vers /dev/null), la vérification des
+ * signatures, et chaque pilote qu'elle déclare (`filter.<x>` vidé, `diff.<x>.textconv` remplacé par `cat`, qui ne
+ * change rien : une valeur vide ferait lancer un programme vide). Passé par `GIT_CONFIG_COUNT`, qui garde un nom de
+ * pilote contenant `=` (`-c` le couperait). Les pilotes du compte (git-lfs installé normalement) restent.
+ */
+function neutralisation(depot, env) {
   const r = spawnSync('git', ['-C', depot, 'config', '--show-scope', '-z', '--get-regexp', '^(filter|diff)\\..+\\.'], { encoding: 'utf8', timeout: 10e3 });
   const pilotes = new Set();
   const champs = (r.stdout || '').split('\0'); // portée, puis clé et valeur séparées par une fin de ligne
@@ -79,22 +88,26 @@ function neutralisation(depot) {
     const m = champs[i + 1].split('\n')[0].match(/^(filter|diff)\.(.+)\.[^.]+$/);
     if (m && (champs[i] === 'local' || champs[i] === 'worktree')) pilotes.add(`${m[1]}.${m[2]}`);
   }
-  const cles = ['core.fsmonitor=false', 'log.showSignature=false'];
+  const cles = [['core.fsmonitor', 'false'], ['core.hooksPath', '/dev/null'], ['log.showSignature', 'false'], ['submodule.recurse', 'false']];
   for (const p of pilotes) {
-    if (p.startsWith('filter.')) cles.push(`${p}.clean=`, `${p}.smudge=`, `${p}.process=`, `${p}.required=false`);
-    else cles.push(`${p}.textconv=cat`);
+    if (p.startsWith('filter.')) cles.push([`${p}.clean`, ''], [`${p}.smudge`, ''], [`${p}.process`, ''], [`${p}.required`, 'false']);
+    else cles.push([`${p}.textconv`, 'cat']);
   }
-  return cles.flatMap((c) => ['-c', c]);
+  const n0 = Number(env.GIT_CONFIG_COUNT) || 0; const e = { ...env, GIT_CONFIG_COUNT: String(n0 + cles.length) };
+  cles.forEach(([k, v], i) => { e[`GIT_CONFIG_KEY_${n0 + i}`] = k; e[`GIT_CONFIG_VALUE_${n0 + i}`] = v; });
+  return e;
 }
 
 /**
- * git dans un dépôt : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges. Le dépôt peut
- * être n'importe lequel sous les racines inventoriées (une archive extraite, un clone tiers) : rien de ce que sa
- * configuration déclare comme programme ne s'exécute (`neutralisation`, et `--no-ext-diff` pour ce qui produit un diff).
+ * git en lecture dans un dépôt quelconque (inventaire, audit) : une archive extraite, un clone tiers. Rien de ce que sa
+ * configuration déclare comme programme ne s'exécute (`neutralisation`, `--no-ext-diff` pour ce qui produit un diff),
+ * l'index n'est pas réécrit (`--no-optional-locks`), et `status` ne descend pas dans les sous-modules, dont la
+ * configuration propre échapperait à la neutralisation (leurs changements ne se comptent pas).
  */
-export function git(depot, args, o = {}) {
-  const diff = ['diff', 'log', 'show'].includes(args[0]) ? [args[0], '--no-ext-diff', ...args.slice(1)] : args;
-  return spawnSync('git', [...neutralisation(depot), '-C', depot, ...diff], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 60e3, ...o });
+export function gitLu(depot, args, o = {}) {
+  const sous = { diff: ['--no-ext-diff'], log: ['--no-ext-diff'], show: ['--no-ext-diff'], status: ['--ignore-submodules=all'] }[args[0]];
+  const a = sous ? [args[0], ...sous, ...args.slice(1)] : args;
+  return git(depot, ['--no-optional-locks', ...a], { ...o, env: neutralisation(depot, o.env || process.env) });
 }
 
 /** Fichier de configuration de Claude Code d'un compte : `~/.claude.json` pour `~/.claude`, sinon `<home>/.claude.json`. */

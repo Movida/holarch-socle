@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { git, trouverOutil, lireJson, ecrireJson } from './commun.js';
+import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
@@ -22,7 +22,7 @@ const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
  * pourquoi}` soustrait un fichier du contrôle). Le nom du projet lui-même n'en fait jamais partie.
  */
 export function listePrivee({ depot, config = {}, comptes = [], projetsPrives = [], nomProjet = null }) {
-  const lireGit = (cle) => (git(depot, ['config', '--get', cle]).stdout || '').trim();
+  const lireGit = (cle) => (gitLu(depot, ['config', '--get', cle]).stdout || '').trim();
   const valeur = (x) => String(typeof x === 'object' && x ? x.terme ?? '' : x ?? '').trim();
   const reglage = config.donnees_personnelles || {};
   const termes = [lireGit('user.name'), lireGit('user.email'), os.userInfo().username, os.homedir(),
@@ -44,7 +44,7 @@ export function chercheur(termes) {
 
 // Lignes ajoutées par les changements indexés : [{ fichier, ligne, texte }].
 function lignesAjoutees(depot) {
-  const r = git(depot, ['diff', '--cached', '-U0', '--no-color', '--no-ext-diff', '--diff-filter=ACMR']);
+  const r = gitLu(depot, ['diff', '--cached', '-U0', '--no-color', '--diff-filter=ACMR']);
   if (r.status !== 0) throw new Error((r.stderr || '').trim() || 'git diff en échec');
   const out = []; let fichier = null; let n = 0;
   for (const l of r.stdout.split('\n')) {
@@ -73,10 +73,10 @@ function donneesPersonnelles(ctx, moment) {
   if (!trouve) return { indisponible: 'liste privée vide' };
   const trouves = []; const exclu = new Set(fichiersExclus(ctx.config));
   if (moment === 'avant-commit') {
-    for (const f of listeZ(git(ctx.depot, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']))) if (!exclu.has(f) && trouve(f)) trouves.push({ fichier: f, ligne: null });
+    for (const f of listeZ(gitLu(ctx.depot, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']))) if (!exclu.has(f) && trouve(f)) trouves.push({ fichier: f, ligne: null });
     for (const l of lignesAjoutees(ctx.depot)) if (!exclu.has(l.fichier) && trouve(l.texte)) trouves.push(l);
   } else {
-    const r = git(ctx.depot, ['ls-files', '-z']);
+    const r = gitLu(ctx.depot, ['ls-files', '-z']);
     if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
     for (const f of listeZ(r).filter((x) => !exclu.has(x))) {
       if (trouve(f)) trouves.push({ fichier: f, ligne: null });
@@ -108,12 +108,12 @@ function secrets(ctx, moment) {
   else {
     // Le contenu suivi au dernier commit, exporté : ni les fichiers ignorés, ni l'historique. Un dépôt que git ne lit
     // pas (dossier sans dépôt, dépôt abîmé, git absent) n'est pas contrôlé ; seul un dépôt sans commit n'a rien à lire.
-    const depot = git(ctx.depot, ['rev-parse', '--git-dir']);
+    const depot = gitLu(ctx.depot, ['rev-parse', '--git-dir']);
     if (depot.status !== 0) return { indisponible: `dépôt illisible par git : ${(depot.stderr || depot.error?.message || `code ${depot.status}`).trim().split('\n')[0]}` };
-    if (git(ctx.depot, ['rev-parse', '--verify', '-q', 'HEAD']).status !== 0) return { ecarts: [] };
+    if (gitLu(ctx.depot, ['rev-parse', '--verify', '-q', 'HEAD']).status !== 0) return { ecarts: [] };
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-secrets-'));
     try {
-      const a = git(ctx.depot, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer', maxBuffer: 1024 * 1024 * 1024 });
+      const a = gitLu(ctx.depot, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer', maxBuffer: 1024 * 1024 * 1024 });
       if (a.status !== 0 || spawnSync('tar', ['-x', '-C', tmp], { input: a.stdout }).status !== 0) return { indisponible: 'export du dépôt en échec' };
       base = tmp; r = gitleaks(ctx.gitleaks, ['dir', tmp]);
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
@@ -144,7 +144,7 @@ const GRAVITE_DECLAREE = { CRITICAL: 9, HIGH: 7, MODERATE: 4, MEDIUM: 4, LOW: 1 
 
 function dependancesVulnerables(ctx) {
   if (!ctx.osv) return { indisponible: 'osv-scanner absent (réglage controles.osv_scanner, PATH ou ~/.local/bin)' };
-  const r = git(ctx.depot, ['ls-files', '-z']);
+  const r = gitLu(ctx.depot, ['ls-files', '-z']);
   if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
   const verrous = listeZ(r).filter((f) => VERROUS.test(f) && fs.existsSync(path.join(ctx.depot, f)));
   if (!verrous.length) return { ecarts: [] };
@@ -230,12 +230,12 @@ function identiteDeCommit(ctx, moment) {
   if (!ctx.declare) return { indisponible: 'projet déclaré par aucun contexte : identité non gardée' };
   let vue; let ou;
   if (moment === 'avant-commit') {
-    const r = git(ctx.depot, ['var', 'GIT_AUTHOR_IDENT']);
+    const r = gitLu(ctx.depot, ['var', 'GIT_AUTHOR_IDENT']);
     const m = (r.stdout || '').match(/^(.*) <([^>]*)>/);
     if (r.status !== 0 || !m) return { indisponible: 'auteur du commit illisible' };
     vue = { nom: m[1].trim(), email: m[2].trim() }; ou = 'auteur du commit';
   } else {
-    const lire = (cle) => (git(ctx.depot, ['config', '--get', cle]).stdout || '').trim();
+    const lire = (cle) => (gitLu(ctx.depot, ['config', '--get', cle]).stdout || '').trim();
     vue = { nom: lire('user.name'), email: lire('user.email') }; ou = 'identité git du dépôt';
   }
   if (memeIdentite(vue, voulue)) return { ecarts: [] };
@@ -252,7 +252,7 @@ function journalTenu(ctx) {
   if (!fs.existsSync(f)) return { indisponible: `journal introuvable : ${journal}` };
   const notes = new Set([...fs.readFileSync(f, 'utf8').matchAll(/^#{1,6}\s.*?(\d{4}-\d{2}-\d{2})/gm)].map((m) => m[1]));
   const arbre = path.relative(ctx.depot, ctx.arbre || ctx.depot) || '.';
-  const r = git(ctx.depot, ['log', `--since=${reglage(ctx, 'journal_jours', 30)}.days`, '--format=%ad', '--date=short', '--', arbre, `:(exclude)${journal}`]);
+  const r = gitLu(ctx.depot, ['log', `--since=${reglage(ctx, 'journal_jours', 30)}.days`, '--format=%ad', '--date=short', '--', arbre, `:(exclude)${journal}`]);
   if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
   const jours = new Map();
   for (const d of r.stdout.split('\n').filter(Boolean)) jours.set(d, (jours.get(d) || 0) + 1);
@@ -269,7 +269,7 @@ function commitsPousses(ctx) {
   if (!e.amont) return { indisponible: 'branche sans amont' };
   if (!e.en_avance) return { ecarts: [] };
   const h = reglage(ctx, 'non_pousses_heures', 4);
-  const r = git(ctx.depot, ['log', '--format=%ct', '@{upstream}..HEAD']);
+  const r = gitLu(ctx.depot, ['log', '--format=%ct', '@{upstream}..HEAD']);
   const plusAncien = Math.min(...(r.stdout || '').split('\n').filter(Boolean).map(Number));
   if (r.status !== 0 || !Number.isFinite(plusAncien)) return { indisponible: 'dates des commits illisibles' };
   if (Date.now() / 1000 - plusAncien < h * 3600) return { ecarts: [] };

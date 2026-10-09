@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
-import { git as gitCommun } from '../commun.js';
+import { gitLu } from '../commun.js';
 
 /**
  * En-tête YAML d'un fichier Markdown (`---` … `---`) : { entete, erreur }. Sans en-tête, `entete` est {} et `erreur`
@@ -29,9 +29,9 @@ export { lireJson } from '../commun.js';
 
 export const liste = (d, filtre = () => true) => { try { return fs.readdirSync(d, { withFileTypes: true }).filter(filtre); } catch { return []; } };
 
-// Sortie de git pour l'inventaire : texte nettoyé, ou null (dépôt absent, commande en échec, délai dépassé).
+// Sortie de git pour l'inventaire (en lecture, `gitLu`) : texte nettoyé, ou null (dépôt absent, commande en échec, délai dépassé).
 export function git(depot, args) {
-  const r = gitCommun(depot, args, { timeout: 10000 });
+  const r = gitLu(depot, args, { timeout: 10000 });
   return r.status === 0 ? r.stdout.trim() : null;
 }
 
