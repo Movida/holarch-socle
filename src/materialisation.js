@@ -38,9 +38,9 @@ export function appliquerRegles(s, refs, comptes) {
  */
 /**
  * La veille retardée est voulue au compte : une règle applicable désigne son contrôle (crochets et gardien la suivent) ;
- * null si les règles du compte sont illisibles (rien ne se retire à l'aveugle).
+ * null si les règles du compte sont illisibles, ou sans profil unique (rien ne se retire à l'aveugle).
  */
-export const veilleVoulue = (compte) => (compte.illisibles?.length ? null : (compte.regles || []).some((e) => e.applicable && (e.controles || []).includes('veille-retardee')));
+export const veilleVoulue = (compte) => (compte.illisibles?.length || compte.indetermine ? null : (compte.regles || []).some((e) => e.applicable && (e.controles || []).includes('veille-retardee')));
 
 export function materialiserCompte(compte, comptes, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
   if (ecrire) lisible(compte);

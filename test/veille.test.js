@@ -10,7 +10,8 @@ import { spawnSync } from 'node:child_process';
 import { noter, evaluer, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
-import { materialiserCompte } from '../src/materialisation.js';
+import { materialiserCompte, veilleVoulue } from '../src/materialisation.js';
+import { regleDuCompte } from '../src/regles.js';
 import { executer } from '../src/controles.js';
 import { Journal } from '../src/stockage/journal.js';
 import * as affichage from '../bin/affichage.js';
@@ -209,7 +210,14 @@ test('veille : le gardien suit la seule règle, comme les crochets : posé si el
   assert.equal(reveil.gardien({ veille: true, relancer: false }).etat, 'posée');
   assert.ok(!fs.existsSync(path.join(unites, 'holarch-reveil.service')), 'sans accès distant, aucun réveil');
   appels.length = 0; assert.equal(reveil.gardien({ veille: true, relancer: false }).etat, 'inchangée'); assert.ok(!appels.includes('restart holarch-veille.service'));
-  assert.equal(reveil.gardien({ veille: null }).etat, 'règles du compte illisibles : laissé'); assert.ok(fs.existsSync(g));
+  // Règle indéterminée (règles illisibles, profil absent ou en double) : laissé ; actif, relancé par la copie de service.
+  appels.length = 0;
+  assert.equal(reveil.gardien({ veille: null, relancer: false }).etat, 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé');
+  assert.ok(!appels.includes('restart holarch-veille.service'));
+  assert.match(reveil.gardien({ veille: null }).etat, /indéterminée .* : laissé, relancé$/); assert.ok(appels.includes('restart holarch-veille.service')); assert.ok(fs.existsSync(g));
+  actifs.delete('holarch-veille.service'); appels.length = 0;
+  assert.match(reveil.gardien({ veille: null }).etat, /: laissé$/, 'arrêté : ni relancé ni démarré'); assert.deepEqual(appels.filter((a) => /^(restart|start|enable)/.test(a)), []);
+  actifs.add('holarch-veille.service');
   // Un accès distant n'y touche pas : ni le premier ne le pose, ni le dernier ne le retire.
   const cfg = path.join(tmp(), '.claude.json'); fs.writeFileSync(cfg, '{}');
   const d = creerDistant({ inventaire: { 'claude-code': { config: cfg } }, acces_distant: {} }, { unites, systemctl, claude: '/opt/claude', projets: [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }], accueil: '/a', holarch: '/opt/holarch.js', node: '/opt/node/bin/node' });
@@ -219,6 +227,18 @@ test('veille : le gardien suit la seule règle, comme les crochets : posé si el
   // La règle retirée : le gardien part avec elle.
   assert.equal(reveil.gardien({ veille: false }).etat, 'règle veille-retardee non appliquée : retiré'); assert.ok(!fs.existsSync(g));
   d.activer('demo'); assert.ok(!fs.existsSync(g), 'un accès distant ne le pose pas');
+});
+
+test('veille : un profil absent ou en double rend la règle indéterminée, pas retirée', () => {
+  const sans = regleDuCompte([]);
+  assert.equal(sans.indetermine, true); assert.deepEqual(sans.illisibles, []);
+  assert.equal(veilleVoulue(sans), null, 'un dépôt de profil absent ou déplacé ne retire pas le gardien');
+  const noeud = (arbre, type) => ({ kind: 'node', id: `${arbre}:${type}`, node: type === 'racine' ? '/index.md' : '/contextes/c.md', attributes: { arbre, ...(type === 'racine' ? { racine: true } : { type: 'context' }) } });
+  const deux = regleDuCompte(['p1', 'p2'].flatMap((a) => [noeud(a, 'racine'), noeud(a, 'contexte')]));
+  assert.match(deux.signaux[0], /plusieurs profils/); assert.equal(veilleVoulue(deux), null);
+  const un = regleDuCompte([noeud('p1', 'racine'), noeud('p1', 'contexte')]);
+  assert.equal(un.indetermine, undefined); assert.equal(veilleVoulue(un), false, 'un profil sans la règle : non voulue');
+  assert.equal(veilleVoulue({ regles: [{ id: 'veille-retardee', applicable: true, controles: ['veille-retardee'] }] }), true);
 });
 
 test('veille : un chemin de transcription noté ne se lit que s’il désigne un fichier .jsonl sous projects/ (une FIFO bloquerait le gardien)', () => {

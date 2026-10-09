@@ -170,9 +170,15 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
       if (!sv.ecrire(f, uniteReveil({ node, holarch, accueil }))) return { unite: path.basename(f), etat: 'inchangée' };
       sv.lancer(['daemon-reload']); return { unite: path.basename(f), etat: 'réécrite' };
     },
-    // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règles illisibles : rien ne change.
+    // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règle indéterminée (règles du compte
+    // illisibles, aucun profil ou plusieurs) : rien ne se pose ni ne se retire, mais un gardien actif est relancé (il
+    // garderait sinon le code d'avant la pose).
     gardien({ veille = null, relancer = true } = {}) {
-      if (veille === null) return { unite: UNITE_VEILLE, etat: 'règles du compte illisibles : laissé' };
+      if (veille === null) {
+        const etat = 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé';
+        if (!relancer || !sv.geree(g) || !sv.actif(g)) return { unite: UNITE_VEILLE, etat };
+        sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: `${etat}, relancé` };
+      }
       if (!veille) return { unite: UNITE_VEILLE, etat: retirerVeille(sv, g) };
       const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
       // Texte inchangé (le lien `courant` ne change pas de chemin) : le gardien tourne encore l'ancien code.

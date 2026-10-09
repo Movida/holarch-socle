@@ -139,15 +139,16 @@ export function regleEffective(fiches, projetId) {
 
 /**
  * Ce qui vaut pour tous les projets du site, à la portée du compte : la racine du profil et, s'il n'y a qu'un contexte,
- * les nœuds jusqu'à lui. Plusieurs profils, ou plusieurs contextes : seules les règles qui ne dépendent d'aucun choix.
+ * les nœuds jusqu'à lui. Plusieurs contextes : seules les règles qui ne dépendent d'aucun choix. Aucun profil, ou
+ * plusieurs : aucune règle, et `indetermine` le dit (un dépôt de profil absent ou déplacé ne vaut pas une règle retirée).
  */
 export function regleDuCompte(fiches) {
   const a = arbresDe(fiches); const signaux = [];
   if (!a.profils.length) {
     const lisibles = illisibles(a, [], { contexte: true });
-    return { regles: [], signaux: ['aucun profil connu sur ce site (un arbre qui porte des nœuds context)', ...lisibles], illisibles: lisibles, rappels: 0, rappels_proposes: 0 };
+    return { regles: [], indetermine: true, signaux: ['aucun profil connu sur ce site (un arbre qui porte des nœuds context)', ...lisibles], illisibles: lisibles, rappels: 0, rappels_proposes: 0 };
   }
-  if (a.profils.length > 1) return { regles: [], signaux: [`plusieurs profils sur ce site : ${a.profils.map((p) => p.attributes.arbre).join(', ')} ; rien n’est posé au compte`], illisibles: [], rappels: 0, rappels_proposes: 0 };
+  if (a.profils.length > 1) return { regles: [], indetermine: true, signaux: [`plusieurs profils sur ce site : ${a.profils.map((p) => p.attributes.arbre).join(', ')} ; rien n’est posé au compte`], illisibles: [], rappels: 0, rappels_proposes: 0 };
   const ctx = a.contextes.filter((n) => n.attributes.arbre === a.profils[0].attributes.arbre);
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profils[0], regles: a.regles.get(a.profils[0].id) || [] }];
