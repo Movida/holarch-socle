@@ -1065,7 +1065,7 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        (dont celle du réveil) ouvre un environnement neuf, et les sessions ouvertes avant ne sont pas reprises.
      - **B, veille retardée** (Opus 5.5 `xhigh`) : Q25 résolue, mécanisme, adaptateur et tests livrés (2026-10-09,
        `6bb1c20`). Contre-épreuve par une instance neuve (`xhigh`, scripts dans `/tmp/contre-epreuve-b/`, perdus au
-       redémarrage) : 4 majeurs, 13 mineurs, à corriger d'abord, un commit et un test chacun.
+       redémarrage) : 4 majeurs, 13 mineurs, tous corrigés le 2026-10-09 (Fait ci-dessus), un commit et un test chacun.
        Majeurs : (1) « travaille » sans borne (`veille.js`, `evaluer`) : une demande de permission, une élicitation
        MCP ou un `Stop` manqué tiennent le poste éveillé jusqu'à l'archivage ; mesure de l'instance : 301 tours de 67
        sessions distantes, aucun silence de plus de 11 min pendant un tour (hors questions) ; correction proposée :
