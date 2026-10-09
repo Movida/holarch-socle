@@ -2,6 +2,12 @@
 
 ## 2026-10-09
 
+* **Avis sur les fonctionnalités et la conception, palliatifs** : trois relectures en lecture seule (code,
+  fonctionnalités, trajectoire) et les mesures du site ; un palliatif par faiblesse, toutes les fonctionnalités gardées,
+  chacune dans le cœur, un module optionnel ou le profil : décision `modules-et-palliatifs`, en brouillon. Choix de
+  l'auteur : modules dans le dépôt du socle ; projet témoin : le projet privé le plus coûteux ; ordre : faille du
+  conteneur, garde des approbations et schémas, témoin, modules. À traiter d'abord :
+  `modeles/projet/devcontainer.json:16` monte `~/.claude` de l'hôte en écriture.
 * **Tranche 12, livraison B : mécanisme et adaptateur livrés** (Opus 5.5 `xhigh`, vérifié au début de la session) :
   la veille de Windows se retarde par sa propre API (`PowerSetRequest`, tenue par le PowerShell de Windows depuis un
   service de WSL), sans rien installer ; la demande tombe avec son lanceur, même tué net. Crochets `holarch veille
