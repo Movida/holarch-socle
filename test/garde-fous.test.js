@@ -465,6 +465,19 @@ test('Faille du conteneur : un montage de l’hôte qui expose un identifiant ou
   assert.match(lire().indisponible, /Docker Compose/);
   ecrire('.devcontainer/gpu/devcontainer.json', '{ "mounts": ["type=bind,source=${containerEnv:X},target=/x"] }');
   assert.match(lire().indisponible, /non résolue/);
+  // Admis sous ~/.claude : le dossier de transcriptions du projet du conteneur (nommé d'après son dossier de travail),
+  // et les règles du compte en lecture seule ; ni celui d'un autre projet, ni tous les projets, ni les règles en écriture.
+  ecrire('.devcontainer/gpu/devcontainer.json', JSON.stringify({ workspaceFolder: '/workspaces/mon_projet', mounts: [
+    'type=bind,source=${localEnv:HOME}/.claude/projects/-workspaces-mon-projet,target=/home/node/.claude/projects/-workspaces-mon-projet',
+    'type=bind,source=${localEnv:HOME}/.claude/rules,target=/home/node/.claude/rules,readonly',
+    'type=bind,source=${localEnv:HOME}/.claude/projects/-workspaces-autre,target=/a',
+    'type=bind,source=${localEnv:HOME}/.claude/projects,target=/t',
+    'type=bind,source=${localEnv:HOME}/.claude/rules,target=/r'] }));
+  r = lire();
+  assert.deepEqual(r.ecarts.map((e) => e.cle.split(':').pop()), ['/a', '/t', '/r']);
+  assert.match(r.ecarts[0].message, /monte ~\/\.claude\/projects\/-workspaces-autre, dans ~\/\.claude \(identifiants/);
+  assert.match(r.ecarts[1].message, /monte ~\/\.claude\/projects, dans ~\/\.claude \(identifiants/);
+  assert.match(r.ecarts[2].message, /~\/\.claude\/rules \(règles du compte, lues par les sessions de l’hôte\).*en écriture/);
   // Sans conteneur, rien n'est monté.
   fs.rmSync(path.join(d, '.devcontainer'), { recursive: true });
   assert.deepEqual(lire().ecarts, []);

@@ -1,10 +1,15 @@
 {
   "name": "HOLARCH socle",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  // Les dossiers de l'hôte montés ci-dessous, créés s'ils manquent.
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle ${localEnv:HOME}/.claude/rules",
   "mounts": [
     // Claude Code dans un volume propre au conteneur, jamais le ~/.claude de l'hôte (identifiants de tous les projets,
-    // crochets que l'hôte exécute) ; l'image tourne sous `node`. La connexion s'y fait une fois.
+    // crochets que l'hôte exécute) ; l'image tourne sous `node`. La connexion s'y fait une fois. De l'hôte, seulement :
+    // les transcriptions et la mémoire de ce projet (HOLARCH les lit), et les règles du compte en lecture.
     "source=holarch-socle-claude,target=/home/node/.claude,type=volume",
+    "source=${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle,target=/home/node/.claude/projects/-workspaces-holarch-socle,type=bind",
+    "source=${localEnv:HOME}/.claude/rules,target=/home/node/.claude/rules,type=bind,readonly",
     // Deploy keys du conteneur (deploy-keys.sh), dans un volume nommé propre à ce dépôt.
     "source=holarch-socle-ssh,target=/home/vscode/.ssh,type=volume"
   ],
@@ -13,7 +18,7 @@
   // Tout ce que le dépôt vérifie s'installe ici, pour qu'une reconstruction ne perde rien : dépendances, puis Chromium
   // et ses bibliothèques système pour le test visuel (npm run test:visuel).
   // Un volume neuf appartient à root : il est rendu à `node` avant tout.
-  "postCreateCommand": "sudo chown node:node /home/node/.claude && sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin",
+  "postCreateCommand": "sudo chown node:node /home/node/.claude /home/node/.claude/projects && sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin",
   // HOLARCH du conteneur garde ses données chez lui (~/.holarch) : celles de l'hôte n'y sont jamais montées en écriture.
   "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/node/.claude" },
   "remoteEnv": { "ANTHROPIC_API_KEY": "" },

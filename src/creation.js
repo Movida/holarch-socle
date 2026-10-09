@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { git, trouverOutil } from './commun.js';
 import { configAvantProjet, fusionnerConfig } from './regles.js';
-import { identiteDeclaree } from './controles.js';
+import { identiteDeclaree, dossierClaude } from './controles.js';
 import { poserIdentite } from './identite-git.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserProjet } from './materialisation.js';
@@ -124,7 +124,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     ['.gitignore', () => modele('gitignore')],
     ['CLAUDE.md', () => claudeMd({ nom, description, contexte: avant.contexte.nom, types, journal: cfg.journal })],
     ...(cfg.licence ? [['LICENSE', () => modele(`licences/${cfg.licence}`, { annee: maintenant.getFullYear(), titulaire: identite?.nom ?? '[À COMPLÉTER : titulaire du droit d’auteur]' })]] : []),
-    ...(cfg.etapes.conteneur ? [['.devcontainer/devcontainer.json', () => modele('devcontainer.json', { nom, volume: nom.toLowerCase() })],
+    ...(cfg.etapes.conteneur ? [['.devcontainer/devcontainer.json', () => modele('devcontainer.json', { nom, volume: nom.toLowerCase(), dossier_claude: dossierClaude(`/workspaces/${nom}`) })],
       ['.devcontainer/deploy-key.sh', () => modele('deploy-key.sh'), 0o755]] : []),
     // L'arbre et son journal ne s'écrivent que pour un projet qui n'a pas encore d'arbre : un arbre existant tient le sien.
     ...(typee && !arbreExistant ? [['arbre/index.md', () => racineIndex({ nom, description, types, journal: cfg.journal })],

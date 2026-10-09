@@ -304,6 +304,14 @@ const DOCKER_HOTE = ['/var/run/docker.sock', '/run/docker.sock'];
 const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
 const reel = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
 
+// Admis sous `~/.claude`, et seulement eux : le dossier de transcriptions et de mémoire du projet du conteneur, que
+// Claude Code nomme d'après le dossier de travail (HOLARCH les importe, P4), et les règles du compte en lecture (l'arbre
+// des règles atteint le conteneur ; écrites depuis lui, elles s'imposeraient aux sessions de l'hôte).
+export const dossierClaude = (dossier) => dossier.replace(/[^a-zA-Z0-9]/g, '-');
+const montagesAdmis = (c, depot, maison) => [
+  { chemin: path.join(maison, '.claude', 'projects', dossierClaude(c.workspaceFolder || `/workspaces/${path.basename(depot)}`)) },
+  { chemin: path.join(maison, '.claude', 'rules'), lecture: true, quoi: 'règles du compte, lues par les sessions de l’hôte' }];
+
 // Fichiers de configuration d'un conteneur, aux emplacements de la spécification Dev Containers.
 function configsConteneur(depot) {
   const dossier = path.join(depot, '.devcontainer');
@@ -374,13 +382,18 @@ function montageSensible(ctx) {
     const c = parseJsonc(texte, erreurs, { allowTrailingComma: true }); const arbre = parseTree(texte, [], { allowTrailingComma: true });
     if (erreurs.length || !c || typeof c !== 'object') return { indisponible: `${f} illisible` };
     if (c.dockerComposeFile) return { indisponible: `${f} : conteneur décrit par Docker Compose, montages non lus` };
+    const admis = montagesAdmis(c, ctx.depot, maison);
     for (const m of montagesDe(c).filter((x) => x.type === 'bind' && x.source)) {
       const src = sourceHote(m.source, ctx.depot, maison, env);
       if (!src) return { indisponible: `${f} : source de montage non résolue (${m.source})` };
-      const touche = sensibles.find((x) => !(x.ecriture && m.lecture) && [src, reel(src)].some((s) => dedans(s, x.chemin) || dedans(x.chemin, s)));
+      const a = admis.find((x) => x.chemin === src);
+      if (a && (!a.lecture || m.lecture)) continue;
+      // Un montage admis en lecture seule, monté en écriture, compte pour lui-même ; sinon, ce qu'il touche ou contient.
+      let vu = src;
+      const touche = a || sensibles.find((x) => !(x.ecriture && m.lecture) && [src, reel(src)].some((s) => (dedans(s, x.chemin) || dedans(x.chemin, s)) && (vu = s)));
       if (!touche) continue;
       const noeud = arbre && findNodeAtLocation(arbre, m.ou);
-      const qui = dedans(touche.chemin, src) && touche.chemin !== src ? `${affiche(src)}, qui contient ${affiche(touche.chemin)}` : affiche(touche.chemin);
+      const qui = vu === touche.chemin ? affiche(vu) : dedans(touche.chemin, vu) ? `${affiche(vu)}, qui contient ${affiche(touche.chemin)}` : `${affiche(vu)}, dans ${affiche(touche.chemin)}`;
       ecarts.push({ fichier: f, ligne: noeud ? texte.slice(0, noeud.offset).split('\n').length : null, cle: `montage:${f}:${m.cible}`,
         message: `monte ${qui} (${touche.quoi}) dans le conteneur, ${m.lecture ? 'en lecture' : 'en écriture'}` });
     }
