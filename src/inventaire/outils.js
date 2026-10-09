@@ -42,7 +42,7 @@ export { lireJson } from '../commun.js';
 export const liste = (d, filtre = () => true) => { try { return fs.readdirSync(d, { withFileTypes: true }).filter(filtre); } catch { return []; } };
 
 // Sortie de git pour l'inventaire (en lecture, `gitLu`) : texte nettoyé, ou null (dépôt absent, commande en échec, délai dépassé).
-export function git(depot, args) {
+export function gitInventaire(depot, args) {
   const r = gitLu(depot, args, { timeout: 10000 });
   return r.status === 0 ? r.stdout.trim() : null;
 }
