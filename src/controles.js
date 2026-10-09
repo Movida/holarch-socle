@@ -395,10 +395,25 @@ function montageTexte(t) {
 // Un montage écrit en objet devient la ligne que le CLI Dev Containers passe à `--mount` (`generateMountCommand`).
 const montageObjet = (m) => montageTexte(`type=${m.type},${m.source ? `src=${m.source},` : ''}dst=${m.target}`);
 
-// Un `-v source:cible[:options]` : une source qui n'est pas un nom de volume est un chemin de l'hôte.
+// Un `-v [source:]cible[:mode]`, lu comme le démon Docker sous Linux (`ParseMountRaw`) une fois les variables du CLI
+// Dev Containers résolues : découpé aux `:` hors de `${…}` ; une seule partie est un volume anonyme ; une source absolue
+// (ou `~`, `.`, une variable) est un chemin de l'hôte. Ce que Docker refuserait, ou un chemin Windows (`C:\…`), est
+// `illisible`.
+const MODES = new Set(['rw', 'ro', 'z', 'Z', 'nocopy', 'shared', 'rshared', 'slave', 'rslave', 'private', 'rprivate', 'delegated', 'cached', 'consistent']);
+const auxDeuxPoints = (t) => { const parts = ['']; let dans = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === '$' && t[i + 1] === '{') dans++; else if (t[i] === '}' && dans) dans--;
+    if (t[i] === ':' && !dans) parts.push(''); else parts[parts.length - 1] += t[i];
+  }
+  return parts; };
 function montageCourt(t) {
-  const [source, cible, options = ''] = String(t).split(':');
-  return { type: /^[/~.$]/.test(source) ? 'bind' : 'volume', source, cible, lecture: options.split(',').includes('ro') };
+  const parts = auxDeuxPoints(String(t));
+  const illisible = { type: 'volume', source: null, cible: null, lecture: false, illisible: true };
+  if (!parts[0] || parts.length > 3 || (parts.length === 2 && parts[1].split(',').every((x) => MODES.has(x)))) return illisible;
+  if (parts.length > 1 && /^[A-Za-z]$/.test(parts[0]) && /^[\\/]/.test(parts[1])) return illisible;
+  if (parts.length === 1) return { type: 'volume', source: null, cible: parts[0], lecture: false };
+  const [source, cible, mode = ''] = parts;
+  return { type: /^[/~.$]/.test(source) ? 'bind' : 'volume', source, cible, lecture: mode.split(',').includes('ro') };
 }
 
 // Les montages d'une configuration, chacun avec son chemin dans le fichier (pour la ligne).
@@ -416,12 +431,20 @@ function montagesDe(c) {
   return l;
 }
 
-// Chemin de l'hôte d'une source : variables de l'hôte résolues (`${localEnv:…}`, `${localWorkspaceFolder}`, `~`) ;
-// null si une variable reste inconnue.
+// Chemin de l'hôte d'une source, variables résolues comme le CLI Dev Containers (`${localEnv:NOM:défaut}`, le défaut
+// s'arrêtant au `:` suivant ; `${localWorkspaceFolder}`, `~`) ; null si une variable reste inconnue. Une variable absente
+// de l'environnement de l'audit et sans défaut est inconnue : l'environnement qui ouvre le conteneur peut l'avoir.
 function sourceHote(source, depot, maison, env) {
-  let s = String(source).replace(/\$\{(?:localEnv|env):([A-Za-z_]\w*)(?::([^}]*))?\}/g, (_, v, d) => env[v] ?? d ?? '')
-    .replace(/\$\{localWorkspaceFolder\}/g, depot).replace(/\$\{localWorkspaceFolderBasename\}/g, path.basename(depot));
-  if (s.includes('${')) return null;
+  let inconnue = false;
+  let s = String(source).replace(/\$\{(.*?)\}/g, (m, v) => {
+    const [nom, ...args] = v.split(':');
+    if ((nom === 'localEnv' || nom === 'env') && typeof env[args[0]] === 'string') return env[args[0]];
+    if ((nom === 'localEnv' || nom === 'env') && args.length > 1) return args[1];
+    if (nom === 'localWorkspaceFolder') return depot;
+    if (nom === 'localWorkspaceFolderBasename') return path.basename(depot);
+    inconnue = true; return m;
+  });
+  if (inconnue) return null;
   if (s === '~' || s.startsWith('~/')) s = path.join(maison, s.slice(1));
   return path.resolve(depot, s);
 }

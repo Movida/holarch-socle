@@ -558,3 +558,22 @@ test('Contre-épreuve du conteneur (2) : un bind se lit comme le CLI Docker (cas
   assert.deepEqual(cibles(r), ['/a']);
   assert.deepEqual(r.indisponible.split(' ; ').map((x) => x.split('(')[1]), ['mounts.1)', 'mounts.2)', 'mounts.3)', 'mounts.4)', 'mounts.5)']);
 });
+
+test('Contre-épreuve du conteneur (13, 26, 14, 15) : variables comme le CLI Dev Containers ; `-v` découpé hors des variables, une partie est un volume anonyme', () => {
+  const { config, lire, cibles } = conteneurEssai();
+  // Une variable absente de l'environnement de l'audit, sans défaut : non disponible (celui qui ouvre le conteneur peut l'avoir).
+  config({ mounts: ['type=bind,source=${localEnv:ABSENTE}/.ssh,target=/a'] });
+  assert.match(lire().indisponible, /non résolue \(\$\{localEnv:ABSENTE\}\/\.ssh\)/);
+  // Le défaut s'arrête au `:` suivant : `${localEnv:ABSENTE:~:x}` vaut `~`.
+  config({ mounts: ['type=bind,source=${localEnv:ABSENTE:~:x}/.ssh,target=/b'] });
+  assert.deepEqual(cibles(lire()), ['/b']);
+  // `-v` : une variable qui contient `:` n'est pas coupée ; une seule partie est un volume anonyme, pas un montage de l'hôte.
+  config({ runArgs: ['-v', '${localEnv:HOME}/.ssh:/c', '-v', '${localEnv:ABSENTE:~/.aws}:/d:ro', '-v', '/home/alice/.claude', '-v', 'cache:/e'] });
+  let r = lire();
+  assert.deepEqual([cibles(r), r.indisponible], [['/c', '/d'], undefined]);
+  assert.match(r.ecarts[1].message, /~\/\.aws.*en lecture/);
+  // Ce que Docker refuserait (cible et mode seuls, quatre parties) et un chemin Windows : non disponible.
+  config({ runArgs: ['-v', '/x:ro', '-v', 'a:b:c:d', '-v', 'C:\\Users\\alice\\.ssh:/s'] });
+  r = lire();
+  assert.deepEqual([r.ecarts, r.indisponible.split(' ; ').length], [[], 3]);
+});
