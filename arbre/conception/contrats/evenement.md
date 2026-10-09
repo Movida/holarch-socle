@@ -12,6 +12,9 @@ links:
 
 # Contrat — événement du journal
 
+> **Version 0.10.0 en attente d'approbation** : la ligne `data` de la veille, `data.environnement` et la famille
+> `power.*` (décision `veille-et-conteneur-precisions`, en brouillon). Le reste vaut tel qu'approuvé jusqu'à 0.9.0.
+
 ## 1. Forme
 
 Une ligne JSON par événement (JSON Lines), en **ajout seul** : un événement ne se modifie ni ne s'efface ; une
@@ -40,14 +43,15 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 | `classification` | niveau de l'événement ; un consommateur ne lit que ce que son niveau autorise |
 | `data` d'un écart | `rule.violated` et `rule.resolved` : `{regle, controle, cle, fichier?, ligne?, n?, message?}` ; la règle par son identifiant du catalogue, `cle` reconnaît l'écart d'un audit à l'autre, `n` compte ses occurrences, `message` dit sa nature ; jamais le contenu trouvé ; `subject` est le projet, absent pour la portée du compte |
 | `data` d'un échec | `tool.failed` : `{outil, motif, code?, programme?}`, `motif` parmi `sortie`, `tests`, `garde`, `edition-perimee`, `edition-introuvable`, `edition-ambigue`, `edition-non-lue`, `fichier-absent`, `validation`, `delai`, `autre` ; `code` et `programme` (nom seul, sans chemin ni argument) pour une commande shell ; `rule.enforced` (refus d'une garde) : `{regle, controle, n, moment}` ; `session.finished` porte `tests: {lances, rouges}` ; jamais la commande, le chemin ni la sortie (décision échecs au journal) |
-| `data` de la veille | `power.held` (demande d'éveil du poste tenue) : `{sessions: [{session, etat, projet?}]}`, les sessions distantes qui la retiennent, émis de nouveau quand l'une arrive ou part pendant la tenue, `etat` parmi `travaille` et `attend`, `projet` le nom du dossier de départ (affichage seulement) ; `power.released` : `{raison}`, `aucune-session` ou `arret` (l'adaptateur s'arrête) ; `power.failed` : `{motif, code?}`, `motif` parmi `sans-mecanisme`, `non-lancee`, `sans-reponse`, `refusee` et `arretee`, `code` celui de sortie de la demande s'il y en a un ; une fois par panne, le détail (sortie de la demande, chemins) au seul log de l'adaptateur (décision environnement-d-execution) |
+| `data` de la veille (0.10.0, en attente d'approbation) | `power.held` (demande d'éveil du poste tenue) : `{sessions: [{session, etat, projet?}]}`, les sessions distantes qui la retiennent, émis de nouveau quand l'une arrive ou part pendant la tenue ; une demande reprise après une panne courte ne se redit qu'une fois tenue plus d'une minute ; `etat` parmi `travaille` et `attend`, `projet` le nom du dossier de départ (affichage seulement) ; `power.released` : `{raison}`, `aucune-session` ou `arret` (l'adaptateur s'arrête) ; `power.failed` : `{motif, code?}`, `motif` parmi `sans-mecanisme`, `non-lancee`, `sans-reponse`, `refusee` et `arretee`, `code` celui de sortie de la demande s'il y en a un ; une fois par panne, le détail (sortie de la demande, chemins) au seul log de l'adaptateur (décision environnement-d-execution) |
+| `data.environnement` (0.10.0, en attente d'approbation) | `conteneur` : l'événement vient d'une session tenue dans le conteneur d'un projet (sa transcription, écrite dans le dossier du conteneur, lue depuis l'hôte) ; elle ne se rattache qu'au projet de ce conteneur. Absent : l'hôte. Distinct de `origine`, qui dit d'où vient un refus d'outil (`tool.denied`) |
 
 ## 3. Familles (vocabulaire ouvert, extensible par décision)
 
 `session.*` (started, finished) · `run.*` (requested, started, finished, failed) · `tool.*` (called, denied, failed) · `rule.*` (applied,
 violated, resolved, derogated, proposed, enforced) · `decision.*` (requested, made, delegated) · `verification.*` (requested, verdict) ·
 `element.*` (created, updated, moved, suspended, retired) · `cost.recorded` · `budget.*` (warning, exceeded) · `dream.*`
-(started, proposal, finished) · `inventory.finished` · `ui.viewed` (page de l'interface consultée) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded) · `power.*` (held, released, failed : la veille du poste retardée sous une session distante).
+(started, proposal, finished) · `inventory.finished` · `ui.viewed` (page de l'interface consultée) · `idea.*` (noted, triaged, taken, dropped) · `system.*` (paused, resumed, degraded) · `power.*` (held, released, failed : la veille du poste retardée sous une session distante ; 0.10.0, en attente d'approbation).
 
 ## 4. Règles
 
