@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ulid } from '../ulid.js';
-import { localiserProjet } from '../projets.js';
+import { localiserProjet, projetDuDossierConteneur } from '../projets.js';
 
 const IGNORER_MODELES = new Set(['<synthetic>']);
 // Version de l'état d'import : un fichier lu par une version antérieure est relu une fois, et l'écart des cumuls devient
@@ -84,13 +84,14 @@ export function echecOutil(outil, texte, entree) {
 }
 const texteDe = (c) => (Array.isArray(c) ? c.map((x) => x?.text || '').join(' ') : c);
 
-/** Les transcriptions d'un compte (`<home>/projects/…/*.jsonl`, sous-agents compris, mémoires exclues). */
+/** Les transcriptions d'un compte (`<home>/projects/…/*.jsonl`, sous-agents compris, mémoires exclues) ; un dossier illisible est passé. */
 export function fichiers(home) {
   const projets = path.join(home, 'projects');
   if (!fs.existsSync(projets)) return [];
   const out = [];
   const marcher = (d, profondeur) => {
-    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    let entrees; try { entrees = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of entrees) {
       const p = path.join(d, e.name);
       if (e.isDirectory() && profondeur < 3 && e.name !== 'memory') marcher(p, profondeur + 1);
       else if (e.isFile() && e.name.endsWith('.jsonl')) out.push(p);
@@ -118,6 +119,11 @@ export function cheminsAppel(entree, cwd) {
   return bruts.map((p) => resoudre(p, cwd)).filter(Boolean);
 }
 
+// Textes venus d'une transcription et gardés au journal, bornés : un conteneur écrit librement les siennes.
+const borne = (t, n) => (typeof t === 'string' ? t.slice(0, n) : t ?? null);
+// Plafond d'une transcription lue d'un bloc (mesure du 2026-10-09 : 152 Mo au plus sur 805 fichiers, médiane 0,75 Mo).
+export const TAILLE_MAX_MO = 400;
+
 function analyser(f, projetDe = () => null) {
   const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], echecs: [], tests: { lances: 0, rouges: 0 }, appels: new Map(), projets: new Map(), sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
   const outils = {}; const entrees = {};
@@ -126,21 +132,21 @@ function analyser(f, projetDe = () => null) {
     if (!ligne) continue;
     let e; try { e = JSON.parse(ligne); } catch { continue; }
     if (e.timestamp) { if (!r.debut || e.timestamp < r.debut) r.debut = e.timestamp; if (!r.fin || e.timestamp > r.fin) r.fin = e.timestamp; }
-    if (e.sessionId && !r.session) r.session = e.sessionId;
-    if (e.cwd && !r.cwd) r.cwd = e.cwd;
-    if (e.gitBranch && !r.branche) r.branche = e.gitBranch;
+    if (typeof e.sessionId === 'string' && /^[\w.:-]{1,128}$/.test(e.sessionId) && !r.session) r.session = e.sessionId;
+    if (typeof e.cwd === 'string' && !r.cwd) r.cwd = borne(e.cwd, 300);
+    if (typeof e.gitBranch === 'string' && !r.branche) r.branche = borne(e.gitBranch, 100);
     if (e.type === 'user' && typeof e.message?.content === 'string') r.invites++;
     if (e.type === 'user' && Array.isArray(e.message?.content)) {
       for (const x of e.message.content) {
         if (x?.type !== 'tool_result') continue;
         const texte = texteDe(x.content);
         const o = x.is_error ? origineRefus(texte) : null;
-        if (o) r.refus.push({ ...o, at: e.timestamp, cle: x.tool_use_id, outil: outils[x.tool_use_id] || null });
+        if (o) r.refus.push({ ...o, at: e.timestamp, cle: x.tool_use_id, outil: borne(outils[x.tool_use_id], 100) });
         const commande = entrees[x.tool_use_id]?.command;
         const test = typeof commande === 'string' && TEST.test(commande) && !o;
         const rouge = test && (x.is_error || TEST_ROUGE.test(String(texte || '')));
         if (test) { r.tests.lances++; if (rouge) r.tests.rouges++; }
-        if (!o && (x.is_error || rouge)) r.echecs.push({ ...echecOutil(outils[x.tool_use_id], texte, entrees[x.tool_use_id]), at: e.timestamp, cle: x.tool_use_id, outil: outils[x.tool_use_id] || null });
+        if (!o && (x.is_error || rouge)) r.echecs.push({ ...echecOutil(outils[x.tool_use_id], texte, entrees[x.tool_use_id]), at: e.timestamp, cle: x.tool_use_id, outil: borne(outils[x.tool_use_id], 100) });
         const appel = r.appels.get(x.tool_use_id);
         if (appel) appel.statut = o ? 'refuse' : x.is_error ? 'erreur' : 'ok';
       }
@@ -155,7 +161,7 @@ function analyser(f, projetDe = () => null) {
         for (const p of touches) r.projets.set(p.id, (r.projets.get(p.id) || 0) + 1);
         // Un outil MCP se nomme mcp__<serveur>__<outil> : seuls le serveur et l'outil sont gardés.
         const [pre, serveur, ...reste] = String(x.name || '').split('__');
-        if (pre === 'mcp' && serveur && reste.length && !r.appels.has(x.id)) r.appels.set(x.id, { at: e.timestamp, cle: x.id, serveur, outil: reste.join('__'), statut: null });
+        if (pre === 'mcp' && serveur && reste.length && !r.appels.has(x.id)) r.appels.set(x.id, { at: e.timestamp, cle: x.id, serveur: borne(serveur, 100), outil: borne(reste.join('__'), 100), statut: null });
       }
     }
     if (e.type !== 'assistant' || !e.message?.usage) continue;
@@ -165,7 +171,7 @@ function analyser(f, projetDe = () => null) {
     const u = e.message.usage;
     if (IGNORER_MODELES.has(e.message.model)) continue;
     // Le mode rapide est facturé à part : ses tokens se comptent sous « <modèle>:rapide », qui a sa propre ligne de tarif.
-    const m = (e.message.model || 'inconnu') + (u.speed === 'fast' ? ':rapide' : '');
+    const m = borne(String(e.message.model || 'inconnu'), 80) + (u.speed === 'fast' ? ':rapide' : '');
     r.tours++;
     const t = (r.modeles[m] ||= { in: 0, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 0 });
     t.in += u.input_tokens || 0; t.cache_write += u.cache_creation_input_tokens || 0; t.cache_read += u.cache_read_input_tokens || 0; t.out += u.output_tokens || 0;
@@ -198,24 +204,35 @@ export default function importerTranscriptions(options, { journal, donnees, pass
   const etat = lireJson(etatF, {}); // premier import : vide
   const anciens = migrerEtat(etat);
   const calme = (options.calme_minutes ?? 10) * 60e3;
-  const evenements = []; let lus = 0; let enCours = 0;
+  const evenements = []; let lus = 0; let enCours = 0; let illisibles = 0; let tropGrands = 0;
+  const plafond = (options.taille_max_mo ?? TAILLE_MAX_MO) * 2 ** 20;
   // Plusieurs comptes (un répertoire chacun) : chaque événement porte le compte qui a produit la session.
   const sources = (comptes || [{ nom: null, home: options.home }]).flatMap((c) => fichiers(c.home).map((f) => [f, c.nom, c.home]));
   for (const [f, nomCompte, home] of sources) {
-    const st = fs.statSync(f);
     const cle = cleDe(home, f, nomCompte);
     if (!etat[cle] && anciens.has(cleDe(home, f, null))) etat[cle] = anciens.get(cleDe(home, f, null));
     const prec = etat[cle];
-    if (prec && prec.taille === st.size && prec.v === VERSION_ETAT) continue;
-    if (Date.now() - st.mtimeMs < calme) { enCours++; continue; }
-    const a = analyser(f, projetDe); lus++;
+    // Le dossier `-workspaces-<dépôt>` est écrit par le conteneur du projet (monté depuis l'hôte) : ce qu'il contient ne
+    // se rattache qu'à ce projet, et se marque `origine: conteneur`. Un fichier illisible ou trop grand est passé et
+    // compté, sans arrêter l'import des autres ; il sera relu au passage suivant.
+    const dossier = path.relative(path.join(home, 'projects'), f).split(path.sep)[0];
+    const conteneur = dossier.startsWith('-workspaces-');
+    const permis = conteneur ? projetDuDossierConteneur(projets, dossier) : null;
+    let st; let a;
+    try {
+      st = fs.statSync(f);
+      if (prec && prec.taille === st.size && prec.v === VERSION_ETAT) continue;
+      if (Date.now() - st.mtimeMs < calme) { enCours++; continue; }
+      if (st.size > plafond) { tropGrands++; continue; }
+      a = analyser(f, conteneur ? (c) => { const p = projetDe(c); return p && p.id === permis?.id ? p : null; } : projetDe); lus++;
+    } catch { illisibles++; continue; }
     if (!a.session || !a.debut) { etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: {}, session: false }; continue; }
     const principal = Object.entries(a.modeles).sort((x, y) => y[1].out - x[1].out)[0]?.[0] || 'inconnu';
     const actor = `agent:claude-code/${principal}`;
-    const projet = a.cwd ? path.basename(a.cwd) : null;
+    const projet = conteneur ? (permis ? path.basename(permis.location) : null) : a.cwd ? path.basename(a.cwd) : null;
     const corr = a.sousAgent ? `${a.session}:${path.basename(f, '.jsonl')}` : a.session;
     const base = { actor, correlation: corr, classification: 'internal' };
-    const cpt = nomCompte ? { compte: nomCompte } : {};
+    const cpt = { ...(nomCompte && { compte: nomCompte }), ...(conteneur && { origine: 'conteneur' }) };
     const touches = [...a.projets].map(([id, n]) => ({ id, n })).sort((x, y) => y.n - x.n).slice(0, 20);
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
     const fin = { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null, tours: a.tours, invites: a.invites, duree_s: duree, modeles: Object.keys(a.modeles), ...(a.tests.lances && { tests: a.tests }) };
@@ -256,5 +273,5 @@ export default function importerTranscriptions(options, { journal, donnees, pass
   }
   const r = journal.ajouter(evenements);
   ecrireJson(etatF, etat, { indent: 0 });
-  return { fichiers_lus: lus, en_cours_ignores: enCours, ...r, refuses: r.refuses.length, premiers_refus: r.refuses.slice(0, 3).map((x) => x.erreur) };
+  return { fichiers_lus: lus, en_cours_ignores: enCours, ...(illisibles && { illisibles }), ...(tropGrands && { trop_grands: tropGrands }), ...r, refuses: r.refuses.length, premiers_refus: r.refuses.slice(0, 3).map((x) => x.erreur) };
 }

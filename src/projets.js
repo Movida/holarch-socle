@@ -40,5 +40,14 @@ export function resoudreProjet(projets, ref) {
   return parNom[0] || null;
 }
 
+/** Nom que Claude Code donne au dossier de transcriptions et de mémoire d'un dossier de travail (seul encodeur). */
+export const dossierClaude = (dossier) => dossier.replace(/[^a-zA-Z0-9]/g, '-');
+
+/**
+ * Le projet dont le conteneur écrit ce dossier de transcriptions (`-workspaces-<dossier du dépôt>`, monté depuis
+ * l'hôte), ou null. Une transcription écrite par un conteneur ne se rattache qu'à lui (décision environnement-d-execution).
+ */
+export const projetDuDossierConteneur = (projets, dossier) => projets.find((p) => p.location && dossierClaude(`/workspaces/${path.basename(p.location)}`) === dossier) || null;
+
 /** Lien `project` d'une fiche (contrat fiche 0.4.0) : à ajouter à ses `links`, vide si l'élément n'est d'aucun projet. */
 export const lienProjet = (p) => (p ? { project: [p.id] } : {});

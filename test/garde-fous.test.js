@@ -14,6 +14,7 @@ import { ulid } from '../src/ulid.js';
 import { executer, dossierClaude, maisonsWindows } from '../src/controles.js';
 import { git, gitLu } from '../src/commun.js';
 import { Socle } from '../src/socle.js';
+import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
@@ -699,4 +700,38 @@ test('Contre-épreuve du conteneur (6) : ce qui, dans le dépôt que le conteneu
   // Sans conteneur, rien de tout cela n'est un écart.
   fs.rmSync(path.join(d, '.devcontainer'), { recursive: true });
   assert.deepEqual(lire().ecarts, []);
+});
+
+test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop grande n’arrête pas l’import ; celle d’un conteneur ne se rattache qu’à son projet', () => {
+  const r = tmp(); const home = path.join(r, 'compte'); const projet = path.join(r, 'projet'); const autre = path.join(r, 'autre');
+  fs.mkdirSync(projet); fs.mkdirSync(autre); fs.writeFileSync(path.join(autre, 'x.md'), '');
+  const projets = [{ id: 'holarch:project:projet', nom: 'projet', location: projet }, { id: 'holarch:project:autre', nom: 'autre', location: autre }];
+  const transcription = (dossier, nom, cwd, fichier) => {
+    const d = path.join(home, 'projects', dossier); fs.mkdirSync(d, { recursive: true });
+    const lignes = [{ type: 'assistant', sessionId: nom, cwd, gitBranch: 'b'.repeat(500), timestamp: '2026-10-01T10:00:00Z', requestId: nom,
+      message: { id: nom, model: 'm'.repeat(500), usage: { input_tokens: 1, output_tokens: 2 }, content: [{ type: 'tool_use', id: `t-${nom}`, name: 'Read', input: { file_path: fichier } }] } }];
+    fs.writeFileSync(path.join(d, `${nom}.jsonl`), lignes.map((x) => JSON.stringify(x)).join('\n') + '\n');
+    return path.join(d, `${nom}.jsonl`);
+  };
+  // Le conteneur du projet dit avoir travaillé dans l'autre projet de l'hôte : il ne s'y rattache pas.
+  transcription('-workspaces-projet', 'c1', '/workspaces/projet', path.join(autre, 'x.md'));
+  transcription('-workspaces-projet', 'c2', autre, path.join(autre, 'x.md'));
+  transcription(dossierClaude(autre), 'h1', autre, path.join(autre, 'x.md'));
+  const bloque = transcription('-workspaces-projet', 'c3', '/workspaces/projet', 'x');
+  fs.chmodSync(bloque, 0);
+  const donnees = tmp(); const journal = new Journal(donnees, 'local');
+  const res = importerTranscriptions({ calme_minutes: 0 }, { journal, donnees, comptes: [{ nom: null, home }], projets });
+  assert.equal(res.illisibles, 1, 'la transcription illisible est comptée, les autres importées');
+  const fins = Object.fromEntries([...journal.lire()].filter((e) => e.kind === 'session.finished').map((e) => [e.correlation, e.data]));
+  assert.deepEqual(Object.keys(fins).sort(), ['c1', 'c2', 'h1']);
+  assert.deepEqual([fins.c1.projets, fins.c1.projet, fins.c1.origine], [[{ id: 'holarch:project:projet', n: 1 }], 'projet', 'conteneur']);
+  assert.deepEqual([fins.c2.projets, fins.c2.projet], [[], 'projet']);
+  assert.deepEqual([fins.h1.projets, fins.h1.origine], [[{ id: 'holarch:project:autre', n: 1 }], undefined]);
+  assert.equal(fins.h1.branche.length, 100);
+  assert.ok([...journal.lire()].filter((e) => e.kind === 'cost.recorded').every((e) => e.cost.model.length === 80));
+  // Rendue lisible, elle est importée au passage suivant ; une transcription au-dessus du plafond est passée et comptée.
+  fs.chmodSync(bloque, 0o644);
+  assert.equal(importerTranscriptions({ calme_minutes: 0 }, { journal, donnees, comptes: [{ nom: null, home }], projets }).fichiers_lus, 1);
+  const d2 = tmp();
+  assert.equal(importerTranscriptions({ calme_minutes: 0, taille_max_mo: 1e-4 }, { journal: new Journal(d2, 'local'), donnees: d2, comptes: [{ nom: null, home }], projets }).trop_grands, 4);
 });

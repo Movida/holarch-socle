@@ -12,6 +12,7 @@ import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, evaluer, fichierGardien, GARDIEN_FRAIS, fichierErreur, ERREUR_VUE_JOURS } from './veille.js';
 import { etatVeille, accesDistants } from './distant.js';
+import { dossierClaude } from './projets.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
 const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
@@ -330,7 +331,7 @@ const reel = (p) => { try { return fs.realpathSync(p); } catch { const d = path.
 // Admis sous `~/.claude`, et seulement eux : le dossier de transcriptions et de mémoire du projet du conteneur, que
 // Claude Code nomme d'après le dossier de travail (HOLARCH les importe, P4), et les règles du compte en lecture (l'arbre
 // des règles atteint le conteneur ; écrites depuis lui, elles s'imposeraient aux sessions de l'hôte).
-export const dossierClaude = (dossier) => dossier.replace(/[^a-zA-Z0-9]/g, '-');
+export { dossierClaude };
 
 // Dossier de travail du conteneur, résolu comme le CLI Dev Containers et normalisé ; null hors de `/workspaces/` (le
 // dossier d'un projet de l'hôte, `-home-…`, porte une mémoire que les sessions de l'hôte chargent) ou quand Claude Code
