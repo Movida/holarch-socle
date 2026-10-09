@@ -17,6 +17,24 @@
   attente de test qui se reconnaissait elle-même. La demande qui y aurait mené : « corrige A à H, en partant de tout ce
   qu'une configuration de dépôt peut faire exécuter ».
 
+* **Environnement d'exécution, tranche 12 ouverte** : partie d'une session « injoignable au démarrage » (cause :
+  l'auteur était sur un autre compte claude.ai ; la chaîne tient : tâche Windows à l'ouverture de session, WSL 18 s
+  après Windows, accès distant relancé seul après un échec à 07:23). L'auteur a demandé ensuite un poste qui ne
+  s'éteint pas sous une session distante, puis des sessions qui travaillent dans leur conteneur, un environnement
+  partageable avec des collègues et la carte graphique partagée. Mesures : accès distant sur l'hôte en mode `auto`
+  (secrets de l'hôte visibles), `~/.claude` monté en entier par le modèle de conteneur, session reprise à 135 000 tokens
+  contre 50 000 à 65 000, veilles et arrêts sur 14 jours, délai de réponse de l'auteur (98 % sous 15 min). Décision
+  `environnement-d-execution` en brouillon (P7 et §5.4 précisés avec l'accord de l'auteur sur le principe, clé
+  `conteneur`, accès distant dans le conteneur, démarrage sans session, veille retardée, type `calcul-gpu`) ; essais
+  Q23 à Q27 avant tout code. L'usage de la carte graphique d'abord attribué à un autre projet était celui du
+  projet three.js (tests de rendu).
+  Découpage revu à la demande de l'auteur : la décision groupait des choix indépendants ; proposé en deux décisions et
+  cinq livraisons A à E (avancement de l'étape 3), validé par l'auteur ; travail repris à la session suivante. Leçon de clôture : aucun déroulé annoncé à
+  l'ouverture (diagnostic lancé d'emblée) ; ce qui a fait dévier : la cause hors du poste (compte claude.ai), puis un
+  sujet élargi demande après demande, et un projet confondu (rattrapé par vérification). La demande qui y aurait mené
+  directement : « voici mes objectifs pour l'environnement des sessions (isolement, partage, carte graphique, accès
+  distant, veille) : propose une architecture dans HOLARCH ».
+
 ## 2026-10-08
 
 * **Essai de Q15 avorté, sessions coupées** (soir) : l'essai demandait d'arrêter le service distant de holarch-socle

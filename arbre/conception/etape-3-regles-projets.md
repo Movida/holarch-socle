@@ -481,6 +481,38 @@ d'essai) ; les consignes reviennent reformulées. Décision `recolte` à propose
 l'appui (retrouvées sur attendues, fausses alertes). **Critère d'usage** (différé, ne bloque pas les tranches
 suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
 
+## Tranche 12 — Environnement d'exécution
+
+Ouverte le 2026-10-09, sur la demande de l'auteur (session joignable au démarrage, poste qui ne s'éteint pas sous une
+session distante, sessions qui travaillent et exécutent dans leur conteneur, carte graphique partagée) ; deux décisions
+en brouillon : `partage-et-bac-a-sable` (P7 et §5.4) et `environnement-d-execution` (mise en œuvre, contexte mesuré).
+
+**Livre**, en cinq livraisons utiles seules (critère de chacune dans la décision `environnement-d-execution`), essais
+préalables menés sans toucher au service du projet en cours (leçon du 2026-10-08) :
+
+- **A. Démarrage sans session** : le serveur démarre sans session ouverte (`--no-create-session-in-dir`, Q27) ; réglage
+  du site `acces_distant.session_au_demarrage` (`aucune` par défaut, `reprendre`).
+- **B. Veille retardée** (Q25) : règle du profil et son adaptateur (crochets d'état des sessions, demande d'éveil côté
+  Windows, états au journal).
+- **C. Conteneur généré** (I32, Q23) : conteneur du socle réparé, clé `conteneur` (contrat config 0.4.0), génération
+  du `devcontainer.json` par `holarch projet creer` ; l'audit compare ; `modeles/projet/devcontainer.json` retiré.
+- **D. Accès distant dans le conteneur** (C, Q24) : `devcontainer up` sur le conteneur existant, `claude
+  remote-control` par `devcontainer exec`, connexion Claude dans un volume du conteneur ; `reveil` inchangé.
+- **E. Type `calcul-gpu`** (C, Q26), adopté par le projet three.js de l'auteur après la mesure.
+
+**Choix techniques (P12).**
+
+| Choix | Raison | Ce qui le ferait changer |
+|---|---|---|
+| `devcontainer.json` généré, clés du format reprises telles quelles | format standard (VS Code, ligne de commande `devcontainer`, Codespaces), aucun vocabulaire refait | un besoin que le format ne porte pas |
+| ligne de commande `devcontainer` (`up`, `exec`) | elle lit le même fichier que VS Code et réutilise son conteneur par étiquette | un conteneur dupliqué malgré l'étiquette (Q23) |
+| service systemd de l'hôte qui lance le conteneur, pas une politique de redémarrage de Docker | Docker ne relance que la commande principale, pas `postStartCommand` ; le lancement reste hors du dépôt, donc rien de personnel n'est partagé | un site sans systemd |
+| retarder la veille de Windows plutôt qu'éteindre le poste soi-même | un adaptateur arrêté rend la main à Windows, il n'éteint jamais au mauvais moment | l'auteur veut un arrêt complet plutôt qu'une veille |
+
+**Hors tranche.** Le service de modèles partagé et la file d'attente des entraînements (I20, après l'étape 4) ;
+l'avertissement à l'arrêt manuel du poste (Windows le permet, l'utilisateur garde « Arrêter quand même »), à proposer
+sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control sont inconnus (Q24).
+
 ## Avancement
 
 - **Ouverture (2026-10-05)** : décision `cloture-etape-2` ; tranches 1 et 2 décrites.
@@ -923,5 +955,8 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
      (étape 5). Les idées « à placer » s'y placent.
   6. **Tranche 11** : livrée ; statuts des huit brouillons du profil écrits le 2026-10-08 ; critère d'usage : une
      consigne approuvée n'est plus redite ensuite. L'oubli progressif des règles est l'idée I27 (étape 5).
-  7. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
+  7. **Tranche 12** (ouverte le 2026-10-09) : découpage validé par l'auteur (2026-10-09) ; brouillon réécrit en deux
+     décisions à approuver, `partage-et-bac-a-sable` (P7 et §5.4) et `environnement-d-execution` (cinq livraisons A à
+     E, chacune avec son critère). Ordre : A, B, C, D, E. A : voir ci-dessous.
+  8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.
