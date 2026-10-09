@@ -9,14 +9,17 @@
       "extensions": ["anthropic.claude-code"]
     }
   },
-  // ~/.ssh et la configuration de gh dans des volumes nommés, jamais la clé personnelle de l'hôte : une clé de
-  // déploiement propre à ce dépôt (deploy-key.sh) y survit aux reconstructions, et sa compromission depuis le conteneur
-  // ne donnerait accès qu'à ce dépôt.
+  // Rien de l'hôte qui porte un identifiant : Claude Code, ~/.ssh et la configuration de gh
+  // dans des volumes nommés propres au projet. La connexion Claude s'y fait une fois et survit aux reconstructions
+  // (CLAUDE_CONFIG_DIR y met aussi .claude.json, comme le conseille Anthropic) ; une clé de déploiement propre à ce dépôt
+  // (deploy-key.sh) ne donnerait accès qu'à lui.
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+    "source={{volume}}-claude,target=/home/vscode/.claude,type=volume",
     "source={{volume}}-ssh,target=/home/vscode/.ssh,type=volume",
     "source={{volume}}-gh-config,target=/home/vscode/.config/gh,type=volume"
   ],
-  "postCreateCommand": "bash .devcontainer/deploy-key.sh origin || true",
+  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/vscode/.claude" },
+  // Un volume neuf appartient à root : il est rendu à l'utilisateur avant tout.
+  "postCreateCommand": "sudo chown vscode:vscode /home/vscode/.claude && (bash .devcontainer/deploy-key.sh origin || true)",
   "remoteUser": "vscode"
 }
