@@ -11,9 +11,12 @@ import { binaireService } from './service.js';
 // de la configuration (`binaireService`), sinon le code qui s'exécute.
 
 // Une règle effective incomplète (source de règles illisible) ne s'écrit pas : elle retirerait les fichiers, le crochet
-// et les lectures refusées des règles qu'elle ne voit plus. Ce qui est posé reste tel quel jusqu'à la correction.
+// et les lectures refusées des règles qu'elle ne voit plus. De même pour un compte sans profil unique (aucun, ou
+// plusieurs) : sa règle est indéterminée (choix de l'auteur, 2026-10-09). Ce qui est posé reste tel quel jusqu'à la
+// correction.
 function lisible(r) {
   if (r.illisibles?.length) throw new Error(`règles illisibles, rien n'est écrit : ${r.illisibles.join(' ; ')}`);
+  if (r.indetermine) throw new Error(`règles du compte indéterminées, rien n'est écrit : ${r.signaux?.[0] || 'aucun profil ou plusieurs'}`);
 }
 
 /**
@@ -26,6 +29,7 @@ export function appliquerRegles(s, refs, comptes) {
   const compte = s.regles().compte;
   const illisibles = [...new Set([compte, ...effectives].flatMap((r) => r.illisibles || []))];
   if (illisibles.length) throw new Error(`règles illisibles, rien n'est écrit : ${illisibles.join(' ; ')}`);
+  lisible(compte);
   return { comptes: materialiserCompte(compte, comptes, { accueil: s.config.accueil }),
     projets: effectives.map((r) => ({ nom: r.nom, m: materialiserProjet(r, r.chemin, { accueil: s.config.accueil }) })) };
 }

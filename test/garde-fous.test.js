@@ -365,6 +365,30 @@ test('Contre-épreuve (4) : regles appliquer n’écrit pas le compte quand un p
   assert.deepEqual(ok.comptes[0].fichiers.crees, ['francais.md']);
 });
 
+test('regles appliquer n’écrit rien sans profil unique (aucun, ou plusieurs), comme des règles illisibles', async () => {
+  const { Socle } = await import('../src/socle.js');
+  const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
+  const { appliquerRegles } = await import('../src/materialisation.js');
+  const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const home = tmp();
+  const arbre = (nom, profil = true) => {
+    ecrire(path.join(r, nom, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${nom}\ntitle: Arbre ${nom}\nstatus: draft\n---\n`);
+    ecrire(path.join(r, nom, 'arbre', 'rules.yaml'), '- id: francais\n  statement: Répondre en français.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+    if (profil) ecrire(path.join(r, nom, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+    return path.join(r, nom);
+  };
+  const appliquer = (...depots) => {
+    const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots } } });
+    s.catalogue.remplacer(inventaireArbre({}, { depots, projetDe: () => null })); s.indexer();
+    return appliquerRegles(s, [], [{ nom: 'essai', home }]);
+  };
+  // Aucun profil (un arbre sans contexte n'en est pas un) : la règle du compte retirerait tout ce qui est posé.
+  assert.throws(() => appliquer(arbre('seul', false)), /^Error: règles du compte indéterminées, rien n'est écrit : aucun profil connu sur ce site/);
+  assert.throws(() => appliquer(arbre('p1'), arbre('p2')), /règles du compte indéterminées, rien n'est écrit : plusieurs profils sur ce site/);
+  assert.deepEqual(fs.readdirSync(home), [], 'le compte n’est pas écrit');
+  assert.deepEqual(appliquer(path.join(r, 'p1')).comptes[0].fichiers.crees, ['francais.md'], 'un profil unique : écrit');
+});
+
 test('Contre-épreuve (6) : des règles illisibles ne résolvent pas l’écart d’une mémoire remplacée', async () => {
   const { Socle } = await import('../src/socle.js');
   const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
