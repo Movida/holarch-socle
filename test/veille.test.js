@@ -263,7 +263,7 @@ test('veille : une demande refusée ou absente se dit une fois ; morte hors du g
   horloge.t += 31e3; await g.passer(); assert.equal(g.tenue(), true, 'reprise 30 s plus tard'); await g.arreter();
 });
 
-test('veille : une demande qui meurt aussitôt tenue n’est pas relancée à chaque passage, ni redite au journal ; une tenue durable remet à zéro', async () => {
+test('veille : une demande qui meurt aussitôt tenue n’est pas relancée à chaque passage, ni redite au journal ; une tenue durable remet à zéro et se dit', async () => {
   const accueil = tmp(); const journal = new Journal(accueil, 'local'); const horloge = { t: Date.now() };
   const kinds = () => [...journal.lire()].map((e) => e.kind);
   const pause = () => new Promise((ok) => setTimeout(ok, 300));
@@ -278,11 +278,15 @@ test('veille : une demande qui meurt aussitôt tenue n’est pas relancée à ch
   horloge.t += 40e3; await g.passer(); assert.equal(lancements, 2, 'puis pas avant 60 s');
   horloge.t += 30e3; await g.passer(); await pause(); assert.equal(lancements, 3);
   assert.deepEqual(kinds(), ['power.held', 'power.failed'], 'ni la tenue ni la panne redites');
-  // La demande tient de nouveau, plus d'une minute : tout est remis à zéro ; la panne suivante se dit.
+  // La demande tient de nouveau, plus d'une minute : tout est remis à zéro, la tenue tue jusque-là se dit (le poste est
+  // tenu) ; la panne suivante se dit.
   cmd.c = TEMOIN; horloge.t += 130e3; await g.passer(); assert.equal(g.tenue(), true);
+  assert.deepEqual(kinds(), ['power.held', 'power.failed'], 'pas avant d’être durable');
   horloge.t += 61e3; await g.passer();
+  assert.deepEqual(kinds(), ['power.held', 'power.failed', 'power.held']);
+  horloge.t += 30e3; await g.passer();
   process.kill(g.pid(), 'SIGKILL'); await pause();
-  assert.deepEqual(kinds(), ['power.held', 'power.failed', 'power.failed']);
+  assert.deepEqual(kinds(), ['power.held', 'power.failed', 'power.held', 'power.failed']);
   await g.passer(); assert.equal(g.tenue(), true, 'après une tenue durable, reprise au passage suivant'); await g.arreter();
 });
 

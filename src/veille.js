@@ -251,7 +251,8 @@ export function creerGardien({ accueil, journal = null, commande = () => command
   // s'espace (30 s, puis le double, au plus 30 min), et ni la même panne ni la même tenue ne se redisent avant une tenue
   // durable (plus de COURTE).
   const COURTE = 60e3; const ESPACE_MAX = 30 * 60e3;
-  let tenueDepuis = 0; let ratees = 0; let prochain = 0; let annonce = null;
+  // `tue` : la tenue d'une demande reprise après une panne courte, pas encore dite ; dite si elle devient durable.
+  let tenueDepuis = 0; let ratees = 0; let prochain = 0; let annonce = null; let tue = null;
   const espacer = () => { ratees += 1; prochain = maintenant() + Math.min(ESPACE_MAX, 30e3 * 2 ** (ratees - 1)); };
   const ecrire = (kind, data) => {
     if (!journal) return;
@@ -268,7 +269,7 @@ export function creerGardien({ accueil, journal = null, commande = () => command
   const retenues = (e) => e.sessions.filter((x) => x.retient).map((x) => ({ session: x.session, etat: x.etat, ...(x.dossier && { projet: path.basename(x.dossier) }) }));
   async function relacher(raison) {
     const enfant = demande; demande = null; if (!enfant) return;
-    annonce = null;
+    annonce = null; tue = null;
     try { enfant.stdin.end(); } catch { /* déjà fermé */ }
     await attendreFin(enfant, 10e3);
     ecrire('power.released', { raison }); log(`demande d'éveil relâchée (${raison})`);
@@ -282,7 +283,10 @@ export function creerGardien({ accueil, journal = null, commande = () => command
     try { ecrireJson(fichierGardien(accueil), { maj: new Date(maintenant()).toISOString(), besoin, tenue: Boolean(demande) }); } catch (err) { log(`état du gardien non écrit : ${err.message}`); }
   }
   async function suite(e) {
-    if (demande && maintenant() - tenueDepuis >= COURTE) { ratees = 0; prochain = 0; panne = null; }
+    if (demande && maintenant() - tenueDepuis >= COURTE) {
+      ratees = 0; prochain = 0; panne = null;
+      if (tue) { ecrire('power.held', { sessions: tue }); tue = null; }
+    }
     if (e.besoin && !demande) {
       if (maintenant() < prochain) return;
       const c = commandeDuMoment();
@@ -296,7 +300,7 @@ export function creerGardien({ accueil, journal = null, commande = () => command
           echec(panneDe('arretee', `demande d'éveil arrêtée hors du gardien (code ${code})`, code));
         });
         const s = retenues(e); const cle = JSON.stringify(s.map((x) => x.session));
-        if (!(ratees && cle === annonce)) { annonce = cle; ecrire('power.held', { sessions: s }); }
+        if (!(ratees && cle === annonce)) { annonce = cle; tue = null; ecrire('power.held', { sessions: s }); } else tue = s;
         log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`);
       } catch (err) { espacer(); echec(err.motif ? err : panneDe('non-lancee', err.message)); }
     } else if (e.besoin && demande) {
