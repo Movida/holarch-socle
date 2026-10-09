@@ -6,7 +6,7 @@ status: stable
 approved: { by: human:auteur, at: 2026-10-09, ref: "échange du 2026-10-09 : « Approuver les décisions » (choix parmi les actions proposées)" }
 links:
   derives_from: [/arbre/conception/etape-3-regles-projets.md, /arbre/decisions/2026-10-09-partage-et-bac-a-sable.md]
-  modifies: [/arbre/conception/contrats/config.md]
+  modifies: [/arbre/conception/contrats/config.md, /arbre/conception/contrats/evenement.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-09-partage-et-bac-a-sable.md, /arbre/decisions/2026-10-07-creation-de-projet.md, /arbre/decisions/2026-10-06-arbre-des-regles.md]
 ---
 
@@ -96,4 +96,5 @@ l'auteur projet par projet.
 **Précision du 2026-10-09 (choix de l'auteur, sur la contre-épreuve de B).** B couvre les sessions de l'hôte. Une
 session en conteneur ne se vérifie pas par son processus (le `/proc` de l'hôte ne le voit pas) et, depuis que le
 conteneur ne monte plus le `~/.claude` de l'hôte, elle n'a pas les crochets du compte : son signe de vie se conçoit avec
-D, qui y déplace l'accès distant.
+D, qui y déplace l'accès distant. La décision modifie aussi le contrat événement (0.10.0, famille `power.*` de B) ;
+`evenement.md` ajouté à ses `modifies` (accord de l'auteur, 2026-10-09), le contrat restant à approuver.
