@@ -416,3 +416,56 @@ test('claude introuvable : la récolte et l’accès distant disent la même cho
   const config = { acces_distant: { claude: '/nulle/part/claude' } };
   assert.throws(() => regroupeurClaude({ claude: null, config })('texte'), /acces_distant\.claude \(\/nulle\/part\/claude\) n'existe pas/);
 });
+
+test('Faille du conteneur : un montage de l’hôte qui expose un identifiant ou écrit les données de HOLARCH est un écart', () => {
+  const maison = tmp(); const d = path.join(maison, 'projet'); const holarch = path.join(maison, '.claude', 'holarch');
+  fs.mkdirSync(path.join(d, '.devcontainer', 'gpu'), { recursive: true });
+  const ecrire = (f, t) => fs.writeFileSync(path.join(d, f), t);
+  const ctx = { depot: d, maison, env: { HOME: maison }, holarch: [holarch, path.join(maison, 'donnees')] };
+  const lire = () => executer('montage-sensible', ctx, 'audit');
+  // Le modèle de conteneur d'avant : `~/.claude` de l'hôte monté en écriture, commentaires et virgule finale (JSONC).
+  ecrire('.devcontainer/devcontainer.json', `{
+  // commentaire
+  "mounts": [
+    "source=\${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+    "source=projet-ssh,target=/home/vscode/.ssh,type=volume",
+  ],
+}`);
+  let r = lire();
+  assert.deepEqual(r.ecarts.map((e) => [e.fichier, e.ligne, e.cle]), [['.devcontainer/devcontainer.json', 4, 'montage:.devcontainer/devcontainer.json:/home/vscode/.claude']]);
+  assert.match(r.ecarts[0].message, /~\/\.claude \(identifiants de l’hôte\).*en écriture/);
+  assert.ok(!r.ecarts[0].message.includes(maison), 'le dossier personnel n’est jamais écrit en clair');
+  // Le correctif : un volume nommé et CLAUDE_CONFIG_DIR ; rien à dire.
+  ecrire('.devcontainer/devcontainer.json', '{ "mounts": ["source=projet-claude,target=/home/vscode/.claude,type=volume"], "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/vscode/.claude" } }');
+  assert.deepEqual(lire().ecarts, []);
+  // En lecture seule, un identifiant reste lisible : écart. Les données de HOLARCH en lecture : permis ; en écriture : écart.
+  ecrire('.devcontainer/devcontainer.json', JSON.stringify({ mounts: [
+    { source: '${localEnv:HOME}/.ssh', target: '/s', type: 'bind' },
+    `source=${path.join(maison, 'donnees')},target=/d,type=bind,readonly`,
+    `source=${path.join(maison, 'donnees')},target=/e,type=bind,readonly=false`,
+    'source=~/projets,target=/p,type=bind'] }));
+  assert.deepEqual(lire().ecarts.map((e) => e.cle.split(':').pop()), ['/s', '/e']);
+  // Un parent d'un identifiant l'expose (dossier personnel entier, `..` du dépôt) ; `-v` et `--mount` de runArgs ; Docker de l'hôte.
+  ecrire('.devcontainer/devcontainer.json', JSON.stringify({ workspaceMount: 'source=${localWorkspaceFolder}/..,target=/w,type=bind',
+    runArgs: ['-v', '/var/run/docker.sock:/var/run/docker.sock', '--mount=type=bind,src=~/.config,dst=/c,ro', '-v', 'cache:/cache'] }));
+  r = lire();
+  assert.deepEqual(r.ecarts.map((e) => e.cle.split(':').pop()), ['/w', '/var/run/docker.sock', '/c']);
+  assert.match(r.ecarts[0].message, /monte ~, qui contient ~\/\.claude/);
+  assert.match(r.ecarts[1].message, /Docker de l’hôte/);
+  assert.match(r.ecarts[2].message, /~\/\.config, qui contient ~\/\.config\/gh.*en lecture/);
+  // Une seconde configuration (sous-dossier) est lue aussi ; un lien vers un identifiant se voit par sa cible.
+  fs.mkdirSync(path.join(maison, '.aws')); fs.symlinkSync(path.join(maison, '.aws'), path.join(maison, 'lien'));
+  ecrire('.devcontainer/devcontainer.json', '{}');
+  ecrire('.devcontainer/gpu/devcontainer.json', JSON.stringify({ mounts: ['type=bind,source=~/lien,target=/l'] }));
+  assert.deepEqual(lire().ecarts.map((e) => [e.fichier, e.message.split(' (')[0]]), [['.devcontainer/gpu/devcontainer.json', 'monte ~/.aws']]);
+  // Ne se dit jamais conforme sans avoir lu : fichier illisible, Compose, variable inconnue.
+  ecrire('.devcontainer/gpu/devcontainer.json', '{ "mounts": [');
+  assert.match(lire().indisponible, /gpu\/devcontainer\.json illisible/);
+  ecrire('.devcontainer/gpu/devcontainer.json', '{ "dockerComposeFile": "compose.yml" }');
+  assert.match(lire().indisponible, /Docker Compose/);
+  ecrire('.devcontainer/gpu/devcontainer.json', '{ "mounts": ["type=bind,source=${containerEnv:X},target=/x"] }');
+  assert.match(lire().indisponible, /non résolue/);
+  // Sans conteneur, rien n'est monté.
+  fs.rmSync(path.join(d, '.devcontainer'), { recursive: true });
+  assert.deepEqual(lire().ecarts, []);
+});

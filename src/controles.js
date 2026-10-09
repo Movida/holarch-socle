@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
 import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme } from './veille.js';
@@ -292,6 +293,101 @@ function veilleRetardee(ctx) {
   return { ecarts: [{ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${e.gardien} avec ${e.distants} accès distant(s) actif(s) : la veille n'est pas retardée` }] };
 }
 
+// ---------- montage sensible (décision modules-et-palliatifs, palliatif 7) ----------
+
+// Ce qu'un conteneur ne monte jamais de l'hôte : les identifiants, même en lecture (le conteneur les lirait, et une
+// configuration de Claude Code écrite depuis lui pose des crochets que l'hôte exécute), le Docker de l'hôte, et, en
+// écriture, les données de HOLARCH. Un dossier qui en contient un compte comme lui (le dossier personnel entier expose
+// `~/.ssh`).
+const IDENTIFIANTS = ['.claude', '.claude.json', '.ssh', '.config/gh', '.aws', '.azure', '.config/gcloud', '.kube', '.docker', '.gnupg', '.netrc', '.git-credentials', '.npmrc'];
+const DOCKER_HOTE = ['/var/run/docker.sock', '/run/docker.sock'];
+const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
+const reel = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
+
+// Fichiers de configuration d'un conteneur, aux emplacements de la spécification Dev Containers.
+function configsConteneur(depot) {
+  const dossier = path.join(depot, '.devcontainer');
+  const sous = fs.existsSync(dossier) ? fs.readdirSync(dossier, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => `.devcontainer/${d.name}/devcontainer.json`) : [];
+  return ['.devcontainer.json', '.devcontainer/devcontainer.json', ...sous].filter((f) => fs.statSync(path.join(depot, f), { throwIfNoEntry: false })?.isFile());
+}
+
+// Un montage écrit à la façon de `docker --mount` (`type=bind,source=…,target=…,readonly`) ; `volume` par défaut, comme Docker.
+function montageTexte(t) {
+  const m = { type: 'volume', source: null, cible: null, lecture: false };
+  for (const part of String(t).split(',')) {
+    const [k, ...v] = part.split('='); const val = v.join('=').trim(); const cle = k.trim().toLowerCase();
+    if (cle === 'type') m.type = val;
+    else if (cle === 'source' || cle === 'src') m.source = val;
+    else if (cle === 'target' || cle === 'destination' || cle === 'dst') m.cible = val;
+    else if (cle === 'readonly' || cle === 'ro') m.lecture = !v.length || !['false', '0'].includes(val.toLowerCase());
+  }
+  return m;
+}
+
+// Un `-v source:cible[:options]` : une source qui n'est pas un nom de volume est un chemin de l'hôte.
+function montageCourt(t) {
+  const [source, cible, options = ''] = String(t).split(':');
+  return { type: /^[/~.$]/.test(source) ? 'bind' : 'volume', source, cible, lecture: options.split(',').includes('ro') };
+}
+
+// Les montages d'une configuration, chacun avec son chemin dans le fichier (pour la ligne).
+function montagesDe(c) {
+  const l = [];
+  (Array.isArray(c.mounts) ? c.mounts : []).forEach((m, i) => l.push({ ou: ['mounts', i],
+    ...(m && typeof m === 'object' ? { type: m.type || 'volume', source: m.source, cible: m.target, lecture: false } : montageTexte(m)) }));
+  if (c.workspaceMount) l.push({ ou: ['workspaceMount'], ...montageTexte(c.workspaceMount) });
+  const a = Array.isArray(c.runArgs) ? c.runArgs.map(String) : [];
+  for (let i = 0; i < a.length; i++) {
+    const [opt, val] = a[i].includes('=') ? [a[i].slice(0, a[i].indexOf('=')), a[i].slice(a[i].indexOf('=') + 1)] : [a[i], a[i + 1]];
+    const j = a[i].includes('=') ? i : i + 1;
+    if (opt === '-v' || opt === '--volume') l.push({ ou: ['runArgs', j], ...montageCourt(val) });
+    else if (opt === '--mount') l.push({ ou: ['runArgs', j], ...montageTexte(val) });
+  }
+  return l;
+}
+
+// Chemin de l'hôte d'une source : variables de l'hôte résolues (`${localEnv:…}`, `${localWorkspaceFolder}`, `~`) ;
+// null si une variable reste inconnue.
+function sourceHote(source, depot, maison, env) {
+  let s = String(source).replace(/\$\{(?:localEnv|env):([A-Za-z_]\w*)(?::([^}]*))?\}/g, (_, v, d) => env[v] ?? d ?? '')
+    .replace(/\$\{localWorkspaceFolder\}/g, depot).replace(/\$\{localWorkspaceFolderBasename\}/g, path.basename(depot));
+  if (s.includes('${')) return null;
+  if (s === '~' || s.startsWith('~/')) s = path.join(maison, s.slice(1));
+  return path.resolve(depot, s);
+}
+
+/**
+ * Montages de l'hôte qui exposent un identifiant, le Docker de l'hôte, ou les données de HOLARCH en écriture, dans les
+ * configurations Dev Containers du dépôt (`mounts`, `workspaceMount`, `-v` et `--mount` de `runArgs`). Non lus : les
+ * montages qu'ajoutent les features et ceux d'un fichier Compose (alors non disponible). `ctx.maison`, `ctx.env` et
+ * `ctx.holarch` remplacent ceux du poste (essais).
+ */
+function montageSensible(ctx) {
+  const maison = ctx.maison || os.homedir(); const env = ctx.env || process.env;
+  const affiche = (p) => (dedans(p, maison) ? `~/${path.relative(maison, p)}`.replace(/\/$/, '') : p);
+  const sensibles = [...IDENTIFIANTS.map((r) => ({ chemin: path.join(maison, r), quoi: 'identifiants de l’hôte' })),
+    ...DOCKER_HOTE.map((c) => ({ chemin: c, quoi: 'Docker de l’hôte' })),
+    ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true }))];
+  const ecarts = [];
+  for (const f of configsConteneur(ctx.depot)) {
+    const texte = fs.readFileSync(path.join(ctx.depot, f), 'utf8'); const erreurs = [];
+    const c = parseJsonc(texte, erreurs, { allowTrailingComma: true }); const arbre = parseTree(texte, [], { allowTrailingComma: true });
+    if (erreurs.length || !c || typeof c !== 'object') return { indisponible: `${f} illisible` };
+    if (c.dockerComposeFile) return { indisponible: `${f} : conteneur décrit par Docker Compose, montages non lus` };
+    for (const m of montagesDe(c).filter((x) => x.type === 'bind' && x.source)) {
+      const src = sourceHote(m.source, ctx.depot, maison, env);
+      if (!src) return { indisponible: `${f} : source de montage non résolue (${m.source})` };
+      const touche = sensibles.find((x) => !(x.ecriture && m.lecture) && [src, reel(src)].some((s) => dedans(s, x.chemin) || dedans(x.chemin, s)));
+      if (!touche) continue;
+      const noeud = arbre && findNodeAtLocation(arbre, m.ou);
+      const qui = dedans(touche.chemin, src) && touche.chemin !== src ? `${affiche(src)}, qui contient ${affiche(touche.chemin)}` : affiche(touche.chemin);
+      ecarts.push({ fichier: f, ligne: noeud ? texte.slice(0, noeud.offset).split('\n').length : null, cle: `montage:${f}:${m.cible}`,
+        message: `monte ${qui} (${touche.quoi}) dans le conteneur, ${m.lecture ? 'en lecture' : 'en écriture'}` });
+    }
+  }
+  return { ecarts };
+}
+
 /**
  * Registre : identifiant → { moments, executer(ctx, moment), portee }. Un contrôle de portée `site` regarde le poste, pas
  * un dépôt : il s'exécute une fois, au compte.
@@ -305,6 +401,7 @@ export const CONTROLES = {
   'dependances-vulnerables': { moments: ['audit'], executer: dependancesVulnerables },
   'outils-a-jour': { moments: ['audit'], executer: outilsAJour, portee: 'site' },
   'veille-retardee': { moments: ['audit'], executer: veilleRetardee, portee: 'site' },
+  'montage-sensible': { moments: ['audit'], executer: montageSensible },
 };
 
 /** Exécute un contrôle ; une erreur le rend non disponible, jamais conforme. */
