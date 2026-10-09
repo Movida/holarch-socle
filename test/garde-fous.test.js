@@ -542,3 +542,19 @@ test('Contre-épreuve du conteneur (14) : un contrôle lu en partie garde ses é
   a = auditer();
   assert.deepEqual([a.controles[0].etat, a.journal.resolus], ['fait', 1]);
 });
+
+test('Contre-épreuve du conteneur (2) : un bind se lit comme le CLI Docker (casse, CSV, booléens) ; ce que Docker refuserait n’est pas conforme', () => {
+  const { config, lire, cibles } = conteneurEssai();
+  config({ mounts: ['type=BIND,source=${localEnv:HOME}/.ssh,target=/a', { type: 'Bind', source: '${localEnv:HOME}/.ssh', target: '/b' },
+    '"type=bind","source=${localEnv:HOME}/.ssh",target=/c', 'Type=Bind,Source=${localEnv:HOME}/.aws,Target=/d,ro=f',
+    'type=volume,source=projet-cache,target=/e'] });
+  let r = lire();
+  assert.deepEqual([cibles(r), r.indisponible], [['/a', '/b', '/c', '/d'], undefined]);
+  assert.match(r.ecarts[3].message, /en écriture/, '`ro=f` est faux pour Go : monté en écriture');
+  // Clé inconnue, booléen invalide, type absent ou inconnu, guillemet mal placé : non disponible, les autres écarts gardés.
+  config({ mounts: ['type=bind,source=${localEnv:HOME}/.ssh,target=/a', 'type=bind,sorce=${localEnv:HOME}/.ssh,target=/x',
+    'type=bind,source=/tmp,target=/y,ro=oui', { source: '/tmp', target: '/z' }, 'type=lien,source=/tmp,target=/w', 'type=bind,source=a"b,target=/v'] });
+  r = lire();
+  assert.deepEqual(cibles(r), ['/a']);
+  assert.deepEqual(r.indisponible.split(' ; ').map((x) => x.split('(')[1]), ['mounts.1)', 'mounts.2)', 'mounts.3)', 'mounts.4)', 'mounts.5)']);
+});

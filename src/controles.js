@@ -345,18 +345,55 @@ function configsConteneur(depot) {
   return ['.devcontainer.json', '.devcontainer/devcontainer.json', ...sous].filter((f) => fs.statSync(path.join(depot, f), { throwIfNoEntry: false })?.isFile());
 }
 
-// Un montage écrit à la façon de `docker --mount` (`type=bind,source=…,target=…,readonly`) ; `volume` par défaut, comme Docker.
+// Les champs d'une ligne CSV, comme `encoding/csv` de Go qui lit `--mount` pour le CLI Docker (guillemets doubles,
+// `""` pour un guillemet) ; null si la ligne est mal formée.
+function champsCsv(t) {
+  const champs = []; let i = 0;
+  for (;;) {
+    let v = '';
+    if (t[i] === '"') {
+      for (i++; ; i++) {
+        if (i >= t.length) return null;
+        if (t[i] === '"' && t[i + 1] === '"') { v += '"'; i++; } else if (t[i] === '"') { i++; break; } else v += t[i];
+      }
+      if (i < t.length && t[i] !== ',') return null;
+    } else {
+      const fin = t.indexOf(',', i) === -1 ? t.length : t.indexOf(',', i);
+      v = t.slice(i, fin); i = fin;
+      if (v.includes('"')) return null;
+    }
+    champs.push(v);
+    if (i >= t.length) return champs;
+    i++;
+  }
+}
+
+// Booléens de Go (`strconv.ParseBool`), et les clés que le CLI Docker connaît en plus de type, source, cible et lecture.
+const BOOLEENS = { 1: true, t: true, T: true, TRUE: true, true: true, True: true, 0: false, f: false, F: false, FALSE: false, false: false, False: false };
+const AUTRES_CLES = new Set(['consistency', 'bind-propagation', 'bind-nonrecursive', 'bind-recursive', 'bind-create-src', 'volume-subpath',
+  'volume-nocopy', 'volume-label', 'volume-driver', 'volume-opt', 'image-subpath', 'tmpfs-size', 'tmpfs-mode']);
+const TYPES = new Set(['bind', 'volume', 'tmpfs', 'npipe', 'cluster', 'image']);
+
+// Un montage écrit à la façon de `docker --mount`, lu comme le CLI Docker : CSV, clés et type sans casse, `volume` par
+// défaut. Ce que Docker refuserait (clé ou type inconnus, booléen invalide, ligne mal formée) est `illisible` : le
+// contrôle ne le dit pas conforme pour autant.
 function montageTexte(t) {
   const m = { type: 'volume', source: null, cible: null, lecture: false };
-  for (const part of String(t).split(',')) {
-    const [k, ...v] = part.split('='); const val = v.join('=').trim(); const cle = k.trim().toLowerCase();
-    if (cle === 'type') m.type = val;
-    else if (cle === 'source' || cle === 'src') m.source = val;
-    else if (cle === 'target' || cle === 'destination' || cle === 'dst') m.cible = val;
-    else if (cle === 'readonly' || cle === 'ro') m.lecture = !v.length || !['false', '0'].includes(val.toLowerCase());
+  const champs = champsCsv(String(t).trim());
+  if (!champs) return { ...m, illisible: true };
+  for (const champ of champs) {
+    const i = champ.indexOf('='); const cle = (i === -1 ? champ : champ.slice(0, i)).toLowerCase(); const val = i === -1 ? null : champ.slice(i + 1);
+    if (cle === 'type' && val !== null) m.type = val.toLowerCase();
+    else if ((cle === 'source' || cle === 'src') && val !== null) m.source = val;
+    else if ((cle === 'target' || cle === 'dst' || cle === 'destination') && val !== null) m.cible = val;
+    else if (cle === 'readonly' || cle === 'ro') { m.lecture = val === null ? true : BOOLEENS[val]; if (m.lecture === undefined) return { ...m, illisible: true }; }
+    else if (!AUTRES_CLES.has(cle)) return { ...m, illisible: true };
   }
-  return m;
+  return TYPES.has(m.type) ? m : { ...m, illisible: true };
 }
+
+// Un montage écrit en objet devient la ligne que le CLI Dev Containers passe à `--mount` (`generateMountCommand`).
+const montageObjet = (m) => montageTexte(`type=${m.type},${m.source ? `src=${m.source},` : ''}dst=${m.target}`);
 
 // Un `-v source:cible[:options]` : une source qui n'est pas un nom de volume est un chemin de l'hôte.
 function montageCourt(t) {
@@ -367,8 +404,7 @@ function montageCourt(t) {
 // Les montages d'une configuration, chacun avec son chemin dans le fichier (pour la ligne).
 function montagesDe(c) {
   const l = [];
-  (Array.isArray(c.mounts) ? c.mounts : []).forEach((m, i) => l.push({ ou: ['mounts', i],
-    ...(m && typeof m === 'object' ? { type: m.type || 'volume', source: m.source, cible: m.target, lecture: false } : montageTexte(m)) }));
+  (Array.isArray(c.mounts) ? c.mounts : []).forEach((m, i) => l.push({ ou: ['mounts', i], ...(m && typeof m === 'object' ? montageObjet(m) : montageTexte(m)) }));
   if (c.workspaceMount) l.push({ ou: ['workspaceMount'], ...montageTexte(c.workspaceMount) });
   const a = Array.isArray(c.runArgs) ? c.runArgs.map(String) : [];
   for (let i = 0; i < a.length; i++) {
@@ -408,8 +444,9 @@ function montageSensible(ctx) {
     const c = parseJsonc(texte, erreurs, { allowTrailingComma: true }); const arbre = parseTree(texte, [], { allowTrailingComma: true });
     if (erreurs.length || !c || typeof c !== 'object') { nonLus.push(`${f} illisible`); continue; }
     if (c.dockerComposeFile) { nonLus.push(`${f} : conteneur décrit par Docker Compose, montages non lus`); continue; }
-    const admis = montagesAdmis(c, ctx.depot, maison);
-    for (const m of montagesDe(c).filter((x) => x.type === 'bind' && x.source)) {
+    const admis = montagesAdmis(c, ctx.depot, maison); const montages = montagesDe(c);
+    for (const m of montages.filter((x) => x.illisible)) nonLus.push(`${f} : montage que Docker refuserait (${m.ou.join('.')})`);
+    for (const m of montages.filter((x) => x.type === 'bind' && x.source && !x.illisible)) {
       const src = sourceHote(m.source, ctx.depot, maison, env);
       if (!src) { nonLus.push(`${f} : source de montage non résolue (${m.source})`); continue; }
       const a = admis.find((x) => x.chemin === src);
