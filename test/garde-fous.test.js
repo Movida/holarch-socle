@@ -267,6 +267,33 @@ test('E2 : un en-tête illisible dans l’arbre du profil ne fait pas passer la 
   assert.match(refus[0].ecarts[0].message, /perso\.md : en-tête illisible/);
 });
 
+test('Troisième contre-épreuve (1, 2, 5) : ni rapatriement d’un clone partiel, ni programme de signature, ni diff de sous-module', () => {
+  const temoin = path.join(tmp(), 'execute');
+  // 1 : un clone partiel dont la configuration désigne un programme de transport.
+  const src = tmp(); depotAvecCommit(src, { 'f.txt': 'x\n' }); spawnSync('git', ['-C', src, 'config', 'uploadpack.allowFilter', 'true']);
+  const part = path.join(tmp(), 'part');
+  assert.equal(spawnSync('git', ['clone', '-q', '--no-local', '--filter=tree:0', '--no-checkout', `file://${src}`, part]).status, 0);
+  spawnSync('git', ['-C', part, 'config', 'remote.origin.uploadpack', `${piege(part, temoin)} uploadpack`]);
+  gitLu(part, ['status', '--porcelain']); gitLu(part, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer' });
+  // 2 : un export-subst qui demande la vérification d'une signature.
+  const d = tmp(); depotAvecCommit(d, { 'f.txt': '$Format:%G?$\n', '.gitattributes': 'f.txt export-subst\n' });
+  const g = (...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' });
+  const corps = g('cat-file', 'commit', 'HEAD').stdout.replace(/\n\n/, '\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n -----END PGP SIGNATURE-----\n\n');
+  const signe = spawnSync('git', ['-C', d, 'hash-object', '-t', 'commit', '-w', '--stdin'], { input: corps, encoding: 'utf8' }).stdout.trim();
+  g('update-ref', 'HEAD', signe); g('config', 'gpg.program', `${piege(d, temoin)} gpg`);
+  gitLu(d, ['archive', '--format=tar', 'HEAD'], { encoding: 'buffer' });
+  // 5 : diff.submodule=diff ferait lancer le textconv déclaré par un sous-module.
+  const sous = tmp(); depotAvecCommit(sous, { 'f.txt': 'x\n', '.gitattributes': '*.txt diff=x\n' });
+  const p = tmp(); depotAvecCommit(p, { 'a.txt': 'a\n' });
+  spawnSync('git', ['-C', p, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', sous, 's']);
+  spawnSync('git', ['-C', path.join(p, 's'), 'config', 'diff.x.textconv', `${piege(p, temoin)} textconv`]);
+  spawnSync('git', ['-C', p, 'config', 'diff.submodule', 'diff']);
+  fs.appendFileSync(path.join(p, 's', 'f.txt'), 'z\n'); spawnSync('git', ['-C', path.join(p, 's'), '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qam', 'z']);
+  spawnSync('git', ['-C', p, 'add', 's']);
+  gitLu(p, ['diff', '--cached', '-U0']);
+  assert.deepEqual(fs.readdirSync(path.dirname(temoin)), [], 'programmes du dépôt exécutés');
+});
+
 test('Seconde contre-épreuve (E, F) : un type inconnu ne compte que les en-têtes illisibles qui pouvaient être lui ; les autres du projet se disent', async () => {
   const { Socle } = await import('../src/socle.js');
   const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');

@@ -77,8 +77,9 @@ export function git(depot, args, o = {}) {
 
 /**
  * Ce que la configuration propre d'un dépôt (portées `local` et `worktree`, inclusions comprises) pourrait faire
- * exécuter à une lecture, annulé : `core.fsmonitor`, les crochets (`core.hooksPath` vers /dev/null), la vérification des
- * signatures, et chaque pilote qu'elle déclare (`filter.<x>` vidé, `diff.<x>.textconv` remplacé par `cat`, qui ne
+ * exécuter à une lecture, annulé : `core.fsmonitor`, les crochets (`core.hooksPath` vers /dev/null), les programmes de
+ * vérification des signatures (qu'un `export-subst` d'`archive` appelle), tout transport (`GIT_ALLOW_PROTOCOL` réduit à un protocole qui n'existe pas :
+ * un clone partiel irait chercher un objet manquant par son `uploadpack` ou son `sshCommand`), et chaque pilote qu'elle déclare (`filter.<x>` vidé, `diff.<x>.textconv` remplacé par `cat`, qui ne
  * change rien : une valeur vide ferait lancer un programme vide). Passé par `GIT_CONFIG_COUNT`, qui garde un nom de
  * pilote contenant `=` (`-c` le couperait). Les pilotes du compte (git-lfs installé normalement) restent.
  */
@@ -90,12 +91,13 @@ function neutralisation(depot, env) {
     const m = champs[i + 1].split('\n')[0].match(/^(filter|diff)\.(.+)\.[^.]+$/);
     if (m && (champs[i] === 'local' || champs[i] === 'worktree')) pilotes.add(`${m[1]}.${m[2]}`);
   }
-  const cles = [['core.fsmonitor', 'false'], ['core.hooksPath', '/dev/null'], ['log.showSignature', 'false'], ['submodule.recurse', 'false']];
+  const cles = [['core.fsmonitor', 'false'], ['core.hooksPath', '/dev/null'], ['log.showSignature', 'false'], ['submodule.recurse', 'false'],
+    ...['gpg.program', 'gpg.openpgp.program', 'gpg.ssh.program', 'gpg.x509.program'].map((k) => [k, 'false'])];
   for (const p of pilotes) {
     if (p.startsWith('filter.')) cles.push([`${p}.clean`, ''], [`${p}.smudge`, ''], [`${p}.process`, ''], [`${p}.required`, 'false']);
     else cles.push([`${p}.textconv`, 'cat']);
   }
-  const n0 = Number(env.GIT_CONFIG_COUNT) || 0; const e = { ...env, GIT_CONFIG_COUNT: String(n0 + cles.length) };
+  const n0 = Number(env.GIT_CONFIG_COUNT) || 0; const e = { ...env, GIT_ALLOW_PROTOCOL: 'aucun', GIT_CONFIG_COUNT: String(n0 + cles.length) };
   cles.forEach(([k, v], i) => { e[`GIT_CONFIG_KEY_${n0 + i}`] = k; e[`GIT_CONFIG_VALUE_${n0 + i}`] = v; });
   return e;
 }
@@ -103,11 +105,11 @@ function neutralisation(depot, env) {
 /**
  * git en lecture dans un dépôt quelconque (inventaire, audit) : une archive extraite, un clone tiers. Rien de ce que sa
  * configuration déclare comme programme ne s'exécute (`neutralisation`, `--no-ext-diff` pour ce qui produit un diff),
- * l'index n'est pas réécrit (`--no-optional-locks`), et `status` ne descend pas dans les sous-modules, dont la
- * configuration propre échapperait à la neutralisation (leurs changements ne se comptent pas).
+ * l'index n'est pas réécrit (`--no-optional-locks`), et `status` et `diff` ne descendent pas dans les sous-modules, dont
+ * la configuration propre échapperait à la neutralisation (leurs changements ne se comptent pas).
  */
 export function gitLu(depot, args, o = {}) {
-  const sous = { diff: ['--no-ext-diff'], log: ['--no-ext-diff'], show: ['--no-ext-diff'], status: ['--ignore-submodules=all'] }[args[0]];
+  const sous = { diff: ['--no-ext-diff', '--ignore-submodules=all'], log: ['--no-ext-diff'], show: ['--no-ext-diff'], status: ['--ignore-submodules=all'] }[args[0]];
   const a = sous ? [args[0], ...sous, ...args.slice(1)] : args;
   return git(depot, ['--no-optional-locks', ...a], { ...o, env: neutralisation(depot, o.env || process.env) });
 }
