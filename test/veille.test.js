@@ -116,12 +116,14 @@ test('veille : un tour interrompu (aucun Stop) ou une question à l’auteur res
   assert.equal(e('2026-10-09T09:40:00Z').retient, false, 'une question restée sans réponse ne tient pas le poste éveillé toute la nuit');
   // Une interruption plus ancienne que le message en cours ne compte pas (transcription écrite en différé).
   note(accueil, 'UserPromptSubmit', 's', { t: Date.parse('2026-10-09T10:00:00.000Z'), transcription: t });
-  assert.equal(e('2026-10-09T11:00:00Z').etat, 'travaille');
+  assert.equal(e('2026-10-09T10:20:00Z').etat, 'travaille');
+  assert.deepEqual([e('2026-10-09T11:00:00Z').etat, e('2026-10-09T11:00:00Z').depuis], ['attend', '2026-10-09T10:00:00.000Z'], 'rien d’écrit depuis le message : immobile 30 min, elle attend');
 });
 
 test('veille : une session qui « travaille » sans que sa transcription bouge depuis 30 min attend (permission, élicitation, Stop manqué) ; une attente suivie d’écritures travaille de nouveau', () => {
   const accueil = tmp(); const t = transcription(); ecrire(t, ligne({ type: 'user', timestamp: '2026-10-09T09:00:00.000Z', message: { content: 'fais X' } }));
-  const ecrite = (ms) => fs.utimesSync(t, new Date(ms), new Date(ms));
+  // Une écriture datée, comme Claude Code en ajoute à chaque pas d'un tour.
+  const ecrite = (ms) => fs.appendFileSync(t, ligne({ type: 'assistant', timestamp: new Date(ms).toISOString(), message: { content: [] } }));
   const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
   note(accueil, 'UserPromptSubmit', 's', { t: T0, transcription: t });
   // Un `Stop` manqué : la note dit « travaille » des heures ; la transcription, immobile depuis 10 h 05, dit le contraire.
@@ -136,6 +138,27 @@ test('veille : une session qui « travaille » sans que sa transcription bouge d
   ecrite(T0 + 50 * min);
   assert.deepEqual([e(T0 + 55 * min).etat, e(T0 + 55 * min).retient], ['travaille', true]);
   assert.equal(note(accueil, 'Elicitation', 's', { t: T0 + 60 * min, transcription: t }).etat, 'attend', 'une élicitation MCP attend aussi');
+});
+
+test('veille : l’activité se lit à la dernière entrée datée ; les entrées sans date écrites après la fin d’un tour ne font pas travailler une session qui attend', () => {
+  const accueil = tmp(); const t = transcription();
+  const datee = (ms, type = 'assistant') => fs.appendFileSync(t, ligne({ type, timestamp: new Date(ms).toISOString(), message: { content: [] } }));
+  ecrire(t, ''); datee(T0);
+  note(accueil, 'Stop', 's', { t: T0, transcription: t });
+  const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
+  // Le résumé des crochets de fin de tour arrive quelques secondes après `Stop` : la session attend toujours.
+  datee(T0 + 20e3, 'system');
+  // Claude Code ajoute ensuite des entrées sans date (mesure de la contre-épreuve : jusqu'à 33 min après) ; le fichier
+  // change, la session n'a pas repris.
+  for (const type of ['bridge-session', 'last-prompt', 'cost-state', 'mode']) fs.appendFileSync(t, ligne({ type, sessionId: 's' }));
+  fs.utimesSync(t, new Date(T0 + 20 * min), new Date(T0 + 20 * min));
+  assert.deepEqual([e(T0 + 25 * min).etat, e(T0 + 25 * min).reste_min], ['attend', 5]);
+  assert.equal(e(T0 + 31 * min).retient, false);
+  // Une transcription sans entrée datée lisible : sa date de modification, à défaut.
+  const nue = transcription('nue.jsonl'); ecrire(nue, ligne({ type: 'mode' }));
+  fs.utimesSync(nue, new Date(T0 + 10 * min), new Date(T0 + 10 * min));
+  note(accueil, 'Stop', 'n', { t: T0, transcription: nue });
+  assert.equal(evaluer({ accueil, maintenant: T0 + 15 * min, enVie }).sessions.find((x) => x.session === 'n').etat, 'travaille');
 });
 
 test('veille : après Stop, un sous-agent de fond qui écrit retient le poste tant que sa transcription bouge ; un shell de fond, non', () => {

@@ -115,6 +115,15 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
   return null;
 }
 
+// Date d'une transcription : sa dernière entrée datée, lue à la fin du fichier ; à défaut (aucune dans la fin lue), sa
+// date de modification. Des entrées sans date (`bridge-session`, `last-prompt`, `cost-state`, `mode`) s'écrivent après
+// la fin d'un tour, jusqu'à 33 min plus tard (contre-épreuve de B : 46 transcriptions distantes sur 63) : la date de
+// modification ferait travailler une session qui attend.
+function dateDe(f, octets = 64 * 1024) {
+  for (const e of evenements(finDeTranscription(f, octets))) { const t = Date.parse(e?.timestamp); if (Number.isFinite(t)) return t; }
+  try { return fs.statSync(f).mtimeMs; } catch { return null; }
+}
+
 /**
  * Dernière écriture (ms) d'une session, `derniere` : sa transcription et celles de ses sous-agents
  * (`<session>/subagents/*.jsonl`), qui bougent encore après `Stop` quand un sous-agent de fond travaille ; `sous_agents`,
@@ -123,19 +132,19 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
  */
 export function activite(transcription) {
   if (!transcriptionLisible(transcription)) return null;
-  const date = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return null; } };
   const d = path.join(transcription.replace(/\.jsonl$/, ''), 'subagents'); let sous = [];
-  try { sous = fs.readdirSync(d).filter((n) => n.endsWith('.jsonl') && transcriptionLisible(path.join(d, n))).map((n) => date(path.join(d, n))).filter(Number.isFinite); } catch { /* aucun sous-agent */ }
+  try { sous = fs.readdirSync(d).filter((n) => n.endsWith('.jsonl') && transcriptionLisible(path.join(d, n))).map((n) => dateDe(path.join(d, n))).filter(Number.isFinite); } catch { /* aucun sous-agent */ }
   const sousAgents = sous.length ? Math.max(...sous) : null;
-  const toutes = [date(transcription), sousAgents].filter(Number.isFinite);
+  const toutes = [dateDe(transcription), sousAgents].filter(Number.isFinite);
   return toutes.length ? { derniere: Math.max(...toutes), sous_agents: sousAgents } : null;
 }
 
 // Une session « travaille » tant que sa transcription bouge : immobile depuis l'attente permise, elle attend quelque
 // chose (permission, élicitation, `Stop` manqué) et compte comme une attente depuis sa dernière écriture (contre-épreuve
 // de B : aucun silence de plus de 11 min pendant un tour, sur 301 tours de 67 sessions distantes). Une attente suivie
-// d'écritures (permission accordée, réponse) travaille de nouveau ; BOUGE laisse passer ce qu'écrit la fin du tour.
-const BOUGE = 5e3;
+// d'écritures (permission accordée, réponse) travaille de nouveau ; BOUGE laisse passer ce qu'écrit la fin du tour (au
+// plus 4,7 s après la dernière réponse, sur 89 cas mesurés ; la marge ne coûte rien, une attente retient 30 min).
+const BOUGE = 30e3;
 
 /**
  * Les sessions notées et ce qu'elles demandent : `besoin` si l'une travaille, ou attend depuis moins de `attente`
