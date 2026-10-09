@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { lireJson, ecrireJson } from './commun.js';
+import { ecrireJson } from './commun.js';
 import { finDeTranscription, evenements } from './transcription.js';
 import { ulid } from './ulid.js';
 
@@ -131,12 +131,15 @@ export function evaluer({ accueil, maintenant = Date.now(), attente = ATTENTE_MI
   const d = dossierVeille(accueil); let noms = [];
   try { noms = fs.readdirSync(d).filter((n) => n.endsWith('.json')).sort(); } catch { /* aucune note */ }
   const sessions = []; const finies = [];
-  const effacer = (f) => { if (nettoyer) fs.rmSync(f, { force: true }); };
+  const lire = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return null; } };
+  // Effacée seulement si elle n'a pas changé depuis sa lecture : un crochet a pu la réécrire entre-temps (session reprise).
+  const effacer = (f, lu) => { if (nettoyer && lire(f) === lu) fs.rmSync(f, { force: true }); };
   for (const n of noms) {
-    const f = path.join(d, n); const s = lireJson(f, null);
+    const f = path.join(d, n); const lu = lire(f); let s = null;
+    try { s = JSON.parse(lu); } catch { /* illisible */ }
     // Illisible (en cours d'écriture, abîmée) : ni comptée ni effacée.
     if (!s?.session || !['travaille', 'attend'].includes(s.etat) || !Number.isFinite(Date.parse(s.depuis))) continue;
-    if (s.pid && !enVie({ pid: s.pid, debut: s.debut_pid })) { effacer(f); finies.push(s.session); continue; }
+    if (s.pid && !enVie({ pid: s.pid, debut: s.debut_pid })) { effacer(f, lu); finies.push(s.session); continue; }
     let etat = s.etat; let depuis = Date.parse(s.depuis);
     // Sans processus connu, une session qui « travaille » ne se vérifie pas : bornée comme une attente.
     if (etat === 'travaille' && !s.pid) etat = 'attend';
@@ -149,7 +152,7 @@ export function evaluer({ accueil, maintenant = Date.now(), attente = ATTENTE_MI
       else if (maintenant - derniere >= attente * 60e3) { etat = 'attend'; depuis = derniere; }
     }
     const reste = etat === 'travaille' ? null : depuis + attente * 60e3 - maintenant;
-    if (!s.pid && reste !== null && reste < -864e5) { effacer(f); continue; }
+    if (!s.pid && reste !== null && reste < -864e5) { effacer(f, lu); continue; }
     sessions.push({ session: s.session, etat, depuis: new Date(depuis).toISOString(), retient: reste === null || reste > 0,
       ...(reste !== null && reste > 0 && { reste_min: Math.ceil(reste / 60e3) }), dossier: s.dossier || null });
   }

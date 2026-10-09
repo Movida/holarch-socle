@@ -179,6 +179,17 @@ test('veille : un chemin de transcription noté ne se lit que s’il désigne un
   const vraie = path.join(d, 's.jsonl'); ecrire(vraie, '{}\n'); assert.equal(transcriptionLisible(vraie), true);
 });
 
+test('veille : une note réécrite par un crochet entre sa lecture et son effacement n’est pas effacée', () => {
+  const accueil = tmp(); const f = path.join(dossierVeille(accueil), 'r.json');
+  note(accueil, 'UserPromptSubmit', 'r', { session: () => ({ pid: 999, debut: '1' }) });
+  // Le processus noté est mort ; pendant l'évaluation, la session reprend sous un nouveau processus et réécrit sa note.
+  const reprise = ({ pid }) => { if (pid === 999) note(accueil, 'UserPromptSubmit', 'r', { session }); return enVie({ pid, debut: pid === 999 ? '1' : '777' }); };
+  evaluer({ accueil, maintenant: T0, enVie: reprise, nettoyer: true });
+  assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).pid, 4242, 'la note réécrite reste');
+  evaluer({ accueil, maintenant: T0, enVie, nettoyer: true });
+  assert.ok(fs.existsSync(f), 'la session vit');
+});
+
 // Demande d'éveil témoin : dit « tenue », tient jusqu'à la fin de son entrée standard.
 const TEMOIN = [process.execPath, '-e', "process.stdout.write('tenue\\n'); process.stdin.resume(); process.stdin.on('end', () => process.exit(0));"];
 
