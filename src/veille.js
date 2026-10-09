@@ -19,6 +19,13 @@ export const dossierVeille = (accueil) => path.join(accueil, 'veille');
 // `holarch veille` le comparent à ce que demandent les sessions.
 export const fichierGardien = (accueil) => path.join(accueil, 'veille-gardien.json');
 export const GARDIEN_FRAIS = 2 * 60e3;
+// Dernière erreur d'un crochet de veille : `2>/dev/null` du crochet (un tour ne doit jamais échouer) la cacherait ;
+// gardée datée, le contrôle la signale une semaine.
+export const fichierErreur = (accueil) => path.join(accueil, 'veille-erreur.json');
+export const ERREUR_VUE_JOURS = 7;
+export function noterErreur(accueil, evenement, e, maintenant = Date.now()) {
+  try { ecrireJson(fichierErreur(accueil), { at: new Date(maintenant).toISOString(), evenement: String(evenement || ''), message: String(e?.message || e).split('\n')[0].slice(0, 300) }); } catch { /* accueil illisible : rien de plus à faire */ }
+}
 
 // État qu'un crochet note ; `SessionEnd` efface la note. `Stop` ne vient pas après une interruption : la transcription
 // la dit (`attenteDansTranscription`). Une demande de permission ou une élicitation MCP attend l'auteur au milieu d'un tour.

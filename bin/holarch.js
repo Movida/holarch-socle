@@ -6,7 +6,7 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface, creerReveil, etatVeille } from '../src/distant.js';
-import { noter, evaluer, creerGardien, surveiller, mecanisme, fichierGardien } from '../src/veille.js';
+import { noter, noterErreur, evaluer, creerGardien, surveiller, mecanisme, fichierGardien } from '../src/veille.js';
 import { Journal } from '../src/stockage/journal.js';
 import { appliquerRegles, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -111,13 +111,15 @@ switch (cmd) {
       else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
     } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
     break; }
-  // Crochets de Claude Code (veille retardée) : ne jamais faire échouer un tour ni une fin de session.
+  // Crochets de Claude Code (veille retardée) : ne jamais faire échouer un tour ni une fin de session ; une erreur,
+  // configuration comprise, est gardée datée dans l'accueil (HOLARCH_HOME du crochet) pour le contrôle.
   case 'veille': {
-    const config = chargerConfig(); const [action, evenement] = args.filter((a) => !a.startsWith('--'));
+    const [action, evenement] = args.filter((a) => !a.startsWith('--'));
     if (action === 'noter') {
-      try { noter({ evenement, entree: JSON.parse(lire(0, 'utf8') || '{}'), accueil: config.accueil }); } catch (e) { console.error(`holarch veille : ${e.message}`); }
+      try { noter({ evenement, entree: JSON.parse(lire(0, 'utf8') || '{}'), accueil: chargerConfig().accueil }); } catch (e) { noterErreur(accueil(), evenement, e); console.error(`holarch veille : ${e.message}`); }
       break;
     }
+    const config = chargerConfig();
     if (action === 'tenir') {
       const log = (m) => console.log(m);
       if (!mecanisme()) log('aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL) pour l’instant : cherché de nouveau à chaque besoin');

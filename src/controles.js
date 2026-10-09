@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
 import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
-import { mecanisme, evaluer, fichierGardien, GARDIEN_FRAIS } from './veille.js';
+import { mecanisme, evaluer, fichierGardien, GARDIEN_FRAIS, fichierErreur, ERREUR_VUE_JOURS } from './veille.js';
 import { etatVeille } from './distant.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
@@ -289,13 +289,19 @@ function commitsPousses(ctx) {
  */
 function veilleRetardee(ctx) {
   const e = ctx.veille || { mecanisme: mecanisme(), ...etatVeille(), besoin: ctx.accueil ? evaluer({ accueil: ctx.accueil }).besoin : false,
-    tenu: ctx.accueil ? lireJson(fichierGardien(ctx.accueil), null) : null };
+    tenu: ctx.accueil ? lireJson(fichierGardien(ctx.accueil), null) : null, erreur: ctx.accueil ? lireJson(fichierErreur(ctx.accueil), null) : null };
   if (!e.mecanisme) return { indisponible: 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)' };
   const ecarts = [];
   if (e.distants && e.gardien !== 'actif') ecarts.push({ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${e.gardien} avec ${e.distants} accès distant(s) actif(s) : la veille n'est pas retardée` });
   const frais = e.tenu && Date.now() - Date.parse(e.tenu.maj) < GARDIEN_FRAIS;
   if (e.besoin && !(e.gardien === 'actif' && frais && e.tenu.tenue)) {
     ecarts.push({ fichier: null, ligne: null, cle: 'retenue', message: `une session distante retient la veille, mais la demande d'éveil n'est pas tenue (gardien ${e.gardien}${frais ? '' : ', sans passage récent'})` });
+  }
+  // Une erreur du crochet : des sessions ne sont peut-être pas notées. Dite par sa date et son événement (le message,
+  // qui peut citer un chemin, reste dans le fichier).
+  const t = Date.parse(e.erreur?.at);
+  if (Number.isFinite(t) && Date.now() - t < ERREUR_VUE_JOURS * 864e5) {
+    ecarts.push({ fichier: null, ligne: null, cle: 'crochet', message: `crochet de veille en erreur le ${e.erreur.at.slice(0, 16).replace('T', ' ')} UTC (${e.erreur.evenement || '?'}) : des sessions peuvent ne pas être notées ; détail dans veille-erreur.json de l'accueil HOLARCH` });
   }
   return { ecarts };
 }

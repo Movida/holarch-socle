@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { noter, evaluer, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { noter, evaluer, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte } from '../src/materialisation.js';
@@ -358,6 +358,20 @@ test('veille : le contrôle dit un gardien arrêté sous un accès distant, rien
   assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 2 }), { ecarts: [] });
   const e = c({ mecanisme: '/ps', gardien: 'arrêté', distants: 1 }).ecarts;
   assert.deepEqual([e.length, e[0].cle], [1, 'gardien']); assert.match(e[0].message, /gardien de veille arrêté avec 1 accès distant/);
+});
+
+test('veille : une erreur du crochet, configuration illisible comprise, ne fait pas échouer le tour ; gardée datée, le contrôle la dit une semaine', () => {
+  const accueil = tmp(); fs.writeFileSync(path.join(accueil, 'config.yaml'), 'site: [illisible\n');
+  const bin = path.join(import.meta.dirname, '..', 'bin', 'holarch.js');
+  const r = spawnSync(process.execPath, ['--no-warnings', bin, 'veille', 'noter', 'Stop'], { input: '{"session_id":"s1"}', encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil, CLAUDE_CODE_ENVIRONMENT_KIND: 'bridge' } });
+  assert.equal(r.status, 0, 'un crochet ne fait jamais échouer un tour');
+  const erreur = JSON.parse(fs.readFileSync(fichierErreur(accueil), 'utf8'));
+  assert.equal(erreur.evenement, 'Stop'); assert.ok(erreur.message.length > 0);
+  const c = (o) => executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'absent', distants: 0, besoin: false, ...o } }, 'audit').ecarts;
+  const e = c({ erreur });
+  assert.deepEqual(e.map((x) => x.cle), ['crochet']); assert.match(e[0].message, /crochet de veille en erreur le .* \(Stop\)/);
+  assert.ok(!e[0].message.includes(accueil), 'ni chemin ni message dans l’écart');
+  assert.deepEqual(c({ erreur: { ...erreur, at: new Date(Date.now() - 8 * 864e5).toISOString() } }), [], 'plus d’une semaine : plus dite');
 });
 
 test('veille : le contrôle compare ce que le gardien dit tenir à ce que demandent les sessions, accès distant ou /remote-control', async () => {
