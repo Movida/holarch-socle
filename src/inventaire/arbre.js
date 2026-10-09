@@ -105,7 +105,7 @@ export default function inventaireArbre(options, ctx) {
     // Identité de l'arbre (liens entre arbres, identifiants des règles) : l'`id` de sa racine, sinon celle du projet.
     const arbre = String(enTete(racine.fichier).id || cle);
     for (const f of racine.okf ? [racine.fichier] : noeuds(racine.dossier, racine.dossier, [])) {
-      const { entete: h, erreur: erreurEntete } = lireEnTete(f);
+      const { entete: h, erreur: erreurEntete, indices } = lireEnTete(f);
       const estRacine = f === racine.fichier;
       // Un en-tête illisible garde son nœud, avec l'erreur : ce pouvait être un contexte ou un type, dont les règles
       // manquent alors (la règle effective le dit, module regles).
@@ -123,7 +123,7 @@ export default function inventaireArbre(options, ctx) {
         links: { ...(h.links || {}), ...(projet && { project: [projet.id] }) },
         attributes: { type: h.type || null, statut: h.status || null, approuve: h.approved || null, revue: h.review || null, arbre, ...(estRacine && { racine: true }),
           ...(h.id && { id: String(h.id) }), ...(h.types && { types: [].concat(h.types).map(String) }), ...(h.projects && { projects: [].concat(h.projects).map(String) }),
-          ...(h.derogations && { derogations: h.derogations }), ...(h.config && typeof h.config === 'object' && { config: h.config }), ...(regles.length && { regles: regles.length }), ...(erreur && { erreur_regles: erreur }), ...(erreurEntete && { erreur_entete: erreurEntete }), ...suivi },
+          ...(h.derogations && { derogations: h.derogations }), ...(h.config && typeof h.config === 'object' && { config: h.config }), ...(regles.length && { regles: regles.length }), ...(erreur && { erreur_regles: erreur }), ...(erreurEntete && { erreur_entete: erreurEntete, indices_entete: indices }), ...suivi },
       };
       out.push(noeud);
       // Une règle se désigne par son arbre, son nœud (rien pour la racine, l'`id` du nœud s'il en a un) et son `id`.

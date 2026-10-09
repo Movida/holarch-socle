@@ -81,11 +81,14 @@ const applicable = (e) => e.statut === 'stable' && !e.derogee;
 // Sources de règles illisibles (un `rules.yaml` ou un en-tête en cours d'édition, un conflit de fusion) : la règle
 // effective est alors incomplète. Ce qui en décide (garde, matérialisation, audit) ne la dit pas conforme pour autant.
 // Comptent les couches elles-mêmes, tout en-tête illisible de l'arbre du profil (ce pouvait être un contexte ou un nœud
-// de sa chaîne) et, quand un type déclaré ou le contexte déclarant est introuvable, tout en-tête illisible connu (ce
-// pouvait être lui).
-function illisibles(a, couches, { introuvable = false } = {}) {
+// de sa chaîne) et, quand un type déclaré ou le contexte déclarant est introuvable, tout en-tête illisible qui pouvait
+// être lui : d'après ce qui s'en lit ligne à ligne (`indices_entete`), un `template` de cet `id`, un `context`, ou un
+// nœud dont le type ne se lit pas. Une décision illisible d'un projet sans rapport ne compte pas.
+function illisibles(a, couches, { types = [], contexte = false } = {}) {
   const profil = new Set(couches.filter((c) => c.origine === 'profil' || c.origine === 'contexte').map((c) => c.noeud.attributes?.arbre));
-  const enTetes = a.noeuds.filter((n) => n.attributes?.erreur_entete && (introuvable || profil.has(n.attributes.arbre) || couches.some((c) => c.noeud === n)));
+  const pouvaitEtre = ({ type, id } = {}) => !type || (type === 'template' && types.length > 0 && (!id || types.includes(id))) || (type === 'context' && contexte);
+  const enTetes = a.noeuds.filter((n) => n.attributes?.erreur_entete && (profil.has(n.attributes.arbre) || couches.some((c) => c.noeud === n)
+    || ((types.length || contexte) && pouvaitEtre(n.attributes.indices_entete))));
   return [...new Set([...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_regles}`),
     ...enTetes.map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_entete}`)])];
 }
@@ -108,12 +111,12 @@ export function regleEffective(fiches, projetId) {
   const declarants = a.noeuds.filter((n) => n.attributes?.projects?.includes(projetId));
   if (declarants.length > 1) signaux.push(`projet déclaré par plusieurs contextes : ${declarants.map((n) => `${n.attributes.arbre}:${n.node}`).join(', ')} ; le premier compte`);
   if (!declarants.length) signaux.push(a.profils.length ? 'aucun contexte ne déclare ce projet : seules les règles du profil s’appliquent' : 'aucun profil connu sur ce site');
-  const couches = []; let typeInconnu = false;
+  const couches = []; const typesInconnus = [];
   if (declarants[0]) couches.push(...couchesDeclarant(a, declarants[0]));
   else if (a.profils.length === 1) couches.push({ origine: 'profil', noeud: a.profils[0], regles: a.regles.get(a.profils[0].id) || [] });
   for (const t of racine?.attributes?.types || []) {
     const n = a.templates.get(t);
-    if (!n) { signaux.push(`type inconnu : ${t} (aucun nœud template ne porte cet id)`); typeInconnu = true; continue; }
+    if (!n) { signaux.push(`type inconnu : ${t} (aucun nœud template ne porte cet id)`); typesInconnus.push(t); continue; }
     couches.push({ origine: 'type', noeud: n, regles: a.regles.get(n.id) || [] });
   }
   if (racine) couches.push({ origine: 'projet', noeud: racine, regles: a.regles.get(racine.id) || [] });
@@ -125,7 +128,10 @@ export function regleEffective(fiches, projetId) {
     if (e.derogeable === false) { signaux.push(`dérogation refusée : ${e.id} n’est pas dérogeable`); continue; }
     e.derogee = { pourquoi: d.why ?? null, par: d.by ?? null, le: d.at ?? null };
   }
-  const lisibles = illisibles(a, couches, { introuvable: typeInconnu || !declarants.length }); signaux.push(...lisibles);
+  const lisibles = illisibles(a, couches, { types: typesInconnus, contexte: !declarants.length }); signaux.push(...lisibles);
+  // Les autres en-têtes illisibles de l'arbre du projet (une décision, une observation) ne changent pas ses règles : dits.
+  if (racine) signaux.push(...a.noeuds.filter((n) => n.attributes?.arbre === racine.attributes.arbre && n.attributes?.erreur_entete)
+    .map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_entete}`).filter((x) => !lisibles.includes(x)).map((x) => `${x} (sans effet sur les règles)`));
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
   return { projet: projetId, declare: Boolean(declarants[0]), arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
     regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
@@ -138,7 +144,7 @@ export function regleEffective(fiches, projetId) {
 export function regleDuCompte(fiches) {
   const a = arbresDe(fiches); const signaux = [];
   if (!a.profils.length) {
-    const lisibles = illisibles(a, [], { introuvable: true });
+    const lisibles = illisibles(a, [], { contexte: true });
     return { regles: [], signaux: ['aucun profil connu sur ce site (un arbre qui porte des nœuds context)', ...lisibles], illisibles: lisibles, rappels: 0, rappels_proposes: 0 };
   }
   if (a.profils.length > 1) return { regles: [], signaux: [`plusieurs profils sur ce site : ${a.profils.map((p) => p.attributes.arbre).join(', ')} ; rien n’est posé au compte`], illisibles: [], rappels: 0, rappels_proposes: 0 };

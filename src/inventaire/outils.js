@@ -6,7 +6,8 @@ import { gitLu } from '../commun.js';
 
 /**
  * En-tête YAML d'un fichier Markdown (`---` … `---`) : { entete, erreur }. Sans en-tête, `entete` est {} et `erreur`
- * null ; un en-tête présent mais illisible (YAML invalide, autre chose qu'un objet) le dit dans `erreur`. Ne lève jamais.
+ * null ; un en-tête présent mais illisible (YAML invalide, autre chose qu'un objet) le dit dans `erreur`, avec les
+ * `indices` lus ligne à ligne (`type`, `id`) : ce que le nœud pouvait être. Ne lève jamais.
  */
 export function lireEnTete(fichier) {
   let t;
@@ -16,8 +17,15 @@ export function lireEnTete(fichier) {
   try {
     const h = YAML.parse(m[1]);
     if (h == null) return { entete: {}, erreur: null };
-    return typeof h === 'object' && !Array.isArray(h) ? { entete: h, erreur: null } : { entete: {}, erreur: 'en-tête illisible : un objet est attendu' };
-  } catch (e) { return { entete: {}, erreur: `en-tête illisible : ${e.message.split('\n')[0]}` }; }
+    return typeof h === 'object' && !Array.isArray(h) ? { entete: h, erreur: null } : { entete: {}, erreur: 'en-tête illisible : un objet est attendu', indices: indices(m[1]) };
+  } catch (e) { return { entete: {}, erreur: `en-tête illisible : ${e.message.split('\n')[0]}`, indices: indices(m[1]) }; }
+}
+
+// `type` et `id` d'un en-tête illisible, lus ligne à ligne (valeur simple, guillemets ôtés) ; absents s'ils ne se lisent pas.
+function indices(texte) {
+  const r = {};
+  for (const [, cle, v] of texte.matchAll(/^(type|id):[ \t]*(.*?)[ \t]*$/gm)) if (!(cle in r) && v) r[cle] = v.replace(/^(["'])(.*)\1$/, '$2');
+  return r;
 }
 
 /** En-tête YAML d'un fichier Markdown, ou {} (absent ou illisible). */

@@ -265,6 +265,45 @@ test('E2 : un en-tête illisible dans l’arbre du profil ne fait pas passer la 
   assert.match(refus[0].ecarts[0].message, /perso\.md : en-tête illisible/);
 });
 
+test('Seconde contre-épreuve (E, F) : un type inconnu ne compte que les en-têtes illisibles qui pouvaient être lui ; les autres du projet se disent', async () => {
+  const { Socle } = await import('../src/socle.js');
+  const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
+  const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const d = path.join(r, 'depot'); const autre = path.join(r, 'autre');
+  for (const x of [d, autre]) spawnSync('git', ['init', '-q', x]);
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\ntypes: [methode-holrach]\n---\n');
+  ecrire(path.join(autre, 'arbre', 'index.md'), '---\ntype: guideline\nid: autre\ntitle: Autre\nstatus: draft\n---\n');
+  // Une décision illisible d'un projet sans rapport (« : » non cité dans la description, comme dans le socle).
+  ecrire(path.join(autre, 'arbre', 'decisions', 'une.md'), '---\ntype: decision\ntitle: Une\ndescription: Après l’essai : rien\nstatus: stable\n---\n');
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: {} });
+  const charger = () => {
+    s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d, autre], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+      ...[d, autre].map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }))]);
+    s.indexer();
+  };
+  charger();
+  let e = s.regles({ projet: 'holarch:project:depot' });
+  assert.ok(e.signaux.some((x) => /type inconnu : methode-holrach/.test(x)));
+  assert.deepEqual(e.illisibles, [], 'la décision d’un projet sans rapport rend la règle effective incomplète');
+  assert.equal(s.garde({ depot: d }).refus.length, 0);
+
+  // Un type illisible qui porte cet id, lui, pouvait être le type manquant.
+  ecrire(path.join(autre, 'arbre', 'types', 'm.md'), '---\ntype: template\nid: methode-holrach\ntitle: [ouvert\n---\n');
+  charger();
+  e = s.regles({ projet: 'holarch:project:depot' });
+  assert.equal(e.illisibles.length, 1); assert.match(e.illisibles[0], /types\/m\.md/);
+
+  // F : une décision illisible du projet lui-même ne bloque rien, mais se dit.
+  fs.rmSync(path.join(autre, 'arbre', 'types'), { recursive: true });
+  ecrire(path.join(d, 'arbre', 'decisions', 'deux.md'), '---\ntype: decision\ntitle: Deux\ndescription: Avant : après\nstatus: draft\n---\n');
+  charger();
+  e = s.regles({ projet: 'holarch:project:depot' });
+  assert.deepEqual(e.illisibles, []);
+  assert.ok(e.signaux.some((x) => /depot:\/arbre\/decisions\/deux\.md : en-tête illisible.*\(sans effet sur les règles\)/.test(x)), e.signaux.join(' | '));
+});
+
 test('Contre-épreuve (4) : regles appliquer n’écrit pas le compte quand un projet demandé a des règles illisibles', async () => {
   const { Socle } = await import('../src/socle.js');
   const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
