@@ -42,6 +42,9 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   assert.match(texte, new RegExp(`^ExecStart=/bin/sh -c "exec '/opt/outils/claude' remote-control --no-create-session-in-dir ${options}"$`, 'm'));
   assert.doesNotMatch(texte, /--continue/);
   assert.match(texte, /^Environment="PATH=\/opt\/outils:/m);
+  // L'affichage du serveur (redessiné chaque seconde) est jeté, ses erreurs restent au journal : sans `StandardError`,
+  // systemd les envoie là où va la sortie standard, et deux arrêts en erreur n'avaient laissé aucun message.
+  assert.match(texte, /^StandardOutput=null$/m); assert.match(texte, /^StandardError=journal$/m);
   const c = JSON.parse(fs.readFileSync(cfgClaude, 'utf8'));
   assert.equal(c.projects[path.join(racine, 'demo')].hasTrustDialogAccepted, true);
   assert.deepEqual([c.autre, c.projects['/x']], [1, { hasTrustDialogAccepted: false, garde: true }]);
@@ -562,6 +565,7 @@ test('interface en service : unité marquée qui relit la même configuration, a
   assert.match(texte, /^# Écrit par HOLARCH/); assert.match(texte, /Environment="HOLARCH_HOME=\/srv\/donnees holarch"/);
   assert.match(texte, /Environment="PATH=\/opt\/node\/bin:[^"]*\/\.local\/bin:/, 'les outils du poste, comme dans un terminal');
   assert.match(texte, /ExecStart="\/opt\/node\/bin\/node" --no-warnings "\/opt\/holarch\/bin\/holarch.js" voir/);
+  assert.match(texte, /^StandardOutput=null$/m); assert.match(texte, /^StandardError=journal$/m);
   assert.deepEqual(appels, ['daemon-reload', 'enable --now holarch-interface.service']);
   assert.equal(i.etat().actif, true);
   i.desactiver(); assert.ok(!fs.existsSync(path.join(unites, 'holarch-interface.service')));

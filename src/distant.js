@@ -62,6 +62,8 @@ const SYSTEMCTL = (args) => spawnSync('systemctl', ['--user', ...args], { encodi
 // serveur démarre sans session ouverte et l'auteur en ouvre une depuis l'application (contexte neuf, une session
 // archivée le reste) ; `reprendre`, il reprend la dernière session du dossier (`--continue`, moins de quatre heures
 // environ, et la désarchive), sinon en crée une. Les deux options ne se combinent pas (Claude Code 2.1.295).
+// Sortie : l'affichage du serveur, redessiné chaque seconde, est jeté ; ses erreurs vont au journal (sans
+// `StandardError`, systemd les envoie avec la sortie standard). De même pour l'interface.
 export const SESSIONS_AU_DEMARRAGE = ['aucune', 'reprendre'];
 export function uniteDe({ nom, chemin, claude, mode, session = 'aucune' }) {
   if (!SESSIONS_AU_DEMARRAGE.includes(session)) throw new Error(`acces_distant.session_au_demarrage : ${session} inconnu (${SESSIONS_AU_DEMARRAGE.join(' ou ')})`);
@@ -81,6 +83,7 @@ ExecStart=/bin/sh -c ${systemd(script)}
 Restart=on-failure
 RestartSec=30
 StandardOutput=null
+StandardError=journal
 
 [Install]
 WantedBy=default.target
@@ -236,6 +239,7 @@ ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} voir
 Restart=on-failure
 RestartSec=30
 StandardOutput=null
+StandardError=journal
 
 [Install]
 WantedBy=default.target
