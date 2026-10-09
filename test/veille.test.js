@@ -172,6 +172,11 @@ test('veille : après Stop, un sous-agent de fond qui écrit retient le poste ta
   fs.utimesSync(agent, new Date(T0 + 50 * min), new Date(T0 + 50 * min));
   assert.deepEqual([e(T0 + 70 * min).etat, e(T0 + 70 * min).retient], ['travaille', true], 'le sous-agent a écrit il y a 20 min, 70 min après Stop');
   assert.deepEqual([e(T0 + 81 * min).etat, e(T0 + 81 * min).retient], ['attend', false], '30 min sans écriture');
+  // Un workflow de fond écrit ses sous-agents plus bas (`subagents/workflows/wf_*/`) : il retient de même.
+  const wf = path.join(path.dirname(agent), 'workflows', 'wf_abc123', 'agent-c3.jsonl'); ecrire(wf, ligne({ type: 'assistant' }));
+  fs.utimesSync(agent, new Date(T0), new Date(T0)); fs.utimesSync(wf, new Date(T0 + 60 * min), new Date(T0 + 60 * min));
+  assert.deepEqual([e(T0 + 81 * min).etat, e(T0 + 81 * min).retient], ['travaille', true], 'le workflow a écrit il y a 21 min');
+  assert.equal(e(T0 + 91 * min).retient, false);
   // Un shell de fond n'écrit dans aucune transcription : l'attente compte depuis Stop.
   fs.rmSync(path.dirname(agent), { recursive: true });
   assert.equal(e(T0 + 31 * min).retient, false);
