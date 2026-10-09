@@ -998,40 +998,37 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   (commits locaux ; le dépôt sans git, fichier seul) ; dans le dépôt au `--privileged` : retiré, jetons sortis de
   `remoteEnv`, workflow manuel de déploiement du relais (secret limité à l'app). Sur le poste, seul écart restant :
   `acces-distant` du socle (le risque du majeur 6, réel jusqu'à D). B : mineur 1 corrigé (tenue reprise redite).
+- **Fait (2026-10-09)** : B, mineurs 2 à 9 de la contre-épreuve, un commit et un test chacun (134 tests verts) : le
+  gardien suit la seule règle (posé et retiré par `regles appliquer` et la pose de la copie de service, jamais par un
+  accès distant ; le contrôle le veut actif dès que la règle s'applique) ; une question ne fait pas attendre une
+  session dont un sous-agent écrit après elle ; activité lue à la dernière entrée datée (mesure : 38 transcriptions
+  distantes sur 56 en 30 jours changent plus de 30 s après leur dernière entrée datée), `BOUGE` à 30 s ;
+  `etatGardien`, une seule lecture pour le contrôle et `holarch veille` (heure locale, erreur du crochet dans la vue,
+  demande peut-être tenue sans besoin) ; règle indéterminée sans profil unique (`indetermine`), gardien laissé et
+  relancé s'il tourne ; erreur du gardien dite sur sa ligne sans interrompre `regles appliquer` ni `service poser` ;
+  `bin/veille-noter.js`, point d'entrée léger des crochets, avec un repli shell qui écrit l'erreur si node ou ses
+  modules ne se chargent pas, effacée à la note réussie suivante (`holarch veille noter` retiré) ; effacement d'une
+  note par renommage. Deux défauts trouvés en écrivant les textes : `data.origine: conteneur` écrasé par l'origine
+  d'un refus d'outil, renommé `data.environnement` (rien au journal réel) ; l'en-tête de `environnement-d-execution`
+  illisible pour l'arbre depuis son approbation (« : » non cité), corrigé, test sur tous les en-têtes du socle.
+  Textes : contrat événement, 0.10.0 marquée en attente d'approbation ; décision `veille-et-conteneur-precisions` en
+  brouillon (ligne B, borne d'immobilité, règle `veille-retardee` réécrite, gardien, risque résiduel jusqu'à D,
+  limites connues).
 - **Reste** :
-  0. **Contre-épreuve de la faille et des corrections de B (2026-10-09)** : le conteneur est corrigé (Fait ci-dessus) ;
-     rapport complet dans la transcription de la session du 2026-10-09 au soir (`c8226cc6`, ligne 1056). Restent, un
-     commit et un test chacun, avec la méthode déjà arrêtée :
-     - B, mineurs 2 à 9 : (2) choix de l'auteur, le gardien suit la seule règle : `creerReveil().gardien` sans condition
-       d'accès distant, `retirerReveil` ne le retire plus, le contrôle `veille-retardee` le veut actif dès que la règle
-       s'applique, texte de `uniteVeille` (`distant.js`, « retirée avec le dernier accès distant »), tests
-       `veille.test.js` « posé et retiré avec le premier et le dernier accès distant » et « gardien arrêté sous un accès
-       distant » à réécrire ; (3) dans `evaluer`, une question ne fait pas attendre si un sous-agent écrit après elle ;
-       (8) activité lue à la dernière entrée datée de la fin des transcriptions (mtime à défaut), et `BOUGE` porté à
-       30 s (fin de tour la plus tardive mesurée : 4,7 s sur 89 cas ; une attente retient de toute façon 30 min) ;
-       (4) une fonction `etatGardien` dans `veille.js` (fraîcheur, tenue, erreur récente, heure locale), lue par le
-       contrôle et `holarch veille`, qui dit aussi une tenue sans besoin ; (5) `regleDuCompte` marque l'absence ou la
-       pluralité de profils, `veilleVoulue` rend alors null, et `gardien({veille: null})` relance un gardien actif
-       inchangé ; (6) `regles appliquer` et `service poser` (`veilleDuCompte` hors du `try`) rattrapent l'erreur de
-       systemctl et la disent sur une ligne ; (7) point d'entrée léger pour `veille noter` (imports dans le `try`),
-       repli shell qui écrit `veille-erreur.json` si node ne démarre pas, erreur effacée à la note réussie suivante ;
-       (9) effacement d'une note par renommage, comparaison, restauration.
-     - Textes : limites connues de B (ci-dessous, point 7) ; contrat événement, partie `power.*` et `data.origine`
-       (`conteneur`) marquées en attente d'approbation (le contrat porte encore `stable` sous l'approbation du
-       2026-10-03) ; amendement de `environnement-d-execution` à soumettre à l'auteur : ligne B (l.66) contre la
-       précision (l.96), borne des 30 min d'immobilité, risque résiduel du majeur 6 (dépôt monté en écriture :
-       `.claude/settings*.json`, `.git/hooks` et `.git/config`, `initializeCommand` ; fermé par D) ; dépôt sans git
-       (son correctif n'est ni versionné ni audité) en limite connue de `conteneur-isole`.
-     - À demander à l'auteur : l'écart `acces-distant` du socle, gardé visible ou levé par une exception du socle
-       jusqu'à D.
+  0. **Contre-épreuve des corrections de B et des textes (2026-10-09)** : par une instance neuve (`xhigh`, lecture
+     seule), sur les commits `ea96019` à `ef7c8f2` et la décision `veille-et-conteneur-precisions` ; constats ici.
+     - À trancher par l'auteur, avec cette décision (en brouillon) : le risque résiduel jusqu'à D (écart
+       `acces-distant` du socle gardé visible, recommandé, ou levé par une exception du socle), la proposition sur le
+       compte sans profil unique (refuser de l'écrire, comme des règles illisibles), puis l'approbation du tout (ligne
+       B et point « Veille » de `environnement-d-execution`, règle `veille-retardee` du profil, contrat événement 0.10.0).
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-     - Puis contre-épreuve de ces corrections par une instance neuve (`xhigh`, lecture seule).
-  0. **Suite prévue** : finir ce qui précède ; puis, sur l'accord de l'auteur : approbation du contrat événement 0.10.0
+  0. **Suite prévue** : finir ce qui précède ; puis, sur l'accord de l'auteur : approbation de la décision
+     `veille-et-conteneur-precisions` et du contrat événement 0.10.0
      (règles `veille-retardee`, `conteneur-isole` et `approbation-recapitulee` approuvées le 2026-10-09 ; d'ici la
      pose, l'audit horaire de l'ancienne copie dit leurs écarts), `holarch regles appliquer` (crochets et gardien),
      `holarch service poser` (copie en retard), critère de B (délai de veille raccourci le temps de l'essai :
@@ -1143,10 +1140,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        pose (`holarch service poser` pose le gardien, `holarch regles appliquer` les
        crochets au compte) ; vérifier qu'un crochet de session distante reçoit bien `CLAUDE_CODE_ENVIRONMENT_KIND`
        (`holarch veille` montre la session notée) ; critère, avec le délai de veille raccourci le temps de l'essai
-       (`powercfg /change standby-timeout-ac 10`, puis remis à 300). Limites connues : une demande de permission
-       en attente compte comme un travail ; une tâche de fond de plus de 30 min après la fin du tour ne retient
-       rien ; une session en conteneur (D) ne se vérifie pas par son processus, sa note est alors tenue pour finie
-       (le poste peut dormir), à reprendre en D. Reste du critère de A : une session archivée le reste après une
+       (`powercfg /change standby-timeout-ac 10`, puis remis à 300). Limites connues : dans la décision
+       `veille-et-conteneur-precisions` (en brouillon). Reste du critère de A : une session archivée le reste après une
        relance.
   8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.
