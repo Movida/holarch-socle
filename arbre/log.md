@@ -6,7 +6,8 @@
   rien recréer d'un projet à l'autre, un outillage emporté partout) ; l'agent s'appuyant sur les fondations, le manque
   cadrait ses avis sans se voir (constat de l'auteur). Décision `idees-fondatrices` en brouillon : texte proposé pour le
   manifeste et les besoins B6 et B7, et une revue des fondations à l'aveugle pour trouver ce genre de manque ; seuils en
-  Q28.
+  Q28. Ajouté (point 6, choix de l'auteur) : relire le fil des commits du socle, objectif par objectif, pour trouver ce
+  qu'une réorientation a fait disparaître sans décision ; à lancer à la reprise, sur un contexte neuf.
 * **Avis sur les fonctionnalités et la conception, palliatifs** : trois relectures en lecture seule (code,
   fonctionnalités, trajectoire) et les mesures du site ; un palliatif par faiblesse, toutes les fonctionnalités gardées,
   chacune dans le cœur, un module optionnel ou le profil : décision `modules-et-palliatifs`, en brouillon. Choix de

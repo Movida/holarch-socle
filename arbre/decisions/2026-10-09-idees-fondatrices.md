@@ -49,6 +49,12 @@ manque au sommet ne se voit pas, il se lit comme une dérive. Palliatifs :
    fondation échue, que la revue reconfirme ou amende.
 5. Règle du profil, en brouillon : « Un avis qui conclut à une dérive nomme le nœud sur lequel il s'appuie et demande
    si ce nœud dit encore l'intention de l'auteur. »
+6. Relecture du fil des commits (choix de l'auteur, 2026-10-09 : à lancer à la reprise, périmètre du socle) : une
+   instance neuve relève les objectifs dans leur première version (fondations, architecture, contrats et étapes au
+   2026-10-03, par `git show`) avant de lire les versions actuelles ; pour chacun : présent, modifié par une décision
+   nommée, ou disparu sans décision. Chaque objectif disparu sans décision est proposé à l'auteur : rétabli (module,
+   idée) ou retiré par une décision. Ensuite, contrôle possible : une ligne retirée d'un nœud stable sans décision qui
+   le modifie.
 
 **Ce qui le ferait changer.** Une intention de l'auteur qui reste absente malgré la revue : le mécanisme est à revoir ;
 deux revues de suite sans rien trouver : leur cadence s'allonge.
