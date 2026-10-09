@@ -402,16 +402,16 @@ function montageSensible(ctx) {
   const sensibles = [...IDENTIFIANTS.map((r) => ({ chemin: path.join(maison, r), quoi: 'identifiants de l’hôte' })),
     ...DOCKER_HOTE.map((c) => ({ chemin: c, quoi: 'Docker de l’hôte' })),
     ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true }))];
-  const ecarts = [];
+  const ecarts = []; const nonLus = [];
   for (const f of configsConteneur(ctx.depot)) {
     const texte = fs.readFileSync(path.join(ctx.depot, f), 'utf8'); const erreurs = [];
     const c = parseJsonc(texte, erreurs, { allowTrailingComma: true }); const arbre = parseTree(texte, [], { allowTrailingComma: true });
-    if (erreurs.length || !c || typeof c !== 'object') return { indisponible: `${f} illisible` };
-    if (c.dockerComposeFile) return { indisponible: `${f} : conteneur décrit par Docker Compose, montages non lus` };
+    if (erreurs.length || !c || typeof c !== 'object') { nonLus.push(`${f} illisible`); continue; }
+    if (c.dockerComposeFile) { nonLus.push(`${f} : conteneur décrit par Docker Compose, montages non lus`); continue; }
     const admis = montagesAdmis(c, ctx.depot, maison);
     for (const m of montagesDe(c).filter((x) => x.type === 'bind' && x.source)) {
       const src = sourceHote(m.source, ctx.depot, maison, env);
-      if (!src) return { indisponible: `${f} : source de montage non résolue (${m.source})` };
+      if (!src) { nonLus.push(`${f} : source de montage non résolue (${m.source})`); continue; }
       const a = admis.find((x) => x.chemin === src);
       if (a && (!a.lecture || m.lecture)) continue;
       // Un montage admis en lecture seule, monté en écriture, compte pour lui-même ; sinon, ce qu'il touche ou contient.
@@ -424,7 +424,8 @@ function montageSensible(ctx) {
         message: `monte ${qui} (${touche.quoi}) dans le conteneur, ${m.lecture ? 'en lecture' : 'en écriture'}` });
     }
   }
-  return { ecarts };
+  // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
+  return nonLus.length ? { ecarts, indisponible: nonLus.join(' ; ') } : { ecarts };
 }
 
 /**

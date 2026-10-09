@@ -13,6 +13,8 @@ import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
 import { executer, dossierClaude } from '../src/controles.js';
 import { git, gitLu } from '../src/commun.js';
+import { Socle } from '../src/socle.js';
+import inventaireArbre from '../src/inventaire/arbre.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -510,4 +512,33 @@ test('Contre-épreuve du conteneur (1, 18, 21) : seul un dossier de travail sous
   const long = `/workspaces/${'x'.repeat(200)}`;
   config({ workspaceFolder: long, mounts: [transcriptions(dossierClaude(long))] });
   assert.equal(lire().ecarts.length, 1);
+});
+
+test('Contre-épreuve du conteneur (14) : un contrôle lu en partie garde ses écarts ; non disponible, il ne résout pas ce qu’il n’a pas vu', () => {
+  const r = tmp(); const accueil = tmp(); const d = path.join(r, 'depot');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  ecrireF(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\n---\n');
+  ecrireF(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: conteneur-isole\n  statement: Un conteneur ne monte rien de sensible de l’hôte.\n  level: verified\n  check: [montage-sensible]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-09 }\n');
+  ecrireF(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  const config = (f, c) => ecrireF(path.join(d, '.devcontainer', f), JSON.stringify(c));
+  const bind = (src, dst) => `type=bind,source=\${localEnv:HOME}/${src},target=${dst}`;
+  config('devcontainer.json', { mounts: [bind('.ssh', '/s'), bind('.aws', '/a')] });
+  const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const auditer = () => { const a = s.audit({ journaliser: true }); return { ...a.cibles.find((c) => c.projet === 'holarch:project:depot'), journal: a.journal }; };
+  let a = auditer();
+  assert.deepEqual([a.ecarts.map((e) => e.cle.split(':').pop()), a.journal.apparus], [['/s', '/a'], 2]);
+  // Une seconde configuration illisible : l'écart encore vu reste dit, celui qui a disparu n'est pas résolu pour autant.
+  config('devcontainer.json', { mounts: [bind('.ssh', '/s')] }); ecrireF(path.join(d, '.devcontainer', 'b', 'devcontainer.json'), '{ "mounts": [');
+  a = auditer();
+  assert.deepEqual(a.ecarts.map((e) => e.cle.split(':').pop()), ['/s']);
+  assert.deepEqual(a.controles.map((c) => [c.id, c.etat]), [['montage-sensible', 'indisponible']]);
+  assert.match(a.controles[0].raison, /b\/devcontainer\.json illisible/);
+  assert.deepEqual([a.journal.apparus, a.journal.resolus], [0, 0]);
+  // Relu en entier : l'écart disparu se résout.
+  fs.rmSync(path.join(d, '.devcontainer', 'b'), { recursive: true });
+  a = auditer();
+  assert.deepEqual([a.controles[0].etat, a.journal.resolus], ['fait', 1]);
 });

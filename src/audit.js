@@ -44,7 +44,8 @@ function controler(r, ctx, moment, niveaux, portee = 'projet') {
       const res = memo.get(c);
       if (res.hors_moment) continue;
       etats.set(c, res.indisponible ? { id: c, etat: 'indisponible', raison: res.indisponible } : { id: c, etat: 'fait' });
-      if (!res.indisponible) ecarts.push(...res.ecarts.map((x) => ({ regle: e.fiche, regle_id: e.id, enonce: e.enonce, controle: c, ...x })));
+      // Un contrôle lu en partie dit ce qu'il a trouvé ; non disponible, il ne résout rien de ce qu'il n'a pas vu.
+      ecarts.push(...(res.ecarts || []).map((x) => ({ regle: e.fiche, regle_id: e.id, enonce: e.enonce, controle: c, ...x })));
     }
   }
   return { ecarts, controles: [...etats.values()] };
