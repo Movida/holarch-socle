@@ -2,6 +2,13 @@
 
 ## 2026-10-09
 
+* **Faille du conteneur fermée** : contrôle `montage-sensible` et règle `conteneur-isole` (brouillon). Mesure en
+  route : 209 sessions sur 305 en 30 jours tournent en conteneur, vues par HOLARCH grâce au montage du `~/.claude` de
+  l'hôte ; choix de l'auteur, la solution la plus propre : volume propre, et de l'hôte seulement les transcriptions du
+  projet et les règles du compte en lecture. Modèle, conteneur du socle et quatre conteneurs du poste corrigés
+  (commits locaux, rien poussé). Choix pour B : couvre l'hôte ; contrat événement déclaré par
+  `environnement-d-execution` ; gardien qui suit la règle.
+
 * **Relecture du fil des commits** : reprise à 19 h 22 (message différé), les trois instances repartent de leur
   transcription, sans relire à l'aveugle (164 k, 220 k et 213 k tokens). 197 objectifs relevés ; aucun n'a quitté le
   texte ; 6 changés de sens sans décision, 4 incertains, détail et propositions au Reste de l'étape, à présenter à

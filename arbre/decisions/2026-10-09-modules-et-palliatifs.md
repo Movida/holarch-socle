@@ -44,8 +44,10 @@ versions et d'intégrations à tenir seul).
    désigne une session et un message, vérifiés par l'import ; schémas nœud, règle, config, sans défaut silencieux.
 6. P6 sans mécanisme → un contexte, un compte ou un répertoire de configuration ; `context` rempli sur chaque
    événement ; récolte par contexte, modèles permis selon la classification ; le hub reste un module.
-7. `~/.claude` monté en écriture → volume nommé `{{volume}}-claude` ; `HOLARCH_HOME` jamais monté en écriture ;
-   contrôle « montage sensible » et règle en brouillon.
+7. `~/.claude` monté en écriture → volume nommé `{{volume}}-claude` et `CLAUDE_CONFIG_DIR` ; de `~/.claude`, seulement
+   le dossier de transcriptions du projet (209 sessions sur 305 en 30 jours tournent en conteneur, HOLARCH les importe)
+   et les règles du compte en lecture ; `HOLARCH_HOME` jamais monté en écriture ; contrôle `montage-sensible` et règle
+   `conteneur-isole` en brouillon (faits le 2026-10-09).
 8. Format interne des transcriptions → un seul lecteur au lieu de cinq, échantillons par version, format inconnu en
    `system.degraded` ; module OpenTelemetry optionnel en seconde source.
 9. Couches mêlées → le registre du point 3 ; `socle.js` réduit au câblage.

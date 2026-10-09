@@ -952,13 +952,27 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   relevés dans les premières versions du 2026-10-03, aucun sorti du texte, 6 changés de sens sans décision et 4 incertains
   (au Reste). La dérive est dans la pratique et le code, et dans des décisions dont le texte n'a pas suivi
   (`forme-etape-2` : §4 et §10 jamais réécrits ; `passerelle-par-site` sans `modifies`). Idée I34 (garde de quota), Q29.
+- **Fait (2026-10-09)** : faille du conteneur (palliatif 7 de `modules-et-palliatifs`). Contrôle `montage-sensible`
+  (configurations Dev Containers lues par `jsonc-parser`, celui de VS Code : `mounts`, `workspaceMount`, `-v` et
+  `--mount` de `runArgs` ; un identifiant de l'hôte, même en lecture, le Docker de l'hôte, ou les données de HOLARCH en
+  écriture font un écart ; Compose ou variable inconnue : non disponible) ; règle `conteneur-isole` en brouillon au
+  profil (`verified`). Mesure en route : 209 sessions sur 305 en 30 jours tournent en conteneur, et leurs transcriptions
+  et mémoires arrivent dans le `~/.claude` de l'hôte par ce montage ; un volume seul aurait rendu HOLARCH aveugle sur
+  elles et privé les conteneurs des règles du compte. Choix de l'auteur, « la solution la plus propre et cohérente » :
+  volume propre et `CLAUDE_CONFIG_DIR` (conseil d'Anthropic) ; de `~/.claude`, seulement le dossier de transcriptions
+  du projet et `rules` en lecture (créés par `initializeCommand`) ; le contrôle n'admet que ces deux-là. Appliqué au
+  modèle (`projet creer`), au conteneur du socle (`HOLARCH_HOME` de l'hôte n'y est plus) et, sur le choix de l'auteur,
+  aux quatre autres conteneurs du poste d'un coup (trois commits locaux, un dossier sans git) ; un volume neuf
+  appartient à root, rendu à l'utilisateur par `postCreateCommand` (essayé sur l'image du socle). 1 test, 1 étendu ;
+  105 verts. Connexion à Claude à refaire une fois dans chaque conteneur reconstruit.
 - **Reste** :
-  0. **Suite prévue (2026-10-09), en Opus 5.5 `xhigh`** : faille du conteneur, puis corrections de B (point 7), puis
-     essai Q29. Faille : le `~/.claude` de l'hôte monté en écriture par le modèle `modeles/projet/devcontainer.json:16` et
-     par cinq conteneurs de projets du poste, dont celui du socle (où `HOLARCH_HOME` est dedans) ; volume nommé, contrôle
-     « montage sensible » ; les autres dépôts sur accord, un par un. Copie de service : réponse de l'auteur attendue
-     (`service poser` poserait le gardien `holarch-veille`, inerte sans crochets ; correction proposée : le gardien suit la
-     règle, comme les crochets). Essai Q29 : ligne d'état posée au compte sur accord, le temps de l'essai, puis retirée.
+  0. **Suite prévue (2026-10-09), en Opus 5.5 `xhigh`** : corrections de B (point 7), puis essai Q29. Choix de
+     l'auteur pour B : (4) B couvre l'hôte, écrit, le signe de vie d'une session en conteneur se conçoit avec D ; (13)
+     `evenement.md` ajouté aux `modifies` de `environnement-d-execution` ; le gardien `holarch-veille` suit la règle
+     comme les crochets (corriger avant `service poser`). Essai Q29 : ligne d'état posée au compte sur accord, le temps
+     de l'essai, puis retirée. Faille : règle `conteneur-isole` à approuver ; dans le conteneur du socle, le volume
+     `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node` (réparation du conteneur en C) ; C reprend
+     les deux montages de l'hôte dans la génération (clé `conteneur.connexion_claude`).
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
      constat 6 de `revue-page-blanche` non tranché ; (2) un conteneur par brique (fondation n° 3) : un programme Node et
