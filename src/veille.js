@@ -4,7 +4,8 @@
 // session (`<accueil>/veille/`) ; un service de l'hôte (`holarch veille tenir`) les lit et tient une demande d'éveil de
 // Windows tant qu'une session l'interdit. Le socle n'éteint jamais le poste : la demande meurt avec le service (son
 // entrée standard se ferme), Windows reprend alors la main ; une veille demandée à la main n'est pas retenue (Windows
-// lève les demandes d'éveil à une veille demandée).
+// lève les demandes d'éveil à une veille demandée). B couvre les sessions de l'hôte : une session en conteneur n'a pas
+// ces crochets (son `~/.claude` est un volume) ; son signe de vie se conçoit avec la livraison D.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';

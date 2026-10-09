@@ -92,3 +92,8 @@ travaillait.
 **Conséquences.** Tranche 12 de l'étape 3 ; contrat config en version mineure (0.4.0, livraison C) ; essais préalables
 Q23 à Q26 avant la livraison qui les attend ; les autres projets migrés par `projet creer` rejoué, avec l'accord de
 l'auteur projet par projet.
+
+**Précision du 2026-10-09 (choix de l'auteur, sur la contre-épreuve de B).** B couvre les sessions de l'hôte. Une
+session en conteneur ne se vérifie pas par son processus (le `/proc` de l'hôte ne le voit pas) et, depuis que le
+conteneur ne monte plus le `~/.claude` de l'hôte, elle n'a pas les crochets du compte : son signe de vie se conçoit avec
+D, qui y déplace l'accès distant.
