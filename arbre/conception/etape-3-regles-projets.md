@@ -1037,10 +1037,11 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      la limite de l'erreur effacée avec (3) ; ici, point 7 : `regles appliquer` pose aussi le gardien. Ordre de pose
      recommandé par la contre-épreuve : `holarch service poser` d'abord (la copie en service, sans `veille-noter.js`,
      ferait écrire une erreur à chaque crochet et tomber le gardien), puis `holarch regles appliquer`.
-     - À trancher par l'auteur, avec cette décision (en brouillon) : le risque résiduel jusqu'à D (écart
-       `acces-distant` du socle gardé visible, recommandé, ou levé par une exception du socle), la proposition sur le
-       compte sans profil unique (refuser de l'écrire, comme des règles illisibles), puis l'approbation du tout (ligne
-       B et point « Veille » de `environnement-d-execution`, règle `veille-retardee` du profil, contrat événement 0.10.0).
+     - Choix de l'auteur (2026-10-09, choix cliquables), à mettre en œuvre avec les mineurs, un commit et un test
+       chacun : l'écart `acces-distant` du socle levé par une exception du socle jusqu'à D (la recommandation était de
+       le garder visible) ; `holarch regles appliquer` refuse d'écrire un compte sans profil unique, comme des règles
+       illisibles. Puis l'approbation du tout (ligne B et point « Veille » de `environnement-d-execution`, règle
+       `veille-retardee` du profil, contrat événement 0.10.0).
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa

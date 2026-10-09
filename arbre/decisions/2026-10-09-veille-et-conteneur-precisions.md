@@ -43,16 +43,17 @@ transcriptions distantes de 30 jours, 38 changent plus de 30 s après leur derni
 - Le gardien tourne partout où la règle s'applique, même sur un site sans mécanisme : il le dit une fois au journal
   (`power.failed`, `sans-mecanisme`).
 - Un projet du poste sans dépôt git : son correctif de conteneur n'est ni versionné ni audité.
-- Un compte sans profil, ou à plusieurs profils : le gardien est laissé tel quel, mais `holarch regles appliquer`
-  réécrit le compte comme s'il n'avait aucune règle (fichiers de règles, lectures refusées, crochets). Proposition de
-  l'agent, à trancher : refuser d'écrire le compte dans ce cas, comme pour des règles illisibles.
+- Un compte sans profil, ou à plusieurs profils : le gardien est laissé tel quel, et `holarch regles appliquer`
+  refuse d'écrire le compte (choix 2 ci-dessous).
 
-**Choix à faire par l'auteur.**
+**Choix de l'auteur (2026-10-09, choix cliquables).**
 
-1. Le risque résiduel jusqu'à D : l'accepter, l'écart `acces-distant` du socle restant visible à chaque audit
-   (recommandé : il rappelle ce que D doit fermer), ou le lever par une exception du socle jusqu'à D.
-2. La proposition sur le compte sans profil unique.
-3. L'approbation du tout, puis l'écriture des trois textes (décision, règle du profil, contrat).
+1. Le risque résiduel jusqu'à D : levé par une exception du socle jusqu'à D (l'écart `acces-distant` ne se dit plus,
+   le risque reste le même ; la recommandation de l'agent était de le garder visible).
+2. Compte sans profil unique : `holarch regles appliquer` refuse d'écrire le compte, comme pour des règles
+   illisibles ; ce qui est posé reste jusqu'à la correction.
+3. Reste à faire : l'approbation du tout, une fois corrigés les mineurs de la contre-épreuve, puis l'écriture des trois
+   textes (décision, règle du profil, contrat).
 
 **Ce qui le ferait changer.** Un silence de plus de 30 min mesuré pendant un tour (la borne retiendrait trop peu) ; une
 session en conteneur qui travaille sous l'accès distant avant D.
