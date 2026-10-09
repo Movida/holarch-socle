@@ -154,7 +154,7 @@ test('veille : l’activité se lit à la dernière entrée datée ; les entrée
   const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
   // Le résumé des crochets de fin de tour arrive quelques secondes après `Stop` : la session attend toujours.
   datee(T0 + 20e3, 'system');
-  // Claude Code ajoute ensuite des entrées sans date (mesure de la contre-épreuve : jusqu'à 33 min après) ; le fichier
+  // Claude Code ajoute ensuite des entrées sans date (mesure du 2026-10-09 : jusqu'à 6 jours après) ; le fichier
   // change, la session n'a pas repris.
   for (const type of ['bridge-session', 'last-prompt', 'cost-state', 'mode']) fs.appendFileSync(t, ligne({ type, sessionId: 's' }));
   fs.utimesSync(t, new Date(T0 + 20 * min), new Date(T0 + 20 * min));

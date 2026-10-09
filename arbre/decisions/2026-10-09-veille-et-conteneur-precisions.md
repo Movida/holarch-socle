@@ -17,9 +17,12 @@ sessions se lit de l'hôte, même quand elles tourneront en conteneur ») contre
 les sessions de l'hôte). Ni la décision ni la règle `veille-retardee` ne disent la borne d'immobilité de 30 min, alors
 qu'elle décide quand le poste peut dormir. Le contrat événement porte la version 0.10.0 (`power.*`, et
 `data.environnement` depuis la contre-épreuve du conteneur) sous l'approbation du 2026-10-03. Mesures qui fondent la
-borne (contre-épreuve de B) : 301 tours de 67 sessions distantes, aucun silence de plus de 11 min pendant un tour ; sur 56
-transcriptions distantes de 30 jours, 38 changent plus de 30 s après leur dernière entrée datée (entrées sans date
-écrites après la fin d'un tour), d'où une activité lue aux entrées datées.
+borne : hors attente de permission, aucun silence de plus de 11 min pendant un tour (contre-épreuve de B, 301 tours de
+67 sessions distantes) ; le 2026-10-09, sur 53 sessions distantes de 30 jours, 4 silences de plus de 11 min pendant un
+tour, jusqu'à 114 min, tous après un appel court (`Edit`, `git add`, un lint) : des attentes de permission, que
+`PermissionRequest` note comme telles. Sur ces 53 transcriptions, 36 changent plus de 30 s après leur dernière entrée
+datée, jusqu'à 6 jours plus tard (entrées sans date écrites après la fin d'un tour), d'où une activité lue aux entrées
+datées.
 
 **Proposition.**
 
@@ -27,10 +30,11 @@ transcriptions distantes de 30 jours, 38 changent plus de 30 s après leur derni
 |---|---|
 | Ligne B de `environnement-d-execution` | « point « Veille » ; B couvre les sessions de l'hôte ; le signe de vie d'une session en conteneur se conçoit avec D » |
 | Borne d'immobilité (décision, point « Veille ») | ajouter : « Une session dont rien de daté ne s'écrit depuis 30 min, ni dans sa transcription ni dans celles de ses sous-agents, est tenue pour en attente depuis sa dernière écriture : une demande de permission, une élicitation ou une fin de tour manquée ne tiennent pas le poste éveillé sans fin. Un sous-agent de fond retient le poste tant qu'il écrit ; un shell de fond, non. » |
-| Règle `veille-retardee` (profil) | « Le poste ne se met pas en veille d'inactivité tant qu'une session distante travaille, ou attend une réponse de l'auteur depuis moins de 30 min ; une session immobile depuis 30 min attend ; une veille demandée à la main reste possible, et Windows reprend la main si l'adaptateur s'arrête. » |
-| Gardien (choix de l'auteur, 2026-10-09) | à consigner : le gardien suit la seule règle, comme les crochets ; posé et retiré par `holarch regles appliquer` et la pose de la copie de service, plus par l'accès distant (une session reliée par `/remote-control` est retenue sans accès distant) |
-| Risque résiduel jusqu'à D | tant que l'accès distant tourne sur l'hôte (dérogation de `partage-et-bac-a-sable`), un conteneur qui monte son dépôt en écriture peut y écrire ce que l'hôte exécute : `.claude/settings*.json` (crochets lancés par une session de l'hôte dans ce dépôt), `.git/hooks` et `.git/config` (lancés par git sur l'hôte), `initializeCommand` (lancé sur l'hôte au démarrage du conteneur). Le contrôle `montage-sensible` le dit (écart `acces-distant`). D le ferme. Choix de l'auteur ci-dessous |
+| Règle `veille-retardee` (profil) | « Le poste ne se met pas en veille d'inactivité tant qu'une session distante travaille, ou attend une réponse de l'auteur depuis moins de 30 min ; une session immobile depuis 30 min est en attente depuis sa dernière écriture ; une veille demandée à la main reste possible, et Windows reprend la main si l'adaptateur s'arrête. » |
+| Gardien (choix de l'auteur, 2026-10-09) | à consigner : le gardien suit la seule règle, comme les crochets ; posé et retiré par `holarch regles appliquer` et la pose de la copie de service, plus par l'accès distant (une session reliée par `/remote-control` est retenue sans accès distant) ; sans systemd utilisateur (WSL sans systemd, conteneur), il n'est pas posé, sans erreur |
+| Risque résiduel jusqu'à D | tant que l'accès distant tourne sur l'hôte (dérogation de `partage-et-bac-a-sable`), un conteneur qui monte son dépôt en écriture peut y écrire ce que l'hôte exécute : `.claude/settings*.json` (crochets lancés par une session de l'hôte dans ce dépôt), `.git/hooks` et `.git/config` (lancés par git sur l'hôte), `initializeCommand` (lancé sur l'hôte au démarrage du conteneur). Le contrôle `montage-sensible` le dit (écart `acces-distant`), sauf exception portée par l'arbre du projet (`montage_sensible.exceptions`, contrat de configuration 0.4.0). D le ferme. Choix de l'auteur ci-dessous |
 | Contrat événement 0.10.0 | `power.*` (`held`, `released`, `failed`) tel qu'écrit ; `data.environnement` (`conteneur`) sur les événements d'une session tenue dans un conteneur, distinct de `origine` d'un refus d'outil |
+| Contrat de configuration 0.4.0 | `montage_sensible.exceptions` : `{ecart, pourquoi}`, la clé exacte d'un écart du contrôle et sa raison ; le risque reste, l'écart ne se dit plus |
 
 **Limites connues, écrites avec B et `conteneur-isole`.**
 
@@ -38,10 +42,11 @@ transcriptions distantes de 30 jours, 38 changent plus de 30 s après leur derni
 - Une question à l'auteur posée pendant qu'un sous-agent de fond écrit compte comme un travail, jusqu'à 30 min après la
   dernière écriture du sous-agent.
 - Une transcription sans entrée datée dans ses derniers 64 Kio se date par sa modification (le défaut ci-dessus revient).
-- L'erreur d'un crochet s'efface à la note réussie suivante : une panne passagère entre deux audits horaires peut ne
-  pas se voir.
-- Le gardien tourne partout où la règle s'applique, même sur un site sans mécanisme : il le dit une fois au journal
-  (`power.failed`, `sans-mecanisme`).
+- L'erreur d'un crochet s'efface à la note réussie suivante, de quelque session qu'elle vienne (une note non faite la
+  garde) : une panne passagère entre deux audits horaires peut ne pas se voir.
+- Le gardien tourne partout où la règle s'applique et où un systemd utilisateur répond, même sur un site sans
+  mécanisme : il le dit une fois au journal (`power.failed`, `sans-mecanisme`). Sans systemd utilisateur, il n'est pas
+  posé, et `holarch veille` le dit impossible.
 - Un projet du poste sans dépôt git : son correctif de conteneur n'est ni versionné ni audité.
 - Un compte sans profil, ou à plusieurs profils : le gardien est laissé tel quel, et `holarch regles appliquer`
   refuse d'écrire le compte (choix 2 ci-dessous).
@@ -49,14 +54,16 @@ transcriptions distantes de 30 jours, 38 changent plus de 30 s après leur derni
 **Choix de l'auteur (2026-10-09, choix cliquables).**
 
 1. Le risque résiduel jusqu'à D : levé par une exception du socle jusqu'à D (l'écart `acces-distant` ne se dit plus,
-   le risque reste le même ; la recommandation de l'agent était de le garder visible).
+   le risque reste le même ; la recommandation de l'agent était de le garder visible). Portée par la racine de l'arbre
+   du socle (`montage_sensible.exceptions`) ; D la retire.
 2. Compte sans profil unique : `holarch regles appliquer` refuse d'écrire le compte, comme pour des règles
    illisibles ; ce qui est posé reste jusqu'à la correction.
-3. Reste à faire : l'approbation du tout, une fois corrigés les mineurs de la contre-épreuve, puis l'écriture des trois
-   textes (décision, règle du profil, contrat).
+3. Reste à faire : l'approbation du tout, une fois corrigés les mineurs de la contre-épreuve (faits le 2026-10-09), puis
+   l'écriture des textes (décision, règle du profil, contrats événement et configuration).
 
 **Ce qui le ferait changer.** Un silence de plus de 30 min mesuré pendant un tour (la borne retiendrait trop peu) ; une
 session en conteneur qui travaille sous l'accès distant avant D.
 
 **Conséquences.** À l'approbation : la ligne B et le point « Veille » réécrits dans `environnement-d-execution`, la règle
-`veille-retardee` réécrite dans le profil (approbation consignée), le contrat événement approuvé en 0.10.0.
+`veille-retardee` réécrite dans le profil (approbation consignée), le contrat événement approuvé en 0.10.0, le contrat de
+configuration en 0.4.0.

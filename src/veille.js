@@ -119,8 +119,9 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
 
 // Date d'une transcription : sa dernière entrée datée, lue à la fin du fichier ; à défaut (aucune dans la fin lue), sa
 // date de modification. Des entrées sans date (`bridge-session`, `last-prompt`, `cost-state`, `mode`) s'écrivent après
-// la fin d'un tour, jusqu'à 33 min plus tard (contre-épreuve de B : 46 transcriptions distantes sur 63) : la date de
-// modification ferait travailler une session qui attend.
+// la fin d'un tour, parfois des jours plus tard (mesure du 2026-10-09 : 36 transcriptions distantes sur 53 en 30 jours
+// changent plus de 30 s après leur dernière entrée datée, jusqu'à 6 jours) : la date de modification ferait travailler
+// une session qui attend.
 function dateDe(f, octets = 64 * 1024) {
   for (const e of evenements(finDeTranscription(f, octets))) { const t = Date.parse(e?.timestamp); if (Number.isFinite(t)) return t; }
   try { return fs.statSync(f).mtimeMs; } catch { return null; }
@@ -162,10 +163,12 @@ export function effacerNote(f, lu, { pendant = () => {} } = {}) {
 }
 
 // Une session « travaille » tant que sa transcription bouge : immobile depuis l'attente permise, elle attend quelque
-// chose (permission, élicitation, `Stop` manqué) et compte comme une attente depuis sa dernière écriture (contre-épreuve
-// de B : aucun silence de plus de 11 min pendant un tour, sur 301 tours de 67 sessions distantes). Une attente suivie
-// d'écritures (permission accordée, réponse) travaille de nouveau ; BOUGE laisse passer ce qu'écrit la fin du tour (au
-// plus 4,7 s après la dernière réponse, sur 89 cas mesurés ; la marge ne coûte rien, une attente retient 30 min).
+// chose (permission, élicitation, `Stop` manqué) et compte comme une attente depuis sa dernière écriture (hors attente de
+// permission, aucun silence de plus de 11 min pendant un tour : 301 tours de 67 sessions distantes, contre-épreuve de B ;
+// mesure du 2026-10-09 : 4 silences de plus de 11 min sur 53 sessions, jusqu'à 114 min, tous après un appel court, des
+// attentes de permission). Une attente suivie d'écritures (permission accordée, réponse) travaille de nouveau ; BOUGE
+// laisse passer ce qu'écrit la fin du tour (au plus 4,7 s après la dernière réponse, sur 89 cas mesurés ; la marge ne
+// coûte rien, une attente retient 30 min).
 const BOUGE = 30e3;
 
 /**
