@@ -387,7 +387,7 @@ const TYPES = new Set(['bind', 'volume', 'tmpfs', 'npipe', 'cluster', 'image']);
 // défaut. Ce que Docker refuserait (clé ou type inconnus, booléen invalide, ligne mal formée) est `illisible` : le
 // contrôle ne le dit pas conforme pour autant.
 function montageTexte(t) {
-  const m = { type: 'volume', source: null, cible: null, lecture: false };
+  const m = { type: 'volume', source: null, cible: null, lecture: false }; const opts = {};
   const champs = champsCsv(String(t).trim());
   if (!champs) return { ...m, illisible: true };
   for (const champ of champs) {
@@ -396,9 +396,13 @@ function montageTexte(t) {
     else if ((cle === 'source' || cle === 'src') && val !== null) m.source = val;
     else if ((cle === 'target' || cle === 'dst' || cle === 'destination') && val !== null) m.cible = val;
     else if (cle === 'readonly' || cle === 'ro') { m.lecture = val === null ? true : BOOLEENS[val]; if (m.lecture === undefined) return { ...m, illisible: true }; }
+    else if (cle === 'volume-opt' && val !== null) { const i2 = val.indexOf('='); opts[i2 === -1 ? val : val.slice(0, i2)] = i2 === -1 ? '' : val.slice(i2 + 1); }
     else if (!AUTRES_CLES.has(cle)) return { ...m, illisible: true };
   }
-  return TYPES.has(m.type) ? m : { ...m, illisible: true };
+  if (!TYPES.has(m.type)) return { ...m, illisible: true };
+  // Un volume du pilote local en `o=bind` monte le chemin de l'hôte que nomme `device` : un bind sous un autre nom.
+  if (m.type === 'volume' && opts.device && (opts.o || '').split(',').includes('bind')) return { ...m, type: 'bind', source: opts.device };
+  return m;
 }
 
 // Un montage écrit en objet devient la ligne que le CLI Dev Containers passe à `--mount` (`generateMountCommand`).

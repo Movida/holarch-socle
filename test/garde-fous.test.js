@@ -627,3 +627,12 @@ test('Contre-épreuve du conteneur (16) : les identifiants du dossier personnel 
   assert.deepEqual(cibles(r), ['/a', '/b']);
   assert.match(r.ecarts[1].message, /qui contient .*alice\/\.claude \(identifiants de l’hôte\)/);
 });
+
+test('Contre-épreuve du conteneur (17) : un volume local en o=bind monte le chemin de l’hôte qu’il nomme', () => {
+  const { config, lire, cibles } = conteneurEssai();
+  config({ mounts: ['type=volume,source=cles,target=/a,volume-opt=type=none,volume-opt=o=bind,volume-opt=device=${localEnv:HOME}/.ssh',
+    'type=volume,source=cache,target=/b,volume-opt=type=tmpfs,volume-opt=device=tmpfs'] });
+  const r = lire();
+  assert.deepEqual(cibles(r), ['/a']);
+  assert.match(r.ecarts[0].message, /monte ~\/\.ssh \(identifiants/);
+});
