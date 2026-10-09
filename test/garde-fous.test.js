@@ -596,7 +596,8 @@ test('Contre-épreuve du conteneur (3) : options de runArgs lues comme le CLI Do
   fs.writeFileSync(path.join(d, '.devcontainer', 'outil', 'devcontainer-feature.json'), JSON.stringify({ id: 'outil', privileged: true, mounts: [{ type: 'bind', source: '/var/run/docker.sock', target: '/var/run/docker.sock' }] }));
   config({ features: { './outil': {}, 'ghcr.io/devcontainers/features/git:1': {} } });
   r = lire();
-  assert.deepEqual([r.ecarts.map((e) => [e.fichier, cles({ ecarts: [e] })[0]]), r.indisponible], [[['.devcontainer/outil/devcontainer-feature.json', '/var/run/docker.sock'], ['.devcontainer/outil/devcontainer-feature.json', 'privileged']], undefined]);
+  assert.deepEqual(r.ecarts.map((e) => [e.fichier, cles({ ecarts: [e] })[0]]), [['.devcontainer/outil/devcontainer-feature.json', '/var/run/docker.sock'], ['.devcontainer/outil/devcontainer-feature.json', 'privileged']]);
+  assert.match(r.indisponible, /features publiées \(ghcr\.io\/devcontainers\/features\/git:1\) non lues, et aucun conteneur du dépôt à inspecter/);
   config({ features: { './manque': {} } });
   assert.match(lire().indisponible, /manque\/devcontainer-feature\.json absent/);
 });
@@ -649,4 +650,26 @@ test('Contre-épreuve du conteneur (19) : un lien posé au chemin admis n’est 
   fs.rmSync(path.join(projets, '-workspaces-projet'));
   fs.renameSync(path.join(maison, '.claude'), path.join(maison, 'ailleurs')); fs.symlinkSync(path.join(maison, 'ailleurs'), path.join(maison, '.claude'));
   assert.deepEqual(lire().ecarts, []);
+});
+
+test('Contre-épreuve du conteneur (5) : un conteneur déjà construit se juge sur ce que Docker a monté, features publiées comprises', () => {
+  const { maison, config, lire, ctx } = conteneurEssai();
+  const conteneur = (name, isolement) => ({ id: `holarch:container:${name}`, kind: 'container', name, attributes: { isolement } });
+  const sain = { montages: [{ source: path.join(maison, '.claude', 'projects', '-workspaces-projet'), cible: '/p', lecture: false },
+    { source: path.join(maison, '.claude', 'rules'), cible: '/r', lecture: true }, { source: path.join(maison, 'projet'), cible: '/workspaces/projet', lecture: false }],
+  privilegie: false, capacites: [], peripheriques: [], espaces: [], protections: [], volumes_de: [] };
+  // Le fichier corrigé, mais l'ancien conteneur monte encore ~/.claude en écriture : `devcontainer up` le relancerait tel quel.
+  config({ features: { 'ghcr.io/devcontainers/features/git:1': {} }, mounts: [transcriptions('-workspaces-projet')] });
+  ctx.conteneurs = [conteneur('jolly', { ...sain, montages: [{ source: path.join(maison, '.claude'), cible: '/home/vscode/.claude', lecture: false }] }),
+    conteneur('neuf', { ...sain, privilegie: true, capacites: ['SYS_ADMIN'], espaces: ['PidMode'], protections: ['seccomp=unconfined'], volumes_de: ['jolly'] })];
+  let r = lire();
+  assert.deepEqual(r.ecarts.map((e) => e.cle), ['conteneur:jolly:/home/vscode/.claude', 'conteneur:neuf:privileged', 'conteneur:neuf:cap-add:SYS_ADMIN',
+    'conteneur:neuf:PidMode', 'conteneur:neuf:security-opt:seccomp=unconfined', 'conteneur:neuf:volumes-from:jolly']);
+  assert.match(r.ecarts[0].message, /le conteneur jolly, déjà construit, monte ~\/\.claude \(identifiants de l’hôte\).*en écriture : le reconstruire, ou le supprimer \(docker rm jolly\)/);
+  assert.equal(r.indisponible, undefined, 'les features publiées se voient sur le conteneur construit');
+  // Un conteneur sain ne dit rien ; sans configuration, seules les règles en lecture restent admises.
+  ctx.conteneurs = [conteneur('neuf', sain)];
+  assert.deepEqual(lire(), { ecarts: [] });
+  fs.rmSync(path.join(maison, 'projet', '.devcontainer'), { recursive: true });
+  assert.deepEqual(lire().ecarts.map((e) => e.cle), ['conteneur:neuf:/p']);
 });

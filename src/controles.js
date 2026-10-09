@@ -553,8 +553,10 @@ function sourceHote(source, depot, maison, env) {
 /**
  * Ce qui expose l'hôte dans les configurations Dev Containers du dépôt : un montage d'un identifiant, du Docker de
  * l'hôte ou des données de HOLARCH en écriture (`mounts`, `workspaceMount`, `-v` et `--mount` de `runArgs`, features
- * locales), une variable de l'hôte passée au conteneur, et un privilège qui défait l'isolement. Compose : non disponible. `ctx.maison`, `ctx.env` et `ctx.holarch`
- * remplacent ceux du poste (essais).
+ * locales), une variable de l'hôte passée au conteneur, et un privilège qui défait l'isolement. Puis les conteneurs déjà
+ * construits du dépôt (`ctx.conteneurs`, fiches de l'inventaire Docker) : ce que Docker a vraiment monté, features
+ * publiées comprises ; un conteneur ancien est relancé tel quel par `devcontainer up`. Compose : non disponible.
+ * `ctx.maison`, `ctx.env`, `ctx.holarch` et `ctx.maisonsWindows` remplacent ceux du poste (essais).
  */
 function montageSensible(ctx) {
   const maison = ctx.maison || os.homedir(); const env = ctx.env || process.env;
@@ -562,12 +564,25 @@ function montageSensible(ctx) {
   const sensibles = [...[maison, ...(ctx.maisonsWindows || maisonsWindows())].flatMap((m) => IDENTIFIANTS.map((r) => ({ chemin: path.join(m, r), quoi: 'identifiants de l’hôte' }))),
     ...DOCKER_HOTE.map((c) => ({ chemin: c, quoi: 'Docker de l’hôte' })),
     ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true }))];
-  const ecarts = []; const nonLus = []; const claude = path.join(maison, '.claude');
+  const claude = path.join(maison, '.claude');
+  // Un montage de l'hôte : ce qu'il expose, ou null. Admis par son chemin, sans lien en route sous `~/.claude` (un lien
+  // posé au chemin admis viserait n'importe quoi) ; admis en lecture seule mais monté en écriture, il compte pour lui-même.
+  const exposer = (src, lecture, admis) => {
+    const a = admis.find((x) => x.chemin === src && path.relative(reel(claude), reel(src)) === path.relative(claude, src));
+    if (a && (!a.lecture || lecture)) return null;
+    let vu = src;
+    const touche = a || sensibles.find((x) => !(x.ecriture && lecture) && [src, reel(src)].some((s) => (dedans(s, x.chemin) || dedans(x.chemin, s)) && (vu = s)));
+    if (!touche) return null;
+    const qui = vu === touche.chemin ? affiche(vu) : dedans(touche.chemin, vu) ? `${affiche(vu)}, qui contient ${affiche(touche.chemin)}` : `${affiche(vu)}, dans ${affiche(touche.chemin)}`;
+    return `monte ${qui} (${touche.quoi}) dans le conteneur, ${lecture ? 'en lecture' : 'en écriture'}`;
+  };
+  const ecarts = []; const nonLus = []; const admisTous = []; const publiees = new Set();
   for (const f of configsConteneur(ctx.depot)) {
     const config = lireConfig(ctx.depot, f);
     if (config.erreur) { nonLus.push(config.erreur); continue; }
     if (config.c.dockerComposeFile) { nonLus.push(`${f} : conteneur décrit par Docker Compose, montages non lus`); continue; }
-    const admis = montagesAdmis(config.c, ctx.depot, maison);
+    const admis = montagesAdmis(config.c, ctx.depot, maison); admisTous.push(...admis);
+    for (const id of Object.keys(config.c.features && typeof config.c.features === 'object' ? config.c.features : {})) if (!id.startsWith('.')) publiees.add(id);
     for (const lu of [config, ...featuresLocales(ctx.depot, f, config.c)]) {
       if (lu.erreur) { nonLus.push(lu.erreur); continue; }
       const opts = lu === config ? optionsDocker(Array.isArray(lu.c.runArgs) ? lu.c.runArgs.map(String) : []) : [];
@@ -576,16 +591,8 @@ function montageSensible(ctx) {
       for (const m of montages.filter((x) => x.type === 'bind' && x.source && !x.illisible)) {
         const src = sourceHote(m.source, ctx.depot, maison, env);
         if (!src) { nonLus.push(`${lu.f} : source de montage non résolue (${m.source})`); continue; }
-        // Admis par son chemin, sans lien en route sous `~/.claude` (un lien posé au chemin admis viserait n'importe quoi).
-        const a = admis.find((x) => x.chemin === src && path.relative(reel(claude), reel(src)) === path.relative(claude, src));
-        if (a && (!a.lecture || m.lecture)) continue;
-        // Un montage admis en lecture seule, monté en écriture, compte pour lui-même ; sinon, ce qu'il touche ou contient.
-        let vu = src;
-        const touche = a || sensibles.find((x) => !(x.ecriture && m.lecture) && [src, reel(src)].some((s) => (dedans(s, x.chemin) || dedans(x.chemin, s)) && (vu = s)));
-        if (!touche) continue;
-        const qui = vu === touche.chemin ? affiche(vu) : dedans(touche.chemin, vu) ? `${affiche(vu)}, qui contient ${affiche(touche.chemin)}` : `${affiche(vu)}, dans ${affiche(touche.chemin)}`;
-        ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, m.ou), cle: `montage:${lu.f}:${m.cible}`,
-          message: `monte ${qui} (${touche.quoi}) dans le conteneur, ${m.lecture ? 'en lecture' : 'en écriture'}` });
+        const message = exposer(src, m.lecture, admis);
+        if (message) ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, m.ou), cle: `montage:${lu.f}:${m.cible}`, message });
       }
       for (const x of variablesDe(lu.c, opts)) {
         ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, x.ou), cle: `environnement:${lu.f}:${x.ou_lu}`,
@@ -596,6 +603,21 @@ function montageSensible(ctx) {
       }
     }
   }
+  // Les conteneurs construits : jugés avec ce qu'admettent les configurations du dépôt (sans configuration, les règles seules).
+  const construits = (ctx.conteneurs || []).filter((k) => k.attributes?.isolement);
+  const admis = admisTous.length ? admisTous : montagesAdmis({}, ctx.depot, maison).filter((x) => x.lecture);
+  for (const k of construits) {
+    const iso = k.attributes.isolement; const dit = (cle, quoi) => ecarts.push({ fichier: null, ligne: null, cle: `conteneur:${k.name}:${cle}`,
+      message: `le conteneur ${k.name}, déjà construit, ${quoi} : le reconstruire, ou le supprimer (docker rm ${k.name})` });
+    for (const m of iso.montages) { const message = exposer(path.resolve(m.source), m.lecture, admis); if (message) dit(m.cible, message); }
+    if (iso.privilegie) dit('privileged', 'est privilégié (périphériques et capacités de l’hôte)');
+    for (const c of iso.capacites) dit(`cap-add:${c}`, `a la capacité ${c}`);
+    for (const p of iso.peripheriques) dit(`device:${p}`, `a le périphérique ${p} de l’hôte`);
+    for (const e of iso.espaces) dit(e, `partage un espace de noms de l’hôte (${e})`);
+    for (const p of iso.protections.filter((x) => PROTECTION_RETIREE.test(x))) dit(`security-opt:${p}`, `a une protection retirée (${p})`);
+    for (const v of iso.volumes_de) dit(`volumes-from:${v}`, `monte les volumes du conteneur ${v}`);
+  }
+  if (publiees.size && !construits.length) nonLus.push(`features publiées (${[...publiees].join(', ')}) non lues, et aucun conteneur du dépôt à inspecter`);
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
   return nonLus.length ? { ecarts, indisponible: nonLus.join(' ; ') } : { ecarts };
 }

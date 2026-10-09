@@ -208,7 +208,12 @@ test('inventaire Docker : conteneurs et volumes par l’API en lecture, rattach�
     { Id: 'a'.repeat(64), Names: ['/boring_yalow'], Image: 'vsc-demo-123', State: 'running', Status: 'Up 2 hours', Created: 1790000000,
       Labels: { 'devcontainer.local_folder': '/home/quelquun/demo', secret: 'SECRET' }, Mounts: [{ Type: 'volume', Name: 'demo-ssh' }, { Type: 'bind', Source: '/x' }] },
     { Id: 'b'.repeat(64), Names: ['/vieux'], Image: 'alpine', State: 'exited', Status: 'Exited (0)', Labels: {}, Mounts: [] }],
-  '/volumes': { Volumes: [{ Name: 'demo-ssh', Driver: 'local' }, { Name: 'oublie', Driver: 'local', Labels: null }] } };
+  '/volumes': { Volumes: [{ Name: 'demo-ssh', Driver: 'local' }, { Name: 'oublie', Driver: 'local', Labels: null },
+    { Name: 'cles', Driver: 'local', Options: { type: 'none', o: 'bind', device: '/home/quelquun/.ssh' } }] },
+  // Seul un conteneur rattaché à un projet est inspecté : ses montages de l'hôte et ses privilèges, jamais son environnement.
+  [`/containers/${'a'.repeat(64)}/json`]: { Config: { Env: ['JETON=SECRET'] }, HostConfig: { Privileged: true, CapAdd: ['SYS_ADMIN'], PidMode: 'host', Devices: [{ PathOnHost: '/dev/kvm' }] },
+    Mounts: [{ Type: 'volume', Name: 'demo-ssh', Destination: '/s', RW: true }, { Type: 'volume', Name: 'cles', Destination: '/k', RW: false },
+      { Type: 'bind', Source: '/run/desktop/mnt/host/c/Users/quelquun', Destination: '/w', RW: true }] } };
   const srv = http.createServer((req, res) => { vus.push(`${req.method} ${req.url}`); res.end(JSON.stringify(api[req.url])); });
   await new Promise((ok) => srv.listen(socket, ok));
   try {
@@ -224,6 +229,10 @@ test('inventaire Docker : conteneurs et volumes par l’API en lecture, rattach�
     assert.deepEqual(par('demo-ssh').attributes.conteneurs, ['boring_yalow']); assert.equal(par('oublie').attributes.orphelin, true);
     assert.ok(!JSON.stringify(fiches).includes('SECRET'));
     assert.ok(vus.every((v) => v.startsWith('GET ')));
+    assert.deepEqual(par('boring_yalow').attributes.isolement, { montages: [{ source: '/home/quelquun/.ssh', cible: '/k', lecture: true }, { source: '/mnt/c/Users/quelquun', cible: '/w', lecture: false }],
+      privilegie: true, capacites: ['SYS_ADMIN'], peripheriques: ['/dev/kvm'], espaces: ['PidMode'], protections: [], volumes_de: [] });
+    assert.equal(par('vieux').attributes.isolement, undefined, 'un conteneur sans projet n’est pas inspecté');
+    assert.ok(!vus.includes(`GET /containers/${'b'.repeat(64)}/json`));
     for (const f of fiches) assert.equal(valider('fiche', f), null, f.id);
   } finally { srv.close(); }
   await assert.rejects(inventaireDocker({ hote: `unix://${path.join(tmp(), 'absent.sock')}` }, { site: 'local' }), SourceAbsente);
