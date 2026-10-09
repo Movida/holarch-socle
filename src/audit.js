@@ -115,7 +115,7 @@ const ecartsPermissions = (m) => (m.permissions.ajoutees || []).map((x) => { con
 // Réglages de Claude Code voulus par le profil et absents (une clé posée à la main n'est pas un écart : elle est dite).
 const ecartsReglages = (regles, m) => [
   ...m.reglages.cles.posees.map((cle) => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle, fichier: 'settings.json', message: `réglage ${cle} non posé` })),
-  ...m.reglages.crochets.poses.map((c) => { const x = crochetVoulu(c); return { regle: x.regle === 'claude_code' ? x.regle : regleNommee(regles, x.regle), regle_id: x.regle, controle: 'reglages-poses', cle: x.cle, fichier: 'settings.json', message: x.message }; })];
+  ...m.reglages.crochets.poses.map((c) => { const x = crochetVoulu(c, regles); return { regle: x.regle === 'claude_code' ? x.regle : regleNommee(regles, x.regle), regle_id: x.regle, controle: 'reglages-poses', cle: x.cle, fichier: 'settings.json', message: x.message }; })];
 
 function ecartsCrochet({ demande, etat }) {
   const e = (message, r = demande) => [{ regle: r ? r.fiche : 'crochet', regle_id: r ? r.id : 'crochet', controle: 'crochet-pose', cle: 'pre-commit', fichier: '.git/hooks/pre-commit', message }];

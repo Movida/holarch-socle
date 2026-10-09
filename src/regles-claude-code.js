@@ -91,10 +91,16 @@ export function reglagesVoulus(config = {}, { node = process.execPath, holarch, 
   return { cles: { ...(cc.reglages || {}) }, crochets };
 }
 
-/** Ce qu'un crochet voulu fait, pour dire son absence : { regle, cle, message }. */
-export function crochetVoulu(commande) {
+/**
+ * Ce qu'un crochet voulu fait, pour dire son absence : { regle, cle, message }. Un crochet de veille revient à la règle
+ * applicable qui désigne le contrôle `veille-retardee`, quel que soit son identifiant.
+ */
+export function crochetVoulu(commande, regles = []) {
   const v = commande.match(/ veille noter (\w+)/);
-  if (v) return { regle: 'veille-retardee', cle: `crochet:veille:${v[1]}`, message: `crochet de veille non posé (${v[1]})` };
+  if (v) {
+    const r = regles.find((e) => e.applicable && (e.controles || []).includes('veille-retardee'));
+    return { regle: r?.id || 'veille-retardee', cle: `crochet:veille:${v[1]}`, message: `crochet de veille non posé (${v[1]})` };
+  }
   const alerte = commande.includes(' alerte ');
   return { regle: 'claude_code', cle: alerte ? 'crochet:alerte' : 'crochet:debut', message: `crochet de passation non posé (${alerte ? 'alerte' : 'reprise'})` };
 }

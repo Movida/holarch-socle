@@ -335,6 +335,9 @@ test('veille : une règle applicable qui désigne le contrôle pose les crochets
   assert.deepEqual(v.crochets.map((c) => c.evenement), ['UserPromptSubmit', 'Stop', 'StopFailure', 'PermissionRequest', 'Elicitation', 'SessionEnd']);
   assert.equal(v.crochets[1].command, "HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' veille noter Stop 2>/dev/null || true");
   assert.deepEqual(crochetVoulu(v.crochets[5].command), { regle: 'veille-retardee', cle: 'crochet:veille:SessionEnd', message: 'crochet de veille non posé (SessionEnd)' });
+  // Une règle d'un autre nom qui désigne le contrôle : le crochet absent lui revient.
+  assert.equal(crochetVoulu(v.crochets[5].command, [{ id: 'garder-eveil', applicable: true, controles: ['veille-retardee'] }]).regle, 'garder-eveil');
+  assert.equal(crochetVoulu(v.crochets[5].command, [{ id: 'garder-eveil', applicable: false, controles: ['veille-retardee'] }]).regle, 'veille-retardee');
   // Les crochets de passation gardent leur commande (rien à reposer après ce changement).
   assert.equal(reglagesVoulus({ claude_code: { passation: { reprise: true } } }, o).crochets[0].command, "HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' contexte debut 2>/dev/null || true");
   const regle = (statut) => ({ id: 'veille-retardee', fiche: 'f', niveau: 'blocking', controles: ['veille-retardee'], statut, origine: 'profil', applicable: statut === 'stable', provenance: { arbre: 'p', noeud: 'n' } });
