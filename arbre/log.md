@@ -10,7 +10,9 @@
   non confirmée faute de message : sans session au démarrage, le serveur ne relit pas le pointeur du dossier (code du
   binaire 2.1.295), donc ne reprend pas l'environnement précédent ; l'ancien, arrêté en servant une session, restait
   inscrit, d'où un refus (le 409 de Q22), une attente et le code 1, jusqu'à ce que l'inscription expire (environ trois
-  minutes). Un serveur sans session arrêté par SIGTERM puis relancé a été accepté aussitôt (15:37). Q22 complétée.
+  minutes). Un serveur sans session au démarrage, arrêté par SIGTERM, archive ses sessions et se désinscrit ; relancé, il est
+  accepté aussitôt (15:37, puis 15:47 avec une session servie). Q22 complétée ; complément temporaire retiré, unité
+  relancée avec `StandardError=journal`.
 
 * **Tranche 12 : deux décisions, livraison A** : le brouillon `environnement-d-execution` réécrit en deux, à approuver :
   `partage-et-bac-a-sable` (P7 étendu à la part partageable d'un projet, §5.4 : une session distante est une
