@@ -1015,8 +1015,28 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   brouillon (ligne B, borne d'immobilité, règle `veille-retardee` réécrite, gardien, risque résiduel jusqu'à D,
   limites connues).
 - **Reste** :
-  0. **Contre-épreuve des corrections de B et des textes (2026-10-09)** : par une instance neuve (`xhigh`, lecture
-     seule), sur les commits `ea96019` à `ef7c8f2` et la décision `veille-et-conteneur-precisions` ; constats ici.
+  0. **Contre-épreuve des corrections de B et des textes (2026-10-09)**, instance neuve `xhigh` en lecture seule, sur
+     `ea96019` à `75dfa0a` : aucun majeur ; 16 mutations sur 17 tuées par leur test ; commande du crochet éprouvée sous
+     dash et bash (code 0, session locale sans node, JSON valide, accueil cité). Rapport dans la transcription de la
+     session du 2026-10-09 au soir (`7dce2e8c`). Six mineurs, à corriger un commit et un test chacun :
+     (1) régression de `ea96019` : sans systemd utilisateur (WSL sans systemd, conteneur qui voit le profil), le gardien
+     voulu fait échouer `regles appliquer` à chaque fois, unité écrite et message « code null » (`lancer` ignore
+     `r.error`) ; rendre « sans systemd utilisateur : non posé » sans rien écrire ni échouer, et `r.error?.message`
+     dans le message ; (2) un workflow de fond (`subagents/workflows/wf_*/agent-*.jsonl`) ne retient pas le poste :
+     `activite` lit `subagents/` à plat ; lire récursivement (mesure : 195 transcriptions de workflow en 30 jours, toutes
+     en conteneur) ; (3) `veille-noter.js` efface l'erreur sur une note non faite (`{note: false}` : entrée vide,
+     identifiant illisible, événement inconnu) : n'effacer que si `r.note`, sinon noter l'erreur (sauf « session
+     locale ») ; (4) le test « heure locale » passe avec l'heure UTC : comparer à `toLocaleString('sv-SE')` ou fixer
+     `TZ` ; (5) l'en-tête du contrat événement dit encore `stable` et `version: 0.10.0` : `version: 0.9.0` dans l'en-tête,
+     0.10.0 dite proposée avec un lien vers la décision ; (6) textes : un seul chiffre pour les entrées sans date (le
+     code dit 46 sur 63 et « jusqu'à 33 min », la décision 38 sur 56 ; la contre-épreuve mesure 39 sur 57 et jusqu'à
+     6,2 jours) ; « aucun silence de plus de 11 min pendant un tour » devient « hors attente de permission » (6 silences
+     de plus de 11 min sur 57 sessions, le plus long 114 min après un `Edit`) ; règle proposée : « une session immobile
+     depuis 30 min est en attente depuis sa dernière écriture » ; contrat : la tenue ne se redit après une panne courte
+     que pour les mêmes sessions ; la limite « le gardien tourne partout où la règle s'applique » à corriger avec (1) ;
+     la limite de l'erreur effacée avec (3) ; ici, point 7 : `regles appliquer` pose aussi le gardien. Ordre de pose
+     recommandé par la contre-épreuve : `holarch service poser` d'abord (la copie en service, sans `veille-noter.js`,
+     ferait écrire une erreur à chaque crochet et tomber le gardien), puis `holarch regles appliquer`.
      - À trancher par l'auteur, avec cette décision (en brouillon) : le risque résiduel jusqu'à D (écart
        `acces-distant` du socle gardé visible, recommandé, ou levé par une exception du socle), la proposition sur le
        compte sans profil unique (refuser de l'écrire, comme des règles illisibles), puis l'approbation du tout (ligne

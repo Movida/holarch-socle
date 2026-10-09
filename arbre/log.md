@@ -2,6 +2,20 @@
 
 ## 2026-10-09
 
+* **Mineurs de B corrigés, textes proposés, contre-épreuve** : les mineurs 2 à 9 de B, un commit et un test chacun
+  (gardien qui suit la seule règle, question masquée par un sous-agent, activité datée par les entrées datées, une
+  seule lecture de l'état du gardien, règle indéterminée sans profil unique, erreur du gardien dite, point d'entrée
+  léger des crochets avec repli shell, effacement par renommage) ; deux défauts trouvés en écrivant les textes
+  (`data.origine` du conteneur écrasé sur les refus, renommé `data.environnement` ; en-tête de
+  `environnement-d-execution` illisible depuis son approbation) ; 134 tests verts. Décision
+  `veille-et-conteneur-precisions` en brouillon, contrat événement 0.10.0 dit en attente. Contre-épreuve neuve : aucun
+  majeur, six mineurs au Reste, dont une régression de la correction du gardien sur un site sans systemd utilisateur.
+  Rien posé, rien poussé. Leçon de clôture : déroulé annoncé en quatre temps (mineurs, textes, contre-épreuve, arrêt sur
+  les choix de l'auteur), tenu. Ce qui l'a fait dévier : les deux défauts trouvés en relisant le contrat, et le seuil de
+  passation franchi au retour de la contre-épreuve (333 k), qui renvoie ses six mineurs à la session suivante. La
+  demande qui y aurait mené : « mineurs 2 à 9, textes, contre-épreuve, puis passation ; ses constats dans la session
+  suivante, et vérifie chaque correction sur un site sans systemd ».
+
 * **Corrections de la contre-épreuve du conteneur** : les 7 majeurs et 13 mineurs du conteneur corrigés, un commit
   et un test chacun (126 tests verts), plus le premier mineur de B ; quatre choix de l'auteur (retirer le
   `--privileged`, gardien qui suit la seule règle, conteneurs construits inspectés, déploiement par la CI et toute
