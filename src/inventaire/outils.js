@@ -21,11 +21,15 @@ export function lireEnTete(fichier) {
   } catch (e) { return { entete: {}, erreur: `en-tête illisible : ${e.message.split('\n')[0]}`, indices: indices(m[1]) }; }
 }
 
-// `type` et `id` d'un en-tête illisible, lus ligne à ligne (valeur simple, guillemets ôtés) ; absents s'ils ne se lisent pas.
+// `type` et `id` d'un en-tête illisible, lus ligne à ligne (commentaire et guillemets ôtés) ; absents s'ils ne se lisent
+// pas, ou s'ils prennent plusieurs valeurs (un conflit de fusion) : rien ne permet alors de conclure.
 function indices(texte) {
-  const r = {};
-  for (const [, cle, v] of texte.matchAll(/^(type|id):[ \t]*(.*?)[ \t]*$/gm)) if (!(cle in r) && v) r[cle] = v.replace(/^(["'])(.*)\1$/, '$2');
-  return r;
+  const vus = { type: new Set(), id: new Set() };
+  for (const [, cle, v] of texte.matchAll(/^(type|id):[ \t]*(.*?)[ \t]*$/gm)) {
+    const x = v.replace(/(^|[ \t])#.*$/, '').trim().replace(/^(["'])(.*)\1$/, '$2');
+    if (x) vus[cle].add(x);
+  }
+  return Object.fromEntries(Object.entries(vus).filter(([, s]) => s.size === 1).map(([k, s]) => [k, [...s][0]]));
 }
 
 /** En-tête YAML d'un fichier Markdown, ou {} (absent ou illisible). */

@@ -323,6 +323,13 @@ test('Seconde contre-épreuve (E, F) : un type inconnu ne compte que les en-têt
   charger();
   e = s.regles({ projet: 'holarch:project:depot' });
   assert.equal(e.illisibles.length, 1); assert.match(e.illisibles[0], /types\/m\.md/);
+  // Troisième contre-épreuve (3) : un commentaire en fin de ligne, ou deux valeurs (conflit de fusion), ne l'écartent pas.
+  for (const entete of ['type: template  # note\nid: methode-holrach # v2', 'type: "template" # x\nid: methode-holrach',
+    '<<<<<<< HEAD\ntype: decision\n=======\ntype: template\n>>>>>>> autre\nid: methode-holrach']) {
+    ecrire(path.join(autre, 'arbre', 'types', 'm.md'), `---\n${entete}\ntitle: [ouvert\n---\n`);
+    charger();
+    assert.equal(s.regles({ projet: 'holarch:project:depot' }).illisibles.length, 1, entete);
+  }
 
   // F : une décision illisible du projet lui-même ne bloque rien, mais se dit.
   fs.rmSync(path.join(autre, 'arbre', 'types'), { recursive: true });
