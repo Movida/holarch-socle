@@ -213,7 +213,8 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     if (!etat[cle] && anciens.has(cleDe(home, f, null))) etat[cle] = anciens.get(cleDe(home, f, null));
     const prec = etat[cle];
     // Le dossier `-workspaces-<dépôt>` est écrit par le conteneur du projet (monté depuis l'hôte) : ce qu'il contient ne
-    // se rattache qu'à ce projet, et se marque `origine: conteneur`. Un fichier illisible ou trop grand est passé et
+    // se rattache qu'à ce projet, et se marque `environnement: conteneur` (pas `origine`, qui dit d'où vient un refus
+    // d'outil et l'écraserait sur `tool.denied`). Un fichier illisible ou trop grand est passé et
     // compté, sans arrêter l'import des autres ; il sera relu au passage suivant.
     const dossier = path.relative(path.join(home, 'projects'), f).split(path.sep)[0];
     const conteneur = dossier.startsWith('-workspaces-');
@@ -232,7 +233,7 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     const projet = conteneur ? (permis ? path.basename(permis.location) : null) : a.cwd ? path.basename(a.cwd) : null;
     const corr = a.sousAgent ? `${a.session}:${path.basename(f, '.jsonl')}` : a.session;
     const base = { actor, correlation: corr, classification: 'internal' };
-    const cpt = { ...(nomCompte && { compte: nomCompte }), ...(conteneur && { origine: 'conteneur' }) };
+    const cpt = { ...(nomCompte && { compte: nomCompte }), ...(conteneur && { environnement: 'conteneur' }) };
     const touches = [...a.projets].map(([id, n]) => ({ id, n })).sort((x, y) => y.n - x.n).slice(0, 20);
     const duree = Math.round((Date.parse(a.fin) - Date.parse(a.debut)) / 1000);
     const fin = { projet, ...cpt, cwd: a.cwd, branche: a.branche, sous_agent: a.sousAgent, parent: a.sousAgent ? a.session : null, tours: a.tours, invites: a.invites, duree_s: duree, modeles: Object.keys(a.modeles), ...(a.tests.lances && { tests: a.tests }) };

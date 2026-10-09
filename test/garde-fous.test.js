@@ -717,6 +717,9 @@ test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop gra
   transcription('-workspaces-projet', 'c1', '/workspaces/projet', path.join(autre, 'x.md'));
   transcription('-workspaces-projet', 'c2', autre, path.join(autre, 'x.md'));
   transcription(dossierClaude(autre), 'h1', autre, path.join(autre, 'x.md'));
+  // Un refus d'outil dans le conteneur : son origine (qui a refusé) et l'environnement de la session se gardent tous deux.
+  fs.appendFileSync(path.join(home, 'projects', '-workspaces-projet', 'c1.jsonl'), `${JSON.stringify({ type: 'user', sessionId: 'c1', cwd: '/workspaces/projet', timestamp: '2026-10-01T10:01:00Z',
+    message: { content: [{ type: 'tool_result', tool_use_id: 't-c1', is_error: true, content: "The user doesn't want to proceed with this tool use." }] } })}\n`);
   const bloque = transcription('-workspaces-projet', 'c3', '/workspaces/projet', 'x');
   fs.chmodSync(bloque, 0);
   const donnees = tmp(); const journal = new Journal(donnees, 'local');
@@ -724,9 +727,11 @@ test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop gra
   assert.equal(res.illisibles, 1, 'la transcription illisible est comptée, les autres importées');
   const fins = Object.fromEntries([...journal.lire()].filter((e) => e.kind === 'session.finished').map((e) => [e.correlation, e.data]));
   assert.deepEqual(Object.keys(fins).sort(), ['c1', 'c2', 'h1']);
-  assert.deepEqual([fins.c1.projets, fins.c1.projet, fins.c1.origine], [[{ id: 'holarch:project:projet', n: 1 }], 'projet', 'conteneur']);
+  assert.deepEqual([fins.c1.projets, fins.c1.projet, fins.c1.environnement], [[{ id: 'holarch:project:projet', n: 1 }], 'projet', 'conteneur']);
+  const refus = [...journal.lire()].find((e) => e.kind === 'tool.denied' && e.correlation === 'c1');
+  assert.deepEqual([refus.data.origine, refus.data.environnement], ['humain', 'conteneur']);
   assert.deepEqual([fins.c2.projets, fins.c2.projet], [[], 'projet']);
-  assert.deepEqual([fins.h1.projets, fins.h1.origine], [[{ id: 'holarch:project:autre', n: 1 }], undefined]);
+  assert.deepEqual([fins.h1.projets, fins.h1.environnement], [[{ id: 'holarch:project:autre', n: 1 }], undefined]);
   assert.equal(fins.h1.branche.length, 100);
   assert.ok([...journal.lire()].filter((e) => e.kind === 'cost.recorded').every((e) => e.cost.model.length === 80));
   // Rendue lisible, elle est importée au passage suivant ; une transcription au-dessus du plafond est passée et comptée.
