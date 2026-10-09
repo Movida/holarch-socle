@@ -56,6 +56,17 @@ test('veille : le processus de la session est le premier ancêtre du crochet qui
   const moi = processusSession(process.pid); assert.equal(moi.pid, process.pid); assert.equal(vivant(moi), true);
 });
 
+test('veille : sur le vrai /proc, un crochet lancé par un shell trouve le processus qui l’a lancé, et le reconnaît vivant', () => {
+  const module = new URL('../src/veille.js', import.meta.url).href;
+  const script = `import(${JSON.stringify(module)}).then((m) => { const p = m.processusSession(); console.log(JSON.stringify({ p, vivant: p && m.vivant(p) })); })`;
+  const r = spawnSync('/bin/sh', ['-c', `"${process.execPath}" --no-warnings -e '${script}'`], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const { p, vivant: v } = JSON.parse(r.stdout);
+  assert.equal(p.pid, process.pid, 'le shell est sauté : le processus trouvé est celui qui a lancé le crochet');
+  assert.equal(v, true);
+  assert.equal(vivant({ pid: process.pid, debut: '0' }), false, 'un autre début : ce n’est pas le même processus');
+});
+
 test('veille : une session qui travaille retient la veille ; une attente, moins de 30 min ; une session morte est finie et sa note effacée', () => {
   const accueil = tmp(); const d = dossierVeille(accueil);
   note(accueil, 'UserPromptSubmit', 'a');
