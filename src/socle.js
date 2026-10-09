@@ -397,7 +397,7 @@ export class Socle {
     const o = this.config.import?.['claude-code-transcriptions'] || {};
     const reglages = this.config.controles || {};
     const r = recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.fiches({ kind: 'project' })), regles,
-      gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: binaireClaude(this.config), modele, budget }),
+      gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: binaireClaude(this.config), config: this.config, modele, budget }),
       depuis, jusqua, seuil, aBlanc });
     if (!proposer || !r.redites) return r;
     return { ...r, propositions: this.proposerRegles(r.redites) };

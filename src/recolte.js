@@ -12,7 +12,7 @@ import YAML from 'yaml';
 import { fichiers } from './import/claude-code-transcriptions.js';
 import { localiserProjet } from './projets.js';
 import { gitleaks } from './controles.js';
-import { CLAUDE_INTROUVABLE } from './commun.js';
+import { claudeIntrouvable } from './commun.js';
 
 // Un message de l'auteur trop court est un acquiescement ou une relance (« oui », « reprends ») ; trop long, un collage.
 const MIN = 25; const MAX = 2000;
@@ -111,9 +111,9 @@ export function invite(candidats, regles) {
 }
 
 /** Regroupement par `claude -p` : sans outils, sans serveur MCP, sans session gardée, dépense plafonnée. */
-export function regroupeurClaude({ claude, modele = 'sonnet', budget = 1, delai = 600e3, dossier = os.tmpdir() }) {
+export function regroupeurClaude({ claude, config = null, modele = 'sonnet', budget = 1, delai = 600e3, dossier = os.tmpdir() }) {
   return (texte) => {
-    if (!claude) throw new Error(CLAUDE_INTROUVABLE);
+    if (!claude) throw new Error(claudeIntrouvable(config));
     const r = spawnSync(claude, ['-p', '--model', modele, '--output-format', 'json', '--no-session-persistence', '--tools', '',
       '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', 'project', '--max-budget-usd', String(budget),
       '--system-prompt', CONSIGNE, '--json-schema', JSON.stringify(SCHEMA)], { input: texte, encoding: 'utf8', cwd: dossier, timeout: delai, maxBuffer: 64 * 1024 * 1024 });

@@ -9,7 +9,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { Catalogue } from './stockage/catalogue.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
-import { shell, systemd, fichierMarque, lireJson, ecrireJson, binaireClaude, configClaude, CLAUDE_INTROUVABLE } from './commun.js';
+import { shell, systemd, fichierMarque, lireJson, ecrireJson, binaireClaude, configClaude, claudeIntrouvable } from './commun.js';
 import { accueil as accueilParDefaut } from './config.js';
 import { binaireService } from './service.js';
 
@@ -179,7 +179,7 @@ export function creerDistant(config, {
       if (!fs.existsSync(chemin)) throw new Error(`dossier absent : ${chemin}`);
       // Le chemin trouvé, pas sa cible : un lien (~/.local/bin/claude) survit aux mises à jour de Claude Code.
       const binaire = claude || binaireClaude(config);
-      if (!binaire) throw new Error(CLAUDE_INTROUVABLE);
+      if (!binaire) throw new Error(claudeIntrouvable(config));
       const nom = nomDe(chemin); const f = fichierUnite(nom);
       if (fs.existsSync(f) && !sv.geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
       const confiance = declarerConfiance(config.inventaire?.['claude-code']?.config || configClaude(path.join(os.homedir(), '.claude')), chemin);

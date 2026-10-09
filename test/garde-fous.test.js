@@ -378,4 +378,7 @@ test('Contre-épreuve (7) : un profil illisible fait un écart au compte, pas un
 test('claude introuvable : la récolte et l’accès distant disent la même chose, réglage compris', async () => {
   const { regroupeurClaude } = await import('../src/recolte.js');
   assert.throws(() => regroupeurClaude({ claude: null })('texte'), /acces_distant\.claude pour le préciser/);
+  // Seconde contre-épreuve (H) : un réglage posé mais faux se nomme, au lieu du PATH.
+  const config = { acces_distant: { claude: '/nulle/part/claude' } };
+  assert.throws(() => regroupeurClaude({ claude: null, config })('texte'), /acces_distant\.claude \(\/nulle\/part\/claude\) n'existe pas/);
 });
