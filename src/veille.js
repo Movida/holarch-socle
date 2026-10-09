@@ -15,6 +15,10 @@ import { ulid } from './ulid.js';
 // Décision environnement-d-execution : 98 % des réponses de l'auteur arrivent sous 15 min ; marge du double.
 export const ATTENTE_MIN = 30;
 export const dossierVeille = (accueil) => path.join(accueil, 'veille');
+// Ce que le gardien tient, écrit à chaque passage hors du dossier des notes (qu'il surveille) : le contrôle et
+// `holarch veille` le comparent à ce que demandent les sessions.
+export const fichierGardien = (accueil) => path.join(accueil, 'veille-gardien.json');
+export const GARDIEN_FRAIS = 2 * 60e3;
 
 // État qu'un crochet note ; `SessionEnd` efface la note. `Stop` ne vient pas après une interruption : la transcription
 // la dit (`attenteDansTranscription`). Une demande de permission ou une élicitation MCP attend l'auteur au milieu d'un tour.
@@ -261,11 +265,18 @@ export function creerGardien({ accueil, journal = null, commande = () => command
   }
   async function passer() {
     const e = evaluer({ accueil, maintenant: maintenant(), attente, nettoyer: true });
+    try { await suite(e); } finally { etat(e.besoin); }
+    return e;
+  }
+  function etat(besoin) {
+    try { ecrireJson(fichierGardien(accueil), { maj: new Date(maintenant()).toISOString(), besoin, tenue: Boolean(demande) }); } catch (err) { log(`état du gardien non écrit : ${err.message}`); }
+  }
+  async function suite(e) {
     if (demande && maintenant() - tenueDepuis >= COURTE) { ratees = 0; prochain = 0; panne = null; }
     if (e.besoin && !demande) {
-      if (maintenant() < prochain) return e;
+      if (maintenant() < prochain) return;
       const c = commandeDuMoment();
-      if (!c) { echec(panneDe('sans-mecanisme', 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)')); return e; }
+      if (!c) { echec(panneDe('sans-mecanisme', 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)')); return; }
       try {
         const enfant = await lancerDemande(c, { delai });
         demande = enfant; tenueDepuis = maintenant();
@@ -283,12 +294,11 @@ export function creerGardien({ accueil, journal = null, commande = () => command
       const s = retenues(e); const cle = JSON.stringify(s.map((x) => x.session));
       if (cle !== annonce) { annonce = cle; ecrire('power.held', { sessions: s }); log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`); }
     } else if (!e.besoin && demande) await relacher('aucune-session');
-    return e;
   }
   return {
     // Les passages s'enchaînent, jamais deux à la fois (minuteur et changement d'une note peuvent se croiser).
     passer() { const p = file.then(passer); file = p.catch((err) => log(`passage en échec : ${err.message}`)); return p; },
-    async arreter() { await file; await relacher('arret'); },
+    async arreter() { await file; await relacher('arret'); etat(null); },
     tenue: () => Boolean(demande),
     pid: () => demande?.pid ?? null,
   };

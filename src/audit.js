@@ -158,7 +158,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     if (!compte.illisibles.length) rc.ecarts.push(...remplacees(compte.regles, memoires));
     for (const c of ['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
     // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
-    const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache') }, 'audit', ['blocking', 'verified'], 'site');
+    const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache'), accueil: s.config.accueil || accueil() }, 'audit', ['blocking', 'verified'], 'site');
     rc.ecarts.push(...site.ecarts); rc.controles.push(...site.controles);
     for (const c of site.controles) if (c.etat === 'fait') faits.add(`|${c.id}`);
     sorties.push(rc);

@@ -6,7 +6,7 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface, creerReveil, etatVeille } from '../src/distant.js';
-import { noter, evaluer, creerGardien, surveiller, mecanisme } from '../src/veille.js';
+import { noter, evaluer, creerGardien, surveiller, mecanisme, fichierGardien } from '../src/veille.js';
 import { Journal } from '../src/stockage/journal.js';
 import { appliquerRegles, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -125,7 +125,8 @@ switch (cmd) {
       break;
     }
     if (action) { console.error(`holarch veille : action inconnue ${action}`); process.exit(2); }
-    const e = { ...evaluer({ accueil: config.accueil }), mecanisme: mecanisme(), ...etatVeille() };
+    let tenu = null; try { tenu = JSON.parse(lire(fichierGardien(config.accueil), 'utf8')); } catch { /* aucun passage du gardien */ }
+    const e = { ...evaluer({ accueil: config.accueil }), mecanisme: mecanisme(), ...etatVeille(), tenu };
     afficher(json ? e : affichage.veille(e));
     break; }
   case 'interface': {

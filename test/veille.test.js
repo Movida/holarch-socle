@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { noter, evaluer, processusSession, vivant, attenteDansTranscription, transcriptionLisible, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { noter, evaluer, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte } from '../src/materialisation.js';
@@ -358,4 +358,24 @@ test('veille : le contrôle dit un gardien arrêté sous un accès distant, rien
   assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 2 }), { ecarts: [] });
   const e = c({ mecanisme: '/ps', gardien: 'arrêté', distants: 1 }).ecarts;
   assert.deepEqual([e.length, e[0].cle], [1, 'gardien']); assert.match(e[0].message, /gardien de veille arrêté avec 1 accès distant/);
+});
+
+test('veille : le contrôle compare ce que le gardien dit tenir à ce que demandent les sessions, accès distant ou /remote-control', async () => {
+  const c = (veille) => executer('veille-retardee', { veille }, 'audit').ecarts.map((x) => x.cle);
+  const frais = { maj: new Date().toISOString(), besoin: true, tenue: true };
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 1, besoin: true, tenu: frais }), []);
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 1, besoin: true, tenu: { ...frais, tenue: false } }), ['retenue'], 'le gardien tourne mais ne tient rien');
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 1, besoin: true, tenu: { ...frais, maj: new Date(Date.now() - 5 * min).toISOString() } }), ['retenue'], 'gardien bloqué : plus de passage');
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'absent', distants: 0, besoin: true, tenu: null }), ['retenue'], 'session reliée par /remote-control, sans accès distant ni gardien');
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'absent', distants: 0, besoin: false, tenu: null }), []);
+  // Le gardien écrit à chaque passage ce qu'il tient ; le contrôle le lit sur le poste (accueil du site).
+  const accueil = tmp();
+  const g = creerGardien({ accueil, commande: TEMOIN });
+  note(accueil, 'UserPromptSubmit', 'a', { session: () => processusSession(process.pid), t: Date.now() });
+  await g.passer();
+  const ecrit = JSON.parse(fs.readFileSync(fichierGardien(accueil), 'utf8'));
+  assert.deepEqual([ecrit.besoin, ecrit.tenue], [true, true]);
+  assert.ok(!fs.readdirSync(dossierVeille(accueil)).includes('veille-gardien.json'), 'hors du dossier des notes que le gardien surveille');
+  await g.arreter();
+  assert.equal(JSON.parse(fs.readFileSync(fichierGardien(accueil), 'utf8')).tenue, false, 'arrêté, il ne tient plus rien');
 });

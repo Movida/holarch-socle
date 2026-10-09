@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
 import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
-import { mecanisme } from './veille.js';
+import { mecanisme, evaluer, fichierGardien, GARDIEN_FRAIS } from './veille.js';
 import { etatVeille } from './distant.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
@@ -282,15 +282,22 @@ function commitsPousses(ctx) {
 // ---------- veille retardée (décision environnement-d-execution) ----------
 
 /**
- * Le poste retarde sa veille sous une session distante : un mécanisme existe (Windows, vu de WSL) et, dès qu'un accès
- * distant est actif, le gardien tourne. Les crochets qui notent les sessions sont vus par `reglages-poses`.
- * `ctx.veille` remplace la lecture du poste (essais).
+ * Le poste retarde sa veille sous une session distante : un mécanisme existe (Windows, vu de WSL) ; dès qu'un accès
+ * distant est actif, le gardien tourne ; et quand une session notée retient la veille (une session reliée par
+ * `/remote-control` aussi, sans accès distant), le gardien dit tenir la demande depuis moins de GARDIEN_FRAIS. Les
+ * crochets qui notent les sessions sont vus par `reglages-poses`. `ctx.veille` remplace la lecture du poste (essais).
  */
 function veilleRetardee(ctx) {
-  const e = ctx.veille || { mecanisme: mecanisme(), ...etatVeille() };
+  const e = ctx.veille || { mecanisme: mecanisme(), ...etatVeille(), besoin: ctx.accueil ? evaluer({ accueil: ctx.accueil }).besoin : false,
+    tenu: ctx.accueil ? lireJson(fichierGardien(ctx.accueil), null) : null };
   if (!e.mecanisme) return { indisponible: 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)' };
-  if (!e.distants || e.gardien === 'actif') return { ecarts: [] };
-  return { ecarts: [{ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${e.gardien} avec ${e.distants} accès distant(s) actif(s) : la veille n'est pas retardée` }] };
+  const ecarts = [];
+  if (e.distants && e.gardien !== 'actif') ecarts.push({ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${e.gardien} avec ${e.distants} accès distant(s) actif(s) : la veille n'est pas retardée` });
+  const frais = e.tenu && Date.now() - Date.parse(e.tenu.maj) < GARDIEN_FRAIS;
+  if (e.besoin && !(e.gardien === 'actif' && frais && e.tenu.tenue)) {
+    ecarts.push({ fichier: null, ligne: null, cle: 'retenue', message: `une session distante retient la veille, mais la demande d'éveil n'est pas tenue (gardien ${e.gardien}${frais ? '' : ', sans passage récent'})` });
+  }
+  return { ecarts };
 }
 
 // ---------- montage sensible (décision modules-et-palliatifs, palliatif 7) ----------
