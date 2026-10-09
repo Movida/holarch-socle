@@ -983,8 +983,33 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   l'extension VS Code) ; posée au compte le temps de l'essai, retirée, `settings.json` revenu à l'identique. I34 cherche
   une autre source.
 - **Reste** :
-  0. **Suite prévue** : contre-épreuve de la faille et des corrections de B (instance neuve en `xhigh`, lancée le
-     2026-10-09, constats à corriger d'abord) ; puis, sur l'accord de l'auteur : approbation du contrat
+  0. **Contre-épreuve de la faille et des corrections de B (2026-10-09, instance neuve, `xhigh`)** : 7 majeurs, 27
+     mineurs ; scripts d'essai dans `/tmp/contre-epreuve-c/` (perdus au redémarrage). À corriger avant toute pose, un
+     commit et un test chacun. Majeurs : (1) `workspaceFolder` pris tel qu'écrit : la mémoire d'un projet de l'hôte
+     (`-home-…`) montée en écriture passe pour admise (n'admettre que `/workspaces/…` résolu) ; (2) `type=BIND`, objet
+     `{"type":"Bind"}`, `"source=…"` entre guillemets passent (casse et CSV comme Docker, clé inconnue : non disponible) ;
+     (3) `-v` collé, `-itv`, `--volumes-from`, `--privileged`, features avec `mounts` ou `privileged` non vus ; (4)
+     `--privileged` dans un des quatre conteneurs corrigés annule le correctif (retirer, ou `--device` du seul USB) ;
+     (5) faille encore ouverte sur le poste : trois conteneurs arrêtés montent `~/.claude` en écriture et `devcontainer
+     up` les relance sans comparer leurs montages ; le contrôle doit lire aussi les `Mounts` des conteneurs du dépôt
+     (`inventaire/docker.js`) ; geste de l'auteur : `docker rm` des trois ; (6) le dépôt monté en écriture reste une
+     voie vers l'hôte (`.claude/settings.local.json`, crochets et config git, `initializeCommand`), surtout pour le
+     socle, servi sur l'hôte : risque résiduel à écrire, audit des crochets de `settings.local.json`, contrôle de
+     `initializeCommand`, fermé par D ; (7) transcriptions en écriture : un `.jsonl` illisible arrête tout l'import
+     (`claude-code-transcriptions.js:125`), `cwd` et coûts libres (try, plafond, origine « conteneur »). Mineurs de B :
+     tenue reprise jamais redite (`annonce` non remis à zéro, test qui le fige) ; session `/remote-control` sans gardien
+     sans accès distant (choix de l'auteur) ; question qui masque un sous-agent de fond ; `holarch veille` et le contrôle
+     jugent la fraîcheur différemment (une fonction partagée) ; `veilleVoulue` faux sans profil, gardien non relancé si
+     null ; `regles appliquer` dépend de systemctl ; erreurs du crochet avant le `try` (imports) et jamais effacées ;
+     entrées sans date après la fin du tour (activité par la dernière entrée datée) ; course résiduelle à l'effacement.
+     Textes : limites connues de B périmées (ci-dessous), contrat événement `stable` en 0.10.0 sous l'approbation du
+     2026-10-03, décision `environnement-d-execution` contradictoire (ligne B, l.66) et borne des 30 min non écrite.
+     Mineurs du conteneur : variable inconnue sans défaut prise pour vide, `indisponible` qui efface les écarts trouvés,
+     `-v` à une partie ou `${…}` coupé au `:`, dossier personnel Windows (`/mnt/c/Users/…`) absent des sensibles, volume
+     `o=bind`, faux positifs (`${localWorkspaceFolderBasename}`, `/` final), lien au chemin admis, sessions de
+     sous-dossier invisibles, test de création sans nom à encoder (prendre `Neuf_2.x`), `chown` après la connexion
+     (`onCreateCommand`), jetons de l'hôte par `remoteEnv`, un conteneur sans dépôt git (non audité).
+  0. **Suite prévue** : corriger la contre-épreuve ci-dessus ; puis, sur l'accord de l'auteur : approbation du contrat
      événement 0.10.0 (règles `veille-retardee`, passée en `verified`, `conteneur-isole` et `approbation-recapitulee`
      approuvées le 2026-10-09 ; d'ici la pose, l'audit horaire de l'ancienne copie dit leurs écarts), `holarch regles appliquer` (crochets et
      gardien), `holarch service poser` (copie en retard), critère de B (délai de veille raccourci le temps de l'essai :

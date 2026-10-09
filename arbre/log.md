@@ -2,6 +2,10 @@
 
 ## 2026-10-09
 
+* **Contre-épreuve de la faille et de B** : 7 majeurs, 27 mineurs, au Reste de l'étape. La faille reste ouverte sur
+  le poste (trois conteneurs arrêtés montent encore `~/.claude` en écriture ; un conteneur corrigé est `--privileged`)
+  et le contrôle se contourne (casse, `-v` collé, `workspaceFolder` libre). Rien n'est posé : corrections d'abord.
+
 * **Règles approuvées** : `veille-retardee` (passée en `verified` : contrôlée à l'audit seulement), `conteneur-isole`
   et `approbation-recapitulee` (consigne de l'auteur : pour chaque règle à approuver, un récapitulatif compréhensible et
   la recommandation en choix cliquables), sur récapitulatif et choix cliquables. Pose après la contre-épreuve.
@@ -15,7 +19,7 @@
   d'essai pour Q29, la session en cours ne relisant pas le réglage. La demande qui y aurait mené : « faille, B, Q29 ;
   mesure d'abord ce que le montage de `~/.claude` apporte aujourd'hui » et le quota restant au départ.
 
-* **Faille du conteneur fermée** : contrôle `montage-sensible` et règle `conteneur-isole` (brouillon). Mesure en
+* **Faille du conteneur : fichiers corrigés** (la contre-épreuve la trouve encore ouverte sur le poste, voir plus haut) : contrôle `montage-sensible` et règle `conteneur-isole` (brouillon). Mesure en
   route : 209 sessions sur 305 en 30 jours tournent en conteneur, vues par HOLARCH grâce au montage du `~/.claude` de
   l'hôte ; choix de l'auteur, la solution la plus propre : volume propre, et de l'hôte seulement les transcriptions du
   projet et les règles du compte en lecture. Modèle, conteneur du socle et quatre conteneurs du poste corrigés
