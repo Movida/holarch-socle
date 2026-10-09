@@ -2,6 +2,18 @@
 
 ## 2026-10-09
 
+* **Approbation, pose et premier temps du critère de B** : décision `veille-et-conteneur-precisions`, règle
+  `veille-retardee` et contrat événement 0.10.0 approuvés (choix cliquables) ; copie de service posée (`520a1df`),
+  crochets de veille au compte, gardien actif ; une session déjà ouverte reprend les crochets à chaud, elle est notée et
+  la demande tenue. Temps 2 et 3 du critère (veille raccourcie à 10 min) à la session suivante. Tout poussé à la demande
+  de l'auteur (socle, profil, trois dépôts du poste). Leçon de clôture : déroulé annoncé en neuf points (six mineurs,
+  deux choix, textes, tests et journal, approbation puis pose et essai) ; tenus jusqu'à la pose, le critère arrêté au
+  temps 1. Ce qui l'a fait dévier : le seuil de passation franchi au début de l'essai (244 k), un essai qui demande
+  50 min de réveils programmés, et la 0.4.0 du contrat de configuration déjà promise à C (trouvée en appliquant
+  l'amendement). Deux faux pas sans suite : un `*/` dans un commentaire, l'index non reconstruit après un inventaire.
+  La demande qui y aurait mené : « mineurs, choix, textes, approbation et pose ; le critère de B dans une session neuve,
+  qui programme ses réveils ».
+
 * **Mineurs de la contre-épreuve et choix de l'auteur** : les six mineurs (gardien non posé sans systemd utilisateur,
   essayé dans un conteneur de l'image du socle ; sous-agents de workflow lus ; erreur gardée sur une note non faite ;
   heure locale éprouvée à UTC+14 ; en-tête du contrat événement en 0.9.0 ; textes sur une seule mesure datée) et les

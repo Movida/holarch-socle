@@ -1027,13 +1027,26 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   jusqu'à 6 jours ; 4 silences de plus de 11 min pendant un tour, tous après un appel court, d'où « hors attente de
   permission »), règle proposée reformulée, en-tête du contrat événement en 0.9.0 avec 0.10.0 proposée, redite de la
   tenue précisée, limites reprises. Rien posé, rien poussé.
+- **Fait (2026-10-09, soir)** : approbation de l'auteur (récapitulatif et choix cliquables) : décision
+  `veille-et-conteneur-precisions` (stable ; `environnement-d-execution` amendée : ligne B, borne d'immobilité ; la
+  livraison C prend la 0.5.0 du contrat de configuration, la 0.4.0 étant prise par `montage_sensible`), règle
+  `veille-retardee` réécrite au profil, contrat événement 0.10.0 et son schéma. Pose : `holarch service poser`
+  (`520a1df`, 80 commits de retard rattrapés, gardien posé), puis `holarch regles appliquer` (6 crochets de veille au
+  compte, règle `approbation-recapitulee` écrite). Critère de B, temps 1 vérifié : les crochets sont repris à chaud par
+  une session déjà ouverte (documentation : « normally picked up automatically by the file watcher ») ; la session
+  distante en cours notée, demande d'éveil tenue, aucune erreur ; hors mode auto, une demande de permission la note
+  « attend », comme prévu. Délai de veille non baissé : passation d'abord.
 - **Reste** :
-  0. **Approbation du tout, sur l'accord de l'auteur** (récapitulatif et choix cliquables) : décision
-     `veille-et-conteneur-precisions` (ligne B et point « Veille » de `environnement-d-execution`), règle
-     `veille-retardee` réécrite au profil, contrat événement 0.10.0, contrat de configuration 0.4.0. Puis la pose, dans
-     cet ordre (contre-épreuve) : `holarch service poser` d'abord (la copie en service, sans `veille-noter.js`, ferait
-     écrire une erreur à chaque crochet et tomber le gardien), puis `holarch regles appliquer` (crochets au compte, et le
-     gardien) ; critère de B. Contre-épreuve des corrections du 2026-10-09 au soir : à proposer à l'auteur.
+  0. **Critère de B, temps 2 et 3, dans une session distante** (Opus 5.5 `xhigh`) : le délai de veille sur secteur est à
+     300 min (`0x4650` s, lu par `powercfg.exe /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE`). Ne le baisser qu'une fois
+     la session notée et la demande tenue (`holarch veille`) : le poste est sans doute inactif depuis plus de 10 min, il
+     s'endormirait aussitôt, et après une veille le réveil ouvre un environnement neuf (la session serait perdue, le délai
+     resterait à 10). Puis `powercfg.exe /change standby-timeout-ac 10`, finir le tour (la session attend, retenue
+     30 min), réveil programmé à +15 min (`send_later`) : poste resté éveillé (session vivante, aucune « veille de » du
+     réveil), `power.held` au journal ; remettre aussitôt `powercfg.exe /change standby-timeout-ac 300` et le relire.
+     Temps 3, réveil à +35 min après le dernier tour : `power.released`, rien de retenu. La veille effective après la
+     levée n'est pas observée (elle couperait la session) ; elle est attestée par la levée de la demande. Ensuite :
+     proposer à l'auteur une contre-épreuve des corrections du 2026-10-09 au soir (`ab3ee9e` à `520a1df`).
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
