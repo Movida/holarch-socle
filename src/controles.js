@@ -324,7 +324,8 @@ export function maisonsWindows(mnt = '/mnt') {
     try { return fs.readdirSync(u, { withFileTypes: true }).filter((e) => e.isDirectory() && !COMMUNS_WINDOWS.has(e.name)).map((e) => path.join(u, e.name)); } catch { return []; } });
 }
 const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
-const reel = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
+// Chemin réel, liens résolus jusqu'au plus profond parent qui existe (un dossier pas encore créé garde la suite).
+const reel = (p) => { try { return fs.realpathSync(p); } catch { const d = path.dirname(p); return d === p ? p : path.join(reel(d), path.basename(p)); } };
 
 // Admis sous `~/.claude`, et seulement eux : le dossier de transcriptions et de mémoire du projet du conteneur, que
 // Claude Code nomme d'après le dossier de travail (HOLARCH les importe, P4), et les règles du compte en lecture (l'arbre
@@ -561,7 +562,7 @@ function montageSensible(ctx) {
   const sensibles = [...[maison, ...(ctx.maisonsWindows || maisonsWindows())].flatMap((m) => IDENTIFIANTS.map((r) => ({ chemin: path.join(m, r), quoi: 'identifiants de l’hôte' }))),
     ...DOCKER_HOTE.map((c) => ({ chemin: c, quoi: 'Docker de l’hôte' })),
     ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true }))];
-  const ecarts = []; const nonLus = [];
+  const ecarts = []; const nonLus = []; const claude = path.join(maison, '.claude');
   for (const f of configsConteneur(ctx.depot)) {
     const config = lireConfig(ctx.depot, f);
     if (config.erreur) { nonLus.push(config.erreur); continue; }
@@ -575,7 +576,8 @@ function montageSensible(ctx) {
       for (const m of montages.filter((x) => x.type === 'bind' && x.source && !x.illisible)) {
         const src = sourceHote(m.source, ctx.depot, maison, env);
         if (!src) { nonLus.push(`${lu.f} : source de montage non résolue (${m.source})`); continue; }
-        const a = admis.find((x) => x.chemin === src);
+        // Admis par son chemin, sans lien en route sous `~/.claude` (un lien posé au chemin admis viserait n'importe quoi).
+        const a = admis.find((x) => x.chemin === src && path.relative(reel(claude), reel(src)) === path.relative(claude, src));
         if (a && (!a.lecture || m.lecture)) continue;
         // Un montage admis en lecture seule, monté en écriture, compte pour lui-même ; sinon, ce qu'il touche ou contient.
         let vu = src;

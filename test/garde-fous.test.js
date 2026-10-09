@@ -636,3 +636,17 @@ test('Contre-épreuve du conteneur (17) : un volume local en o=bind monte le che
   assert.deepEqual(cibles(r), ['/a']);
   assert.match(r.ecarts[0].message, /monte ~\/\.ssh \(identifiants/);
 });
+
+test('Contre-épreuve du conteneur (19) : un lien posé au chemin admis n’est pas admis ; un ~/.claude qui est lui-même un lien, si', () => {
+  const { maison, config, lire, cibles } = conteneurEssai();
+  const projets = path.join(maison, '.claude', 'projects'); fs.mkdirSync(projets, { recursive: true }); fs.mkdirSync(path.join(maison, '.ssh'));
+  fs.symlinkSync(path.join(maison, '.ssh'), path.join(projets, '-workspaces-projet'));
+  config({ mounts: [transcriptions('-workspaces-projet')] });
+  const r = lire();
+  assert.deepEqual(cibles(r), ['/home/node/.claude/projects/-workspaces-projet']);
+  assert.match(r.ecarts[0].message, /monte ~\/\.claude\/projects\/-workspaces-projet, dans ~\/\.claude/);
+  // ~/.claude déplacé ailleurs et remplacé par un lien : le dossier du projet (même pas encore créé) reste admis.
+  fs.rmSync(path.join(projets, '-workspaces-projet'));
+  fs.renameSync(path.join(maison, '.claude'), path.join(maison, 'ailleurs')); fs.symlinkSync(path.join(maison, 'ailleurs'), path.join(maison, '.claude'));
+  assert.deepEqual(lire().ecarts, []);
+});
