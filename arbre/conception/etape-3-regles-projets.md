@@ -984,7 +984,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      Choix de l'auteur (2026-10-09) : avis suivi, en trois textes (décision des retraits ; compléments à
      `modules-et-palliatifs` pour (1), (9), (10) et la brique Intentions ; mécanisme pour (8)). (10) revu : Desktop est
      l'outil principal de l'auteur au site de travail, dont la copie de HOLARCH a reçu les dernières fonctionnalités le
-     2026-10-09 au matin, et un serveur MCP créé ce jour-là s'y est intégré (constat de l'auteur) ; reste Q30.
+     2026-10-09 au matin, et un serveur MCP créé ce jour-là s'y est intégré (constat de l'auteur). Q30 résolue : les règles n'atteignent pas Desktop, ses
+     projets les pallient ; idée I35 (retenue), mécanisme en Q31.
   0. **Mineurs** de la troisième contre-épreuve (2026-10-09) : (6) le contrôle d'échappement de `app.js` ne voit pas
      `${f.nom || "—"}`, `${f.tags.join(…)}`, `${f["nom"]}`, `${nom}`, `${c ? f.nom : ""}` (aucune fuite réelle trouvée) ;
      (7) `gitleaks git --pre-commit` lance son git sans neutralisation (dépôt de l'auteur, cohérent avec (D) ; non
