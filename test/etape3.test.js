@@ -952,7 +952,7 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     assert.deepEqual(g('log', '--format=%an <%ae> %s').split('\n'), ['Alice Exemple <alice@noreply.test> Appliquer les règles HOLARCH', 'Alice Exemple <alice@noreply.test> Créer le projet']);
     assert.deepEqual(g('ls-files').split('\n').sort(), ['.claude/rules/holarch/rien-de-prive.md', '.devcontainer/deploy-key.sh', '.devcontainer/devcontainer.json', '.gitignore', 'CLAUDE.md', 'LICENSE', 'README.md', 'arbre/index.md', 'arbre/log.md']);
     assert.match(fs.readFileSync(path.join(d, 'LICENSE'), 'utf8'), new RegExp(`Copyright \\(c\\) ${new Date().getFullYear()} Alice Exemple`));
-    assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "Neuf_2\.x"[\s\S]*source=neuf_2\.x-claude[\s\S]*projects\/-workspaces-Neuf-2-x,[\s\S]*source=neuf_2\.x-ssh/);
+    assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "Neuf_2\.x"[\s\S]*source=neuf_2\.x-claude[\s\S]*projects\/-workspaces-Neuf-2-x,[\s\S]*source=neuf_2\.x-ssh[\s\S]*"CLAUDE_CODE_PROJECT_DIR_NAME": "-workspaces-Neuf-2-x"/);
     assert.deepEqual(executer('montage-sensible', { depot: d, holarch: [] }, 'audit').ecarts, [], 'le conteneur créé ne monte rien de sensible de l’hôte');
     assert.ok(fs.statSync(path.join(d, '.devcontainer', 'deploy-key.sh')).mode & 0o100, 'deploy-key.sh exécutable');
     assert.match(fs.readFileSync(path.join(d, 'arbre', 'index.md'), 'utf8'), /types: \[public\]\nconfig:\n  journal: arbre\/log.md\ntitle/);

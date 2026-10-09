@@ -22,7 +22,9 @@
     "source={{volume}}-ssh,target=/home/vscode/.ssh,type=volume",
     "source={{volume}}-gh-config,target=/home/vscode/.config/gh,type=volume"
   ],
-  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/vscode/.claude" },
+  // Toute session du conteneur, ouverte dans un sous-dossier ou un worktree comprise, range ses transcriptions dans le
+  // dossier monté depuis l'hôte (CLAUDE_CODE_PROJECT_DIR_NAME, Claude Code 2.1.234 et suivants, avec CLAUDE_CONFIG_DIR).
+  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/vscode/.claude", "CLAUDE_CODE_PROJECT_DIR_NAME": "{{dossier_claude}}" },
   // Un volume neuf appartient à root : il est rendu à l'utilisateur avant tout.
   "postCreateCommand": "sudo chown vscode:vscode /home/vscode/.claude /home/vscode/.claude/projects && (bash .devcontainer/deploy-key.sh origin || true)",
   "remoteUser": "vscode"
