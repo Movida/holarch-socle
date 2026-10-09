@@ -86,6 +86,13 @@ test('veille : un tour interrompu (aucun Stop) ou une question à l’auteur res
   assert.equal(attenteDansTranscription(t), null, 'un outil en cours : la session travaille');
   ecrire(t, ligne(prompt) + ligne(appel('Bash', '2026-10-09T09:01:00.000Z')) + ligne({ type: 'user', timestamp: '2026-10-09T09:02:00.000Z', message: { content: [{ type: 'text', text: '[Request interrupted by user for tool use]' }] } }));
   assert.equal(attenteDansTranscription(t), Date.parse('2026-10-09T09:02:00.000Z'));
+  // La marque lue dans le résultat d'un outil (une transcription affichée, un journal) n'est pas une interruption.
+  const lu = { type: 'user', timestamp: '2026-10-09T09:03:00.000Z', message: { content: [{ type: 'tool_result', tool_use_id: 'u1', content: [{ type: 'text', text: '[Request interrupted by user for tool use]' }] }] } };
+  ecrire(t, ligne(prompt) + ligne(appel('Bash', '2026-10-09T09:01:00.000Z')) + ligne(lu));
+  assert.equal(attenteDansTranscription(t), null, 'un résultat d’outil qui contient la marque');
+  ecrire(t, ligne(prompt) + ligne({ type: 'user', timestamp: '2026-10-09T09:03:00.000Z', message: { content: 'voici ce que dit le journal : [Request interrupted by user]' } }));
+  assert.equal(attenteDansTranscription(t), null, 'la marque citée au milieu d’un message');
+  ecrire(t, ligne(prompt) + ligne(appel('Bash', '2026-10-09T09:01:00.000Z')) + ligne({ type: 'user', timestamp: '2026-10-09T09:02:00.000Z', message: { content: [{ type: 'text', text: '[Request interrupted by user for tool use]' }] } }));
   note(accueil, 'UserPromptSubmit', 's', { t: Date.parse('2026-10-09T09:00:00.000Z'), transcription: t });
   const e = (m) => evaluer({ accueil, maintenant: Date.parse(m), enVie }).sessions[0];
   assert.deepEqual([e('2026-10-09T09:20:00Z').etat, e('2026-10-09T09:20:00Z').retient], ['attend', true]);

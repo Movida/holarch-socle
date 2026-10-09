@@ -24,6 +24,9 @@ export const EVENEMENTS = [...Object.keys(ETATS), 'SessionEnd'];
 const ATTENDENT = new Set(['AskUserQuestion', 'ExitPlanMode']);
 const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'env']);
 const NOTE = /^[A-Za-z0-9_-]{1,128}$/;
+// Marque d'un tour interrompu, en tête d'un texte de l'auteur : dans un résultat d'outil (fichier lu, sortie), ce n'en est pas une.
+const INTERRUPTION = '[Request interrupted by user';
+const interrompu = (c) => (typeof c === 'string' ? c.startsWith(INTERRUPTION) : Array.isArray(c) && c.some((x) => x?.type === 'text' && String(x.text || '').startsWith(INTERRUPTION)));
 
 /**
  * Une session distante (Remote Control) : `CLAUDE_CODE_BRIDGE_SESSION_ID` (documenté, session interactive reliée), sinon
@@ -82,7 +85,7 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
   for (const e of evenements(finDeTranscription(transcription, octets))) {
     if ((e.type !== 'user' && e.type !== 'assistant') || e.isSidechain) continue;
     const c = e.message?.content; const t = Date.parse(e.timestamp);
-    if (e.type === 'user' && JSON.stringify(c ?? '').includes('[Request interrupted by user')) return t;
+    if (e.type === 'user' && interrompu(c)) return t;
     if (e.type === 'assistant' && Array.isArray(c) && c.some((x) => x.type === 'tool_use' && ATTENDENT.has(x.name))) return t;
     return null;
   }
