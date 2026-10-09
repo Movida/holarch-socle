@@ -975,6 +975,12 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      rempli, aucune lecture filtrée par classification, registre des types non lu (`src/regles.js:26-28`), `stable`
      sans `approved` (`src/regles.js:80`). Documents en retard : `README.md` (étape 2, hub unique, conteneurs),
      `arbre/index.md`, `contrats/index.md` sans `config.md`.
+     Avis de l'agent (2026-10-09, demandé par l'auteur, sans réponse encore) : changements justifiés, à acter par une
+     décision courte : (2), (3) (le palier `guided` devient un skill du runtime, P2), (4) (registre gardé ; les contrats
+     le disent), (5), (7). À garder : (8) d'abord (la contre-épreuve déclenchée par un crochet ou une routine, consigne
+     fixe), (6) (garde du palliatif 5), (1) dans sa forme actuelle (lectures communes avec le serveur MCP, écritures
+     sous clé et au journal). À reporter avec une condition d'ouverture : (9), (10) (consigne du serveur MCP si l'usage
+     de Desktop se mesure).
   0. **Mineurs** de la troisième contre-épreuve (2026-10-09) : (6) le contrôle d'échappement de `app.js` ne voit pas
      `${f.nom || "—"}`, `${f.tags.join(…)}`, `${f["nom"]}`, `${nom}`, `${c ? f.nom : ""}` (aucune fuite réelle trouvée) ;
      (7) `gitleaks git --pre-commit` lance son git sans neutralisation (dépôt de l'auteur, cohérent avec (D) ; non
