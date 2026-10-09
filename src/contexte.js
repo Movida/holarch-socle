@@ -7,24 +7,7 @@ import { projetsDe, localiserProjet } from './projets.js';
 import { etatDepot, integrationContinue } from './inventaire/depots-git.js';
 import { copieEnService, retard } from './service.js';
 import { aApprouver } from './regles.js';
-
-/** Lignes JSON de la fin d'une transcription (les `octets` derniers), de la plus récente à la plus ancienne. */
-function finDeTranscription(transcription, octets) {
-  let fd;
-  try {
-    fd = fs.openSync(transcription, 'r');
-    const taille = fs.fstatSync(fd).size; const n = Math.min(taille, octets);
-    const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, taille - n);
-    return b.toString('utf8').split('\n').reverse();
-  } catch { return []; } finally { if (fd !== undefined) fs.closeSync(fd); }
-}
-
-const evenements = function* (lignes, filtre = '') {
-  for (const l of lignes) {
-    if (!l.includes(filtre)) continue;
-    try { yield JSON.parse(l); } catch { /* première ligne coupée */ }
-  }
-};
+import { finDeTranscription, evenements } from './transcription.js';
 
 /**
  * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), lu à la fin de
