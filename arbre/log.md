@@ -2,6 +2,22 @@
 
 ## 2026-10-09
 
+* **Tranche 12, livraison B : mécanisme et adaptateur livrés** (Opus 5.5 `xhigh`, vérifié au début de la session) :
+  la veille de Windows se retarde par sa propre API (`PowerSetRequest`, tenue par le PowerShell de Windows depuis un
+  service de WSL), sans rien installer ; la demande tombe avec son lanceur, même tué net. Crochets `holarch veille
+  noter`, gardien `holarch-veille`, `power.*` au journal (contrat événement 0.10.0, à approuver), contrôle
+  `veille-retardee`, règle du même nom en brouillon au profil ; 104 tests verts ; essai réel dans un accueil
+  temporaire (demande tenue puis relâchée moins de 5 s après la fin de la session). Rien de posé au compte ni en
+  service : règle, contrat et pose attendent l'auteur. Contre-épreuve par une instance neuve en `xhigh` : 4 majeurs
+  (« travaille » sans borne, travail de fond après `Stop`, gardien non relancé par `service poser`, notes de
+  conteneur avant D) et 13 mineurs, au Reste de l'étape, à corriger à la session suivante.
+  Leçon de clôture : déroulé annoncé en sept temps (état des lieux, conception, règle, adaptateur et tests,
+  contre-épreuve, pose, critère) ; réalisé jusqu'à la contre-épreuve, la pose et le critère attendent l'accord de
+  l'auteur, comme annoncé. Ce qui a fait dévier : la documentation des crochets (pas de `Stop` après une
+  interruption, crochets en arrière-plan tués en `-p`) a ajouté la lecture de la fin des transcriptions et des
+  crochets synchrones ; une attente de test fausse (chemin de `node`) ; le point du gardien séparé de celui du réveil
+  dans `service poser` ; la contre-épreuve, qui a trouvé deux cas où le poste dormirait ou veillerait à tort, reporte les corrections à la session suivante (contexte au-delà du seuil de passation). La demande « Go » suffisait : le plan de B était écrit dans l'avancement ; « B en `xhigh`, contre-épreuve comprise, corrections dans la même session si le contexte le permet » aurait fixé ce dernier point.
+
 * **Tranche 12, livraison B commencée : Q25 résolue** : session ouverte depuis l'application en effort `max`, choisi par
   l'auteur, alors que B est prévue en `xhigh`, que l'application en français nomme « extra » : arrêt, puis `/effort
   xhigh` par l'auteur. L'effort d'une session distante est celui choisi à son ouverture, pas le réglage du poste

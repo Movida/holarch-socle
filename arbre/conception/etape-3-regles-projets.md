@@ -929,6 +929,24 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   téléphone : dans une session distante, les crochets de début et de fin de tour et de fin de session se déclenchent,
   et l'archivage arrête la session. Suite : mécanisme côté Windows qui retarde la veille. Copie de service à jour
   (05b39c7).
+- **Fait (2026-10-09)** : tranche 12, livraison B, mécanisme et adaptateur (règle en brouillon, rien de posé au
+  compte). État des lieux P2 : PowerToys absent ; l'API de Windows (`PowerCreateRequest`, `PowerSetRequest` avec
+  `PowerRequestSystemRequired`, documentation lue) se tient par le PowerShell de Windows, sans rien installer ; une
+  veille demandée à la main lève la demande (documenté). Essais : demande lue sans droits d'administrateur
+  (`SystemExecutionState` 0x1 tenue, 0x0 avant et après ; `powercfg /requests` les exige) ; lancée depuis un service
+  systemd, relâchée à la fin de son entrée standard comme à la mort de son lanceur (`kill -9`, moins de 4 s). Poste :
+  veille sur secteur à 300 min, S3. Mesures sur 30 jours : 1 728 tours, 24 interrompus (`Stop` ne vient pas après une
+  interruption, documenté), médiane 1,1 min, 99 % sous 65 min. `src/veille.js` : crochets `holarch veille noter`
+  (`UserPromptSubmit`, `Stop`, `StopFailure`, `SessionEnd`, synchrones : une session distante tourne en `-p`, où un
+  crochet en arrière-plan est tué), session distante reconnue à `CLAUDE_CODE_BRIDGE_SESSION_ID` ou
+  `CLAUDE_CODE_ENVIRONMENT_KIND=bridge`, processus de la session noté (premier ancêtre non-shell, début lu dans
+  `/proc`) ; tour interrompu et question à l'auteur lus à la fin de la transcription (`src/transcription.js`, partagé
+  avec `contexte.js`) ; gardien `holarch veille tenir` (service `holarch-veille`, posé et retiré avec le réveil, posé
+  par `service poser`) ; `power.held|released|failed` au journal (contrat événement 0.10.0) ; contrôle de site
+  `veille-retardee` ; crochets générés quand la règle s'applique ; `holarch veille` dit l'état. 10 tests (104 verts).
+  Essai réel dans un accueil temporaire : note d'une session (processus `claude` retrouvé), demande tenue (0x1),
+  relâchée moins de 5 s après `SessionEnd` (0x0), deux événements au journal. Règle `veille-retardee` proposée au
+  profil (brouillon, `blocking`, contrôle `veille-retardee`).
 - **Reste** :
   0. **Mineurs** de la troisième contre-épreuve (2026-10-09) : (6) le contrôle d'échappement de `app.js` ne voit pas
      `${f.nom || "—"}`, `${f.tags.join(…)}`, `${f["nom"]}`, `${nom}`, `${c ? f.nom : ""}` (aucune fuite réelle trouvée) ;
@@ -976,8 +994,42 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        pointeur du dossier (code du binaire 2.1.295) et ne demande donc pas à reprendre l'environnement précédent ;
        l'ancien, arrêté en servant une session, restait inscrit (Q22). Conséquence à garder en vue : chaque relance
        (dont celle du réveil) ouvre un environnement neuf, et les sessions ouvertes avant ne sont pas reprises.
-     - **B, veille retardée** (Opus 5.5 `xhigh`) : Q25 résolue (2026-10-09). Suite : mécanisme côté Windows qui retarde
-       la veille (P2 d'abord, vérifié par `powercfg /requests`), puis règle du profil (brouillon), adaptateur, tests,
-       contre-épreuve, pose, critère. Reste du critère de A : une session archivée le reste après une relance.
+     - **B, veille retardée** (Opus 5.5 `xhigh`) : Q25 résolue, mécanisme, adaptateur et tests livrés (2026-10-09,
+       `6bb1c20`). Contre-épreuve par une instance neuve (`xhigh`, scripts dans `/tmp/contre-epreuve-b/`, perdus au
+       redémarrage) : 4 majeurs, 13 mineurs, à corriger d'abord, un commit et un test chacun.
+       Majeurs : (1) « travaille » sans borne (`veille.js`, `evaluer`) : une demande de permission, une élicitation
+       MCP ou un `Stop` manqué tiennent le poste éveillé jusqu'à l'archivage ; mesure de l'instance : 301 tours de 67
+       sessions distantes, aucun silence de plus de 11 min pendant un tour (hors questions) ; correction proposée :
+       transcription et `<session>/subagents/*.jsonl` immobiles depuis 30 min, la session passe en attente depuis
+       cette date ; noter aussi `PermissionRequest` comme une attente. (2) Travail de fond après `Stop` (sous-agent en
+       cours, champ `background_tasks` de l'entrée de `Stop`, présent en 2.1.295) : le poste peut dormir sous lui
+       (cas de cette contre-épreuve, plus de 11 min) ; garder dans la note les sous-agents en cours, retenir tant que
+       leur transcription bouge depuis moins de 30 min ; jamais un shell de fond sans borne (serveur permanent).
+       (3) `service poser` ne relance pas le gardien (chemin `courant` inchangé, texte inchangé) : relancer comme
+       l'interface (`relancer`) ; le test actuel change de chemin et passe à tort. (4) Avant D : un pid de conteneur
+       vérifié dans le `/proc` de l'hôte efface la note ; choisir un signe de vie sans pid, ou écrire que B ne couvre
+       que l'hôte (choix de l'auteur).
+       Mineurs : (5) fausse interruption : marque cherchée aussi dans les résultats d'outil (n'accepter qu'un texte qui
+       commence par elle) ; (6) demande qui meurt aussitôt tenue : `power.held` et `power.failed` à chaque passage
+       (espacer, remise à zéro après une tenue durable) ; (7) note réécrite entre lecture et effacement (relire avant
+       d'effacer) ; (8) chemin de transcription non contrôlé (un FIFO bloque le gardien : `isFile`, sous `projects/`) ;
+       (9) sortie de PowerShell et chemin au journal (`{motif, code}` au journal, sortie au seul log) ; (10) mécanisme
+       cherché une seule fois au démarrage ; (11) contrôle limité à l'unité (comparer l'état écrit par le gardien à
+       `besoin` ; session reliée par `/remote-control` sans gardien ; `holarch veille` dit « retenue » d'après
+       `besoin`) ; (12) erreurs du crochet perdues (`2>/dev/null`, `chargerConfig` hors du `try`) : fichier d'erreur
+       daté que le contrôle signale ; (13) contrat événement 0.10.0 sans décision qui le déclare : ajouter
+       `evenement.md` aux `modifies` de `environnement-d-execution`, avec l'accord de l'auteur ; (14) une session qui
+       arrive ou part pendant la tenue n'est pas au journal ; (15) `crochetVoulu` impute toujours `veille-retardee` ;
+       (16) 0,2 s par invite pour une session locale : tester les variables dans la commande shell avant node ;
+       (17) lecture du ppid sur le vrai `/proc` non testée (test proposé : `sh -c "node … processusSession()"`).
+       Ensuite : approbation par l'auteur de la règle `veille-retardee` et du contrat événement 0.10.0 (`power.*`) ;
+       pose (`holarch service poser` pose le gardien, `holarch regles appliquer` les
+       crochets au compte) ; vérifier qu'un crochet de session distante reçoit bien `CLAUDE_CODE_ENVIRONMENT_KIND`
+       (`holarch veille` montre la session notée) ; critère, avec le délai de veille raccourci le temps de l'essai
+       (`powercfg /change standby-timeout-ac 10`, puis remis à 300). Limites connues : une demande de permission
+       en attente compte comme un travail ; une tâche de fond de plus de 30 min après la fin du tour ne retient
+       rien ; une session en conteneur (D) ne se vérifie pas par son processus, sa note est alors tenue pour finie
+       (le poste peut dormir), à reprendre en D. Reste du critère de A : une session archivée le reste après une
+       relance.
   8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.
