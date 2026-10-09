@@ -984,8 +984,9 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   une autre source.
 - **Reste** :
   0. **Suite prévue** : contre-épreuve de la faille et des corrections de B (instance neuve en `xhigh`, lancée le
-     2026-10-09, constats à corriger d'abord) ; puis, sur l'accord de l'auteur : approbation des règles
-     `veille-retardee` et `conteneur-isole` et du contrat événement 0.10.0, `holarch regles appliquer` (crochets et
+     2026-10-09, constats à corriger d'abord) ; puis, sur l'accord de l'auteur : approbation du contrat
+     événement 0.10.0 (règles `veille-retardee`, passée en `verified`, `conteneur-isole` et `approbation-recapitulee`
+     approuvées le 2026-10-09 ; d'ici la pose, l'audit horaire de l'ancienne copie dit leurs écarts), `holarch regles appliquer` (crochets et
      gardien), `holarch service poser` (copie en retard), critère de B (délai de veille raccourci le temps de l'essai :
      `powercfg /change standby-timeout-ac 10`, puis remis à 300), envoi des commits (socle, profil, trois dépôts). Dans
      le conteneur du socle, le volume `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node`

@@ -2,6 +2,10 @@
 
 ## 2026-10-09
 
+* **Règles approuvées** : `veille-retardee` (passée en `verified` : contrôlée à l'audit seulement), `conteneur-isole`
+  et `approbation-recapitulee` (consigne de l'auteur : pour chaque règle à approuver, un récapitulatif compréhensible et
+  la recommandation en choix cliquables), sur récapitulatif et choix cliquables. Pose après la contre-épreuve.
+
 * **Corrections de B et essai Q29** : les 17 constats de la contre-épreuve de B corrigés, plus le gardien qui suit la
   règle (un commit et un test chacun, 114 tests verts) ; contre-épreuve de ces corrections et de la faille lancée sur
   une instance neuve. Q29 : la ligne d'état ne tourne qu'au terminal (ni Remote Control ni VS Code) ; I34 cherche une
