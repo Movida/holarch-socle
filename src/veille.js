@@ -199,18 +199,22 @@ export function commandeWindows({ powershell = mecanisme(), raison = RAISON } = 
   return [powershell, '-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(scriptDemande(raison), 'utf16le').toString('base64')];
 }
 
+// Un échec de la demande : `motif` (et `code`) vont au journal ; le message, qui peut citer la sortie de PowerShell ou un
+// chemin, au seul log du gardien.
+const panneDe = (motif, message, code = null) => Object.assign(new Error(message), { motif, ...(code !== null && { code }) });
+
 /** Lance la commande et attend « tenue » : rend le processus, ou lève s'il s'arrête, se tait ou ne se lance pas. */
 export function lancerDemande([bin, ...args], { delai = 60e3 } = {}) {
   return new Promise((ok, ko) => {
     let fini = false; let sortie = '';
     const finir = (f) => { if (fini) return; fini = true; clearTimeout(minuteur); f(); };
     const enfant = spawn(bin, args, { cwd: path.dirname(bin), stdio: ['pipe', 'pipe', 'pipe'] });
-    const minuteur = setTimeout(() => finir(() => { enfant.kill(); ko(new Error(`demande d'éveil sans réponse après ${delai / 1e3} s`)); }), delai);
-    enfant.on('error', (e) => finir(() => ko(new Error(`demande d'éveil non lancée : ${e.message}`))));
+    const minuteur = setTimeout(() => finir(() => { enfant.kill(); ko(panneDe('sans-reponse', `demande d'éveil sans réponse après ${delai / 1e3} s`)); }), delai);
+    enfant.on('error', (e) => finir(() => ko(panneDe('non-lancee', `demande d'éveil non lancée : ${e.message}`))));
     enfant.stdin.on('error', () => { /* processus déjà parti : sa sortie le dit */ });
     enfant.stdout.on('data', (d) => { sortie += d; if (/^tenue\r?$/m.test(sortie)) finir(() => ok(enfant)); });
     enfant.stderr.on('data', (d) => { sortie += d; });
-    enfant.on('exit', (code) => finir(() => ko(new Error(`demande d'éveil refusée (code ${code})${sortie.trim() ? ` : ${sortie.trim().slice(0, 200)}` : ''}`))));
+    enfant.on('exit', (code) => finir(() => ko(panneDe('refusee', `demande d'éveil refusée (code ${code})${sortie.trim() ? ` : ${sortie.trim().slice(0, 200)}` : ''}`, code))));
   });
 }
 
@@ -223,7 +227,7 @@ const attendreFin = (enfant, delai) => new Promise((ok) => {
 /**
  * Le gardien : à chaque passage, évalue les sessions ; tient la demande quand il en faut une, la relâche sinon. Ses
  * changements vont au journal (P4) : `power.held` (sessions qui la retiennent), `power.released` (raison),
- * `power.failed` (une fois par message : un passage toutes les 30 s ne répète pas la même panne).
+ * `power.failed` (`{motif, code}`, une fois par panne : un passage toutes les 30 s ne la répète pas ; le détail au log).
  */
 export function creerGardien({ accueil, journal = null, commande = () => commandeWindows(), attente = ATTENTE_MIN, maintenant = Date.now, log = () => {}, delai = 60e3 }) {
   // Le mécanisme se cherche à chaque besoin : absent au démarrage du service (Windows pas encore monté), il peut venir.
@@ -236,7 +240,11 @@ export function creerGardien({ accueil, journal = null, commande = () => command
       if (r.refuses?.length) log(`événement refusé par le journal : ${r.refuses[0].erreur}`);
     } catch (e) { log(`journal injoignable : ${e.message}`); }
   };
-  const echec = (message) => { if (message !== panne) { panne = message; ecrire('power.failed', { message }); } log(message); };
+  const echec = (err) => {
+    const cle = `${err.motif}|${err.code ?? ''}`;
+    if (cle !== panne) { panne = cle; ecrire('power.failed', { motif: err.motif, ...(err.code != null && { code: err.code }) }); }
+    log(err.message);
+  };
   const retenues = (e) => e.sessions.filter((x) => x.retient).map((x) => ({ session: x.session, etat: x.etat, ...(x.dossier && { projet: path.basename(x.dossier) }) }));
   async function relacher(raison) {
     const enfant = demande; demande = null; if (!enfant) return;
@@ -248,13 +256,13 @@ export function creerGardien({ accueil, journal = null, commande = () => command
     const e = evaluer({ accueil, maintenant: maintenant(), attente, nettoyer: true });
     if (e.besoin && !demande) {
       const c = commandeDuMoment();
-      if (!c) { echec("aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)"); return e; }
+      if (!c) { echec(panneDe('sans-mecanisme', 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)')); return e; }
       try {
         const enfant = await lancerDemande(c, { delai });
         demande = enfant; panne = null;
-        enfant.once('exit', (code) => { if (demande === enfant) { demande = null; echec(`demande d'éveil arrêtée hors du gardien (code ${code})`); } });
+        enfant.once('exit', (code) => { if (demande === enfant) { demande = null; echec(panneDe('arretee', `demande d'éveil arrêtée hors du gardien (code ${code})`, code)); } });
         const s = retenues(e); ecrire('power.held', { sessions: s }); log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`);
-      } catch (err) { echec(err.message); }
+      } catch (err) { echec(err.motif ? err : panneDe('non-lancee', err.message)); }
     } else if (!e.besoin && demande) await relacher('aucune-session');
     return e;
   }

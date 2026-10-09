@@ -221,9 +221,12 @@ test('veille : une demande refusée ou absente se dit une fois ; morte hors du g
   const refusee = creerGardien({ accueil, journal, commande: [process.execPath, '-e', "console.log('refusee : PowerSetRequest'); process.exit(3)"] });
   await refusee.passer(); await refusee.passer();
   assert.deepEqual(evs().map((e) => e.kind), ['power.failed'], 'la même panne n’est pas répétée à chaque passage');
-  assert.match(evs()[0].data.message, /refusée \(code 3\) : refusee : PowerSetRequest/);
+  assert.deepEqual(evs()[0].data, { motif: 'refusee', code: 3 }, 'ni la sortie de PowerShell ni un chemin au journal');
   const sans = creerGardien({ accueil, journal, commande: null }); await sans.passer(); await sans.passer();
-  assert.match(evs().at(-1).data.message, /aucun mécanisme/); assert.equal(evs().length, 2);
+  assert.deepEqual(evs().at(-1).data, { motif: 'sans-mecanisme' }); assert.equal(evs().length, 2);
+  const traces = []; const nonLancee = creerGardien({ accueil, journal, commande: ['/nulle/part/powershell.exe'], log: (m) => traces.push(m) });
+  await nonLancee.passer();
+  assert.deepEqual(evs().at(-1).data, { motif: 'non-lancee' }); assert.match(traces.at(-1), /non lancée : .*\/nulle\/part/, 'le détail va au log du gardien');
   // Le mécanisme absent au démarrage du service, présent ensuite : cherché à chaque besoin, la demande vient.
   const monte = { c: null }; const tardif = creerGardien({ accueil, commande: () => monte.c });
   await tardif.passer(); assert.equal(tardif.tenue(), false);
@@ -237,7 +240,7 @@ test('veille : une demande refusée ou absente se dit une fois ; morte hors du g
   const avant = evs().length;
   process.kill(g.pid(), 'SIGKILL');
   await new Promise((ok) => setTimeout(ok, 200));
-  assert.equal(g.tenue(), false); assert.match(evs()[avant].data.message, /arrêtée hors du gardien/);
+  assert.equal(g.tenue(), false); assert.deepEqual(evs()[avant].data, { motif: 'arretee' }, 'tuée par un signal : pas de code');
   await g.passer(); assert.equal(g.tenue(), true, 'reprise au passage suivant'); await g.arreter();
 });
 
