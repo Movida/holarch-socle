@@ -45,6 +45,8 @@ const interrompu = (c) => (typeof c === 'string' ? c.startsWith(INTERRUPTION) : 
  * a l'auteur devant le poste : rien à retenir.
  */
 export const distante = (env = process.env) => Boolean(env.CLAUDE_CODE_BRIDGE_SESSION_ID) || env.CLAUDE_CODE_ENVIRONMENT_KIND === 'bridge';
+// Le même test en shell, en tête de la commande du crochet : une session locale ne lance pas node à chaque invite.
+export const DISTANTE_SHELL = '{ [ -n "$CLAUDE_CODE_BRIDGE_SESSION_ID" ] || [ "$CLAUDE_CODE_ENVIRONMENT_KIND" = bridge ]; }';
 
 /** `/proc/<pid>/stat` : { comm, ppid, debut } (début en tops d'horloge depuis l'amorçage), ou null. */
 export function stat(pid) {

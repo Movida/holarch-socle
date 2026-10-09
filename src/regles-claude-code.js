@@ -10,7 +10,7 @@ import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
 import { CONTROLES } from './controles.js';
 import { lireJson, ecrireJson, fichierMarque, shell } from './commun.js';
-import { EVENEMENTS as EVENEMENTS_VEILLE } from './veille.js';
+import { EVENEMENTS as EVENEMENTS_VEILLE, DISTANTE_SHELL } from './veille.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
 const SOUS_DOSSIER = path.join('rules', 'holarch');
@@ -87,7 +87,7 @@ export function reglagesVoulus(config = {}, { node = process.execPath, holarch, 
   const crochets = [];
   if (+p.seuil_tokens > 0) crochets.push({ evenement: 'UserPromptSubmit', command: cmd('contexte', 'alerte', '--seuil', String(+p.seuil_tokens)) });
   if (p.reprise) crochets.push({ evenement: 'SessionStart', matcher: 'startup|clear|compact', command: cmd('contexte', 'debut') });
-  if (veille) for (const ev of EVENEMENTS_VEILLE) crochets.push({ evenement: ev, command: cmd('veille', 'noter', ev) });
+  if (veille) for (const ev of EVENEMENTS_VEILLE) crochets.push({ evenement: ev, command: `${DISTANTE_SHELL} && ${cmd('veille', 'noter', ev)}` });
   return { cles: { ...(cc.reglages || {}) }, crochets };
 }
 

@@ -333,7 +333,15 @@ test('veille : une règle applicable qui désigne le contrôle pose les crochets
   const o = { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv/a' };
   const v = reglagesVoulus({}, { ...o, veille: true });
   assert.deepEqual(v.crochets.map((c) => c.evenement), ['UserPromptSubmit', 'Stop', 'StopFailure', 'PermissionRequest', 'Elicitation', 'SessionEnd']);
-  assert.equal(v.crochets[1].command, "HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' veille noter Stop 2>/dev/null || true");
+  assert.equal(v.crochets[1].command, `{ [ -n "$CLAUDE_CODE_BRIDGE_SESSION_ID" ] || [ "$CLAUDE_CODE_ENVIRONMENT_KIND" = bridge ]; } && HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' veille noter Stop 2>/dev/null || true`);
+  // Lancée par le shell comme Claude Code lance un crochet : une session locale ne démarre pas node ; une distante, si.
+  const temoin = path.join(tmp(), 'lance'); const faux = path.join(tmp(), 'node'); fs.writeFileSync(faux, `#!/bin/sh\ntouch '${temoin}'\n`, { mode: 0o755 });
+  const commande = reglagesVoulus({}, { ...o, node: faux, veille: true }).crochets[0].command;
+  const lancer = (env) => { fs.rmSync(temoin, { force: true }); const r = spawnSync('/bin/sh', ['-c', commande], { env: { PATH: process.env.PATH, ...env } }); return [r.status, fs.existsSync(temoin)]; };
+  assert.deepEqual(lancer({}), [0, false], 'session locale : rien de lancé, le tour continue');
+  assert.deepEqual(lancer({ CLAUDE_CODE_ENVIRONMENT_KIND: 'bridge' }), [0, true]);
+  assert.deepEqual(lancer({ CLAUDE_CODE_BRIDGE_SESSION_ID: 'cse_1' }), [0, true]);
+  assert.deepEqual(lancer({ CLAUDE_CODE_ENVIRONMENT_KIND: 'local' }), [0, false]);
   assert.deepEqual(crochetVoulu(v.crochets[5].command), { regle: 'veille-retardee', cle: 'crochet:veille:SessionEnd', message: 'crochet de veille non posé (SessionEnd)' });
   // Une règle d'un autre nom qui désigne le contrôle : le crochet absent lui revient.
   assert.equal(crochetVoulu(v.crochets[5].command, [{ id: 'garder-eveil', applicable: true, controles: ['veille-retardee'] }]).regle, 'garder-eveil');
