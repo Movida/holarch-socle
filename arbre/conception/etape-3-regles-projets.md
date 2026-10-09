@@ -886,22 +886,19 @@ suivantes) : une consigne récoltée et approuvée n'est plus redite ensuite.
   contrôle statique. Test visuel passé (politique de contenu de X3 comprise) dans un conteneur jetable de l'image du socle,
   Chromium et 99 bibliothèques extraits de l'ancien conteneur (il ne démarre plus hors de VS Code). Seconde contre-épreuve
   par un sous-agent neuf : (3) à (10) complets, X2 et E2 incomplets, constats au Reste.
+- **Fait (2026-10-09)** : constats (A) à (H) de la seconde contre-épreuve, puis (1) à (5) d'une troisième, un commit
+  et un test chacun (93 tests verts), envoyés. `gitLu` pour lire un dépôt quelconque (inventaire, audit) : crochets,
+  filtres, pilotes, signatures, transport et sous-modules neutralisés, réglages par `GIT_CONFIG_COUNT` ; `git` normal
+  pour les dépôts de l'auteur ; `gitInventaire`. En-têtes illisibles : comptés seulement s'ils pouvaient être la couche
+  manquante, signalés sinon ; deux en-têtes du socle cités. Copie de service non posée (travail en cours d'une autre
+  session dans la copie de travail).
 - **Reste** :
-  0. **D'abord, constats de la seconde contre-épreuve (2026-10-08, soir)** : (A) bloquant, reproduit : le crochet
-     `post-index-change` (`.git/hooks` ou `core.hooksPath` local) s'exécute au `git status` de l'inventaire ;
-     `--no-optional-locks` ou `-c core.hooksPath=/dev/null` l'empêchent (le premier n'écrit plus l'index d'un dépôt
-     tiers) ; (B) bloquant, reproduit : le `filter.<x>.clean` déclaré dans la configuration d'un sous-module
-     (`.git/modules/<s>/config`) s'exécute au `status` du parent (`core.fsmonitor`, passé en `-c`, est bien transmis) ;
-     (C) un nom de pilote contenant `=` (`filter.a=b.clean`) échappe au `-c` : passer par `GIT_CONFIG_COUNT/KEY/VALUE` ;
-     (D) régression introduite par X2 : `git()` sert aussi aux écritures dans les dépôts de l'auteur (`creation.js`,
-     commit du contexte dans le profil, `archive` de `controles.js` et `service.js`) ; un filtre local (git-crypt, LFS en
-     `--local`) y serait neutralisé : fichier vu modifié, commit en clair ; latent (aucun dépôt du poste) ; piste : ne
-     neutraliser que pour l'inventaire des dépôts lus ; (E) un type inconnu (faute de frappe) ou un projet non déclaré
-     compte tout en-tête illisible connu, même d'un projet sans rapport : garde et `regles appliquer` bloquées à tort ;
-     (F) `erreur_entete` n'est montrée nulle part ; ce dépôt en a deux aujourd'hui (« Nested mappings », `description`
-     non citée) : `arbre/decisions/2026-10-03-passerelle-par-site.md` (décision `stable`) et
-     `arbre/conception/essai-site-travail.md` ; (G) mineur : le contrôle statique d'échappement de `app.js` ne voit que
-     cinq noms de variables ; (H) mineur : avec `acces_distant.claude` réglé mais faux, le message dit « PATH ».
+  0. **D'abord, poser la copie de service** (`holarch service poser`) dès que la copie de travail est propre ; puis,
+     mineurs de la troisième contre-épreuve (2026-10-09) : (6) le contrôle d'échappement de `app.js` ne voit pas
+     `${f.nom || "—"}`, `${f.tags.join(…)}`, `${f["nom"]}`, `${nom}`, `${c ? f.nom : ""}` (aucune fuite réelle trouvée) ;
+     (7) `gitleaks git --pre-commit` lance son git sans neutralisation (dépôt de l'auteur, cohérent avec (D) ; non
+     éprouvé ; `osv-scanner` non vérifié) ; (8) `trouverOutil` retient un réglage qui existe sans être exécutable (un
+     dossier).
   0. **Pose dans le projet privé, contenu retenu par l'auteur (2026-10-08)** : les quatre adoptions (comparaison
      d'images native, skill `verify`, relecteur UX, essai de Playwright CLI), règles dans son arbre, et cinq éléments :
      documents d'état allégés, sous-ensemble rapide de ses vérificateurs de tailles dans sa vérification, tests tirés des

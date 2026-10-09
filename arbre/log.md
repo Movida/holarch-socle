@@ -1,5 +1,22 @@
 # Journal de l'arbre
 
+## 2026-10-09
+
+* **Constats des contre-épreuves corrigés** (A à H, puis 1 à 5 d'une troisième) : dix commits avec un test qui
+  reproduit chacun (93 tests verts), envoyés sur `origin/main` sur demande de l'auteur. `gitLu` (inventaire, contrôles
+  de l'audit) lit un dépôt quelconque sans rien exécuter de ce qu'il déclare : crochets, filtres et pilotes (passés par
+  `GIT_CONFIG_COUNT`, un nom à « = » compris), programmes de signature, transport d'un clone partiel, sous-modules ;
+  `git` reste normal pour les dépôts de l'auteur (régression d'X2 sur les écritures levée) ; la lecture de l'inventaire
+  s'appelle `gitInventaire`. Un type inconnu ne compte que les en-têtes illisibles qui pouvaient être lui (indices
+  `type` et `id` lus ligne à ligne, sans conclure sur un conflit) ; les autres de l'arbre du projet deviennent un signal.
+  Deux en-têtes du socle cités (texte inchangé, dont une décision `stable`). Copie de service non posée : la copie de
+  travail porte le travail en cours d'une autre session (tranche 12).
+  Leçon de clôture : déroulé annoncé (A à D, E et F, G et H, contre-épreuve, pose) ; réalisé jusqu'à la contre-épreuve,
+  qui a trouvé deux bloquants de plus (transport et signatures), corrigés ; la pose n'est pas atteinte. Ce qui a fait
+  dévier : une neutralisation pensée par constat plutôt que par liste de ce qu'un dépôt peut faire lancer, et une
+  attente de test qui se reconnaissait elle-même. La demande qui y aurait mené : « corrige A à H, en partant de tout ce
+  qu'une configuration de dépôt peut faire exécuter ».
+
 ## 2026-10-08
 
 * **Essai de Q15 avorté, sessions coupées** (soir) : l'essai demandait d'arrêter le service distant de holarch-socle
