@@ -95,8 +95,9 @@ export function veille(e) {
   if (!e.sessions.length) l.push('aucune session distante notée');
   for (const s of e.sessions) l.push(`  ${s.etat.padEnd(9)} ${s.dossier ? s.dossier.split('/').pop() : '?'}  ${s.session.slice(0, 8)}  depuis ${heure(s.depuis)}${s.etat === 'attend' ? (s.retient ? ` (retient encore ${s.reste_min} min)` : ' (ne retient plus)') : ''}`);
   if (e.finies.length) l.push(`${e.finies.length} session(s) finie(s) sans fin dite (processus disparu)`);
-  // Ce que demandent les sessions, et ce que le gardien dit tenir (écrit à chacun de ses passages).
-  const vu = e.tenu?.maj ? ` (passage du gardien à ${heure(e.tenu.maj)})` : ' (aucun passage du gardien)';
-  l.push(e.besoin ? `une session retient la veille ; demande d’éveil ${e.tenu?.tenue ? 'tenue' : 'non tenue'}${vu}` : `rien ne retient la veille${e.tenu?.tenue ? ` ; demande d’éveil encore tenue${vu}` : ''}`);
+  // Ce que demandent les sessions et ce que tient le gardien, puis ce qui ne va pas : les mêmes constats que le contrôle.
+  const vu = e.passage ? ` (dernier passage du gardien à ${heure(e.passage)})` : ' (aucun passage du gardien)';
+  l.push(e.besoin ? `une session retient la veille ; demande d’éveil ${e.tenue ? 'tenue' : 'non tenue'}${vu}` : `rien ne retient la veille${e.tenue ? ' ; demande d’éveil encore tenue, relâchée au prochain passage du gardien' : ''}${vu}`);
+  for (const c of e.constats) l.push(`à voir : ${c.message}`);
   return l.join('\n');
 }

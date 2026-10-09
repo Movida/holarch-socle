@@ -7,12 +7,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { noter, evaluer, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { noter, evaluer, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte } from '../src/materialisation.js';
 import { executer } from '../src/controles.js';
 import { Journal } from '../src/stockage/journal.js';
+import * as affichage from '../bin/affichage.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
@@ -433,21 +434,31 @@ test('veille : une erreur du crochet, configuration illisible comprise, ne fait 
   assert.equal(r.status, 0, 'un crochet ne fait jamais échouer un tour');
   const erreur = JSON.parse(fs.readFileSync(fichierErreur(accueil), 'utf8'));
   assert.equal(erreur.evenement, 'Stop'); assert.ok(erreur.message.length > 0);
-  const c = (o) => executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'actif', besoin: false, ...o } }, 'audit').ecarts;
-  const e = c({ erreur });
-  assert.deepEqual(e.map((x) => x.cle), ['crochet']); assert.match(e[0].message, /crochet de veille en erreur le .* \(Stop\)/);
+  const c = () => executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'actif', besoin: false }, accueil }, 'audit').ecarts;
+  const e = c();
+  assert.deepEqual(e.map((x) => x.cle), ['crochet']); assert.match(e[0].message, /^crochet de veille en erreur le \d{4}-\d\d-\d\d \d\d:\d\d \(Stop\)/, 'à l’heure locale, comme holarch veille');
   assert.ok(!e[0].message.includes(accueil), 'ni chemin ni message dans l’écart');
-  assert.deepEqual(c({ erreur: { ...erreur, at: new Date(Date.now() - 8 * 864e5).toISOString() } }), [], 'plus d’une semaine : plus dite');
+  ecrire(fichierErreur(accueil), JSON.stringify({ ...erreur, at: new Date(Date.now() - 8 * 864e5).toISOString() }));
+  assert.deepEqual(c(), [], 'plus d’une semaine : plus dite');
 });
 
 test('veille : le contrôle compare ce que le gardien dit tenir à ce que demandent les sessions, accès distant ou /remote-control', async () => {
-  const c = (veille) => executer('veille-retardee', { veille }, 'audit').ecarts.map((x) => x.cle);
-  const frais = { maj: new Date().toISOString(), besoin: true, tenue: true };
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: true, tenu: frais }), []);
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: true, tenu: { ...frais, tenue: false } }), ['retenue'], 'le gardien tourne mais ne tient rien');
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: true, tenu: { ...frais, maj: new Date(Date.now() - 5 * min).toISOString() } }), ['retenue'], 'gardien bloqué : plus de passage');
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'absent', besoin: true, tenu: null }), ['gardien', 'retenue'], 'session reliée par /remote-control, sans gardien');
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: false, tenu: null }), []);
+  const lu = tmp();
+  // `ecrit` : ce que le gardien a écrit à son dernier passage (absent : aucun passage).
+  const c = (veille, ecrit) => {
+    if (ecrit) ecrire(fichierGardien(lu), JSON.stringify(ecrit)); else fs.rmSync(fichierGardien(lu), { force: true });
+    return executer('veille-retardee', { veille: { mecanisme: '/ps', ...veille }, accueil: lu }, 'audit').ecarts.map((x) => x.cle);
+  };
+  const frais = { maj: new Date().toISOString(), besoin: true, tenue: true }; const vieux = new Date(Date.now() - 5 * min).toISOString();
+  assert.deepEqual(c({ gardien: 'actif', besoin: true }, frais), []);
+  assert.deepEqual(c({ gardien: 'actif', besoin: true }, { ...frais, tenue: false }), ['retenue'], 'le gardien tourne mais ne tient rien');
+  assert.deepEqual(c({ gardien: 'actif', besoin: true }, { ...frais, maj: vieux }), ['retenue'], 'gardien bloqué : plus de passage');
+  assert.deepEqual(c({ gardien: 'absent', besoin: true }, null), ['gardien', 'retenue'], 'session reliée par /remote-control, sans gardien');
+  assert.deepEqual(c({ gardien: 'actif', besoin: false }, null), []);
+  // Une demande tenue sans besoin : relâchée au prochain passage d'un gardien qui passe ; dite quand il ne passe plus.
+  assert.deepEqual(c({ gardien: 'actif', besoin: false }, frais), [], 'relâchée au passage suivant');
+  assert.deepEqual(c({ gardien: 'actif', besoin: false }, { ...frais, maj: vieux }), ['sans-besoin'], 'gardien bloqué qui tenait la demande');
+  assert.deepEqual(c({ gardien: 'arrêté', besoin: false }, { ...frais, maj: vieux }), ['gardien'], 'arrêté, sa demande est morte avec lui');
   // Le gardien écrit à chaque passage ce qu'il tient ; le contrôle le lit sur le poste (accueil du site).
   const accueil = tmp();
   const g = creerGardien({ accueil, commande: TEMOIN });
@@ -458,4 +469,23 @@ test('veille : le contrôle compare ce que le gardien dit tenir à ce que demand
   assert.ok(!fs.readdirSync(dossierVeille(accueil)).includes('veille-gardien.json'), 'hors du dossier des notes que le gardien surveille');
   await g.arreter();
   assert.equal(JSON.parse(fs.readFileSync(fichierGardien(accueil), 'utf8')).tenue, false, 'arrêté, il ne tient plus rien');
+});
+
+test('veille : holarch veille et le contrôle disent la même chose de la demande d’éveil (une seule lecture, l’heure locale)', () => {
+  // Le cas de la contre-épreuve : un état du gardien vieux de 3 h qui disait tenir la demande, le gardien arrêté, une
+  // session qui travaille.
+  const accueil = tmp();
+  ecrire(fichierGardien(accueil), JSON.stringify({ maj: new Date(Date.now() - 3 * 60 * min).toISOString(), besoin: true, tenue: true }));
+  const etat = etatGardien({ accueil, gardien: 'arrêté', besoin: true });
+  assert.deepEqual([etat.tenue, etat.frais], [false, false]);
+  const vue = affichage.veille({ sessions: [], finies: [], mecanisme: '/ps', unite: 'holarch-veille.service', ...etat });
+  assert.match(vue, /une session retient la veille ; demande d’éveil non tenue/);
+  const ecarts = executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'arrêté', besoin: true }, accueil }, 'audit').ecarts;
+  const retenue = ecarts.find((x) => x.cle === 'retenue').message;
+  assert.ok(vue.includes(`à voir : ${retenue}`), 'le même constat, mot pour mot');
+  assert.match(retenue, /dernier passage du gardien le \d{4}-\d\d-\d\d \d\d:\d\d\)/);
+  // L'erreur d'un crochet se voit aussi dans la vue.
+  ecrire(fichierErreur(accueil), JSON.stringify({ at: new Date().toISOString(), evenement: 'Stop', message: 'x' }));
+  const avecErreur = affichage.veille({ sessions: [], finies: [], mecanisme: '/ps', unite: 'holarch-veille.service', ...etatGardien({ accueil, gardien: 'actif', besoin: false }) });
+  assert.match(avecErreur, /à voir : crochet de veille en erreur le .* \(Stop\)/);
 });
