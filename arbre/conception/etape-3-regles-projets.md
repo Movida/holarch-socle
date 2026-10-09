@@ -1008,7 +1008,9 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      `-v` à une partie ou `${…}` coupé au `:`, dossier personnel Windows (`/mnt/c/Users/…`) absent des sensibles, volume
      `o=bind`, faux positifs (`${localWorkspaceFolderBasename}`, `/` final), lien au chemin admis, sessions de
      sous-dossier invisibles, test de création sans nom à encoder (prendre `Neuf_2.x`), `chown` après la connexion
-     (`onCreateCommand`), jetons de l'hôte par `remoteEnv`, un conteneur sans dépôt git (non audité).
+     (`onCreateCommand`), jetons de l'hôte par `remoteEnv`, un conteneur sans dépôt git (non audité). Second envoi du rapport :
+     `BOUGE` (5 s) à peine au-dessus de la fin de tour la plus tardive mesurée (4,7 s sur 89 cas) ; signaler un projet qui a
+     à la fois un conteneur et un accès distant sur l'hôte (la voie du majeur 6).
   0. **Suite prévue** : corriger la contre-épreuve ci-dessus ; puis, sur l'accord de l'auteur : approbation du contrat
      événement 0.10.0 (règles `veille-retardee`, passée en `verified`, `conteneur-isole` et `approbation-recapitulee`
      approuvées le 2026-10-09 ; d'ici la pose, l'audit horaire de l'ancienne copie dit leurs écarts), `holarch regles appliquer` (crochets et
