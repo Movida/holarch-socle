@@ -5,7 +5,7 @@ description: Amendement de la décision environnement-d-execution (livraison B) 
 status: draft
 links:
   derives_from: [/arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/conception/etape-3-regles-projets.md]
-  modifies: [/arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/conception/contrats/evenement.md, "profil:/arbre/rules.yaml"]
+  modifies: [/arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/conception/contrats/evenement.md, /arbre/conception/contrats/config.md, "profil:/arbre/rules.yaml"]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-09-partage-et-bac-a-sable.md]
 ---
 

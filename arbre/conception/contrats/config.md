@@ -3,10 +3,10 @@ type: contract
 title: Contrat — registre de configuration
 description: Les clés de réglage (`config`) qu'un nœud de l'arbre peut porter, qui les lit, et comment elles se fusionnent d'une couche à l'autre.
 status: draft
-version: 0.3.0
+version: 0.4.0
 links:
   derives_from: [/arbre/conception/contrats/noeud.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-identite-par-contexte.md, /arbre/decisions/2026-10-07-creation-de-projet.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-identite-par-contexte.md, /arbre/decisions/2026-10-07-creation-de-projet.md, /arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md]
 ---
 
 # Contrat — registre de configuration
@@ -23,6 +23,7 @@ de ce registre n'est lue par personne ; une clé s'y ajoute avec le mécanisme q
 | `outils_surveilles` | profil | contrôle `outils-a-jour` | `[{nom, commande, github \| node: lts}]` |
 | `claude_code` | profil | adaptateur Claude Code (compte) | `reglages` : clés de `settings.json` (`autoCompactWindow`…) ; `passation` : `{seuil_tokens, reprise}` |
 | `identite` | profil, contexte, projet | `holarch regles appliquer` (réglage local de git), contrôle `identite-de-commit` | `{nom, email}` : l'identité sous laquelle committent les projets déclarés (décision `identite-par-contexte`) |
+| `montage_sensible` | profil, contexte, type, projet | contrôle `montage-sensible` (décision `veille-et-conteneur-precisions`) | `exceptions` : `{ecart, pourquoi}`, la clé exacte d'un écart et sa raison (sans raison, l'exception ne vaut pas) ; le risque reste, l'écart ne se dit plus |
 | `creation` | profil, contexte, type | `holarch projet creer` (décision `creation-de-projet`) | `dossier` (parent du projet, `~` par défaut), `visibilite` (`private` par défaut, `public`), `licence` (nom d'un modèle du socle, `modeles/projet/licences/`), `journal` (chemin du journal d'un arbre créé), `proprietaire` (compte GitHub ; par défaut, le compte actif de `gh`), `etapes` : `{github, conteneur, distant}`, oui par défaut |
 
 Les réglages du **site** (outils, délais, interface) ne sont pas des réglages de l'arbre : ils vivent dans la

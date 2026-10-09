@@ -645,8 +645,12 @@ function montageSensible(ctx) {
     }
   }
   if (publiees.size && !construits.length) nonLus.push(`features publiées (${[...publiees].join(', ')}) non lues, et aucun conteneur du dépôt à inspecter`);
+  // Écarts exceptés par l'arbre du projet (`montage_sensible.exceptions` : `{ecart, pourquoi}`, la clé exacte d'un écart
+  // et sa raison), comme les exceptions des données personnelles : le risque reste, l'écart ne se dit plus.
+  const exceptes = new Set([].concat(ctx.config?.montage_sensible?.exceptions || []).filter((x) => x?.ecart && x?.pourquoi).map((x) => String(x.ecart)));
+  const gardes = ecarts.filter((e) => !exceptes.has(e.cle));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
-  return nonLus.length ? { ecarts, indisponible: nonLus.join(' ; ') } : { ecarts };
+  return nonLus.length ? { ecarts: gardes, indisponible: nonLus.join(' ; ') } : { ecarts: gardes };
 }
 
 /**

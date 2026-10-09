@@ -697,6 +697,13 @@ test('Contre-épreuve du conteneur (6) : ce qui, dans le dépôt que le conteneu
   const r = lire();
   assert.deepEqual(r.ecarts.map((e) => e.cle), ['crochets:.claude/settings.local.json', 'acces-distant:projet']);
   assert.match(r.ecarts[0].message, /crochets SessionStart dans un dépôt que le conteneur écrit/);
+  // L'arbre du projet excepte un écart par sa clé exacte, avec sa raison (le socle, jusqu'à la livraison D) ; sans
+  // raison, l'exception ne vaut pas.
+  ctx.config = { montage_sensible: { exceptions: [{ ecart: 'acces-distant:projet' }, { ecart: 'crochets', pourquoi: 'x' }] } };
+  assert.deepEqual(lire().ecarts.map((e) => e.cle), ['crochets:.claude/settings.local.json', 'acces-distant:projet']);
+  ctx.config = { montage_sensible: { exceptions: [{ ecart: 'acces-distant:projet', pourquoi: 'risque accepté jusqu’à D' }] } };
+  assert.deepEqual(lire().ecarts.map((e) => e.cle), ['crochets:.claude/settings.local.json']);
+  delete ctx.config;
   // Sans conteneur, rien de tout cela n'est un écart.
   fs.rmSync(path.join(d, '.devcontainer'), { recursive: true });
   assert.deepEqual(lire().ecarts, []);
