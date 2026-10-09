@@ -98,6 +98,25 @@ test('veille : un tour interrompu (aucun Stop) ou une question à l’auteur res
   assert.equal(e('2026-10-09T11:00:00Z').etat, 'travaille');
 });
 
+test('veille : une session qui « travaille » sans que sa transcription bouge depuis 30 min attend (permission, élicitation, Stop manqué) ; une attente suivie d’écritures travaille de nouveau', () => {
+  const accueil = tmp(); const t = path.join(tmp(), 's.jsonl'); ecrire(t, ligne({ type: 'user', timestamp: '2026-10-09T09:00:00.000Z', message: { content: 'fais X' } }));
+  const ecrite = (ms) => fs.utimesSync(t, new Date(ms), new Date(ms));
+  const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
+  note(accueil, 'UserPromptSubmit', 's', { t: T0, transcription: t });
+  // Un `Stop` manqué : la note dit « travaille » des heures ; la transcription, immobile depuis 10 h 05, dit le contraire.
+  ecrite(T0 + 5 * min);
+  assert.deepEqual([e(T0 + 30 * min).etat, e(T0 + 30 * min).retient], ['travaille', true], 'écrite il y a 25 min');
+  assert.deepEqual([e(T0 + 36 * min).etat, e(T0 + 36 * min).depuis, e(T0 + 36 * min).retient], ['attend', new Date(T0 + 5 * min).toISOString(), false]);
+  assert.equal(evaluer({ accueil, maintenant: T0 + 10 * 60 * min, enVie }).besoin, false, 'plus tenu éveillé jusqu’à l’archivage');
+  // Une demande de permission attend l'auteur ; accordée, le tour reprend et la transcription bouge : la session travaille.
+  assert.equal(note(accueil, 'PermissionRequest', 's', { t: T0 + 40 * min, transcription: t }).etat, 'attend');
+  ecrite(T0 + 40 * min + 1e3);
+  assert.equal(e(T0 + 41 * min).etat, 'attend', 'ce qu’écrit la demande elle-même ne compte pas');
+  ecrite(T0 + 50 * min);
+  assert.deepEqual([e(T0 + 55 * min).etat, e(T0 + 55 * min).retient], ['travaille', true]);
+  assert.equal(note(accueil, 'Elicitation', 's', { t: T0 + 60 * min, transcription: t }).etat, 'attend', 'une élicitation MCP attend aussi');
+});
+
 // Demande d'éveil témoin : dit « tenue », tient jusqu'à la fin de son entrée standard.
 const TEMOIN = [process.execPath, '-e', "process.stdout.write('tenue\\n'); process.stdin.resume(); process.stdin.on('end', () => process.exit(0));"];
 
@@ -125,7 +144,7 @@ test('veille : le gardien tient la demande d’éveil tant qu’une session l’
 test('veille : une demande refusée ou absente se dit une fois ; morte hors du gardien, elle est reprise au passage suivant', async () => {
   const accueil = tmp(); const journal = new Journal(accueil, 'local');
   const evs = () => [...journal.lire()];
-  note(accueil, 'UserPromptSubmit', 'a', { session: () => processusSession(process.pid) });
+  note(accueil, 'UserPromptSubmit', 'a', { session: () => processusSession(process.pid), t: Date.now() });
   const refusee = creerGardien({ accueil, journal, commande: [process.execPath, '-e', "console.log('refusee : PowerSetRequest'); process.exit(3)"] });
   await refusee.passer(); await refusee.passer();
   assert.deepEqual(evs().map((e) => e.kind), ['power.failed'], 'la même panne n’est pas répétée à chaque passage');
@@ -198,9 +217,9 @@ test('veille : le gardien est posé et retiré avec le premier et le dernier acc
 test('veille : une règle applicable qui désigne le contrôle pose les crochets ; une règle brouillon n’en pose aucun ; leur absence se dit', () => {
   const o = { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv/a' };
   const v = reglagesVoulus({}, { ...o, veille: true });
-  assert.deepEqual(v.crochets.map((c) => c.evenement), ['UserPromptSubmit', 'Stop', 'StopFailure', 'SessionEnd']);
+  assert.deepEqual(v.crochets.map((c) => c.evenement), ['UserPromptSubmit', 'Stop', 'StopFailure', 'PermissionRequest', 'Elicitation', 'SessionEnd']);
   assert.equal(v.crochets[1].command, "HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' veille noter Stop 2>/dev/null || true");
-  assert.deepEqual(crochetVoulu(v.crochets[3].command), { regle: 'veille-retardee', cle: 'crochet:veille:SessionEnd', message: 'crochet de veille non posé (SessionEnd)' });
+  assert.deepEqual(crochetVoulu(v.crochets[5].command), { regle: 'veille-retardee', cle: 'crochet:veille:SessionEnd', message: 'crochet de veille non posé (SessionEnd)' });
   // Les crochets de passation gardent leur commande (rien à reposer après ce changement).
   assert.equal(reglagesVoulus({ claude_code: { passation: { reprise: true } } }, o).crochets[0].command, "HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' contexte debut 2>/dev/null || true");
   const regle = (statut) => ({ id: 'veille-retardee', fiche: 'f', niveau: 'blocking', controles: ['veille-retardee'], statut, origine: 'profil', applicable: statut === 'stable', provenance: { arbre: 'p', noeud: 'n' } });
@@ -208,12 +227,12 @@ test('veille : une règle applicable qui désigne le contrôle pose les crochets
   const [brouillon] = materialiserCompte({ regles: [regle('draft')], config: {} }, [{ home }], { ...o, ecrire: false });
   assert.deepEqual(brouillon.reglages.crochets.poses, []);
   const [m] = materialiserCompte({ regles: [regle('stable')], config: {} }, [{ home }], o);
-  assert.equal(m.reglages.crochets.poses.length, 4); assert.deepEqual(m.plan.fichiers, [], 'aucune consigne dans le contexte');
+  assert.equal(m.reglages.crochets.poses.length, 6); assert.deepEqual(m.plan.fichiers, [], 'aucune consigne dans le contexte');
   const s = JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8'));
-  assert.deepEqual(Object.keys(s.hooks).sort(), ['SessionEnd', 'Stop', 'StopFailure', 'UserPromptSubmit']);
-  assert.equal(appliquerReglages(home, reglagesVoulus({}, { holarch: o.holarch, accueil: o.accueil, veille: true })).crochets.inchanges.length, 4, 'idempotent');
+  assert.deepEqual(Object.keys(s.hooks).sort(), ['Elicitation', 'PermissionRequest', 'SessionEnd', 'Stop', 'StopFailure', 'UserPromptSubmit']);
+  assert.equal(appliquerReglages(home, reglagesVoulus({}, { holarch: o.holarch, accueil: o.accueil, veille: true })).crochets.inchanges.length, 6, 'idempotent');
   const [retire] = materialiserCompte({ regles: [regle('deprecated')], config: {} }, [{ home }], o);
-  assert.equal(retire.reglages.crochets.retires.length, 4, 'retirés avec la règle');
+  assert.equal(retire.reglages.crochets.retires.length, 6, 'retirés avec la règle');
   assert.equal(JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8')).hooks, undefined);
 });
 

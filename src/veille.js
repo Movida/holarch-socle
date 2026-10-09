@@ -17,8 +17,8 @@ export const ATTENTE_MIN = 30;
 export const dossierVeille = (accueil) => path.join(accueil, 'veille');
 
 // État qu'un crochet note ; `SessionEnd` efface la note. `Stop` ne vient pas après une interruption : la transcription
-// la dit (`attenteDansTranscription`).
-const ETATS = { UserPromptSubmit: 'travaille', Stop: 'attend', StopFailure: 'attend' };
+// la dit (`attenteDansTranscription`). Une demande de permission ou une élicitation MCP attend l'auteur au milieu d'un tour.
+const ETATS = { UserPromptSubmit: 'travaille', Stop: 'attend', StopFailure: 'attend', PermissionRequest: 'attend', Elicitation: 'attend' };
 export const EVENEMENTS = [...Object.keys(ETATS), 'SessionEnd'];
 // Outils qui attendent l'auteur : la session a fini de travailler, elle attend sa réponse.
 const ATTENDENT = new Set(['AskUserQuestion', 'ExitPlanMode']);
@@ -89,6 +89,18 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
   return null;
 }
 
+/** Dernière écriture (ms) de la transcription d'une session, ou null. */
+export function activite(transcription) {
+  if (!transcription) return null;
+  try { return fs.statSync(transcription).mtimeMs; } catch { return null; }
+}
+
+// Une session « travaille » tant que sa transcription bouge : immobile depuis l'attente permise, elle attend quelque
+// chose (permission, élicitation, `Stop` manqué) et compte comme une attente depuis sa dernière écriture (contre-épreuve
+// de B : aucun silence de plus de 11 min pendant un tour, sur 301 tours de 67 sessions distantes). Une attente suivie
+// d'écritures (permission accordée, réponse) travaille de nouveau ; BOUGE laisse passer ce qu'écrit la fin du tour.
+const BOUGE = 5e3;
+
 /**
  * Les sessions notées et ce qu'elles demandent : `besoin` si l'une travaille, ou attend depuis moins de `attente`
  * minutes. Une session dont le processus est mort est finie ; `nettoyer` efface sa note (le gardien, pas une lecture),
@@ -107,7 +119,14 @@ export function evaluer({ accueil, maintenant = Date.now(), attente = ATTENTE_MI
     let etat = s.etat; let depuis = Date.parse(s.depuis);
     // Sans processus connu, une session qui « travaille » ne se vérifie pas : bornée comme une attente.
     if (etat === 'travaille' && !s.pid) etat = 'attend';
-    if (etat === 'travaille') { const t = attenteDansTranscription(s.transcription); if (Number.isFinite(t) && t >= depuis) { etat = 'attend'; depuis = t; } }
+    const ecrite = s.pid ? activite(s.transcription) : null;
+    if (etat === 'attend' && ecrite !== null && ecrite > depuis + BOUGE) etat = 'travaille';
+    if (etat === 'travaille') {
+      const t = attenteDansTranscription(s.transcription);
+      const derniere = Math.max(depuis, ecrite ?? depuis);
+      if (Number.isFinite(t) && t >= depuis) { etat = 'attend'; depuis = t; }
+      else if (maintenant - derniere >= attente * 60e3) { etat = 'attend'; depuis = derniere; }
+    }
     const reste = etat === 'travaille' ? null : depuis + attente * 60e3 - maintenant;
     if (!s.pid && reste !== null && reste < -864e5) { effacer(f); continue; }
     sessions.push({ session: s.session, etat, depuis: new Date(depuis).toISOString(), retient: reste === null || reste > 0,
