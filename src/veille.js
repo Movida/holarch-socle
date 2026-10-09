@@ -89,10 +89,19 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
   return null;
 }
 
-/** Dernière écriture (ms) de la transcription d'une session, ou null. */
+/**
+ * Dernière écriture (ms) d'une session : sa transcription et celles de ses sous-agents (`<session>/subagents/*.jsonl`),
+ * qui bougent encore après `Stop` quand un sous-agent de fond travaille ; null si rien ne se lit. Un shell de fond
+ * n'écrit dans aucune transcription : il ne retient rien (un serveur permanent tiendrait le poste sans fin).
+ */
 export function activite(transcription) {
   if (!transcription) return null;
-  try { return fs.statSync(transcription).mtimeMs; } catch { return null; }
+  const dates = [];
+  const lire = (f) => { try { dates.push(fs.statSync(f).mtimeMs); } catch { /* absente */ } };
+  lire(transcription);
+  const d = path.join(transcription.replace(/\.jsonl$/, ''), 'subagents');
+  try { for (const n of fs.readdirSync(d)) if (n.endsWith('.jsonl')) lire(path.join(d, n)); } catch { /* aucun sous-agent */ }
+  return dates.length ? Math.max(...dates) : null;
 }
 
 // Une session « travaille » tant que sa transcription bouge : immobile depuis l'attente permise, elle attend quelque

@@ -117,6 +117,20 @@ test('veille : une session qui « travaille » sans que sa transcription bouge d
   assert.equal(note(accueil, 'Elicitation', 's', { t: T0 + 60 * min, transcription: t }).etat, 'attend', 'une élicitation MCP attend aussi');
 });
 
+test('veille : après Stop, un sous-agent de fond qui écrit retient le poste tant que sa transcription bouge ; un shell de fond, non', () => {
+  const accueil = tmp(); const t = path.join(tmp(), 'sess.jsonl'); ecrire(t, ligne({ type: 'assistant', timestamp: '2026-10-09T10:00:00.000Z', message: { content: [] } }));
+  fs.utimesSync(t, new Date(T0), new Date(T0));
+  const agent = path.join(t.replace(/\.jsonl$/, ''), 'subagents', 'agent-a1.jsonl'); ecrire(agent, ligne({ type: 'assistant' }));
+  const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
+  note(accueil, 'Stop', 's', { t: T0, transcription: t });
+  fs.utimesSync(agent, new Date(T0 + 50 * min), new Date(T0 + 50 * min));
+  assert.deepEqual([e(T0 + 70 * min).etat, e(T0 + 70 * min).retient], ['travaille', true], 'le sous-agent a écrit il y a 20 min, 70 min après Stop');
+  assert.deepEqual([e(T0 + 81 * min).etat, e(T0 + 81 * min).retient], ['attend', false], '30 min sans écriture');
+  // Un shell de fond n'écrit dans aucune transcription : l'attente compte depuis Stop.
+  fs.rmSync(path.dirname(agent), { recursive: true });
+  assert.equal(e(T0 + 31 * min).retient, false);
+});
+
 // Demande d'éveil témoin : dit « tenue », tient jusqu'à la fin de son entrée standard.
 const TEMOIN = [process.execPath, '-e', "process.stdout.write('tenue\\n'); process.stdin.resume(); process.stdin.on('end', () => process.exit(0));"];
 
