@@ -130,12 +130,37 @@ OnCalendar=minutely
 WantedBy=timers.target
 `;
 
+// Veille retardée (décision environnement-d-execution, livraison B) : le gardien qui tient la demande d'éveil de Windows
+// tant qu'une session distante l'interdit (src/veille.js). Posé et retiré avec le minuteur de réveil, comme lui hors
+// PREFIXE ; sans note de session (règle `veille-retardee` non appliquée), il ne tient rien.
+const UNITE_VEILLE = 'holarch-veille.service';
+export function uniteVeille({ node = process.execPath, holarch, accueil }) {
+  return `${MARQUE} : veille retardée sous une session distante. Retirée avec le dernier accès distant.
+[Unit]
+Description=HOLARCH : veille retardée sous une session distante
+
+[Service]
+Environment=${systemd(`HOLARCH_HOME=${accueil}`)}
+Environment=${systemd(`PATH=${pathService(node)}`)}
+ExecStart=${systemd(node)} --no-warnings ${systemd(holarch)} veille tenir
+Restart=on-failure
+RestartSec=30
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+`;
+}
+
 /**
- * L'unité de réveil, après une pose de la copie de service : réécrite si elle est de HOLARCH, pour lancer la copie posée
- * (écrite avant, elle lancerait la copie de travail). Absente, rien n'est posé : elle vient avec le premier accès distant.
+ * Le réveil et le gardien de veille, après une pose de la copie de service : `reecrire`, l'unité de réveil réécrite si
+ * elle est de HOLARCH, pour lancer la copie posée (écrite avant, elle lancerait la copie de travail) ; `gardien`, posé
+ * avec elle, ou réécrit et relancé (une relance relâche puis reprend la demande). Le réveil absent, rien n'est posé :
+ * ils viennent avec le premier accès distant. Un gardien coupé à la main est réécrit sans être rallumé (décision
+ * routines-posees).
  */
 export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
-  const sv = services({ unites, systemctl }); const f = path.join(unites, `${UNITE_REVEIL}.service`);
+  const sv = services({ unites, systemctl }); const f = path.join(unites, `${UNITE_REVEIL}.service`); const g = path.join(unites, UNITE_VEILLE);
   return {
     reecrire() {
       if (!fs.existsSync(f)) return { unite: path.basename(f), etat: 'absente' };
@@ -143,7 +168,33 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
       if (!sv.ecrire(f, uniteReveil({ node, holarch, accueil }))) return { unite: path.basename(f), etat: 'inchangée' };
       sv.lancer(['daemon-reload']); return { unite: path.basename(f), etat: 'réécrite' };
     },
+    gardien() {
+      if (!fs.existsSync(f) || !sv.geree(f)) return { unite: UNITE_VEILLE, etat: 'sans accès distant : non posé' };
+      return { unite: UNITE_VEILLE, etat: poserVeille(sv, g, uniteVeille({ node, holarch, accueil })) };
+    },
   };
+}
+
+// Pose du gardien : unité de la main laissée, coupée à la main réécrite sans être rallumée, sinon posée (démarrée,
+// relancée si son texte change).
+function poserVeille(sv, g, texte) {
+  if (fs.existsSync(g) && !sv.geree(g)) return 'non écrite par HOLARCH : laissée';
+  if (sv.coupee(g)) { if (sv.ecrire(g, texte)) sv.lancer(['daemon-reload']); return 'coupée à la main : laissée'; }
+  const avant = fs.existsSync(g) ? fs.readFileSync(g, 'utf8') : null;
+  sv.poser(g, texte);
+  return avant === null ? 'posée' : avant === texte ? 'inchangée' : 'réécrite';
+}
+
+/**
+ * État de la veille retardée vu des services : le gardien (absent, actif, arrêté, coupé, écrit à la main) et le nombre
+ * d'accès distants actifs (sans eux, un gardien absent n'est pas un écart).
+ */
+export function etatVeille({ unites = UNITES, systemctl = SYSTEMCTL } = {}) {
+  const sv = services({ unites, systemctl }); const g = path.join(unites, UNITE_VEILLE);
+  let noms = []; try { noms = fs.readdirSync(unites); } catch { /* aucune unité */ }
+  const distants = noms.filter((n) => n.startsWith(PREFIXE) && n.endsWith('.service') && sv.geree(path.join(unites, n)) && sv.actif(path.join(unites, n))).length;
+  const gardien = !fs.existsSync(g) ? 'absent' : !sv.geree(g) ? 'écrit à la main' : sv.actif(g) ? 'actif' : sv.coupee(g) ? 'coupé' : 'arrêté';
+  return { unite: UNITE_VEILLE, gardien, distants };
 }
 
 export function creerDistant(config, {
@@ -154,15 +205,17 @@ export function creerDistant(config, {
 } = {}) {
   const sv = services({ unites, systemctl });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
-  const reveil = { service: path.join(unites, `${UNITE_REVEIL}.service`), minuteur: path.join(unites, `${UNITE_REVEIL}.timer`), passage: path.join(accueil, 'distant-reveil') };
+  const reveil = { service: path.join(unites, `${UNITE_REVEIL}.service`), minuteur: path.join(unites, `${UNITE_REVEIL}.timer`), passage: path.join(accueil, 'distant-reveil'), gardien: path.join(unites, UNITE_VEILLE) };
   const poserReveil = () => {
     for (const x of [reveil.service, reveil.minuteur]) if (fs.existsSync(x) && !sv.geree(x)) return;
     if (sv.ecrire(reveil.service, uniteReveil({ node, holarch, accueil }))) sv.lancer(['daemon-reload']);
     sv.poser(reveil.minuteur, MINUTEUR_REVEIL);
+    poserVeille(sv, reveil.gardien, uniteVeille({ node, holarch, accueil }));
   };
   const retirerReveil = () => {
     if (fs.existsSync(reveil.minuteur) && sv.geree(reveil.minuteur)) sv.retirer(reveil.minuteur);
     if (fs.existsSync(reveil.service) && sv.geree(reveil.service)) { fs.rmSync(reveil.service); sv.lancer(['daemon-reload']); }
+    if (fs.existsSync(reveil.gardien) && sv.geree(reveil.gardien)) sv.retirer(reveil.gardien);
   };
 
   // Un projet du catalogue, désigné par son identifiant, son nom ou un chemin (module projets, comme partout ailleurs).
@@ -249,7 +302,7 @@ WantedBy=default.target
 /** État des routines que pose la copie de service : absente, activée, coupée (à la main), ou écrite à la main. */
 export function etatRoutines({ unites = UNITES, systemctl = SYSTEMCTL } = {}) {
   const sv = services({ unites, systemctl });
-  return [UNITE_INTERFACE, `${UNITE_IMPORT}.timer`, `${UNITE_RECOLTE}.timer`, `${UNITE_REVEIL}.timer`].map((unite) => {
+  return [UNITE_INTERFACE, `${UNITE_IMPORT}.timer`, `${UNITE_RECOLTE}.timer`, `${UNITE_REVEIL}.timer`, UNITE_VEILLE].map((unite) => {
     const f = path.join(unites, unite);
     return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.coupee(f) ? 'coupée' : 'activée' };
   });

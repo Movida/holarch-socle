@@ -5,7 +5,9 @@ import { chargerConfig, ecrireConfigExemple, accueil, comptesClaudeCode } from '
 import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
-import { creerDistant, creerInterface } from '../src/distant.js';
+import { creerDistant, creerInterface, etatVeille } from '../src/distant.js';
+import { noter, evaluer, creerGardien, surveiller, commandeWindows, mecanisme } from '../src/veille.js';
+import { Journal } from '../src/stockage/journal.js';
 import { appliquerRegles } from '../src/materialisation.js';
 import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
@@ -31,6 +33,11 @@ const AIDE = `holarch — socle autour des agents d'IA
                        sans argument, liste les projets dont l'accès est actif (<projet> : projet du catalogue, par
                        son nom, un chemin ou son identifiant) ; reveil : lancé chaque minute par un minuteur, redémarre
                        les accès actifs après une veille du poste
+  holarch veille [noter <événement> | tenir]
+                       veille retardée (règle veille-retardee) : sans argument, les sessions distantes notées et ce
+                       qu'elles retiennent ; noter : appelé par les crochets de Claude Code (entrée JSON du crochet) ;
+                       tenir : le gardien, lancé par le service holarch-veille, qui tient la demande d'éveil de Windows
+                       tant qu'une session distante travaille ou attend une réponse depuis moins de 30 min
   holarch interface [activer|desactiver]
                        l'interface web en service utilisateur (pour un relais HTTPS d'un réseau privé, Tailscale Serve
                        par exemple, dont le nom se déclare dans web.hotes_admis) ; sans argument, son état
@@ -100,6 +107,24 @@ switch (cmd) {
       }
       else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
     } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
+    break; }
+  // Crochets de Claude Code (veille retardée) : ne jamais faire échouer un tour ni une fin de session.
+  case 'veille': {
+    const config = chargerConfig(); const [action, evenement] = args.filter((a) => !a.startsWith('--'));
+    if (action === 'noter') {
+      try { noter({ evenement, entree: JSON.parse(lire(0, 'utf8') || '{}'), accueil: config.accueil }); } catch (e) { console.error(`holarch veille : ${e.message}`); }
+      break;
+    }
+    if (action === 'tenir') {
+      const log = (m) => console.log(m);
+      const commande = commandeWindows();
+      if (!commande) log('aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL) : le gardien ne tiendra rien');
+      surveiller(creerGardien({ accueil: config.accueil, journal: new Journal(config.donnees, config.site), commande, log }), { accueil: config.accueil, log });
+      break;
+    }
+    if (action) { console.error(`holarch veille : action inconnue ${action}`); process.exit(2); }
+    const e = { ...evaluer({ accueil: config.accueil }), mecanisme: mecanisme(), ...etatVeille() };
+    afficher(json ? e : affichage.veille(e));
     break; }
   case 'interface': {
     const [action] = args.filter((a) => !a.startsWith('--'));

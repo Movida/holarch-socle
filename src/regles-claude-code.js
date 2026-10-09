@@ -10,6 +10,7 @@ import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
 import { CONTROLES } from './controles.js';
 import { lireJson, ecrireJson, fichierMarque, shell } from './commun.js';
+import { EVENEMENTS as EVENEMENTS_VEILLE } from './veille.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
 const SOUS_DOSSIER = path.join('rules', 'holarch');
@@ -75,15 +76,27 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
 /**
  * Réglages de Claude Code voulus par la configuration effective du compte (section `claude_code`, registre de
  * configuration) : des clés de `settings.json` et, pour la passation, deux crochets qui appellent `holarch contexte`.
+ * `veille` (une règle applicable désigne le contrôle `veille-retardee`) : un crochet par événement qui change l'état
+ * d'une session (`holarch veille noter`, décision environnement-d-execution), synchrone : une session distante tourne
+ * en `-p`, où un crochet en arrière-plan est tué à la fin de la session.
  * Un crochet laisse passer en silence si HOLARCH est injoignable (autre montage, conteneur).
  */
-export function reglagesVoulus(config = {}, { node = process.execPath, holarch, accueil }) {
+export function reglagesVoulus(config = {}, { node = process.execPath, holarch, accueil, veille = false }) {
   const cc = config.claude_code || {}; const p = cc.passation || {};
-  const cmd = (...args) => `HOLARCH_HOME=${shell(accueil)} ${shell(node)} --no-warnings ${shell(holarch)} contexte ${args.join(' ')} 2>/dev/null || true`;
+  const cmd = (...args) => `HOLARCH_HOME=${shell(accueil)} ${shell(node)} --no-warnings ${shell(holarch)} ${args.join(' ')} 2>/dev/null || true`;
   const crochets = [];
-  if (+p.seuil_tokens > 0) crochets.push({ evenement: 'UserPromptSubmit', command: cmd('alerte', '--seuil', String(+p.seuil_tokens)) });
-  if (p.reprise) crochets.push({ evenement: 'SessionStart', matcher: 'startup|clear|compact', command: cmd('debut') });
+  if (+p.seuil_tokens > 0) crochets.push({ evenement: 'UserPromptSubmit', command: cmd('contexte', 'alerte', '--seuil', String(+p.seuil_tokens)) });
+  if (p.reprise) crochets.push({ evenement: 'SessionStart', matcher: 'startup|clear|compact', command: cmd('contexte', 'debut') });
+  if (veille) for (const ev of EVENEMENTS_VEILLE) crochets.push({ evenement: ev, command: cmd('veille', 'noter', ev) });
   return { cles: { ...(cc.reglages || {}) }, crochets };
+}
+
+/** Ce qu'un crochet voulu fait, pour dire son absence : { regle, cle, message }. */
+export function crochetVoulu(commande) {
+  const v = commande.match(/ veille noter (\w+)/);
+  if (v) return { regle: 'veille-retardee', cle: `crochet:veille:${v[1]}`, message: `crochet de veille non posé (${v[1]})` };
+  const alerte = commande.includes(' alerte ');
+  return { regle: 'claude_code', cle: alerte ? 'crochet:alerte' : 'crochet:debut', message: `crochet de passation non posé (${alerte ? 'alerte' : 'reprise'})` };
 }
 
 const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);

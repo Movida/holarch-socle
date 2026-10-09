@@ -10,6 +10,7 @@ import { trouverOutil } from './commun.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserCompte, materialiserProjet } from './materialisation.js';
 import { ulid } from './ulid.js';
+import { crochetVoulu } from './regles-claude-code.js';
 
 // Un écart se reconnaît d'un audit à l'autre par son projet, sa règle, son contrôle et sa clé (jamais par son contenu).
 const cleEcart = (projet, d) => [projet ?? '', d.regle, d.controle, d.cle].join('|');
@@ -111,9 +112,9 @@ const ecartsPermissions = (m) => (m.permissions.ajoutees || []).map((x) => { con
   return { regle: e.fiche, regle_id: e.id, controle: 'permissions-posees', cle: x, fichier: 'settings.json', message: 'lecture non refusée' }; });
 
 // Réglages de Claude Code voulus par le profil et absents (une clé posée à la main n'est pas un écart : elle est dite).
-const ecartsReglages = (m) => [
+const ecartsReglages = (regles, m) => [
   ...m.reglages.cles.posees.map((cle) => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle, fichier: 'settings.json', message: `réglage ${cle} non posé` })),
-  ...m.reglages.crochets.poses.map((c) => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle: c.includes(' alerte ') ? 'crochet:alerte' : 'crochet:debut', fichier: 'settings.json', message: `crochet de passation non posé (${c.includes(' alerte ') ? 'alerte' : 'reprise'})` }))];
+  ...m.reglages.crochets.poses.map((c) => { const x = crochetVoulu(c); return { regle: x.regle === 'claude_code' ? x.regle : regleNommee(regles, x.regle), regle_id: x.regle, controle: 'reglages-poses', cle: x.cle, fichier: 'settings.json', message: x.message }; })];
 
 function ecartsCrochet({ demande, etat }) {
   const e = (message, r = demande) => [{ regle: r ? r.fiche : 'crochet', regle_id: r ? r.id : 'crochet', controle: 'crochet-pose', cle: 'pre-commit', fichier: '.git/hooks/pre-commit', message }];
@@ -151,7 +152,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
       if (m.permissions.erreur) rc.controles.push({ id: 'permissions-posees', etat: 'indisponible', raison: m.permissions.erreur });
       else rc.ecarts.push(...ecartsPermissions(m));
       if (m.reglages.erreur) rc.controles.push({ id: 'reglages-poses', etat: 'indisponible', raison: m.reglages.erreur });
-      else rc.ecarts.push(...ecartsReglages(m));
+      else rc.ecarts.push(...ecartsReglages(compte.regles, m));
     }
     if (!compte.illisibles.length) rc.ecarts.push(...remplacees(compte.regles, memoires));
     for (const c of ['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);

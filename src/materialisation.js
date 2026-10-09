@@ -41,7 +41,9 @@ export function materialiserCompte(compte, comptes, { accueil, holarch = binaire
   const regles = compte.regles;
   const plan = planifier(regles, { portee: 'compte' });
   const lectures = regles.filter((e) => e.applicable).flatMap((e) => lecturesRefusees(e).map((entree) => ({ entree, regle: e })));
-  const voulus = reglagesVoulus(compte.config || {}, { holarch, accueil });
+  // Veille retardée : les crochets qui notent l'état des sessions viennent avec la règle qui désigne son contrôle.
+  const veille = regles.some((e) => e.applicable && (e.controles || []).includes('veille-retardee'));
+  const voulus = reglagesVoulus(compte.config || {}, { holarch, accueil, veille });
   return comptes.filter((c) => c.home).map((c) => {
     let permissions; let reglages;
     try { permissions = appliquerPermissions(c.home, lectures.map((x) => x.entree), { ecrire }); } catch (e) { permissions = { erreur: e.message }; }

@@ -70,6 +70,7 @@ export function creerService({ accueil, comptes = [] }, {
       essai('import', () => creerImport({ holarch, accueil }, o).poser()),
       essai('recolte', () => creerRecolte({ holarch, accueil }, o).poser()),
       essai('reveil', () => creerReveil({ holarch, accueil }, o).reecrire()),
+      essai('veille', () => creerReveil({ holarch, accueil }, o).gardien()),
       ...comptes.filter((c) => c.home).map((c) => essai(`mcp ${c.nom || c.home}`, () => {
         const f = configClaude(c.home); const cfg = lireJson(f, null, { strict: true });
         const s = cfg?.mcpServers?.holarch;

@@ -9,6 +9,8 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
+import { mecanisme } from './veille.js';
+import { etatVeille } from './distant.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
 const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
@@ -276,6 +278,20 @@ function commitsPousses(ctx) {
   return { ecarts: [{ fichier: null, ligne: null, cle: 'amont', n: e.en_avance, message: `${e.en_avance} commit(s) non poussé(s) vers ${e.amont} depuis plus de ${h} h` }] };
 }
 
+// ---------- veille retardée (décision environnement-d-execution) ----------
+
+/**
+ * Le poste retarde sa veille sous une session distante : un mécanisme existe (Windows, vu de WSL) et, dès qu'un accès
+ * distant est actif, le gardien tourne. Les crochets qui notent les sessions sont vus par `reglages-poses`.
+ * `ctx.veille` remplace la lecture du poste (essais).
+ */
+function veilleRetardee(ctx) {
+  const e = ctx.veille || { mecanisme: mecanisme(), ...etatVeille() };
+  if (!e.mecanisme) return { indisponible: 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)' };
+  if (!e.distants || e.gardien === 'actif') return { ecarts: [] };
+  return { ecarts: [{ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${e.gardien} avec ${e.distants} accès distant(s) actif(s) : la veille n'est pas retardée` }] };
+}
+
 /**
  * Registre : identifiant → { moments, executer(ctx, moment), portee }. Un contrôle de portée `site` regarde le poste, pas
  * un dépôt : il s'exécute une fois, au compte.
@@ -288,6 +304,7 @@ export const CONTROLES = {
   'commits-pousses': { moments: ['audit'], executer: commitsPousses },
   'dependances-vulnerables': { moments: ['audit'], executer: dependancesVulnerables },
   'outils-a-jour': { moments: ['audit'], executer: outilsAJour, portee: 'site' },
+  'veille-retardee': { moments: ['audit'], executer: veilleRetardee, portee: 'site' },
 };
 
 /** Exécute un contrôle ; une erreur le rend non disponible, jamais conforme. */
