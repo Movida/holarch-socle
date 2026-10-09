@@ -420,7 +420,7 @@ test('veille : une règle applicable qui désigne le contrôle pose les crochets
   const o = { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv/a' };
   const v = reglagesVoulus({}, { ...o, veille: true });
   assert.deepEqual(v.crochets.map((c) => c.evenement), ['UserPromptSubmit', 'Stop', 'StopFailure', 'PermissionRequest', 'Elicitation', 'SessionEnd']);
-  assert.equal(v.crochets[1].command, `{ [ -n "$CLAUDE_CODE_BRIDGE_SESSION_ID" ] || [ "$CLAUDE_CODE_ENVIRONMENT_KIND" = bridge ]; } && HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' veille noter Stop 2>/dev/null || true`);
+  assert.equal(v.crochets[1].command, `{ [ -n "$CLAUDE_CODE_BRIDGE_SESSION_ID" ] || [ "$CLAUDE_CODE_ENVIRONMENT_KIND" = bridge ]; } && { HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/veille-noter.js' Stop 2>/dev/null || { c=$?; printf '{"at":"%s","evenement":"Stop","message":"point d’entrée de veille en échec (code %s)"}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$c" > '/srv/a/veille-erreur.json'; }; } 2>/dev/null || true`);
   // Lancée par le shell comme Claude Code lance un crochet : une session locale ne démarre pas node ; une distante, si.
   const temoin = path.join(tmp(), 'lance'); const faux = path.join(tmp(), 'node'); fs.writeFileSync(faux, `#!/bin/sh\ntouch '${temoin}'\n`, { mode: 0o755 });
   const commande = reglagesVoulus({}, { ...o, node: faux, veille: true }).crochets[0].command;
@@ -460,11 +460,14 @@ test('veille : le contrôle veut le gardien actif dès que la règle s’appliqu
   assert.equal(coupe[0].message, 'gardien de veille coupé : la veille n\'est pas retardée', 'coupé à la main : la pose ne le rallume pas, rien à conseiller');
 });
 
-test('veille : une erreur du crochet, configuration illisible comprise, ne fait pas échouer le tour ; gardée datée, le contrôle la dit une semaine', () => {
+test('veille : une erreur du crochet ne fait pas échouer le tour ; gardée datée, le contrôle la dit une semaine, une note réussie l’efface', () => {
+  // La configuration n'est pas lue : illisible, elle n'empêche pas de noter (l'accueil vient de HOLARCH_HOME).
   const accueil = tmp(); fs.writeFileSync(path.join(accueil, 'config.yaml'), 'site: [illisible\n');
-  const bin = path.join(import.meta.dirname, '..', 'bin', 'holarch.js');
-  const r = spawnSync(process.execPath, ['--no-warnings', bin, 'veille', 'noter', 'Stop'], { input: '{"session_id":"s1"}', encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil, CLAUDE_CODE_ENVIRONMENT_KIND: 'bridge' } });
-  assert.equal(r.status, 0, 'un crochet ne fait jamais échouer un tour');
+  const noteur = path.join(import.meta.dirname, '..', 'bin', 'veille-noter.js');
+  const lancer = (input) => spawnSync(process.execPath, ['--no-warnings', noteur, 'Stop'], { input, encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil, CLAUDE_CODE_ENVIRONMENT_KIND: 'bridge' } });
+  assert.equal(lancer('{"session_id":"s1"}').status, 0);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dossierVeille(accueil), 's1.json'), 'utf8')).etat, 'attend');
+  assert.equal(lancer('{ coupé').status, 0, 'un crochet ne fait jamais échouer un tour');
   const erreur = JSON.parse(fs.readFileSync(fichierErreur(accueil), 'utf8'));
   assert.equal(erreur.evenement, 'Stop'); assert.ok(erreur.message.length > 0);
   const c = () => executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'actif', besoin: false }, accueil }, 'audit').ecarts;
@@ -473,6 +476,28 @@ test('veille : une erreur du crochet, configuration illisible comprise, ne fait 
   assert.ok(!e[0].message.includes(accueil), 'ni chemin ni message dans l’écart');
   ecrire(fichierErreur(accueil), JSON.stringify({ ...erreur, at: new Date(Date.now() - 8 * 864e5).toISOString() }));
   assert.deepEqual(c(), [], 'plus d’une semaine : plus dite');
+  lancer('{ coupé'); assert.ok(fs.existsSync(fichierErreur(accueil)));
+  lancer('{"session_id":"s1"}'); assert.ok(!fs.existsSync(fichierErreur(accueil)), 'la note réussie suivante efface l’erreur');
+});
+
+test('veille : si node ne démarre pas ou que le point d’entrée ne charge pas ses modules, la commande du crochet écrit l’erreur elle-même', () => {
+  const accueil = tmp(); const env = (o) => ({ PATH: process.env.PATH, CLAUDE_CODE_ENVIRONMENT_KIND: 'bridge', ...o });
+  const commande = (o) => reglagesVoulus({}, { node: process.execPath, holarch: path.join(import.meta.dirname, '..', 'bin', 'holarch.js'), accueil, veille: true, ...o }).crochets[1].command;
+  const lancer = (cmd, e = env()) => spawnSync('/bin/sh', ['-c', cmd], { input: '{"session_id":"s2"}', env: e, encoding: 'utf8' });
+  const lue = () => { const x = JSON.parse(fs.readFileSync(fichierErreur(accueil), 'utf8')); fs.rmSync(fichierErreur(accueil)); return x; };
+  // La vraie commande : la note est écrite, rien en erreur.
+  assert.equal(lancer(commande()).status, 0); assert.ok(fs.existsSync(path.join(dossierVeille(accueil), 's2.json'))); assert.ok(!fs.existsSync(fichierErreur(accueil)));
+  // node introuvable (chemin d'une version retirée) : code 127.
+  assert.equal(lancer(commande({ node: '/nulle/part/node' })).status, 0, 'le tour continue');
+  const sansNode = lue(); assert.deepEqual([sansNode.evenement, sansNode.message], ['Stop', 'point d’entrée de veille en échec (code 127)']);
+  assert.ok(Date.now() - Date.parse(sansNode.at) < 120e3, 'datée');
+  // Une copie incomplète : le point d'entrée seul, sans ses modules.
+  const copie = tmp(); ecrire(path.join(copie, 'bin', 'veille-noter.js'), fs.readFileSync(path.join(import.meta.dirname, '..', 'bin', 'veille-noter.js'), 'utf8'));
+  assert.equal(lancer(commande({ holarch: path.join(copie, 'bin', 'holarch.js') })).status, 0);
+  assert.equal(lue().message, 'point d’entrée de veille en échec (code 1)');
+  // Une session locale ne lance rien et n'écrit aucune erreur.
+  assert.equal(lancer(commande({ node: '/nulle/part/node' }), env({ CLAUDE_CODE_ENVIRONMENT_KIND: 'local' })).status, 0);
+  assert.ok(!fs.existsSync(fichierErreur(accueil)));
 });
 
 test('veille : le contrôle compare ce que le gardien dit tenir à ce que demandent les sessions, accès distant ou /remote-control', async () => {

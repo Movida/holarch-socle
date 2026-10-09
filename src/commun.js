@@ -5,6 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+/** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */
+export const accueil = () => process.env.HOLARCH_HOME || path.join(os.homedir(), '.holarch');
+
 /** Un mot pour le shell, entre apostrophes. */
 export const shell = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 

@@ -6,7 +6,7 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface, creerReveil, etatVeille } from '../src/distant.js';
-import { noter, noterErreur, evaluer, etatGardien, creerGardien, surveiller, mecanisme } from '../src/veille.js';
+import { evaluer, etatGardien, creerGardien, surveiller, mecanisme } from '../src/veille.js';
 import { Journal } from '../src/stockage/journal.js';
 import { appliquerRegles, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -34,11 +34,12 @@ const AIDE = `holarch — socle autour des agents d'IA
                        sans argument, liste les projets dont l'accès est actif (<projet> : projet du catalogue, par
                        son nom, un chemin ou son identifiant) ; reveil : lancé chaque minute par un minuteur, redémarre
                        les accès actifs après une veille du poste
-  holarch veille [noter <événement> | tenir]
+  holarch veille [tenir]
                        veille retardée (règle veille-retardee) : sans argument, les sessions distantes notées et ce
-                       qu'elles retiennent ; noter : appelé par les crochets de Claude Code (entrée JSON du crochet) ;
-                       tenir : le gardien, lancé par le service holarch-veille, qui tient la demande d'éveil de Windows
-                       tant qu'une session distante travaille ou attend une réponse depuis moins de 30 min
+                       qu'elles retiennent ; tenir : le gardien, lancé par le service holarch-veille, qui tient la
+                       demande d'éveil de Windows tant qu'une session distante travaille ou attend une réponse depuis
+                       moins de 30 min. Les crochets de Claude Code notent les sessions par bin/veille-noter.js
+                       <événement> (point d'entrée léger, entrée JSON du crochet)
   holarch interface [activer|desactiver]
                        l'interface web en service utilisateur (pour un relais HTTPS d'un réseau privé, Tailscale Serve
                        par exemple, dont le nom se déclare dans web.hotes_admis) ; sans argument, son état
@@ -111,14 +112,9 @@ switch (cmd) {
       else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
     } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
     break; }
-  // Crochets de Claude Code (veille retardée) : ne jamais faire échouer un tour ni une fin de session ; une erreur,
-  // configuration comprise, est gardée datée dans l'accueil (HOLARCH_HOME du crochet) pour le contrôle.
+  // Les crochets de Claude Code notent les sessions par bin/veille-noter.js, point d'entrée léger.
   case 'veille': {
-    const [action, evenement] = args.filter((a) => !a.startsWith('--'));
-    if (action === 'noter') {
-      try { noter({ evenement, entree: JSON.parse(lire(0, 'utf8') || '{}'), accueil: chargerConfig().accueil }); } catch (e) { noterErreur(accueil(), evenement, e); console.error(`holarch veille : ${e.message}`); }
-      break;
-    }
+    const [action] = args.filter((a) => !a.startsWith('--'));
     const config = chargerConfig();
     if (action === 'tenir') {
       const log = (m) => console.log(m);

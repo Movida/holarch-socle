@@ -27,6 +27,8 @@ export const ERREUR_VUE_JOURS = 7;
 export function noterErreur(accueil, evenement, e, maintenant = Date.now()) {
   try { ecrireJson(fichierErreur(accueil), { at: new Date(maintenant).toISOString(), evenement: String(evenement || ''), message: String(e?.message || e).split('\n')[0].slice(0, 300) }); } catch { /* accueil illisible : rien de plus à faire */ }
 }
+// Une note réussie efface l'erreur précédente : une erreur corrigée ne reste pas un écart une semaine.
+export const effacerErreur = (accueil) => fs.rmSync(fichierErreur(accueil), { force: true });
 
 // État qu'un crochet note ; `SessionEnd` efface la note. `Stop` ne vient pas après une interruption : la transcription
 // la dit (`attenteDansTranscription`). Une demande de permission ou une élicitation MCP attend l'auteur au milieu d'un tour.

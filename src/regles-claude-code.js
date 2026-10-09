@@ -10,7 +10,7 @@ import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
 import { CONTROLES } from './controles.js';
 import { lireJson, ecrireJson, fichierMarque, shell } from './commun.js';
-import { EVENEMENTS as EVENEMENTS_VEILLE, DISTANTE_SHELL } from './veille.js';
+import { EVENEMENTS as EVENEMENTS_VEILLE, DISTANTE_SHELL, fichierErreur } from './veille.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
 const SOUS_DOSSIER = path.join('rules', 'holarch');
@@ -77,17 +77,22 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
  * Réglages de Claude Code voulus par la configuration effective du compte (section `claude_code`, registre de
  * configuration) : des clés de `settings.json` et, pour la passation, deux crochets qui appellent `holarch contexte`.
  * `veille` (une règle applicable désigne le contrôle `veille-retardee`) : un crochet par événement qui change l'état
- * d'une session (`holarch veille noter`, décision environnement-d-execution), synchrone : une session distante tourne
- * en `-p`, où un crochet en arrière-plan est tué à la fin de la session.
+ * d'une session (`bin/veille-noter.js`, point d'entrée léger à côté de `holarch` ; décision environnement-d-execution),
+ * synchrone : une session distante tourne en `-p`, où un crochet en arrière-plan est tué à la fin de la session. Si
+ * node ne démarre pas, ou que le point d'entrée ne charge pas ses modules (il sort alors en erreur), la commande écrit
+ * elle-même l'erreur datée que le contrôle signale.
  * Un crochet laisse passer en silence si HOLARCH est injoignable (autre montage, conteneur).
  */
 export function reglagesVoulus(config = {}, { node = process.execPath, holarch, accueil, veille = false }) {
   const cc = config.claude_code || {}; const p = cc.passation || {};
-  const cmd = (...args) => `HOLARCH_HOME=${shell(accueil)} ${shell(node)} --no-warnings ${shell(holarch)} ${args.join(' ')} 2>/dev/null || true`;
+  const lancer = (bin, args) => `HOLARCH_HOME=${shell(accueil)} ${shell(node)} --no-warnings ${shell(bin)} ${args.join(' ')} 2>/dev/null`;
+  const cmd = (...args) => `${lancer(holarch, args)} || true`;
+  const repli = (ev) => `{ c=$?; printf '{"at":"%s","evenement":"${ev}","message":"point d’entrée de veille en échec (code %s)"}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$c" > ${shell(fichierErreur(accueil))}; }`;
+  const noter = (ev) => `${DISTANTE_SHELL} && { ${lancer(path.join(path.dirname(holarch), 'veille-noter.js'), [ev])} || ${repli(ev)}; } 2>/dev/null || true`;
   const crochets = [];
   if (+p.seuil_tokens > 0) crochets.push({ evenement: 'UserPromptSubmit', command: cmd('contexte', 'alerte', '--seuil', String(+p.seuil_tokens)) });
   if (p.reprise) crochets.push({ evenement: 'SessionStart', matcher: 'startup|clear|compact', command: cmd('contexte', 'debut') });
-  if (veille) for (const ev of EVENEMENTS_VEILLE) crochets.push({ evenement: ev, command: `${DISTANTE_SHELL} && ${cmd('veille', 'noter', ev)}` });
+  if (veille) for (const ev of EVENEMENTS_VEILLE) crochets.push({ evenement: ev, command: noter(ev) });
   return { cles: { ...(cc.reglages || {}) }, crochets };
 }
 
@@ -96,7 +101,7 @@ export function reglagesVoulus(config = {}, { node = process.execPath, holarch, 
  * applicable qui désigne le contrôle `veille-retardee`, quel que soit son identifiant.
  */
 export function crochetVoulu(commande, regles = []) {
-  const v = commande.match(/ veille noter (\w+)/);
+  const v = commande.match(/veille-noter\.js'? (\w+)/);
   if (v) {
     const r = regles.find((e) => e.applicable && (e.controles || []).includes('veille-retardee'));
     return { regle: r?.id || 'veille-retardee', cle: `crochet:veille:${v[1]}`, message: `crochet de veille non posé (${v[1]})` };

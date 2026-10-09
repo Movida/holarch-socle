@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import YAML from 'yaml';
-import { configClaude } from './commun.js';
+import { configClaude, accueil } from './commun.js';
 
-export const accueil = () => process.env.HOLARCH_HOME || path.join(os.homedir(), '.holarch');
+// Défini avec les briques sans dépendance installée : le point d'entrée léger des crochets de veille le lit sans ce module.
+export { accueil };
 
 const DEFAUTS = () => ({
   site: 'local',
