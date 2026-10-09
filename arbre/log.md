@@ -2,6 +2,15 @@
 
 ## 2026-10-09
 
+* **Corrections de B et essai Q29** : les 17 constats de la contre-épreuve de B corrigés, plus le gardien qui suit la
+  règle (un commit et un test chacun, 114 tests verts) ; contre-épreuve de ces corrections et de la faille lancée sur
+  une instance neuve. Q29 : la ligne d'état ne tourne qu'au terminal (ni Remote Control ni VS Code) ; I34 cherche une
+  autre source. Rien posé, rien poussé. Leçon de clôture : déroulé annoncé (faille, B, Q29) tenu dans l'ordre. Ce qui
+  l'a fait dévier : la mesure des sessions en conteneur (68 %), qui a changé le correctif de la faille et demandé un
+  choix de l'auteur ; les quatre conteneurs corrigés d'un coup sur son choix plutôt qu'un par un ; une seconde session
+  d'essai pour Q29, la session en cours ne relisant pas le réglage. La demande qui y aurait mené : « faille, B, Q29 ;
+  mesure d'abord ce que le montage de `~/.claude` apporte aujourd'hui » et le quota restant au départ.
+
 * **Faille du conteneur fermée** : contrôle `montage-sensible` et règle `conteneur-isole` (brouillon). Mesure en
   route : 209 sessions sur 305 en 30 jours tournent en conteneur, vues par HOLARCH grâce au montage du `~/.claude` de
   l'hôte ; choix de l'auteur, la solution la plus propre : volume propre, et de l'hôte seulement les transcriptions du

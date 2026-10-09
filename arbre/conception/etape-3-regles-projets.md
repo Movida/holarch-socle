@@ -965,14 +965,31 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   aux quatre autres conteneurs du poste d'un coup (trois commits locaux, un dossier sans git) ; un volume neuf
   appartient à root, rendu à l'utilisateur par `postCreateCommand` (essayé sur l'image du socle). 1 test, 1 étendu ;
   105 verts. Connexion à Claude à refaire une fois dans chaque conteneur reconstruit.
+- **Fait (2026-10-09)** : corrections de B, les 17 constats de la contre-épreuve et le gardien qui suit la règle, un
+  commit et un test chacun (114 tests verts). « Travaille » borné par l'activité de la transcription et de ses
+  sous-agents (immobile 30 min : attente depuis la dernière écriture ; une attente suivie d'écritures travaille de
+  nouveau) ; `PermissionRequest` et `Elicitation` notées comme attentes ; gardien relancé par `service poser`, posé
+  seulement quand la règle s'applique au compte (retiré sinon, laissé si les règles sont illisibles ; `regles appliquer`
+  le pose sans le relancer) ; interruption lue en tête d'un texte de l'auteur seulement ; transcription notée lue
+  seulement si c'est un fichier sous `projects/` (une FIFO bloquait le gardien) ; note relue avant d'être effacée ;
+  mécanisme cherché à chaque besoin ; `power.failed` réduit à `{motif, code}` ; essais espacés après une demande morte
+  aussitôt ; `power.held` redit quand une session arrive ou part ; état du gardien (`veille-gardien.json`) comparé au
+  besoin par le contrôle et `holarch veille` ; erreur du crochet gardée datée (`veille-erreur.json`), dite une semaine ;
+  crochet absent imputé à la règle qui désigne le contrôle ; node lancé seulement pour une session distante ; lecture
+  du vrai `/proc` éprouvée. Choix de l'auteur écrits dans `environnement-d-execution` : B couvre l'hôte ; contrat
+  événement déclaré dans ses `modifies`. Contrat 0.10.0 (brouillon) aligné.
+- **Fait (2026-10-09)** : Q29 résolue, non : la ligne d'état ne tourne qu'au terminal (aucun relevé de la session
+  distante en cours, lancée en `claude --print`, ni d'une session neuve ouverte depuis l'application, ni d'une session de
+  l'extension VS Code) ; posée au compte le temps de l'essai, retirée, `settings.json` revenu à l'identique. I34 cherche
+  une autre source.
 - **Reste** :
-  0. **Suite prévue (2026-10-09), en Opus 5.5 `xhigh`** : corrections de B (point 7), puis essai Q29. Choix de
-     l'auteur pour B : (4) B couvre l'hôte, écrit, le signe de vie d'une session en conteneur se conçoit avec D ; (13)
-     `evenement.md` ajouté aux `modifies` de `environnement-d-execution` ; le gardien `holarch-veille` suit la règle
-     comme les crochets (corriger avant `service poser`). Essai Q29 : ligne d'état posée au compte sur accord, le temps
-     de l'essai, puis retirée. Faille : règle `conteneur-isole` à approuver ; dans le conteneur du socle, le volume
-     `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node` (réparation du conteneur en C) ; C reprend
-     les deux montages de l'hôte dans la génération (clé `conteneur.connexion_claude`).
+  0. **Suite prévue** : contre-épreuve de la faille et des corrections de B (instance neuve en `xhigh`, lancée le
+     2026-10-09, constats à corriger d'abord) ; puis, sur l'accord de l'auteur : approbation des règles
+     `veille-retardee` et `conteneur-isole` et du contrat événement 0.10.0, `holarch regles appliquer` (crochets et
+     gardien), `holarch service poser` (copie en retard), critère de B (délai de veille raccourci le temps de l'essai :
+     `powercfg /change standby-timeout-ac 10`, puis remis à 300), envoi des commits (socle, profil, trois dépôts). Dans
+     le conteneur du socle, le volume `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node`
+     (réparation en C) ; C reprend les deux montages de l'hôte dans la génération (clé `conteneur.connexion_claude`).
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
      constat 6 de `revue-page-blanche` non tranché ; (2) un conteneur par brique (fondation n° 3) : un programme Node et
