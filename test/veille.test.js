@@ -152,6 +152,22 @@ test('veille : après Stop, un sous-agent de fond qui écrit retient le poste ta
   assert.equal(e(T0 + 31 * min).retient, false);
 });
 
+test('veille : une question à l’auteur ne fait pas attendre une session dont un sous-agent de fond écrit après elle', () => {
+  const accueil = tmp(); const t = transcription('q.jsonl');
+  const question = { type: 'assistant', timestamp: new Date(T0 + 5 * min).toISOString(), message: { content: [{ type: 'tool_use', id: 'u1', name: 'AskUserQuestion', input: {} }] } };
+  ecrire(t, ligne({ type: 'user', timestamp: new Date(T0).toISOString(), message: { content: 'fais X' } }) + ligne(question));
+  fs.utimesSync(t, new Date(T0 + 5 * min), new Date(T0 + 5 * min));
+  const agent = path.join(t.replace(/\.jsonl$/, ''), 'subagents', 'agent-b2.jsonl'); ecrire(agent, ligne({ type: 'assistant' }));
+  const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
+  note(accueil, 'UserPromptSubmit', 'q', { t: T0, transcription: t });
+  fs.utimesSync(agent, new Date(T0 + 40 * min), new Date(T0 + 40 * min));
+  assert.deepEqual([e(T0 + 45 * min).etat, e(T0 + 45 * min).retient], ['travaille', true], 'le sous-agent écrivait 35 min après la question');
+  assert.deepEqual([e(T0 + 71 * min).etat, e(T0 + 71 * min).retient], ['attend', false], '30 min après sa dernière écriture');
+  // Un sous-agent qui s'est tu avant la question : elle fait attendre, depuis qu'elle est posée.
+  fs.utimesSync(agent, new Date(T0 + 4 * min), new Date(T0 + 4 * min));
+  assert.deepEqual([e(T0 + 20 * min).etat, e(T0 + 20 * min).depuis], ['attend', new Date(T0 + 5 * min).toISOString()]);
+});
+
 test('veille : le gardien suit la seule règle, comme les crochets : posé si elle s’applique, accès distant ou non, retiré sinon, laissé si les règles sont illisibles', () => {
   const unites = tmp(); const racine = tmp(); fs.mkdirSync(path.join(racine, 'demo'));
   const appels = []; const actifs = new Set();

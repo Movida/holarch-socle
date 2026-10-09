@@ -116,18 +116,19 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
 }
 
 /**
- * Dernière écriture (ms) d'une session : sa transcription et celles de ses sous-agents (`<session>/subagents/*.jsonl`),
- * qui bougent encore après `Stop` quand un sous-agent de fond travaille ; null si rien ne se lit. Un shell de fond
- * n'écrit dans aucune transcription : il ne retient rien (un serveur permanent tiendrait le poste sans fin).
+ * Dernière écriture (ms) d'une session, `derniere` : sa transcription et celles de ses sous-agents
+ * (`<session>/subagents/*.jsonl`), qui bougent encore après `Stop` quand un sous-agent de fond travaille ; `sous_agents`,
+ * la leur seule (null sans sous-agent) ; null si rien ne se lit. Un shell de fond n'écrit dans aucune transcription : il
+ * ne retient rien (un serveur permanent tiendrait le poste sans fin).
  */
 export function activite(transcription) {
   if (!transcriptionLisible(transcription)) return null;
-  const dates = [];
-  const lire = (f) => { try { dates.push(fs.statSync(f).mtimeMs); } catch { /* absente */ } };
-  lire(transcription);
-  const d = path.join(transcription.replace(/\.jsonl$/, ''), 'subagents');
-  try { for (const n of fs.readdirSync(d)) if (n.endsWith('.jsonl') && transcriptionLisible(path.join(d, n))) lire(path.join(d, n)); } catch { /* aucun sous-agent */ }
-  return dates.length ? Math.max(...dates) : null;
+  const date = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return null; } };
+  const d = path.join(transcription.replace(/\.jsonl$/, ''), 'subagents'); let sous = [];
+  try { sous = fs.readdirSync(d).filter((n) => n.endsWith('.jsonl') && transcriptionLisible(path.join(d, n))).map((n) => date(path.join(d, n))).filter(Number.isFinite); } catch { /* aucun sous-agent */ }
+  const sousAgents = sous.length ? Math.max(...sous) : null;
+  const toutes = [date(transcription), sousAgents].filter(Number.isFinite);
+  return toutes.length ? { derniere: Math.max(...toutes), sous_agents: sousAgents } : null;
 }
 
 // Une session « travaille » tant que sa transcription bouge : immobile depuis l'attente permise, elle attend quelque
@@ -157,12 +158,13 @@ export function evaluer({ accueil, maintenant = Date.now(), attente = ATTENTE_MI
     let etat = s.etat; let depuis = Date.parse(s.depuis);
     // Sans processus connu, une session qui « travaille » ne se vérifie pas : bornée comme une attente.
     if (etat === 'travaille' && !s.pid) etat = 'attend';
-    const ecrite = s.pid ? activite(s.transcription) : null;
+    const act = s.pid ? activite(s.transcription) : null; const ecrite = act?.derniere ?? null;
     if (etat === 'attend' && ecrite !== null && ecrite > depuis + BOUGE) etat = 'travaille';
     if (etat === 'travaille') {
       const t = attenteDansTranscription(s.transcription);
       const derniere = Math.max(depuis, ecrite ?? depuis);
-      if (Number.isFinite(t) && t >= depuis) { etat = 'attend'; depuis = t; }
+      // Un sous-agent de fond qui écrit après la question ou l'interruption : la session travaille encore.
+      if (Number.isFinite(t) && t >= depuis && !(act?.sous_agents > t)) { etat = 'attend'; depuis = t; }
       else if (maintenant - derniere >= attente * 60e3) { etat = 'attend'; depuis = derniere; }
     }
     const reste = etat === 'travaille' ? null : depuis + attente * 60e3 - maintenant;
