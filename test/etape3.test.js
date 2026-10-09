@@ -122,6 +122,7 @@ test('accès distant : projet introuvable refusé, service étranger jamais touc
 import { spawnSync } from 'node:child_process';
 import { Journal } from '../src/stockage/journal.js';
 import { Socle } from '../src/socle.js';
+import { parse as parseJsonc } from 'jsonc-parser';
 import YAML from 'yaml';
 import importerTranscriptions, { cheminsAppel } from '../src/import/claude-code-transcriptions.js';
 import { localiserProjet, resoudreProjet } from '../src/projets.js';
@@ -954,6 +955,9 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     assert.match(fs.readFileSync(path.join(d, 'LICENSE'), 'utf8'), new RegExp(`Copyright \\(c\\) ${new Date().getFullYear()} Alice Exemple`));
     assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "Neuf_2\.x"[\s\S]*source=neuf_2\.x-claude[\s\S]*projects\/-workspaces-Neuf-2-x,[\s\S]*source=neuf_2\.x-ssh[\s\S]*"CLAUDE_CODE_PROJECT_DIR_NAME": "-workspaces-Neuf-2-x"/);
     assert.deepEqual(executer('montage-sensible', { depot: d, holarch: [] }, 'audit').ecarts, [], 'le conteneur créé ne monte rien de sensible de l’hôte');
+    const conteneur = parseJsonc(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'));
+    assert.match(conteneur.onCreateCommand, /^sudo chown vscode:vscode /, 'le volume est rendu avant que l’éditeur se connecte');
+    assert.ok(!conteneur.postCreateCommand.includes('chown'));
     assert.ok(fs.statSync(path.join(d, '.devcontainer', 'deploy-key.sh')).mode & 0o100, 'deploy-key.sh exécutable');
     assert.match(fs.readFileSync(path.join(d, 'arbre', 'index.md'), 'utf8'), /types: \[public\]\nconfig:\n  journal: arbre\/log.md\ntitle/);
     assert.ok(fs.existsSync(path.join(d, '.git', 'hooks', 'pre-commit')), 'crochet posé (règle bloquante)');

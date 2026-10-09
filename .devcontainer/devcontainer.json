@@ -17,8 +17,10 @@
   "portsAttributes": { "4280": { "label": "HOLARCH — interface", "onAutoForward": "notify" } },
   // Tout ce que le dépôt vérifie s'installe ici, pour qu'une reconstruction ne perde rien : dépendances, puis Chromium
   // et ses bibliothèques système pour le test visuel (npm run test:visuel).
-  // Un volume neuf appartient à root : il est rendu à `node` avant tout.
-  "postCreateCommand": "sudo chown node:node /home/node/.claude /home/node/.claude/projects && sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin",
+  // Un volume neuf appartient à root : il est rendu à `node` avant que l'éditeur se connecte et y écrive
+  // (onCreateCommand passe avant updateContentCommand, qu'il attend ; postCreateCommand vient après).
+  "onCreateCommand": "sudo chown node:node /home/node/.claude /home/node/.claude/projects",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin",
   // HOLARCH du conteneur garde ses données chez lui (~/.holarch) : celles de l'hôte n'y sont jamais montées en écriture.
   // Toute session, ouverte dans un sous-dossier ou un worktree comprise, range ses transcriptions dans le dossier monté
   // (CLAUDE_CODE_PROJECT_DIR_NAME, Claude Code 2.1.234 et suivants, avec CLAUDE_CONFIG_DIR).
