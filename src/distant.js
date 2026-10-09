@@ -211,6 +211,13 @@ export function etatVeille({ unites = UNITES, systemctl = SYSTEMCTL } = {}) {
   return { unite: UNITE_VEILLE, gardien, distants };
 }
 
+/** Les accès distants posés par HOLARCH (unités marquées) et leur dossier de travail, lus sans systemctl. */
+export function accesDistants({ unites = UNITES } = {}) {
+  if (!fs.existsSync(unites)) return [];
+  return fs.readdirSync(unites).filter((f) => f.startsWith(PREFIXE) && f.endsWith('.service') && fichierMarque(path.join(unites, f), MARQUE))
+    .map((f) => ({ nom: f.slice(PREFIXE.length, -'.service'.length), chemin: fs.readFileSync(path.join(unites, f), 'utf8').match(/^WorkingDirectory=(.*)$/m)?.[1] ?? null }));
+}
+
 export function creerDistant(config, {
   unites = UNITES, systemctl = SYSTEMCTL,
   claude = null,
@@ -247,12 +254,7 @@ export function creerDistant(config, {
 
   return {
     liste() {
-      if (!fs.existsSync(unites)) return [];
-      return fs.readdirSync(unites).filter((f) => f.startsWith(PREFIXE) && f.endsWith('.service') && sv.geree(path.join(unites, f))).map((f) => {
-        const texte = fs.readFileSync(path.join(unites, f), 'utf8');
-        const chemin = texte.match(/^WorkingDirectory=(.*)$/m)?.[1] ?? null;
-        return { nom: f.slice(PREFIXE.length, -'.service'.length), chemin, projet: projetDe(chemin)?.id ?? null, actif: sv.actif(path.join(unites, f)) };
-      });
+      return accesDistants({ unites }).map((a) => ({ ...a, projet: projetDe(a.chemin)?.id ?? null, actif: sv.actif(path.join(unites, `${PREFIXE}${a.nom}.service`)) }));
     },
     activer(ref) {
       const p = resoudre(ref); const chemin = p.location;

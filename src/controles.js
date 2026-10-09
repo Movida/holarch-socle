@@ -11,7 +11,7 @@ import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser
 import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, evaluer, fichierGardien, GARDIEN_FRAIS, fichierErreur, ERREUR_VUE_JOURS } from './veille.js';
-import { etatVeille } from './distant.js';
+import { etatVeille, accesDistants } from './distant.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
 const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
@@ -513,6 +513,29 @@ function variablesDe(c, opts) {
   return l;
 }
 
+// `initializeCommand` s'exécute sur l'hôte à chaque ouverture, et le conteneur peut réécrire le fichier qui la porte :
+// seule est attendue la création des dossiers admis (`mkdir -p`, sans opérateur de shell). Le reste, nommé par sa forme.
+function initialisationHorsAttente(c, depot, maison, env, admis) {
+  const v = c.initializeCommand;
+  if (v === undefined) return null;
+  const commandes = typeof v === 'string' ? [v] : Array.isArray(v) ? [v.join(' ')] : v && typeof v === 'object' ? Object.values(v).map((x) => (Array.isArray(x) ? x.join(' ') : String(x))) : [String(v)];
+  const attendue = (cmd) => {
+    if (/[;&|`<>()\n]|\$(?!\{)/.test(cmd.replace(/\$\{[^}]*\}/g, ''))) return false;
+    const [prog, opt, ...dossiers] = cmd.trim().split(/\s+/);
+    return prog === 'mkdir' && opt === '-p' && dossiers.length > 0 && dossiers.every((d) => admis.some((a) => a.chemin === sourceHote(d, depot, maison, env)));
+  };
+  return commandes.every(attendue) ? null : 'initializeCommand s’exécute sur l’hôte à chaque ouverture, et le conteneur peut la réécrire : seule la création des dossiers admis (mkdir -p) est attendue';
+}
+
+// Les crochets des réglages Claude Code d'un dépôt à conteneur : le conteneur écrit le dépôt, et les sessions de l'hôte
+// ouvertes dans ce dossier les exécutent (le surveillant de fichiers les reprend).
+function crochetsDuDepot(depot) {
+  return ['.claude/settings.json', '.claude/settings.local.json'].flatMap((f) => {
+    const j = lireJson(path.join(depot, f), null);
+    return j?.hooks && typeof j.hooks === 'object' && Object.keys(j.hooks).length ? [{ f, evenements: Object.keys(j.hooks) }] : [];
+  });
+}
+
 // Une configuration lue (JSONC), avec son arbre pour situer une ligne ; `erreur` si elle ne se lit pas.
 function lireConfig(depot, f) {
   const texte = fs.readFileSync(path.join(depot, f), 'utf8'); const erreurs = [];
@@ -576,12 +599,14 @@ function montageSensible(ctx) {
     const qui = vu === touche.chemin ? affiche(vu) : dedans(touche.chemin, vu) ? `${affiche(vu)}, qui contient ${affiche(touche.chemin)}` : `${affiche(vu)}, dans ${affiche(touche.chemin)}`;
     return `monte ${qui} (${touche.quoi}) dans le conteneur, ${lecture ? 'en lecture' : 'en écriture'}`;
   };
-  const ecarts = []; const nonLus = []; const admisTous = []; const publiees = new Set();
-  for (const f of configsConteneur(ctx.depot)) {
+  const ecarts = []; const nonLus = []; const admisTous = []; const publiees = new Set(); const configs = configsConteneur(ctx.depot); const lus = configs.length > 0;
+  for (const f of configs) {
     const config = lireConfig(ctx.depot, f);
     if (config.erreur) { nonLus.push(config.erreur); continue; }
     if (config.c.dockerComposeFile) { nonLus.push(`${f} : conteneur décrit par Docker Compose, montages non lus`); continue; }
     const admis = montagesAdmis(config.c, ctx.depot, maison); admisTous.push(...admis);
+    const init = initialisationHorsAttente(config.c, ctx.depot, maison, env, admis);
+    if (init) ecarts.push({ fichier: f, ligne: ligneDe(config, ['initializeCommand']), cle: `initialisation:${f}`, message: init });
     for (const id of Object.keys(config.c.features && typeof config.c.features === 'object' ? config.c.features : {})) if (!id.startsWith('.')) publiees.add(id);
     for (const lu of [config, ...featuresLocales(ctx.depot, f, config.c)]) {
       if (lu.erreur) { nonLus.push(lu.erreur); continue; }
@@ -616,6 +641,16 @@ function montageSensible(ctx) {
     for (const e of iso.espaces) dit(e, `partage un espace de noms de l’hôte (${e})`);
     for (const p of iso.protections.filter((x) => PROTECTION_RETIREE.test(x))) dit(`security-opt:${p}`, `a une protection retirée (${p})`);
     for (const v of iso.volumes_de) dit(`volumes-from:${v}`, `monte les volumes du conteneur ${v}`);
+  }
+  // Le dépôt monté en écriture reste une voie vers l'hôte (décision environnement-d-execution, risque jusqu'à D) : ses
+  // crochets Claude Code, et un accès distant qui fait tourner des sessions de l'hôte dans ce même dossier.
+  if (lus || construits.length) {
+    for (const x of crochetsDuDepot(ctx.depot)) {
+      ecarts.push({ fichier: x.f, ligne: null, cle: `crochets:${x.f}`, message: `crochets ${x.evenements.join(', ')} dans un dépôt que le conteneur écrit : les sessions de l’hôte ouvertes ici les exécutent` });
+    }
+    for (const a of (ctx.distants || accesDistants()).filter((x) => x.chemin && dedans(path.resolve(x.chemin), ctx.depot))) {
+      ecarts.push({ fichier: null, ligne: null, cle: `acces-distant:${a.nom}`, message: `l’accès distant ${a.nom} fait tourner des sessions sur l’hôte dans ce dépôt, que le conteneur écrit (crochets, configuration git, initializeCommand)` });
+    }
   }
   if (publiees.size && !construits.length) nonLus.push(`features publiées (${[...publiees].join(', ')}) non lues, et aucun conteneur du dépôt à inspecter`);
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.

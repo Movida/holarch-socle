@@ -488,7 +488,7 @@ test('Faille du conteneur : un montage de l’hôte qui expose un identifiant ou
 // Contre-épreuve de la faille du conteneur (2026-10-09) : un essai par constat.
 function conteneurEssai() {
   const maison = tmp(); const d = path.join(maison, 'projet'); fs.mkdirSync(path.join(d, '.devcontainer'), { recursive: true });
-  const ctx = { depot: d, maison, env: { HOME: maison }, holarch: [path.join(maison, '.claude', 'holarch')], conteneurs: [], maisonsWindows: [] };
+  const ctx = { depot: d, maison, env: { HOME: maison }, holarch: [path.join(maison, '.claude', 'holarch')], conteneurs: [], maisonsWindows: [], distants: [] };
   const config = (c) => fs.writeFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), typeof c === 'string' ? c : JSON.stringify(c));
   return { maison, d, ctx, config, lire: () => executer('montage-sensible', ctx, 'audit'), cibles: (r) => r.ecarts.map((e) => e.cle.split(':').pop()) };
 }
@@ -672,4 +672,31 @@ test('Contre-épreuve du conteneur (5) : un conteneur déjà construit se juge s
   assert.deepEqual(lire(), { ecarts: [] });
   fs.rmSync(path.join(maison, 'projet', '.devcontainer'), { recursive: true });
   assert.deepEqual(lire().ecarts.map((e) => e.cle), ['conteneur:neuf:/p']);
+});
+
+test('Contre-épreuve du conteneur (6) : ce qui, dans le dépôt que le conteneur écrit, s’exécute sur l’hôte', () => {
+  const { d, config, lire, ctx } = conteneurEssai();
+  const cles = () => lire().ecarts.map((e) => e.cle.split(':')[0] + ':' + e.cle.split(':').pop());
+  // La création des dossiers admis est attendue ; toute autre commande de l'hôte, non.
+  const admis = 'mkdir -p ${localEnv:HOME}/.claude/projects/-workspaces-projet ${localEnv:HOME}/.claude/rules';
+  config({ initializeCommand: admis });
+  assert.deepEqual(cles(), []);
+  for (const autre of [`${admis} && curl x | sh`, 'mkdir -p ${localEnv:HOME}/.ssh', ['sh', '-c', 'id'], { a: admis, b: 'touch /tmp/x' }, `${admis}; $(id)`]) {
+    config({ initializeCommand: autre });
+    assert.deepEqual(cles(), ['initialisation:.devcontainer/devcontainer.json'], JSON.stringify(autre));
+  }
+  config({ initializeCommand: [admis] });
+  assert.deepEqual(cles(), [], 'la forme tableau de la même commande');
+  // Crochets des réglages Claude Code du dépôt, et accès distant de l'hôte posé sur ce dépôt (ou plus bas).
+  config({});
+  fs.mkdirSync(path.join(d, '.claude'));
+  fs.writeFileSync(path.join(d, '.claude', 'settings.local.json'), JSON.stringify({ hooks: { SessionStart: [] }, permissions: {} }));
+  fs.writeFileSync(path.join(d, '.claude', 'settings.json'), JSON.stringify({ permissions: {} }));
+  ctx.distants = [{ nom: 'projet', chemin: d }, { nom: 'autre', chemin: path.dirname(d) }];
+  const r = lire();
+  assert.deepEqual(r.ecarts.map((e) => e.cle), ['crochets:.claude/settings.local.json', 'acces-distant:projet']);
+  assert.match(r.ecarts[0].message, /crochets SessionStart dans un dépôt que le conteneur écrit/);
+  // Sans conteneur, rien de tout cela n'est un écart.
+  fs.rmSync(path.join(d, '.devcontainer'), { recursive: true });
+  assert.deepEqual(lire().ecarts, []);
 });
