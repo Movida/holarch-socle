@@ -902,6 +902,8 @@ test('identité de commit : posée en réglage local, réglage à la main laiss�
 import { creerProjet, declarer } from '../src/creation.js';
 import { configAvantProjet } from '../src/regles.js';
 
+// Un nom à encoder (majuscule, `_`, `.`) : le dossier de transcriptions du conteneur se nomme comme Claude Code le ferait.
+const NOM = 'Neuf_2.x';
 test('création de projet : étapes faites puis, rejouées, déjà là ; gestes réservés dits ; à blanc rien n’est écrit', async () => {
   const cles = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM', ...['AUTHOR', 'COMMITTER'].flatMap((x) => [`GIT_${x}_NAME`, `GIT_${x}_EMAIL`])];
   const avant = Object.fromEntries(cles.map((k) => [k, process.env[k]])); for (const k of cles) delete process.env[k];
@@ -940,33 +942,33 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     const etats = (x) => Object.fromEntries(x.etapes.map((e) => [e.etape, e.etat]));
 
     // À blanc : rien ne s'écrit, ni le dossier ni le catalogue.
-    const blanc = await creerProjet(s, { nom: 'neuf', types: ['public'], description: 'Un projet d’essai.', aBlanc: true }, outils);
-    assert.deepEqual([etats(blanc).depot, etats(blanc).fichiers, etats(blanc).audit, fs.existsSync(path.join(r, 'neuf'))], ['a-faire', 'a-faire', 'a-faire', false]);
+    const blanc = await creerProjet(s, { nom: NOM, types: ['public'], description: 'Un projet d’essai.', aBlanc: true }, outils);
+    assert.deepEqual([etats(blanc).depot, etats(blanc).fichiers, etats(blanc).audit, fs.existsSync(path.join(r, NOM))], ['a-faire', 'a-faire', 'a-faire', false]);
 
-    const p1 = await creerProjet(s, { nom: 'neuf', types: ['public'], description: 'Un projet d’essai.' }, outils);
-    const d = path.join(r, 'neuf'); const g = (...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }).stdout.trim();
+    const p1 = await creerProjet(s, { nom: NOM, types: ['public'], description: 'Un projet d’essai.' }, outils);
+    const d = path.join(r, NOM); const g = (...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }).stdout.trim();
     assert.deepEqual(etats(p1), { depot: 'faite', identite: 'faite', fichiers: 'faite', declaration: 'faite', regles: 'faite', github: 'faite', cle: 'geste', distant: 'faite', audit: 'faite' }, JSON.stringify(p1.etapes, null, 1));
     assert.match(p1.projet, /^holarch:project:[0-9a-f]{12}$/);
     assert.deepEqual(g('log', '--format=%an <%ae> %s').split('\n'), ['Alice Exemple <alice@noreply.test> Appliquer les règles HOLARCH', 'Alice Exemple <alice@noreply.test> Créer le projet']);
     assert.deepEqual(g('ls-files').split('\n').sort(), ['.claude/rules/holarch/rien-de-prive.md', '.devcontainer/deploy-key.sh', '.devcontainer/devcontainer.json', '.gitignore', 'CLAUDE.md', 'LICENSE', 'README.md', 'arbre/index.md', 'arbre/log.md']);
     assert.match(fs.readFileSync(path.join(d, 'LICENSE'), 'utf8'), new RegExp(`Copyright \\(c\\) ${new Date().getFullYear()} Alice Exemple`));
-    assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "neuf"[\s\S]*source=neuf-claude[\s\S]*projects\/-workspaces-neuf,[\s\S]*source=neuf-ssh/);
+    assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "Neuf_2\.x"[\s\S]*source=neuf_2\.x-claude[\s\S]*projects\/-workspaces-Neuf-2-x,[\s\S]*source=neuf_2\.x-ssh/);
     assert.deepEqual(executer('montage-sensible', { depot: d, holarch: [] }, 'audit').ecarts, [], 'le conteneur créé ne monte rien de sensible de l’hôte');
     assert.ok(fs.statSync(path.join(d, '.devcontainer', 'deploy-key.sh')).mode & 0o100, 'deploy-key.sh exécutable');
     assert.match(fs.readFileSync(path.join(d, 'arbre', 'index.md'), 'utf8'), /types: \[public\]\nconfig:\n  journal: arbre\/log.md\ntitle/);
     assert.ok(fs.existsSync(path.join(d, '.git', 'hooks', 'pre-commit')), 'crochet posé (règle bloquante)');
-    assert.ok(appels.includes('repo create alice/neuf --public --description Un projet d’essai.'), appels.join('\n'));
+    assert.ok(appels.includes('repo create alice/Neuf_2.x --public --description Un projet d’essai.'), appels.join('\n'));
     assert.equal(g('rev-parse', '--abbrev-ref', '@{upstream}'), 'origin/main');
     // La déclaration : une ligne ajoutée, le reste du fichier (commentaire compris) intact, commit dans le profil seul.
     const ctx = fs.readFileSync(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), 'utf8');
-    assert.match(ctx, new RegExp(`# Les projets du contexte\\.\\nprojects:\\n  - holarch:project:ancien   # ancien\\n  - ${p1.projet}   # neuf\\n---`));
-    assert.equal(spawnSync('git', ['-C', path.join(r, 'profil'), 'log', '-1', '--format=%s'], { encoding: 'utf8' }).stdout.trim(), 'Déclarer le projet neuf');
+    assert.match(ctx, new RegExp(`# Les projets du contexte\\.\\nprojects:\\n  - holarch:project:ancien   # ancien\\n  - ${p1.projet}   # Neuf_2\\.x\\n---`));
+    assert.equal(spawnSync('git', ['-C', path.join(r, 'profil'), 'log', '-1', '--format=%s'], { encoding: 'utf8' }).stdout.trim(), 'Déclarer le projet Neuf_2.x');
     const cle = p1.etapes.find((e) => e.etape === 'cle').geste;
-    assert.deepEqual([cle.commande, cle.lien], ['.devcontainer/deploy-key.sh', 'https://github.com/alice/neuf/settings/keys/new']);
+    assert.deepEqual([cle.commande, cle.lien], ['.devcontainer/deploy-key.sh', 'https://github.com/alice/Neuf_2.x/settings/keys/new']);
 
     // Rejouée, une fois la clé enregistrée : tout est déjà là, rien ne change.
     cles = 1; const tete = g('rev-parse', 'HEAD');
-    const p2 = await creerProjet(s, { nom: 'neuf', types: ['public'] }, outils);
+    const p2 = await creerProjet(s, { nom: NOM, types: ['public'] }, outils);
     assert.deepEqual(Object.values(etats(p2)).filter((e) => e !== 'deja' && e !== 'faite'), [], JSON.stringify(p2.etapes, null, 1));
     assert.deepEqual([etats(p2).fichiers, etats(p2).declaration, etats(p2).regles, etats(p2).github, etats(p2).cle, etats(p2).distant], ['deja', 'deja', 'deja', 'deja', 'deja', 'deja']);
     assert.equal(g('rev-parse', 'HEAD'), tete);
@@ -975,7 +977,7 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     ecrire(path.join(r, 'occupe', 'note.txt'), 'à moi\n');
     assert.deepEqual(etats(await creerProjet(s, { nom: 'occupe' }, outils)), { depot: 'echec' });
     fs.rmSync(path.join(d, '.gitignore')); g('commit', '-qam', 'retirer');
-    const p3 = await creerProjet(s, { nom: 'neuf', types: ['public'] }, outils);
+    const p3 = await creerProjet(s, { nom: NOM, types: ['public'] }, outils);
     assert.deepEqual([etats(p3).fichiers, p3.etapes.find((e) => e.etape === 'fichiers').detail, g('log', '-1', '--format=%s')], ['faite', '.gitignore', 'Compléter les fichiers de base du projet']);
 
     // Une déclaration en ligne s'allonge ; sans liste, elle se crée.
