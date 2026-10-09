@@ -1014,34 +1014,26 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   Textes : contrat événement, 0.10.0 marquée en attente d'approbation ; décision `veille-et-conteneur-precisions` en
   brouillon (ligne B, borne d'immobilité, règle `veille-retardee` réécrite, gardien, risque résiduel jusqu'à D,
   limites connues).
+- **Fait (2026-10-09, soir)** : les six mineurs de la contre-épreuve des corrections de B et les deux choix de
+  l'auteur, un commit et un test chacun (136 tests verts, chaque test éprouvé contre l'ancien code). Gardien posé
+  seulement si un systemd utilisateur dit son état (`is-system-running`) : sans lui, « non posé », rien d'écrit, aucune
+  erreur, et `holarch veille` le dit impossible ; essayé dans un conteneur jetable de l'image du socle, avec son faux
+  `systemctl` (qui répond 0 à tout) et sans `systemctl` ; une erreur de lancement se dit (plus « code null »).
+  Sous-agents lus à tout niveau (`subagents/workflows/wf_<id>/`, 195 transcriptions de workflow en 30 jours). Une note
+  non faite garde l'erreur du crochet. Heure locale éprouvée à UTC+14. Exception du socle jusqu'à D :
+  `montage_sensible.exceptions` (`{ecart, pourquoi}`, contrat de configuration 0.4.0) à la racine de l'arbre du socle ;
+  vu sur le vrai socle, `montage-sensible` fait, sans écart ; D la retire. `regles appliquer` refuse d'écrire un compte
+  sans profil unique (le compte réel en a un). Textes : une seule mesure datée (36 transcriptions distantes sur 53,
+  jusqu'à 6 jours ; 4 silences de plus de 11 min pendant un tour, tous après un appel court, d'où « hors attente de
+  permission »), règle proposée reformulée, en-tête du contrat événement en 0.9.0 avec 0.10.0 proposée, redite de la
+  tenue précisée, limites reprises. Rien posé, rien poussé.
 - **Reste** :
-  0. **Contre-épreuve des corrections de B et des textes (2026-10-09)**, instance neuve `xhigh` en lecture seule, sur
-     `ea96019` à `75dfa0a` : aucun majeur ; 16 mutations sur 17 tuées par leur test ; commande du crochet éprouvée sous
-     dash et bash (code 0, session locale sans node, JSON valide, accueil cité). Rapport dans la transcription de la
-     session du 2026-10-09 au soir (`7dce2e8c`). Six mineurs, à corriger un commit et un test chacun :
-     (1) régression de `ea96019` : sans systemd utilisateur (WSL sans systemd, conteneur qui voit le profil), le gardien
-     voulu fait échouer `regles appliquer` à chaque fois, unité écrite et message « code null » (`lancer` ignore
-     `r.error`) ; rendre « sans systemd utilisateur : non posé » sans rien écrire ni échouer, et `r.error?.message`
-     dans le message ; (2) un workflow de fond (`subagents/workflows/wf_*/agent-*.jsonl`) ne retient pas le poste :
-     `activite` lit `subagents/` à plat ; lire récursivement (mesure : 195 transcriptions de workflow en 30 jours, toutes
-     en conteneur) ; (3) `veille-noter.js` efface l'erreur sur une note non faite (`{note: false}` : entrée vide,
-     identifiant illisible, événement inconnu) : n'effacer que si `r.note`, sinon noter l'erreur (sauf « session
-     locale ») ; (4) le test « heure locale » passe avec l'heure UTC : comparer à `toLocaleString('sv-SE')` ou fixer
-     `TZ` ; (5) l'en-tête du contrat événement dit encore `stable` et `version: 0.10.0` : `version: 0.9.0` dans l'en-tête,
-     0.10.0 dite proposée avec un lien vers la décision ; (6) textes : un seul chiffre pour les entrées sans date (le
-     code dit 46 sur 63 et « jusqu'à 33 min », la décision 38 sur 56 ; la contre-épreuve mesure 39 sur 57 et jusqu'à
-     6,2 jours) ; « aucun silence de plus de 11 min pendant un tour » devient « hors attente de permission » (6 silences
-     de plus de 11 min sur 57 sessions, le plus long 114 min après un `Edit`) ; règle proposée : « une session immobile
-     depuis 30 min est en attente depuis sa dernière écriture » ; contrat : la tenue ne se redit après une panne courte
-     que pour les mêmes sessions ; la limite « le gardien tourne partout où la règle s'applique » à corriger avec (1) ;
-     la limite de l'erreur effacée avec (3) ; ici, point 7 : `regles appliquer` pose aussi le gardien. Ordre de pose
-     recommandé par la contre-épreuve : `holarch service poser` d'abord (la copie en service, sans `veille-noter.js`,
-     ferait écrire une erreur à chaque crochet et tomber le gardien), puis `holarch regles appliquer`.
-     - Choix de l'auteur (2026-10-09, choix cliquables), à mettre en œuvre avec les mineurs, un commit et un test
-       chacun : l'écart `acces-distant` du socle levé par une exception du socle jusqu'à D (la recommandation était de
-       le garder visible) ; `holarch regles appliquer` refuse d'écrire un compte sans profil unique, comme des règles
-       illisibles. Puis l'approbation du tout (ligne B et point « Veille » de `environnement-d-execution`, règle
-       `veille-retardee` du profil, contrat événement 0.10.0).
+  0. **Approbation du tout, sur l'accord de l'auteur** (récapitulatif et choix cliquables) : décision
+     `veille-et-conteneur-precisions` (ligne B et point « Veille » de `environnement-d-execution`), règle
+     `veille-retardee` réécrite au profil, contrat événement 0.10.0, contrat de configuration 0.4.0. Puis la pose, dans
+     cet ordre (contre-épreuve) : `holarch service poser` d'abord (la copie en service, sans `veille-noter.js`, ferait
+     écrire une erreur à chaque crochet et tomber le gardien), puis `holarch regles appliquer` (crochets au compte, et le
+     gardien) ; critère de B. Contre-épreuve des corrections du 2026-10-09 au soir : à proposer à l'auteur.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
@@ -1158,8 +1150,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        (16) 0,2 s par invite pour une session locale : tester les variables dans la commande shell avant node ;
        (17) lecture du ppid sur le vrai `/proc` non testée (test proposé : `sh -c "node … processusSession()"`).
        Ensuite : approbation par l'auteur de la règle `veille-retardee` et du contrat événement 0.10.0 (`power.*`) ;
-       pose (`holarch service poser` pose le gardien, `holarch regles appliquer` les
-       crochets au compte) ; vérifier qu'un crochet de session distante reçoit bien `CLAUDE_CODE_ENVIRONMENT_KIND`
+       pose (`holarch service poser` d'abord, puis `holarch regles appliquer` : les crochets au compte, et le
+       gardien) ; vérifier qu'un crochet de session distante reçoit bien `CLAUDE_CODE_ENVIRONMENT_KIND`
        (`holarch veille` montre la session notée) ; critère, avec le délai de veille raccourci le temps de l'essai
        (`powercfg /change standby-timeout-ac 10`, puis remis à 300). Limites connues : dans la décision
        `veille-et-conteneur-precisions` (en brouillon). Reste du critère de A : une session archivée le reste après une

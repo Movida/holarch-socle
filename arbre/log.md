@@ -2,6 +2,13 @@
 
 ## 2026-10-09
 
+* **Mineurs de la contre-épreuve et choix de l'auteur** : les six mineurs (gardien non posé sans systemd utilisateur,
+  essayé dans un conteneur de l'image du socle ; sous-agents de workflow lus ; erreur gardée sur une note non faite ;
+  heure locale éprouvée à UTC+14 ; en-tête du contrat événement en 0.9.0 ; textes sur une seule mesure datée) et les
+  deux choix (exception `acces-distant` du socle jusqu'à D par `montage_sensible.exceptions`, contrat de configuration
+  0.4.0 ; `regles appliquer` refuse un compte sans profil unique), un commit et un test chacun, 136 tests verts. Rien
+  posé, rien poussé ; approbation du tout soumise à l'auteur.
+
 * **Mineurs de B corrigés, textes proposés, contre-épreuve** : les mineurs 2 à 9 de B, un commit et un test chacun
   (gardien qui suit la seule règle, question masquée par un sous-agent, activité datée par les entrées datées, une
   seule lecture de l'état du gardien, règle indéterminée sans profil unique, erreur du gardien dite, point d'entrée
