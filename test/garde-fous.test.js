@@ -11,7 +11,7 @@ import { etatDepot } from '../src/inventaire/depots-git.js';
 import { Journal } from '../src/stockage/journal.js';
 import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
-import { executer } from '../src/controles.js';
+import { executer, dossierClaude } from '../src/controles.js';
 import { git, gitLu } from '../src/commun.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
@@ -481,4 +481,33 @@ test('Faille du conteneur : un montage de l’hôte qui expose un identifiant ou
   // Sans conteneur, rien n'est monté.
   fs.rmSync(path.join(d, '.devcontainer'), { recursive: true });
   assert.deepEqual(lire().ecarts, []);
+});
+
+// Contre-épreuve de la faille du conteneur (2026-10-09) : un essai par constat.
+function conteneurEssai() {
+  const maison = tmp(); const d = path.join(maison, 'projet'); fs.mkdirSync(path.join(d, '.devcontainer'), { recursive: true });
+  const ctx = { depot: d, maison, env: { HOME: maison }, holarch: [path.join(maison, '.claude', 'holarch')], conteneurs: [] };
+  const config = (c) => fs.writeFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), typeof c === 'string' ? c : JSON.stringify(c));
+  return { maison, d, ctx, config, lire: () => executer('montage-sensible', ctx, 'audit'), cibles: (r) => r.ecarts.map((e) => e.cle.split(':').pop()) };
+}
+const transcriptions = (dossier) => `type=bind,source=\${localEnv:HOME}/.claude/projects/${dossier},target=/home/node/.claude/projects/${dossier}`;
+
+test('Contre-épreuve du conteneur (1, 18, 21) : seul un dossier de travail sous /workspaces/, résolu et normalisé, ouvre son dossier de transcriptions', () => {
+  const { config, lire, cibles } = conteneurEssai();
+  // Un dossier de travail de l'hôte : sa mémoire, chargée par les sessions de l'hôte, n'est pas admise.
+  config({ workspaceFolder: '/home/alice/projet', mounts: [transcriptions('-home-alice-projet')] });
+  assert.deepEqual(cibles(lire()), ['/home/node/.claude/projects/-home-alice-projet']);
+  config({ workspaceFolder: '/workspaces/../home/alice/x', mounts: [transcriptions('-workspaces----home-alice-x'), transcriptions('-home-alice-x')] });
+  assert.equal(lire().ecarts.length, 2);
+  config({ workspaceFolder: '${localWorkspaceFolder}', mounts: [transcriptions('-tmp')] });
+  assert.equal(lire().ecarts.length, 1);
+  // Résolu et normalisé comme le CLI : la variable du nom du dossier, le `/` final.
+  config({ workspaceFolder: '/workspaces/${localWorkspaceFolderBasename}', mounts: [transcriptions('-workspaces-projet')] });
+  assert.deepEqual(lire().ecarts, []);
+  config({ workspaceFolder: '/workspaces/projet/', mounts: [transcriptions('-workspaces-projet')] });
+  assert.deepEqual(lire().ecarts, []);
+  // Un nom que Claude Code tronquerait (plus de 200 caractères) n'est pas admis.
+  const long = `/workspaces/${'x'.repeat(200)}`;
+  config({ workspaceFolder: long, mounts: [transcriptions(dossierClaude(long))] });
+  assert.equal(lire().ecarts.length, 1);
 });

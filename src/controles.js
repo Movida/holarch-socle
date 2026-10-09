@@ -321,9 +321,22 @@ const reel = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
 // Claude Code nomme d'après le dossier de travail (HOLARCH les importe, P4), et les règles du compte en lecture (l'arbre
 // des règles atteint le conteneur ; écrites depuis lui, elles s'imposeraient aux sessions de l'hôte).
 export const dossierClaude = (dossier) => dossier.replace(/[^a-zA-Z0-9]/g, '-');
-const montagesAdmis = (c, depot, maison) => [
-  { chemin: path.join(maison, '.claude', 'projects', dossierClaude(c.workspaceFolder || `/workspaces/${path.basename(depot)}`)) },
-  { chemin: path.join(maison, '.claude', 'rules'), lecture: true, quoi: 'règles du compte, lues par les sessions de l’hôte' }];
+
+// Dossier de travail du conteneur, résolu comme le CLI Dev Containers et normalisé ; null hors de `/workspaces/` (le
+// dossier d'un projet de l'hôte, `-home-…`, porte une mémoire que les sessions de l'hôte chargent) ou quand Claude Code
+// en tronquerait le nom (plus de 200 caractères, haché).
+function dossierDeTravail(c, depot) {
+  const s = String(c.workspaceFolder ?? `/workspaces/${path.basename(depot)}`)
+    .replace(/\$\{localWorkspaceFolderBasename\}/g, path.basename(depot)).replace(/\$\{localWorkspaceFolder\}/g, depot);
+  const n = path.posix.normalize(s).replace(/\/+$/, '');
+  return !s.includes('${') && /^\/workspaces\/[^/]/.test(n) && dossierClaude(n).length <= 200 ? n : null;
+}
+
+const montagesAdmis = (c, depot, maison) => {
+  const travail = dossierDeTravail(c, depot);
+  return [...(travail ? [{ chemin: path.join(maison, '.claude', 'projects', dossierClaude(travail)) }] : []),
+    { chemin: path.join(maison, '.claude', 'rules'), lecture: true, quoi: 'règles du compte, lues par les sessions de l’hôte' }];
+};
 
 // Fichiers de configuration d'un conteneur, aux emplacements de la spécification Dev Containers.
 function configsConteneur(depot) {
