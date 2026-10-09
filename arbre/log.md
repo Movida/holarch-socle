@@ -14,6 +14,9 @@
   Leçon de clôture : déroulé annoncé (deux décisions, A, commits sans envoi) ; réalisé. Ce qui a fait dévier : une
   substitution sur un repère qui se répète dans le fichier (`Choix techniques (P12)`), qui l'a dupliqué, réparé avant
   commit ; la confiance déclarée avant le contrôle du réglage, vue à la relecture et corrigée avec son test.
+  Modèle et effort inscrits par livraison, à la demande de l'auteur, d'après l'usage mesuré (Opus 5.5 seul, `high`
+  presque partout) : `high` pour A et E, `xhigh` pour B, C et D, contre-épreuve en `xhigh`. La session tournait en
+  `high`, pas en `medium` comme supposé.
 
 * **Constats des contre-épreuves corrigés** (A à H, puis 1 à 5 d'une troisième) : dix commits avec un test qui
   reproduit chacun (93 tests verts), envoyés sur `origin/main` sur demande de l'auteur. `gitLu` (inventaire, contrôles

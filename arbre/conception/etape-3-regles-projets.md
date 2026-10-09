@@ -965,6 +965,7 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        décision ; le service du poste garde son ancienne unité jusqu'à `holarch distant activer holarch-socle`, que
        l'auteur lance (la relance coupe les sessions servies). Critère à vérifier par l'auteur : après la relance,
        aucune session créée ni reprise ; une session ouverte depuis l'application répond ; une archivée le reste.
-     - **Suite** : B (essai Q25, un geste de l'auteur sur le téléphone).
+     - **Suite** : B, en Opus 5.5 `xhigh` (modèle et effort par livraison dans la décision) ; d'abord l'essai Q25, un
+       geste de l'auteur sur le téléphone.
   8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.

@@ -59,13 +59,21 @@ Livrer d'un bloc attendrait que tout tienne ; découpé, chaque livraison sert s
 
 **Livraisons.** Chacune sert seule ; l'ordre proposé est A, B, C, D, E.
 
-| Livraison | Contenu | Dépend de | Critère |
-|---|---|---|---|
-| A. Démarrage sans session | point « Session au démarrage » | Q27 (résolue) | après une relance du service, aucune session n'est créée ni reprise ; l'auteur en ouvre une depuis l'application et elle répond ; une session archivée le reste |
-| B. Veille retardée | point « Veille » ; l'état des sessions se lit de l'hôte, même quand elles tourneront en conteneur | Q25 | une session distante qui travaille plus longtemps que le délai de veille ne l'interrompt pas ; sans session active, le poste se met en veille comme avant |
-| C. Conteneur généré | points « Clé `conteneur` » et « Génération » ; le conteneur du socle réparé d'abord | I32, Q23 | `holarch projet creer` rejoué sur `holarch-socle` écrit un `devcontainer.json` sans rien de personnel, que VS Code et `devcontainer up` ouvrent dans le même conteneur ; l'audit signale un écart à la main |
-| D. Accès distant dans le conteneur | point « Lieu de l'accès distant » ; l'accès sur l'hôte gardé jusqu'à ce que D tienne | C, Q24 | critère de la tranche ci-dessous |
-| E. Type `calcul-gpu` | point « Carte graphique » | C, Q26 | un test de rendu du projet three.js tourne dans son conteneur sur la carte, et sans carte en rendu logiciel |
+| Livraison | Contenu | Dépend de | Critère | Modèle, effort |
+|---|---|---|---|---|
+| A. Démarrage sans session | point « Session au démarrage » | Q27 (résolue) | après une relance du service, aucune session n'est créée ni reprise ; l'auteur en ouvre une depuis l'application et elle répond ; une session archivée le reste | Opus 5.5, `high` (livrée ainsi) |
+| B. Veille retardée | point « Veille » ; l'état des sessions se lit de l'hôte, même quand elles tourneront en conteneur | Q25 | une session distante qui travaille plus longtemps que le délai de veille ne l'interrompt pas ; sans session active, le poste se met en veille comme avant | Opus 5.5, `xhigh` |
+| C. Conteneur généré | points « Clé `conteneur` » et « Génération » ; le conteneur du socle réparé d'abord | I32, Q23 | `holarch projet creer` rejoué sur `holarch-socle` écrit un `devcontainer.json` sans rien de personnel, que VS Code et `devcontainer up` ouvrent dans le même conteneur ; l'audit signale un écart à la main | Opus 5.5, `xhigh` |
+| D. Accès distant dans le conteneur | point « Lieu de l'accès distant » ; l'accès sur l'hôte gardé jusqu'à ce que D tienne | C, Q24 | critère de la tranche ci-dessous | Opus 5.5, `xhigh` |
+| E. Type `calcul-gpu` | point « Carte graphique » | C, Q26 | un test de rendu du projet three.js tourne dans son conteneur sur la carte, et sans carte en rendu logiciel | Opus 5.5, `high` |
+
+**Modèle et effort.** Mesure du 2026-10-09 sur les 30 sessions du socle : Opus 5.5 seul ; effort `high` à chaque tour,
+sauf une session en `medium` (2026-10-08) ; réglage du poste : `high` pour Opus 5.5, `xhigh` par défaut ; `max` jamais
+employé. D'où `high` pour ce qui est court ou surtout une mesure (A, E, les essais Q23 à Q26), `xhigh` pour ce qui
+touche un contrat, un autre système ou les sessions en cours (B : Windows et crochets non documentés ; C : contrat
+config et audit ; D : accès distant déplacé). La contre-épreuve de chaque livraison se fait en Opus 5.5, `xhigh`, dans
+une instance neuve : `max` n'a jamais servi ici et son coût n'est pas mesuré. À la frontière d'une livraison dont le
+réglage n'est pas celui de la session active, la session s'arrête et le dit (règle `modele-par-etape`).
 
 **Raison.** Une description générée depuis l'arbre donne d'un coup le partage (rien de personnel dans le dépôt), la
 modularité (les types apportent leurs réglages) et l'audit. Démarrer sans session ouvre chaque demande sur un contexte
