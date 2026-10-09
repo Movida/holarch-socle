@@ -577,3 +577,26 @@ test('Contre-épreuve du conteneur (13, 26, 14, 15) : variables comme le CLI Dev
   r = lire();
   assert.deepEqual([r.ecarts, r.indisponible.split(' ; ').length], [[], 3]);
 });
+
+test('Contre-épreuve du conteneur (3) : options de runArgs lues comme le CLI Docker, privilèges du fichier et features locales', () => {
+  const { d, config, lire } = conteneurEssai();
+  const cles = (r) => r.ecarts.map((e) => e.cle.split(':').slice(2).join(':'));
+  config({ runArgs: ['-v${localEnv:HOME}/.ssh:/a', '-itv', '${localEnv:HOME}/.aws:/b', '-v=${localEnv:HOME}/.kube:/c', '--rm', '-e', 'X=1',
+    '--volumes-from', 'autre', '--privileged', '--privileged=false', '--cap-add=SYS_ADMIN', '--device', '/dev/bus/usb', '--pid=host',
+    '--network=host', '--security-opt', 'seccomp=unconfined', '--security-opt=no-new-privileges', '--use-api-socket'] });
+  let r = lire();
+  assert.deepEqual(cles(r), ['/a', '/b', '/c', 'volumes-from:autre', 'privileged', 'cap-add:SYS_ADMIN', 'device:/dev/bus/usb', 'pid:host', 'security-opt:seccomp=unconfined', 'use-api-socket']);
+  assert.match(r.ecarts.find((e) => e.cle.endsWith(':privileged')).message, /conteneur privilégié.*l’isolement du conteneur ne tient plus/);
+  // Les mêmes privilèges écrits en propriétés du fichier, ligne comprise.
+  config('{\n  "privileged": true,\n  "capAdd": ["SYS_PTRACE"],\n  "securityOpt": ["apparmor=unconfined", "label=type:x"]\n}');
+  r = lire();
+  assert.deepEqual(r.ecarts.map((e) => [cles({ ecarts: [e] })[0], e.ligne]), [['privileged', 2], ['cap-add:SYS_PTRACE', 3], ['security-opt:apparmor=unconfined', 4]]);
+  // Une feature locale ajoute ses montages et privilèges ; une feature locale absente n'est pas lue ; une feature publiée ne se lit pas ici.
+  fs.mkdirSync(path.join(d, '.devcontainer', 'outil'));
+  fs.writeFileSync(path.join(d, '.devcontainer', 'outil', 'devcontainer-feature.json'), JSON.stringify({ id: 'outil', privileged: true, mounts: [{ type: 'bind', source: '/var/run/docker.sock', target: '/var/run/docker.sock' }] }));
+  config({ features: { './outil': {}, 'ghcr.io/devcontainers/features/git:1': {} } });
+  r = lire();
+  assert.deepEqual([r.ecarts.map((e) => [e.fichier, cles({ ecarts: [e] })[0]]), r.indisponible], [[['.devcontainer/outil/devcontainer-feature.json', '/var/run/docker.sock'], ['.devcontainer/outil/devcontainer-feature.json', 'privileged']], undefined]);
+  config({ features: { './manque': {} } });
+  assert.match(lire().indisponible, /manque\/devcontainer-feature\.json absent/);
+});

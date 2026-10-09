@@ -416,19 +416,86 @@ function montageCourt(t) {
   return { type: /^[/~.$]/.test(source) ? 'bind' : 'volume', source, cible, lecture: mode.split(',').includes('ro') };
 }
 
-// Les montages d'une configuration, chacun avec son chemin dans le fichier (pour la ligne).
-function montagesDe(c) {
-  const l = [];
-  (Array.isArray(c.mounts) ? c.mounts : []).forEach((m, i) => l.push({ ou: ['mounts', i], ...(m && typeof m === 'object' ? montageObjet(m) : montageTexte(m)) }));
-  if (c.workspaceMount) l.push({ ou: ['workspaceMount'], ...montageTexte(c.workspaceMount) });
-  const a = Array.isArray(c.runArgs) ? c.runArgs.map(String) : [];
-  for (let i = 0; i < a.length; i++) {
-    const [opt, val] = a[i].includes('=') ? [a[i].slice(0, a[i].indexOf('=')), a[i].slice(a[i].indexOf('=') + 1)] : [a[i], a[i + 1]];
-    const j = a[i].includes('=') ? i : i + 1;
-    if (opt === '-v' || opt === '--volume') l.push({ ou: ['runArgs', j], ...montageCourt(val) });
-    else if (opt === '--mount') l.push({ ou: ['runArgs', j], ...montageTexte(val) });
+// Les options de `runArgs`, lues comme le CLI Docker (pflag) : `--nom=valeur` ou `--nom valeur`, options courtes
+// groupées ou collées à leur valeur (`-itv /a:/b`, `-v/a:/b`, `-v=/a:/b`) ; chacune sous son nom long, avec sa place.
+// Une option inconnue ne prend la suivante pour valeur que si celle-ci n'est pas une option.
+const COURTES = { a: 'attach', c: 'cpu-shares', e: 'env', h: 'hostname', l: 'label', m: 'memory', p: 'publish', u: 'user', v: 'volume', w: 'workdir' };
+const COURTES_BOOL = { d: 'detach', i: 'interactive', t: 'tty', P: 'publish-all', q: 'quiet' };
+const LONGUES_BOOL = new Set(['detach', 'interactive', 'tty', 'privileged', 'rm', 'init', 'read-only', 'publish-all', 'quiet', 'oom-kill-disable',
+  'no-healthcheck', 'sig-proxy', 'disable-content-trust', 'use-api-socket', 'help']);
+function optionsDocker(args) {
+  const l = []; const suivante = (i) => (i + 1 < args.length && !args[i + 1].startsWith('-') ? args[i + 1] : null);
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a.startsWith('--')) {
+      const eg = a.indexOf('='); const nom = a.slice(2, eg === -1 ? undefined : eg);
+      if (eg !== -1) l.push({ nom, val: a.slice(eg + 1), ou: i });
+      else if (LONGUES_BOOL.has(nom) || suivante(i) === null) l.push({ nom, val: null, ou: i });
+      else l.push({ nom, val: args[++i], ou: i });
+    } else if (a.startsWith('-') && a.length > 1) {
+      for (let k = 1; k < a.length; k++) {
+        if (COURTES_BOOL[a[k]]) { l.push({ nom: COURTES_BOOL[a[k]], val: null, ou: i }); continue; }
+        const nom = COURTES[a[k]] || a[k]; const reste = a.slice(k + 1).replace(/^=/, '');
+        if (reste) l.push({ nom, val: reste, ou: i });
+        else if (suivante(i) !== null) l.push({ nom, val: args[++i], ou: i });
+        else l.push({ nom, val: null, ou: i });
+        break;
+      }
+    }
   }
   return l;
+}
+
+// Les montages d'une configuration (ou d'une feature), chacun avec son chemin dans le fichier (pour la ligne).
+function montagesDe(c, opts) {
+  const l = []; const sansValeur = { type: 'volume', source: null, cible: null, lecture: false, illisible: true };
+  (Array.isArray(c.mounts) ? c.mounts : []).forEach((m, i) => l.push({ ou: ['mounts', i], ...(m && typeof m === 'object' ? montageObjet(m) : montageTexte(m)) }));
+  if (c.workspaceMount) l.push({ ou: ['workspaceMount'], ...montageTexte(c.workspaceMount) });
+  for (const o of opts.filter((x) => x.nom === 'volume' || x.nom === 'mount')) {
+    l.push({ ou: ['runArgs', o.ou], ...(o.val === null ? sansValeur : o.nom === 'volume' ? montageCourt(o.val) : montageTexte(o.val)) });
+  }
+  return l;
+}
+
+// Ce qui défait l'isolement sans monter de fichier : un conteneur privilégié ou doté de capacités voit les périphériques
+// et remonte ce qu'il veut (les règles montées en lecture comprises) ; un périphérique, un espace de noms de l'hôte, une
+// protection retirée, les montages d'un autre conteneur, le socket Docker. Propriétés du fichier et options de `runArgs`.
+const PROTECTION_RETIREE = /unconfined|label[=:]disable|no-new-privileges[=:]false/i;
+function privilegesDe(c, opts) {
+  const l = []; const p = (ou, cle, quoi) => l.push({ ou, cle, quoi });
+  if (c.privileged === true) p(['privileged'], 'privileged', 'conteneur privilégié : périphériques et capacités de l’hôte');
+  (Array.isArray(c.capAdd) ? c.capAdd : []).forEach((x, i) => p(['capAdd', i], `cap-add:${x}`, `capacité ${x} ajoutée`));
+  (Array.isArray(c.securityOpt) ? c.securityOpt : []).forEach((x, i) => PROTECTION_RETIREE.test(x) && p(['securityOpt', i], `security-opt:${x}`, `protection retirée (${x})`));
+  for (const o of opts) {
+    const ou = ['runArgs', o.ou];
+    if (o.nom === 'privileged' && (o.val === null || BOOLEENS[o.val] !== false)) p(ou, 'privileged', 'conteneur privilégié : périphériques et capacités de l’hôte');
+    else if (o.nom === 'cap-add') p(ou, `cap-add:${o.val}`, `capacité ${o.val} ajoutée`);
+    else if (o.nom === 'device') p(ou, `device:${o.val}`, `périphérique de l’hôte (${o.val})`);
+    else if (['pid', 'ipc', 'uts', 'userns', 'cgroupns'].includes(o.nom) && o.val === 'host') p(ou, `${o.nom}:host`, `espace de noms de l’hôte (--${o.nom}=host)`);
+    else if (o.nom === 'security-opt' && PROTECTION_RETIREE.test(o.val || '')) p(ou, `security-opt:${o.val}`, `protection retirée (${o.val})`);
+    else if (o.nom === 'volumes-from') p(ou, `volumes-from:${o.val}`, `montages du conteneur ${o.val}`);
+    else if (o.nom === 'use-api-socket' && (o.val === null || BOOLEENS[o.val] !== false)) p(ou, 'use-api-socket', 'Docker de l’hôte');
+  }
+  return l;
+}
+
+// Une configuration lue (JSONC), avec son arbre pour situer une ligne ; `erreur` si elle ne se lit pas.
+function lireConfig(depot, f) {
+  const texte = fs.readFileSync(path.join(depot, f), 'utf8'); const erreurs = [];
+  const c = parseJsonc(texte, erreurs, { allowTrailingComma: true });
+  if (erreurs.length || !c || typeof c !== 'object' || Array.isArray(c)) return { f, erreur: `${f} illisible` };
+  return { f, texte, c, arbre: parseTree(texte, [], { allowTrailingComma: true }) };
+}
+const ligneDe = (lu, ou) => { const n = lu.arbre && findNodeAtLocation(lu.arbre, ou); return n ? lu.texte.slice(0, n.offset).split('\n').length : null; };
+
+// Les features locales d'une configuration (`./…`, sous `.devcontainer/`) : leurs montages et privilèges s'ajoutent.
+// Les features publiées ne se lisent pas ici ; ce qu'elles ajoutent se voit sur le conteneur construit.
+function featuresLocales(depot, f, c) {
+  const ids = Object.keys(c.features && typeof c.features === 'object' ? c.features : {}).filter((id) => id.startsWith('./') || id.startsWith('../'));
+  return ids.map((id) => {
+    const g = path.join(path.dirname(f), id, 'devcontainer-feature.json');
+    return fs.statSync(path.join(depot, g), { throwIfNoEntry: false })?.isFile() ? lireConfig(depot, g) : { f: g, erreur: `${g} absent (feature ${id})` };
+  });
 }
 
 // Chemin de l'hôte d'une source, variables résolues comme le CLI Dev Containers (`${localEnv:NOM:défaut}`, le défaut
@@ -450,10 +517,10 @@ function sourceHote(source, depot, maison, env) {
 }
 
 /**
- * Montages de l'hôte qui exposent un identifiant, le Docker de l'hôte, ou les données de HOLARCH en écriture, dans les
- * configurations Dev Containers du dépôt (`mounts`, `workspaceMount`, `-v` et `--mount` de `runArgs`). Non lus : les
- * montages qu'ajoutent les features et ceux d'un fichier Compose (alors non disponible). `ctx.maison`, `ctx.env` et
- * `ctx.holarch` remplacent ceux du poste (essais).
+ * Ce qui expose l'hôte dans les configurations Dev Containers du dépôt : un montage d'un identifiant, du Docker de
+ * l'hôte ou des données de HOLARCH en écriture (`mounts`, `workspaceMount`, `-v` et `--mount` de `runArgs`, features
+ * locales), et un privilège qui défait l'isolement. Compose : non disponible. `ctx.maison`, `ctx.env` et `ctx.holarch`
+ * remplacent ceux du poste (essais).
  */
 function montageSensible(ctx) {
   const maison = ctx.maison || os.homedir(); const env = ctx.env || process.env;
@@ -463,25 +530,31 @@ function montageSensible(ctx) {
     ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true }))];
   const ecarts = []; const nonLus = [];
   for (const f of configsConteneur(ctx.depot)) {
-    const texte = fs.readFileSync(path.join(ctx.depot, f), 'utf8'); const erreurs = [];
-    const c = parseJsonc(texte, erreurs, { allowTrailingComma: true }); const arbre = parseTree(texte, [], { allowTrailingComma: true });
-    if (erreurs.length || !c || typeof c !== 'object') { nonLus.push(`${f} illisible`); continue; }
-    if (c.dockerComposeFile) { nonLus.push(`${f} : conteneur décrit par Docker Compose, montages non lus`); continue; }
-    const admis = montagesAdmis(c, ctx.depot, maison); const montages = montagesDe(c);
-    for (const m of montages.filter((x) => x.illisible)) nonLus.push(`${f} : montage que Docker refuserait (${m.ou.join('.')})`);
-    for (const m of montages.filter((x) => x.type === 'bind' && x.source && !x.illisible)) {
-      const src = sourceHote(m.source, ctx.depot, maison, env);
-      if (!src) { nonLus.push(`${f} : source de montage non résolue (${m.source})`); continue; }
-      const a = admis.find((x) => x.chemin === src);
-      if (a && (!a.lecture || m.lecture)) continue;
-      // Un montage admis en lecture seule, monté en écriture, compte pour lui-même ; sinon, ce qu'il touche ou contient.
-      let vu = src;
-      const touche = a || sensibles.find((x) => !(x.ecriture && m.lecture) && [src, reel(src)].some((s) => (dedans(s, x.chemin) || dedans(x.chemin, s)) && (vu = s)));
-      if (!touche) continue;
-      const noeud = arbre && findNodeAtLocation(arbre, m.ou);
-      const qui = vu === touche.chemin ? affiche(vu) : dedans(touche.chemin, vu) ? `${affiche(vu)}, qui contient ${affiche(touche.chemin)}` : `${affiche(vu)}, dans ${affiche(touche.chemin)}`;
-      ecarts.push({ fichier: f, ligne: noeud ? texte.slice(0, noeud.offset).split('\n').length : null, cle: `montage:${f}:${m.cible}`,
-        message: `monte ${qui} (${touche.quoi}) dans le conteneur, ${m.lecture ? 'en lecture' : 'en écriture'}` });
+    const config = lireConfig(ctx.depot, f);
+    if (config.erreur) { nonLus.push(config.erreur); continue; }
+    if (config.c.dockerComposeFile) { nonLus.push(`${f} : conteneur décrit par Docker Compose, montages non lus`); continue; }
+    const admis = montagesAdmis(config.c, ctx.depot, maison);
+    for (const lu of [config, ...featuresLocales(ctx.depot, f, config.c)]) {
+      if (lu.erreur) { nonLus.push(lu.erreur); continue; }
+      const opts = lu === config ? optionsDocker(Array.isArray(lu.c.runArgs) ? lu.c.runArgs.map(String) : []) : [];
+      const montages = montagesDe(lu.c, opts);
+      for (const m of montages.filter((x) => x.illisible)) nonLus.push(`${lu.f} : montage que Docker refuserait (${m.ou.join('.')})`);
+      for (const m of montages.filter((x) => x.type === 'bind' && x.source && !x.illisible)) {
+        const src = sourceHote(m.source, ctx.depot, maison, env);
+        if (!src) { nonLus.push(`${lu.f} : source de montage non résolue (${m.source})`); continue; }
+        const a = admis.find((x) => x.chemin === src);
+        if (a && (!a.lecture || m.lecture)) continue;
+        // Un montage admis en lecture seule, monté en écriture, compte pour lui-même ; sinon, ce qu'il touche ou contient.
+        let vu = src;
+        const touche = a || sensibles.find((x) => !(x.ecriture && m.lecture) && [src, reel(src)].some((s) => (dedans(s, x.chemin) || dedans(x.chemin, s)) && (vu = s)));
+        if (!touche) continue;
+        const qui = vu === touche.chemin ? affiche(vu) : dedans(touche.chemin, vu) ? `${affiche(vu)}, qui contient ${affiche(touche.chemin)}` : `${affiche(vu)}, dans ${affiche(touche.chemin)}`;
+        ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, m.ou), cle: `montage:${lu.f}:${m.cible}`,
+          message: `monte ${qui} (${touche.quoi}) dans le conteneur, ${m.lecture ? 'en lecture' : 'en écriture'}` });
+      }
+      for (const x of privilegesDe(lu.c, opts)) {
+        ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, x.ou), cle: `privilege:${lu.f}:${x.cle}`, message: `${x.quoi} : l’isolement du conteneur ne tient plus` });
+      }
     }
   }
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
