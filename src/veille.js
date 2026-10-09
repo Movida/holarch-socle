@@ -233,6 +233,12 @@ export function creerGardien({ accueil, journal = null, commande = () => command
   // Le mécanisme se cherche à chaque besoin : absent au démarrage du service (Windows pas encore monté), il peut venir.
   const commandeDuMoment = () => (typeof commande === 'function' ? commande() : commande);
   let demande = null; let panne = null; let file = Promise.resolve();
+  // Une demande qui échoue ou meurt peu après avoir été tenue n'est pas relancée à chaque passage : l'essai suivant
+  // s'espace (30 s, puis le double, au plus 30 min), et ni la même panne ni la même tenue ne se redisent avant une tenue
+  // durable (plus de COURTE).
+  const COURTE = 60e3; const ESPACE_MAX = 30 * 60e3;
+  let tenueDepuis = 0; let ratees = 0; let prochain = 0; let annonce = null;
+  const espacer = () => { ratees += 1; prochain = maintenant() + Math.min(ESPACE_MAX, 30e3 * 2 ** (ratees - 1)); };
   const ecrire = (kind, data) => {
     if (!journal) return;
     try {
@@ -248,21 +254,30 @@ export function creerGardien({ accueil, journal = null, commande = () => command
   const retenues = (e) => e.sessions.filter((x) => x.retient).map((x) => ({ session: x.session, etat: x.etat, ...(x.dossier && { projet: path.basename(x.dossier) }) }));
   async function relacher(raison) {
     const enfant = demande; demande = null; if (!enfant) return;
+    annonce = null;
     try { enfant.stdin.end(); } catch { /* déjà fermé */ }
     await attendreFin(enfant, 10e3);
     ecrire('power.released', { raison }); log(`demande d'éveil relâchée (${raison})`);
   }
   async function passer() {
     const e = evaluer({ accueil, maintenant: maintenant(), attente, nettoyer: true });
+    if (demande && maintenant() - tenueDepuis >= COURTE) { ratees = 0; prochain = 0; panne = null; }
     if (e.besoin && !demande) {
+      if (maintenant() < prochain) return e;
       const c = commandeDuMoment();
       if (!c) { echec(panneDe('sans-mecanisme', 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)')); return e; }
       try {
         const enfant = await lancerDemande(c, { delai });
-        demande = enfant; panne = null;
-        enfant.once('exit', (code) => { if (demande === enfant) { demande = null; echec(panneDe('arretee', `demande d'éveil arrêtée hors du gardien (code ${code})`, code)); } });
-        const s = retenues(e); ecrire('power.held', { sessions: s }); log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`);
-      } catch (err) { echec(err.motif ? err : panneDe('non-lancee', err.message)); }
+        demande = enfant; tenueDepuis = maintenant();
+        enfant.once('exit', (code) => {
+          if (demande !== enfant) return;
+          demande = null; if (maintenant() - tenueDepuis < COURTE) espacer();
+          echec(panneDe('arretee', `demande d'éveil arrêtée hors du gardien (code ${code})`, code));
+        });
+        const s = retenues(e); const cle = JSON.stringify(s.map((x) => x.session));
+        if (!(ratees && cle === annonce)) { annonce = cle; ecrire('power.held', { sessions: s }); }
+        log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`);
+      } catch (err) { espacer(); echec(err.motif ? err : panneDe('non-lancee', err.message)); }
     } else if (!e.besoin && demande) await relacher('aucune-session');
     return e;
   }

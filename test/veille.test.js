@@ -234,14 +234,39 @@ test('veille : une demande refusée ou absente se dit une fois ; morte hors du g
   // Sans réponse dans le délai : arrêtée et dite.
   await assert.rejects(lancerDemande([process.execPath, '-e', 'setInterval(() => {}, 1000)'], { delai: 300 }), /sans réponse/);
   await assert.rejects(lancerDemande(['/nulle/part/powershell.exe']), /non lancée/);
-  const g = creerGardien({ accueil, journal, commande: TEMOIN });
+  const horloge = { t: Date.now() };
+  const g = creerGardien({ accueil, journal, commande: TEMOIN, maintenant: () => horloge.t });
   await g.passer(); assert.equal(g.tenue(), true);
-  // La demande meurt hors du gardien (processus Windows tué) : panne dite, demande reprise au passage suivant.
+  // La demande meurt hors du gardien (processus Windows tué) : panne dite, demande reprise 30 s plus tard.
   const avant = evs().length;
   process.kill(g.pid(), 'SIGKILL');
   await new Promise((ok) => setTimeout(ok, 200));
   assert.equal(g.tenue(), false); assert.deepEqual(evs()[avant].data, { motif: 'arretee' }, 'tuée par un signal : pas de code');
-  await g.passer(); assert.equal(g.tenue(), true, 'reprise au passage suivant'); await g.arreter();
+  await g.passer(); assert.equal(g.tenue(), false, 'morte aussitôt tenue : pas relancée au passage suivant');
+  horloge.t += 31e3; await g.passer(); assert.equal(g.tenue(), true, 'reprise 30 s plus tard'); await g.arreter();
+});
+
+test('veille : une demande qui meurt aussitôt tenue n’est pas relancée à chaque passage, ni redite au journal ; une tenue durable remet à zéro', async () => {
+  const accueil = tmp(); const journal = new Journal(accueil, 'local'); const horloge = { t: Date.now() };
+  const kinds = () => [...journal.lire()].map((e) => e.kind);
+  const pause = () => new Promise((ok) => setTimeout(ok, 300));
+  const MEURT = [process.execPath, '-e', "process.stdout.write('tenue\\n')"];
+  const cmd = { c: MEURT }; let lancements = 0;
+  const g = creerGardien({ accueil, journal, commande: () => { lancements += 1; return cmd.c; }, maintenant: () => horloge.t });
+  note(accueil, 'UserPromptSubmit', 'a', { session: () => processusSession(process.pid), t: horloge.t });
+  await g.passer(); await pause();
+  assert.deepEqual(kinds(), ['power.held', 'power.failed']); assert.equal(lancements, 1);
+  horloge.t += 10e3; await g.passer(); assert.equal(lancements, 1, 'pas avant 30 s');
+  horloge.t += 25e3; await g.passer(); await pause(); assert.equal(lancements, 2);
+  horloge.t += 40e3; await g.passer(); assert.equal(lancements, 2, 'puis pas avant 60 s');
+  horloge.t += 30e3; await g.passer(); await pause(); assert.equal(lancements, 3);
+  assert.deepEqual(kinds(), ['power.held', 'power.failed'], 'ni la tenue ni la panne redites');
+  // La demande tient de nouveau, plus d'une minute : tout est remis à zéro ; la panne suivante se dit.
+  cmd.c = TEMOIN; horloge.t += 130e3; await g.passer(); assert.equal(g.tenue(), true);
+  horloge.t += 61e3; await g.passer();
+  process.kill(g.pid(), 'SIGKILL'); await pause();
+  assert.deepEqual(kinds(), ['power.held', 'power.failed', 'power.failed']);
+  await g.passer(); assert.equal(g.tenue(), true, 'après une tenue durable, reprise au passage suivant'); await g.arreter();
 });
 
 test('veille : le script de la demande échappe sa raison, passe encodé et laisse l’entrée standard libre', () => {
