@@ -314,6 +314,15 @@ function veilleRetardee(ctx) {
 // `~/.ssh`).
 const IDENTIFIANTS = ['.claude', '.claude.json', '.ssh', '.config/gh', '.aws', '.azure', '.config/gcloud', '.kube', '.docker', '.gnupg', '.netrc', '.git-credentials', '.npmrc'];
 const DOCKER_HOTE = ['/var/run/docker.sock', '/run/docker.sock'];
+
+// Les dossiers personnels de Windows vus de WSL (`/mnt/<lecteur>/Users/<nom>`) portent aussi des identifiants
+// (`.ssh`, `.aws`, `.claude`…) : un montage du lecteur entier les expose.
+const COMMUNS_WINDOWS = new Set(['All Users', 'Default', 'Default User', 'Public']);
+export function maisonsWindows(mnt = '/mnt') {
+  const lecteurs = fs.existsSync(mnt) ? fs.readdirSync(mnt).filter((x) => /^[a-z]$/.test(x)) : [];
+  return lecteurs.flatMap((l) => { const u = path.join(mnt, l, 'Users');
+    try { return fs.readdirSync(u, { withFileTypes: true }).filter((e) => e.isDirectory() && !COMMUNS_WINDOWS.has(e.name)).map((e) => path.join(u, e.name)); } catch { return []; } });
+}
 const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
 const reel = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
 
@@ -545,7 +554,7 @@ function sourceHote(source, depot, maison, env) {
 function montageSensible(ctx) {
   const maison = ctx.maison || os.homedir(); const env = ctx.env || process.env;
   const affiche = (p) => (dedans(p, maison) ? `~/${path.relative(maison, p)}`.replace(/\/$/, '') : p);
-  const sensibles = [...IDENTIFIANTS.map((r) => ({ chemin: path.join(maison, r), quoi: 'identifiants de l’hôte' })),
+  const sensibles = [...[maison, ...(ctx.maisonsWindows || maisonsWindows())].flatMap((m) => IDENTIFIANTS.map((r) => ({ chemin: path.join(m, r), quoi: 'identifiants de l’hôte' }))),
     ...DOCKER_HOTE.map((c) => ({ chemin: c, quoi: 'Docker de l’hôte' })),
     ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true }))];
   const ecarts = []; const nonLus = [];

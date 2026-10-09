@@ -11,7 +11,7 @@ import { etatDepot } from '../src/inventaire/depots-git.js';
 import { Journal } from '../src/stockage/journal.js';
 import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
-import { executer, dossierClaude } from '../src/controles.js';
+import { executer, dossierClaude, maisonsWindows } from '../src/controles.js';
 import { git, gitLu } from '../src/commun.js';
 import { Socle } from '../src/socle.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
@@ -488,7 +488,7 @@ test('Faille du conteneur : un montage de l’hôte qui expose un identifiant ou
 // Contre-épreuve de la faille du conteneur (2026-10-09) : un essai par constat.
 function conteneurEssai() {
   const maison = tmp(); const d = path.join(maison, 'projet'); fs.mkdirSync(path.join(d, '.devcontainer'), { recursive: true });
-  const ctx = { depot: d, maison, env: { HOME: maison }, holarch: [path.join(maison, '.claude', 'holarch')], conteneurs: [] };
+  const ctx = { depot: d, maison, env: { HOME: maison }, holarch: [path.join(maison, '.claude', 'holarch')], conteneurs: [], maisonsWindows: [] };
   const config = (c) => fs.writeFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), typeof c === 'string' ? c : JSON.stringify(c));
   return { maison, d, ctx, config, lire: () => executer('montage-sensible', ctx, 'audit'), cibles: (r) => r.ecarts.map((e) => e.cle.split(':').pop()) };
 }
@@ -613,4 +613,17 @@ test('Contre-épreuve du conteneur (24) : toute variable de l’hôte qui entre 
   assert.match(r.ecarts[0].message, /passe JETON de l’hôte au conteneur \(remoteEnv\.DEPLOI\)/);
   assert.match(r.ecarts[5].message, /passe fichier \/home\/alice\/\.env/);
   assert.ok(!JSON.stringify(r).includes('valeur-secrete'), 'la valeur n’est jamais écrite');
+});
+
+test('Contre-épreuve du conteneur (16) : les identifiants du dossier personnel Windows, vu de WSL, sont sensibles comme ceux de l’hôte', () => {
+  const { maison, config, lire, ctx, cibles } = conteneurEssai();
+  const mnt = path.join(maison, 'mnt'); const win = path.join(mnt, 'c', 'Users', 'alice');
+  fs.mkdirSync(win, { recursive: true }); fs.mkdirSync(path.join(mnt, 'c', 'Users', 'Public'));
+  config({ mounts: [`type=bind,source=${win}/.ssh,target=/a`, `type=bind,source=${path.join(mnt, 'c')},target=/b`, `type=bind,source=${path.join(mnt, 'c', 'Users', 'Public')},target=/c`] });
+  assert.deepEqual(cibles(lire()), [], 'sans dossier Windows connu, rien ne change');
+  assert.deepEqual(maisonsWindows(mnt), [win], 'les dossiers communs de Windows ne sont pas des dossiers personnels');
+  ctx.maisonsWindows = maisonsWindows(mnt);
+  const r = lire();
+  assert.deepEqual(cibles(r), ['/a', '/b']);
+  assert.match(r.ecarts[1].message, /qui contient .*alice\/\.claude \(identifiants de l’hôte\)/);
 });
