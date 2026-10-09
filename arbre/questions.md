@@ -13,6 +13,7 @@
 | Q24 | `decisions/2026-10-09-environnement-d-execution.md` | `claude remote-control` tient-il dans un conteneur : connexion complète dans un volume (`claude auth login` ; ni clé d'API ni jeton accepté, d'après la documentation), dossier approuvé une fois en interactif, quels domaines à ouvrir pour un pare-feu (claude.ai n'est pas dans la liste du conteneur de référence d'Anthropic) ? [À COMPLÉTER : essai] | gênant |
 | Q26 | `decisions/2026-10-09-environnement-d-execution.md` | La carte graphique dans un conteneur : `--gpus all` fonctionne-t-il sous Docker Desktop (test documenté `nvcr.io/nvidia/k8s/cuda-sample:nbody`), et accélère-t-il le WebGL d'un Chromium sans écran pour les tests de rendu three.js, comparé au rendu logiciel ? [À COMPLÉTER : mesure] | cosmétique |
 | Q28 | `decisions/2026-10-09-idees-fondatrices.md` | Besoins B6 (ne rien refaire d'un projet à l'autre) et B7 (emporter son outillage partout) : ce que l'auteur a observé, et le critère « servi quand » de chacun ; d'autres idées fondatrices manquent-elles encore (à recueillir aussi par la revue des fondations) ? [À COMPLÉTER : réponse de l'auteur] | gênant |
+| Q29 | `idees.md`, I34 | La ligne d'état de Claude Code tourne-t-elle dans une session distante (Remote Control, sans terminal) et dans l'extension VS Code, pour que le relevé du quota suive toutes les sessions ? Essai prévu le 2026-10-09 : ligne d'état posée le temps de l'essai, session ouverte depuis le téléphone, relevé lu. Seuil de la garde [À COMPLÉTER : une semaine de relevés]. | gênant pour I34 |
 
 ## Résolues
 

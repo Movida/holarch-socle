@@ -2,6 +2,18 @@
 
 ## 2026-10-09
 
+* **Reprise : envoi, relecture du fil des commits suspendue par le quota, garde de quota** : les 6 commits poussés
+  sur `origin/main` (104 tests verts ; pas d'intégration continue à lire). Relecture du fil des commits (point 6 de
+  `idees-fondatrices`) lancée sur trois instances neuves en lecture seule, une par famille (sommet, architecture,
+  contrats et étapes), puis arrêtée à l'alerte de l'auteur (quota à 93 %) : listes à l'aveugle faites pour le sommet et
+  l'architecture, la troisième à peine commencée ; reprise programmée à 19 h 22 (message différé, demande de l'auteur).
+  Session ouverte en `max`, passée en `xhigh` par l'auteur pour la suite annoncée : faille du conteneur (le montage du
+  `~/.claude` de l'hôte en écriture est aussi dans cinq conteneurs de projets du poste, dont celui du socle, où
+  `HOLARCH_HOME` est dedans), puis corrections de B. Copie de service non posée : `service poser` poserait le gardien
+  `holarch-veille` (le réveil est en place) alors que sa pose attend l'auteur ; correction proposée, sans réponse : le
+  gardien suit la règle, comme les crochets. Idée I34 (garde de quota), retenue par l'auteur, et Q29 : la ligne d'état
+  reçoit le quota (binaire 2.1.295), les crochets non ; essai de la source après la reprise.
+
 * **Idées fondatrices au sommet de l'arbre** : deux intentions de l'auteur manquaient au manifeste et aux besoins (ne
   rien recréer d'un projet à l'autre, un outillage emporté partout) ; l'agent s'appuyant sur les fondations, le manque
   cadrait ses avis sans se voir (constat de l'auteur). Décision `idees-fondatrices` en brouillon : texte proposé pour le
