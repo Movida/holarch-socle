@@ -982,41 +982,60 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   distante en cours, lancée en `claude --print`, ni d'une session neuve ouverte depuis l'application, ni d'une session de
   l'extension VS Code) ; posée au compte le temps de l'essai, retirée, `settings.json` revenu à l'identique. I34 cherche
   une autre source.
+- **Fait (2026-10-09)** : corrections de la contre-épreuve du conteneur, sur quatre choix de l'auteur (retirer le
+  `--privileged` ; le gardien de veille suit la seule règle ; lire les conteneurs construits plutôt que se dire non
+  disponible dès une feature ; déployer par la CI, et toute variable de l'hôte passée au conteneur est un écart, quel
+  que soit son nom). Les 7 majeurs, les mineurs 13 à 24 et 26, et le second envoi (accès distant sur un dépôt à conteneur), un
+  commit et un test chacun (126 tests verts) : dossier de travail résolu sous `/workspaces/` ; `--mount` lu comme le CLI
+  Docker (CSV, casse, booléens de Go), `-v` comme le démon ; options de `runArgs` lues comme pflag, privilèges (fichier,
+  `runArgs`, features locales) ; variables résolues comme le CLI ; un contrôle lu en partie garde ses écarts sans rien
+  résoudre (audit) ; dossiers personnels Windows ; volume `o=bind` ; lien au chemin admis ; conteneurs construits
+  inspectés par l'inventaire Docker (montages, privilèges ; une feature publiée sans conteneur à inspecter : non
+  disponible) ; `initializeCommand`, crochets des réglages du dépôt, accès distant de l'hôte sur le dépôt ; import
+  robuste (fichier illisible ou au-delà de 400 Mo passé et compté, mesure : 152 Mo au plus sur 805 ; une transcription
+  de conteneur ne se rattache qu'au projet de ce conteneur, `origine: conteneur`, textes bornés) ;
+  `CLAUDE_CODE_PROJECT_DIR_NAME` et `chown` en `onCreateCommand` dans le modèle, le socle et trois dépôts du poste
+  (commits locaux ; le dépôt sans git, fichier seul) ; dans le dépôt au `--privileged` : retiré, jetons sortis de
+  `remoteEnv`, workflow manuel de déploiement du relais (secret limité à l'app). Sur le poste, seul écart restant :
+  `acces-distant` du socle (le risque du majeur 6, réel jusqu'à D). B : mineur 1 corrigé (tenue reprise redite).
 - **Reste** :
-  0. **Contre-épreuve de la faille et des corrections de B (2026-10-09, instance neuve, `xhigh`)** : 7 majeurs, 27
-     mineurs ; scripts d'essai dans `/tmp/contre-epreuve-c/` (perdus au redémarrage). À corriger avant toute pose, un
-     commit et un test chacun. Majeurs : (1) `workspaceFolder` pris tel qu'écrit : la mémoire d'un projet de l'hôte
-     (`-home-…`) montée en écriture passe pour admise (n'admettre que `/workspaces/…` résolu) ; (2) `type=BIND`, objet
-     `{"type":"Bind"}`, `"source=…"` entre guillemets passent (casse et CSV comme Docker, clé inconnue : non disponible) ;
-     (3) `-v` collé, `-itv`, `--volumes-from`, `--privileged`, features avec `mounts` ou `privileged` non vus ; (4)
-     `--privileged` dans un des quatre conteneurs corrigés annule le correctif (retirer, ou `--device` du seul USB) ;
-     (5) faille encore ouverte sur le poste : trois conteneurs arrêtés montent `~/.claude` en écriture et `devcontainer
-     up` les relance sans comparer leurs montages ; le contrôle doit lire aussi les `Mounts` des conteneurs du dépôt
-     (`inventaire/docker.js`) ; geste de l'auteur : `docker rm` des trois ; (6) le dépôt monté en écriture reste une
-     voie vers l'hôte (`.claude/settings.local.json`, crochets et config git, `initializeCommand`), surtout pour le
-     socle, servi sur l'hôte : risque résiduel à écrire, audit des crochets de `settings.local.json`, contrôle de
-     `initializeCommand`, fermé par D ; (7) transcriptions en écriture : un `.jsonl` illisible arrête tout l'import
-     (`claude-code-transcriptions.js:125`), `cwd` et coûts libres (try, plafond, origine « conteneur »). Mineurs de B :
-     tenue reprise jamais redite (`annonce` non remis à zéro, test qui le fige) ; session `/remote-control` sans gardien
-     sans accès distant (choix de l'auteur) ; question qui masque un sous-agent de fond ; `holarch veille` et le contrôle
-     jugent la fraîcheur différemment (une fonction partagée) ; `veilleVoulue` faux sans profil, gardien non relancé si
-     null ; `regles appliquer` dépend de systemctl ; erreurs du crochet avant le `try` (imports) et jamais effacées ;
-     entrées sans date après la fin du tour (activité par la dernière entrée datée) ; course résiduelle à l'effacement.
-     Textes : limites connues de B périmées (ci-dessous), contrat événement `stable` en 0.10.0 sous l'approbation du
-     2026-10-03, décision `environnement-d-execution` contradictoire (ligne B, l.66) et borne des 30 min non écrite.
-     Mineurs du conteneur : variable inconnue sans défaut prise pour vide, `indisponible` qui efface les écarts trouvés,
-     `-v` à une partie ou `${…}` coupé au `:`, dossier personnel Windows (`/mnt/c/Users/…`) absent des sensibles, volume
-     `o=bind`, faux positifs (`${localWorkspaceFolderBasename}`, `/` final), lien au chemin admis, sessions de
-     sous-dossier invisibles, test de création sans nom à encoder (prendre `Neuf_2.x`), `chown` après la connexion
-     (`onCreateCommand`), jetons de l'hôte par `remoteEnv`, un conteneur sans dépôt git (non audité). Second envoi du rapport :
-     `BOUGE` (5 s) à peine au-dessus de la fin de tour la plus tardive mesurée (4,7 s sur 89 cas) ; signaler un projet qui a
-     à la fois un conteneur et un accès distant sur l'hôte (la voie du majeur 6).
-  0. **Suite prévue** : corriger la contre-épreuve ci-dessus ; puis, sur l'accord de l'auteur : approbation du contrat
-     événement 0.10.0 (règles `veille-retardee`, passée en `verified`, `conteneur-isole` et `approbation-recapitulee`
-     approuvées le 2026-10-09 ; d'ici la pose, l'audit horaire de l'ancienne copie dit leurs écarts), `holarch regles appliquer` (crochets et
-     gardien), `holarch service poser` (copie en retard), critère de B (délai de veille raccourci le temps de l'essai :
-     `powercfg /change standby-timeout-ac 10`, puis remis à 300), envoi des commits (socle, profil, trois dépôts). Dans
-     le conteneur du socle, le volume `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node`
+  0. **Contre-épreuve de la faille et des corrections de B (2026-10-09)** : le conteneur est corrigé (Fait ci-dessus) ;
+     rapport complet dans la transcription de la session du 2026-10-09 au soir (`c8226cc6`, ligne 1056). Restent, un
+     commit et un test chacun, avec la méthode déjà arrêtée :
+     - B, mineurs 2 à 9 : (2) choix de l'auteur, le gardien suit la seule règle : `creerReveil().gardien` sans condition
+       d'accès distant, `retirerReveil` ne le retire plus, le contrôle `veille-retardee` le veut actif dès que la règle
+       s'applique, texte de `uniteVeille` (`distant.js`, « retirée avec le dernier accès distant »), tests
+       `veille.test.js` « posé et retiré avec le premier et le dernier accès distant » et « gardien arrêté sous un accès
+       distant » à réécrire ; (3) dans `evaluer`, une question ne fait pas attendre si un sous-agent écrit après elle ;
+       (8) activité lue à la dernière entrée datée de la fin des transcriptions (mtime à défaut), et `BOUGE` porté à
+       30 s (fin de tour la plus tardive mesurée : 4,7 s sur 89 cas ; une attente retient de toute façon 30 min) ;
+       (4) une fonction `etatGardien` dans `veille.js` (fraîcheur, tenue, erreur récente, heure locale), lue par le
+       contrôle et `holarch veille`, qui dit aussi une tenue sans besoin ; (5) `regleDuCompte` marque l'absence ou la
+       pluralité de profils, `veilleVoulue` rend alors null, et `gardien({veille: null})` relance un gardien actif
+       inchangé ; (6) `regles appliquer` et `service poser` (`veilleDuCompte` hors du `try`) rattrapent l'erreur de
+       systemctl et la disent sur une ligne ; (7) point d'entrée léger pour `veille noter` (imports dans le `try`),
+       repli shell qui écrit `veille-erreur.json` si node ne démarre pas, erreur effacée à la note réussie suivante ;
+       (9) effacement d'une note par renommage, comparaison, restauration.
+     - Textes : limites connues de B (ci-dessous, point 7) ; contrat événement, partie `power.*` et `data.origine`
+       (`conteneur`) marquées en attente d'approbation (le contrat porte encore `stable` sous l'approbation du
+       2026-10-03) ; amendement de `environnement-d-execution` à soumettre à l'auteur : ligne B (l.66) contre la
+       précision (l.96), borne des 30 min d'immobilité, risque résiduel du majeur 6 (dépôt monté en écriture :
+       `.claude/settings*.json`, `.git/hooks` et `.git/config`, `initializeCommand` ; fermé par D) ; dépôt sans git
+       (son correctif n'est ni versionné ni audité) en limite connue de `conteneur-isole`.
+     - À demander à l'auteur : l'écart `acces-distant` du socle, gardé visible ou levé par une exception du socle
+       jusqu'à D.
+     - Gestes de l'auteur pour le déploiement du relais : dans le conteneur du dépôt concerné, `fly auth login` puis,
+       dans `server/`, `fly tokens create deploy -x 8760h` ; sur l'hôte, `gh secret set FLY_API_TOKEN --repo <dépôt>`
+       (coller le jeton) ; retirer l'`export FLY_API_TOKEN` du `~/.bashrc` de l'hôte (plus rien ne s'en sert sur
+       l'hôte) et, si c'est le jeton de tout le compte, le révoquer. Reconstruire les conteneurs corrigés à leur
+       prochaine ouverture.
+     - Puis contre-épreuve de ces corrections par une instance neuve (`xhigh`, lecture seule).
+  0. **Suite prévue** : finir ce qui précède ; puis, sur l'accord de l'auteur : approbation du contrat événement 0.10.0
+     (règles `veille-retardee`, `conteneur-isole` et `approbation-recapitulee` approuvées le 2026-10-09 ; d'ici la
+     pose, l'audit horaire de l'ancienne copie dit leurs écarts), `holarch regles appliquer` (crochets et gardien),
+     `holarch service poser` (copie en retard), critère de B (délai de veille raccourci le temps de l'essai :
+     `powercfg /change standby-timeout-ac 10`, puis remis à 300), envoi des commits (socle, profil, quatre dépôts).
+     Dans le conteneur du socle, le volume `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node`
      (réparation en C) ; C reprend les deux montages de l'hôte dans la génération (clé `conteneur.connexion_claude`).
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,

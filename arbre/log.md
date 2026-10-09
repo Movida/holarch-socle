@@ -2,6 +2,19 @@
 
 ## 2026-10-09
 
+* **Corrections de la contre-épreuve du conteneur** : les 7 majeurs et 13 mineurs du conteneur corrigés, un commit
+  et un test chacun (126 tests verts), plus le premier mineur de B ; quatre choix de l'auteur (retirer le
+  `--privileged`, gardien qui suit la seule règle, conteneurs construits inspectés, déploiement par la CI et toute
+  variable de l'hôte passée au conteneur tenue pour un écart). Commits locaux dans le socle et quatre dépôts, rien posé,
+  rien poussé. Restent les mineurs 2 à 9 de B, les textes et la contre-épreuve, méthode écrite au Reste de l'étape.
+  Leçon de clôture : déroulé annoncé en huit temps (choix, contrôle, import, voies vers l'hôte, B, textes,
+  contre-épreuve, arrêt) ; réalisés les quatre premiers et le début de B. Ce qui a fait dévier : 34 corrections, un
+  commit et un test chacun, ne tiennent pas dans une session : l'avis de passation n'est venu qu'avec un message de
+  l'auteur, à 374 k tokens ; les jetons ont demandé deux tours (ma première recommandation, au nom de la variable,
+  n'était pas la meilleure ; la mesure des huit configurations l'a montré) ; un test lancé sur l'ancien code est resté
+  bloqué par sa demande témoin, et un `pkill -f` a visé son propre shell. La demande qui y aurait mené : « corrige le
+  conteneur, majeurs et mineurs, puis passation ; B et les textes dans la session suivante ».
+
 * **Contre-épreuve de la faille et de B** : 7 majeurs, 27 mineurs, au Reste de l'étape. La faille reste ouverte sur
   le poste (trois conteneurs arrêtés montent encore `~/.claude` en écriture ; un conteneur corrigé est `--privileged`)
   et le contrôle se contourne (casse, `-v` collé, `workspaceFolder` libre). Rien n'est posé : corrections d'abord.
