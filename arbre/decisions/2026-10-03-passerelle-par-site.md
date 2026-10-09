@@ -1,7 +1,7 @@
 ---
 type: decision
 title: Une passerelle là où il y a à fédérer, protégée ; ailleurs, HOLARCH en direct
-description: Après l'essai sur l'hôte : pas de passerelle durable sur le poste personnel ; au travail, agentgateway avec clé d'accès et protection contre le DNS rebinding.
+description: "Après l'essai sur l'hôte : pas de passerelle durable sur le poste personnel ; au travail, agentgateway avec clé d'accès et protection contre le DNS rebinding."
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « oui » aux avis 1 à 4 rendus après l'essai sur l'hôte" }
 links:

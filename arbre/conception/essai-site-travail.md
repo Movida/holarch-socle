@@ -1,7 +1,7 @@
 ---
 type: observation
 title: Essai de la procédure du site de travail
-description: Ce que la mise en place du site de travail et de sa passerelle protégée a montré (2026-10-05) : ce qui a tenu, les difficultés, les pistes pour la méthode et pour HOLARCH.
+description: "Ce que la mise en place du site de travail et de sa passerelle protégée a montré (2026-10-05) : ce qui a tenu, les difficultés, les pistes pour la méthode et pour HOLARCH."
 status: draft
 as_of: 2026-10-05
 links:
