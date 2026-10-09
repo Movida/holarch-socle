@@ -141,6 +141,26 @@ export function activite(transcription) {
   return toutes.length ? { derniere: Math.max(...toutes), sous_agents: sousAgents } : null;
 }
 
+/**
+ * Efface une note seulement si elle n'a pas changé depuis sa lecture (`lu`), sans fenêtre de course : renommée (le
+ * renommage prend d'un coup ce qui est là), comparée, puis supprimée. Réécrite par un crochet entre la lecture et le
+ * renommage (session reprise), elle est remise en place, sauf si une note plus récente l'a déjà remplacée (`link` ne
+ * remplace jamais un fichier). Le nom provisoire ne finit pas par `.json` : `evaluer` ne le lit pas. `pendant` : appelé
+ * après le renommage (essais).
+ */
+export function effacerNote(f, lu, { pendant = () => {} } = {}) {
+  const t = `${f}.effacee-${process.pid}`;
+  try { fs.renameSync(f, t); } catch { return false; }
+  pendant();
+  let changee = false;
+  try { changee = fs.readFileSync(t, 'utf8') !== lu; } catch { /* plus rien à comparer */ }
+  if (changee) {
+    try { fs.linkSync(t, f); } catch (e) { if (e.code !== 'EEXIST' && !fs.existsSync(f)) fs.renameSync(t, f); }
+  }
+  fs.rmSync(t, { force: true });
+  return !changee;
+}
+
 // Une session « travaille » tant que sa transcription bouge : immobile depuis l'attente permise, elle attend quelque
 // chose (permission, élicitation, `Stop` manqué) et compte comme une attente depuis sa dernière écriture (contre-épreuve
 // de B : aucun silence de plus de 11 min pendant un tour, sur 301 tours de 67 sessions distantes). Une attente suivie
@@ -159,7 +179,7 @@ export function evaluer({ accueil, maintenant = Date.now(), attente = ATTENTE_MI
   const sessions = []; const finies = [];
   const lire = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return null; } };
   // Effacée seulement si elle n'a pas changé depuis sa lecture : un crochet a pu la réécrire entre-temps (session reprise).
-  const effacer = (f, lu) => { if (nettoyer && lire(f) === lu) fs.rmSync(f, { force: true }); };
+  const effacer = (f, lu) => { if (nettoyer) effacerNote(f, lu); };
   for (const n of noms) {
     const f = path.join(d, n); const lu = lire(f); let s = null;
     try { s = JSON.parse(lu); } catch { /* illisible */ }

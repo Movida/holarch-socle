@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { noter, evaluer, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { noter, evaluer, effacerNote, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte, veilleVoulue } from '../src/materialisation.js';
@@ -275,6 +275,27 @@ test('veille : une note réécrite par un crochet entre sa lecture et son efface
   assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).pid, 4242, 'la note réécrite reste');
   evaluer({ accueil, maintenant: T0, enVie, nettoyer: true });
   assert.ok(fs.existsSync(f), 'la session vit');
+});
+
+test('veille : l’effacement d’une note n’a pas de fenêtre de course : renommée, comparée, remise en place si un crochet l’a réécrite', () => {
+  const accueil = tmp(); const f = path.join(dossierVeille(accueil), 'r.json');
+  const lue = () => { note(accueil, 'Stop', 'r'); return fs.readFileSync(f, 'utf8'); };
+  const reprise = () => note(accueil, 'UserPromptSubmit', 'r', { t: T0 + min });
+  const restes = () => fs.readdirSync(dossierVeille(accueil));
+  // Inchangée : effacée.
+  assert.equal(effacerNote(f, lue()), true); assert.deepEqual(restes(), []);
+  // Réécrite après la lecture, avant le renommage : remise en place.
+  let lu = lue(); reprise();
+  assert.equal(effacerNote(f, lu), false); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'travaille');
+  // Réécrite juste après le renommage (la fenêtre de l'ancienne relecture) : la nouvelle reste, l'ancienne part.
+  lu = lue();
+  assert.equal(effacerNote(f, lu, { pendant: reprise }), true); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'travaille');
+  // Réécrite avant le renommage, puis encore après : la plus récente n'est jamais remplacée par la remise en place.
+  lu = lue(); reprise();
+  effacerNote(f, lu, { pendant: () => note(accueil, 'PermissionRequest', 'r', { t: T0 + 2 * min }) });
+  assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'attend'); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).depuis, new Date(T0 + 2 * min).toISOString());
+  assert.deepEqual(restes(), ['r.json'], 'aucun fichier provisoire laissé');
+  assert.equal(effacerNote(path.join(dossierVeille(accueil), 'absente.json'), '{}'), false);
 });
 
 // Demande d'éveil témoin : dit « tenue », tient jusqu'à la fin de son entrée standard.
