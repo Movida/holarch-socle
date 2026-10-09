@@ -278,6 +278,10 @@ export function creerGardien({ accueil, journal = null, commande = () => command
         if (!(ratees && cle === annonce)) { annonce = cle; ecrire('power.held', { sessions: s }); }
         log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`);
       } catch (err) { espacer(); echec(err.motif ? err : panneDe('non-lancee', err.message)); }
+    } else if (e.besoin && demande) {
+      // Une session qui arrive ou part pendant la tenue : la tenue se redit avec les sessions qui la retiennent.
+      const s = retenues(e); const cle = JSON.stringify(s.map((x) => x.session));
+      if (cle !== annonce) { annonce = cle; ecrire('power.held', { sessions: s }); log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`); }
     } else if (!e.besoin && demande) await relacher('aucune-session');
     return e;
   }

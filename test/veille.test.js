@@ -203,11 +203,17 @@ test('veille : le gardien tient la demande d’éveil tant qu’une session l’
   const tenue = [...journal.lire()][0];
   assert.deepEqual([tenue.kind, tenue.actor, tenue.data.sessions], ['power.held', 'system:veille', [{ session: 'a', etat: 'travaille', projet: 'projet-a' }]]);
   await g.passer(); assert.deepEqual(kinds(), ['power.held'], 'un passage de plus ne relance rien');
+  // Une session arrive puis part pendant la tenue : la tenue se redit avec ses sessions ; un changement d'état, non.
+  note(accueil, 'UserPromptSubmit', 'b', { session: () => processusSession(process.pid), t: horloge.t });
+  await g.passer(); assert.deepEqual([...journal.lire()].at(-1).data.sessions.map((x) => x.session), ['a', 'b']);
+  note(accueil, 'SessionEnd', 'b'); await g.passer();
+  assert.deepEqual([...journal.lire()].at(-1).data.sessions.map((x) => x.session), ['a']);
+  assert.deepEqual(kinds(), ['power.held', 'power.held', 'power.held']);
   note(accueil, 'Stop', 'a', { session: () => processusSession(process.pid) });
   horloge.t += 29 * min; await g.passer(); assert.equal(g.tenue(), true, 'attente de moins de 30 min');
   horloge.t += 2 * min; await g.passer(); assert.equal(g.tenue(), false);
-  assert.deepEqual(kinds(), ['power.held', 'power.released']);
-  assert.equal([...journal.lire()][1].data.raison, 'aucune-session');
+  assert.deepEqual(kinds(), ['power.held', 'power.held', 'power.held', 'power.released'], 'passer en attente ne redit pas la tenue');
+  assert.equal([...journal.lire()].at(-1).data.raison, 'aucune-session');
   // À l'arrêt du service, la demande tenue est relâchée et dite.
   note(accueil, 'UserPromptSubmit', 'a', { session: () => processusSession(process.pid), t: horloge.t });
   await g.passer(); assert.equal(g.tenue(), true); await g.arreter(); assert.equal(g.tenue(), false);
