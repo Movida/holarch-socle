@@ -925,9 +925,12 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   pour les dépôts de l'auteur ; `gitInventaire`. En-têtes illisibles : comptés seulement s'ils pouvaient être la couche
   manquante, signalés sinon ; deux en-têtes du socle cités. Copie de service non posée (travail en cours d'une autre
   session dans la copie de travail).
+- **Fait (2026-10-09)** : tranche 12, livraison B commencée (Opus 5.5 `xhigh`) ; Q25 résolue par un essai depuis le
+  téléphone : dans une session distante, les crochets de début et de fin de tour et de fin de session se déclenchent,
+  et l'archivage arrête la session. Suite : mécanisme côté Windows qui retarde la veille. Copie de service à jour
+  (05b39c7).
 - **Reste** :
-  0. **D'abord, poser la copie de service** (`holarch service poser`) dès que la copie de travail est propre ; puis,
-     mineurs de la troisième contre-épreuve (2026-10-09) : (6) le contrôle d'échappement de `app.js` ne voit pas
+  0. **Mineurs** de la troisième contre-épreuve (2026-10-09) : (6) le contrôle d'échappement de `app.js` ne voit pas
      `${f.nom || "—"}`, `${f.tags.join(…)}`, `${f["nom"]}`, `${nom}`, `${c ? f.nom : ""}` (aucune fuite réelle trouvée) ;
      (7) `gitleaks git --pre-commit` lance son git sans neutralisation (dépôt de l'auteur, cohérent avec (D) ; non
      éprouvé ; `osv-scanner` non vérifié) ; (8) `trouverOutil` retient un réglage qui existe sans être exécutable (un
@@ -973,7 +976,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        pointeur du dossier (code du binaire 2.1.295) et ne demande donc pas à reprendre l'environnement précédent ;
        l'ancien, arrêté en servant une session, restait inscrit (Q22). Conséquence à garder en vue : chaque relance
        (dont celle du réveil) ouvre un environnement neuf, et les sessions ouvertes avant ne sont pas reprises.
-     - **Suite** : B, en Opus 5.5 `xhigh` (modèle et effort par livraison dans la décision) ; d'abord l'essai Q25, un
-       geste de l'auteur sur le téléphone.
+     - **B, veille retardée** (Opus 5.5 `xhigh`) : Q25 résolue (2026-10-09). Suite : mécanisme côté Windows qui retarde
+       la veille (P2 d'abord, vérifié par `powercfg /requests`), puis règle du profil (brouillon), adaptateur, tests,
+       contre-épreuve, pose, critère. Reste du critère de A : une session archivée le reste après une relance.
   8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.

@@ -2,6 +2,21 @@
 
 ## 2026-10-09
 
+* **Tranche 12, livraison B commencée : Q25 résolue** : session ouverte depuis l'application, lancée par le serveur en
+  effort `max` alors que B est prévue en `xhigh` : arrêt, puis `/effort xhigh` par l'auteur. L'effort d'une session
+  distante vient de son ouverture, pas du réglage du poste (`max`, puis `medium` pour la session d'essai). Essai Q25 par
+  des crochets témoins posés le temps de l'essai dans `.claude/settings.local.json` (refusés à l'agent par le mode
+  `auto`, posés sur l'autorisation écrite de l'auteur, retirés ensuite) et un relevé des processus du serveur : dans une
+  session distante, `SessionStart`, `UserPromptSubmit`, `PreToolUse` et `Stop` se déclenchent ; le mode du serveur
+  s'applique ; archivée depuis l'application, la session reçoit `SessionEnd` et son processus s'arrête dans la seconde.
+  Aucune `Notification` dans les 70 s d'attente : l'attente se lira depuis `Stop`. Un crochet ajouté vaut aussitôt pour
+  une session ouverte. Relevé aussi : le résumé de reprise donnait un dernier fait et un reste périmés, sans la suite
+  prévue (dixième point du Reste ; V8) ; correction proposée (avancement rangé, suite avant la coupure), en attente de
+  l'auteur. Leçon de clôture : déroulé annoncé (B en cinq temps) ; réalisé le premier, Q25, la passation arrivant au
+  seuil. Ce qui a fait dévier : l'effort de la session, le résumé insuffisant (52 000 caractères d'avancement relus), le
+  refus du mode `auto` sur les crochets, un relevé coupé par son propre `pkill -f`. La demande qui y aurait mené : « B en
+  `xhigh` ; tu peux poser des crochets témoins temporaires dans `.claude/settings.local.json` ».
+
 * **Accès distant injoignable après la relance de la livraison A** : après la relance de 15:27, les sessions ouvertes
   depuis l'application restaient sans réponse, puis « PC déconnecté ». Le serveur a quitté deux fois en code 1 (15:28,
   15:30) sans laisser de message : `StandardOutput=null` emportait aussi la sortie d'erreur. Corrigé avec son test
