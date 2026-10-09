@@ -91,7 +91,7 @@ export function recolte(r) {
 /** État de la veille retardée : le gardien, le mécanisme, les sessions distantes notées (module veille). */
 export function veille(e) {
   const heure = (iso) => new Date(iso).toLocaleString('sv-SE').slice(11, 16);
-  const l = [`gardien de veille : ${e.gardien} (${e.unite}) ; mécanisme : ${e.mecanisme ? 'demande d’éveil de Windows' : 'aucun sur ce site'} ; accès distants actifs : ${e.distants}`];
+  const l = [`gardien de veille : ${e.gardien} (${e.unite}) ; mécanisme : ${e.mecanisme ? 'demande d’éveil de Windows' : 'aucun sur ce site'}`];
   if (!e.sessions.length) l.push('aucune session distante notée');
   for (const s of e.sessions) l.push(`  ${s.etat.padEnd(9)} ${s.dossier ? s.dossier.split('/').pop() : '?'}  ${s.session.slice(0, 8)}  depuis ${heure(s.depuis)}${s.etat === 'attend' ? (s.retient ? ` (retient encore ${s.reste_min} min)` : ' (ne retient plus)') : ''}`);
   if (e.finies.length) l.push(`${e.finies.length} session(s) finie(s) sans fin dite (processus disparu)`);

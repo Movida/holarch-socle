@@ -152,7 +152,7 @@ test('veille : après Stop, un sous-agent de fond qui écrit retient le poste ta
   assert.equal(e(T0 + 31 * min).retient, false);
 });
 
-test('veille : le gardien suit la règle comme les crochets : posé si elle s’applique, retiré sinon, laissé si les règles sont illisibles', () => {
+test('veille : le gardien suit la seule règle, comme les crochets : posé si elle s’applique, accès distant ou non, retiré sinon, laissé si les règles sont illisibles', () => {
   const unites = tmp(); const racine = tmp(); fs.mkdirSync(path.join(racine, 'demo'));
   const appels = []; const actifs = new Set();
   const systemctl = (args) => {
@@ -161,21 +161,24 @@ test('veille : le gardien suit la règle comme les crochets : posé si elle s’
     if (args[0] === 'disable') actifs.delete(args.at(-1));
     return { status: 0, stdout: args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : args[0] === 'is-enabled' ? 'enabled\n' : '', stderr: '' };
   };
-  const cfg = path.join(tmp(), '.claude.json'); fs.writeFileSync(cfg, '{}');
-  const regle = { v: false };
-  const d = creerDistant({ inventaire: { 'claude-code': { config: cfg } }, acces_distant: {} }, { unites, systemctl, claude: '/opt/claude', projets: [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }], accueil: '/a', holarch: '/opt/holarch.js', node: '/opt/node/bin/node', veille: () => regle.v });
   const g = path.join(unites, 'holarch-veille.service');
-  d.activer('demo');
-  assert.ok(fs.existsSync(path.join(unites, 'holarch-reveil.timer')), 'le réveil vient avec l’accès distant');
-  assert.ok(!fs.existsSync(g), 'règle brouillon : aucun gardien, comme aucun crochet');
   const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, systemctl, node: '/opt/node/bin/node' });
   assert.equal(reveil.gardien({ veille: false }).etat, 'règle veille-retardee non appliquée : non posé');
-  // La règle approuvée : `regles appliquer` pose le gardien sans le relancer ; la copie de service, elle, le relance.
+  // La règle approuvée, sans aucun accès distant (session reliée par /remote-control) : `regles appliquer` pose le
+  // gardien sans le relancer ; la copie de service, elle, le relance.
   assert.equal(reveil.gardien({ veille: true, relancer: false }).etat, 'posée');
+  assert.ok(!fs.existsSync(path.join(unites, 'holarch-reveil.service')), 'sans accès distant, aucun réveil');
   appels.length = 0; assert.equal(reveil.gardien({ veille: true, relancer: false }).etat, 'inchangée'); assert.ok(!appels.includes('restart holarch-veille.service'));
   assert.equal(reveil.gardien({ veille: null }).etat, 'règles du compte illisibles : laissé'); assert.ok(fs.existsSync(g));
+  // Un accès distant n'y touche pas : ni le premier ne le pose, ni le dernier ne le retire.
+  const cfg = path.join(tmp(), '.claude.json'); fs.writeFileSync(cfg, '{}');
+  const d = creerDistant({ inventaire: { 'claude-code': { config: cfg } }, acces_distant: {} }, { unites, systemctl, claude: '/opt/claude', projets: [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }], accueil: '/a', holarch: '/opt/holarch.js', node: '/opt/node/bin/node' });
+  d.activer('demo'); d.desactiver('demo');
+  assert.ok(!fs.existsSync(path.join(unites, 'holarch-reveil.timer')), 'le réveil part avec le dernier accès distant');
+  assert.ok(fs.existsSync(g) && actifs.has('holarch-veille.service'), 'le gardien reste : la règle s’applique toujours');
   // La règle retirée : le gardien part avec elle.
   assert.equal(reveil.gardien({ veille: false }).etat, 'règle veille-retardee non appliquée : retiré'); assert.ok(!fs.existsSync(g));
+  d.activer('demo'); assert.ok(!fs.existsSync(g), 'un accès distant ne le pose pas');
 });
 
 test('veille : un chemin de transcription noté ne se lit que s’il désigne un fichier .jsonl sous projects/ (une FIFO bloquerait le gardien)', () => {
@@ -301,8 +304,8 @@ test('veille : le script de la demande échappe sa raison, passe encodé et lais
   assert.equal(commandeWindows({ powershell: null }), null);
 });
 
-test('veille : le gardien est posé et retiré avec le premier et le dernier accès distant ; la copie de service le pose ou le réécrit', () => {
-  const unites = tmp(); const racine = tmp(); fs.mkdirSync(path.join(racine, 'demo'));
+test('veille : la copie de service pose le gardien, le réécrit ou le relance ; coupé à la main, jamais rallumé ; une unité de la main jamais touchée', () => {
+  const unites = tmp();
   const appels = []; const actifs = new Set(); const coupees = new Set();
   const systemctl = (args) => {
     appels.push(args.join(' '));
@@ -311,19 +314,18 @@ test('veille : le gardien est posé et retiré avec le premier et le dernier acc
     const out = args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : args[0] === 'is-enabled' ? (coupees.has(args[1]) ? 'disabled\n' : 'enabled\n') : '';
     return { status: 0, stdout: out, stderr: '' };
   };
-  const cfg = path.join(tmp(), '.claude.json'); fs.writeFileSync(cfg, '{}');
-  const d = creerDistant({ inventaire: { 'claude-code': { config: cfg } }, acces_distant: {} }, { unites, systemctl, claude: '/opt/claude', projets: [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }], accueil: '/a', holarch: '/opt/holarch.js', node: '/opt/node/bin/node', veille: () => true });
-  assert.deepEqual(etatVeille({ unites, systemctl }), { unite: 'holarch-veille.service', gardien: 'absent', distants: 0 });
-  d.activer('demo');
+  const pose = (holarch, o = { node: '/opt/node/bin/node' }) => creerReveil({ holarch, accueil: '/a' }, { unites, systemctl, ...o });
+  assert.deepEqual(etatVeille({ unites, systemctl }), { unite: 'holarch-veille.service', gardien: 'absent' });
+  assert.deepEqual(pose('/opt/holarch.js').gardien({ veille: true }), { unite: 'holarch-veille.service', etat: 'posée' });
   const texte = fs.readFileSync(path.join(unites, 'holarch-veille.service'), 'utf8');
   assert.match(texte, /^ExecStart="\/opt\/node\/bin\/node" --no-warnings "\/opt\/holarch.js" veille tenir$/m);
   assert.match(texte, /^Restart=on-failure$/m); assert.match(texte, /^StandardError=journal$/m);
   assert.ok(appels.includes('enable --now holarch-veille.service'));
-  assert.deepEqual(etatVeille({ unites, systemctl }), { unite: 'holarch-veille.service', gardien: 'actif', distants: 1 });
+  assert.match(texte, /Posée et retirée avec la règle veille-retardee/);
+  assert.deepEqual(etatVeille({ unites, systemctl }), { unite: 'holarch-veille.service', gardien: 'actif' });
   assert.deepEqual(etatRoutines({ unites, systemctl }).at(-1), { unite: 'holarch-veille.service', etat: 'activée' });
   // La copie posée : le gardien suit la copie et redémarre (il relâche puis reprend la demande).
   appels.length = 0;
-  const pose = (holarch, o = { node: '/opt/node/bin/node' }) => creerReveil({ holarch, accueil: '/a' }, { unites, systemctl, ...o });
   assert.deepEqual(pose('/v2/holarch.js').gardien({ veille: true }), { unite: 'holarch-veille.service', etat: 'réécrite' }); assert.ok(appels.includes('restart holarch-veille.service'));
   // Le cas réel : le binaire est le lien `courant`, dont le chemin ne change pas ; le gardien est relancé quand même.
   appels.length = 0;
@@ -334,11 +336,8 @@ test('veille : le gardien est posé et retiré avec le premier et le dernier acc
   assert.deepEqual(appels.filter((a) => /^(enable|restart|start)/.test(a)), []);
   assert.match(fs.readFileSync(path.join(unites, 'holarch-veille.service'), 'utf8'), /"\/v3\/holarch.js" veille tenir/);
   assert.equal(etatVeille({ unites, systemctl }).gardien, 'coupé');
-  d.desactiver('demo');
-  assert.ok(!fs.existsSync(path.join(unites, 'holarch-veille.service')), 'retiré avec le dernier accès distant');
-  assert.equal(pose('/v3/holarch.js').gardien({ veille: true }).etat, 'sans accès distant : non posé');
   // Une unité de la main n'est jamais touchée.
-  ecrire(path.join(unites, 'holarch-veille.service'), '[Service]\nExecStart=/bin/true\n'); ecrire(path.join(unites, 'holarch-reveil.service'), '# Écrit par HOLARCH (holarch distant) : x\n');
+  ecrire(path.join(unites, 'holarch-veille.service'), '[Service]\nExecStart=/bin/true\n');
   assert.equal(pose('/v4/holarch.js', {}).gardien({ veille: true }).etat, 'non écrite par HOLARCH : laissée');
   assert.equal(pose('/v4/holarch.js', {}).gardien({ veille: false }).etat, 'non écrite par HOLARCH : laissée');
   assert.equal(fs.readFileSync(path.join(unites, 'holarch-veille.service'), 'utf8'), '[Service]\nExecStart=/bin/true\n');
@@ -377,13 +376,15 @@ test('veille : une règle applicable qui désigne le contrôle pose les crochets
   assert.equal(JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8')).hooks, undefined);
 });
 
-test('veille : le contrôle dit un gardien arrêté sous un accès distant, rien sans accès, non disponible sans mécanisme', () => {
+test('veille : le contrôle veut le gardien actif dès que la règle s’applique, accès distant ou non ; non disponible sans mécanisme', () => {
   const c = (veille) => executer('veille-retardee', { veille }, 'audit');
-  assert.match(c({ mecanisme: null, gardien: 'absent', distants: 1 }).indisponible, /aucun mécanisme/);
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'absent', distants: 0 }), { ecarts: [] });
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 2 }), { ecarts: [] });
-  const e = c({ mecanisme: '/ps', gardien: 'arrêté', distants: 1 }).ecarts;
-  assert.deepEqual([e.length, e[0].cle], [1, 'gardien']); assert.match(e[0].message, /gardien de veille arrêté avec 1 accès distant/);
+  assert.match(c({ mecanisme: null, gardien: 'absent' }).indisponible, /aucun mécanisme/);
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif' }), { ecarts: [] });
+  const absent = c({ mecanisme: '/ps', gardien: 'absent' }).ecarts;
+  assert.deepEqual(absent.map((x) => x.cle), ['gardien'], 'sans accès distant aussi : une session reliée par /remote-control');
+  assert.match(absent[0].message, /gardien de veille absent : la veille n'est pas retardée \(holarch regles appliquer le pose\)/);
+  const coupe = c({ mecanisme: '/ps', gardien: 'coupé' }).ecarts;
+  assert.equal(coupe[0].message, 'gardien de veille coupé : la veille n\'est pas retardée', 'coupé à la main : la pose ne le rallume pas, rien à conseiller');
 });
 
 test('veille : une erreur du crochet, configuration illisible comprise, ne fait pas échouer le tour ; gardée datée, le contrôle la dit une semaine', () => {
@@ -393,7 +394,7 @@ test('veille : une erreur du crochet, configuration illisible comprise, ne fait 
   assert.equal(r.status, 0, 'un crochet ne fait jamais échouer un tour');
   const erreur = JSON.parse(fs.readFileSync(fichierErreur(accueil), 'utf8'));
   assert.equal(erreur.evenement, 'Stop'); assert.ok(erreur.message.length > 0);
-  const c = (o) => executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'absent', distants: 0, besoin: false, ...o } }, 'audit').ecarts;
+  const c = (o) => executer('veille-retardee', { veille: { mecanisme: '/ps', gardien: 'actif', besoin: false, ...o } }, 'audit').ecarts;
   const e = c({ erreur });
   assert.deepEqual(e.map((x) => x.cle), ['crochet']); assert.match(e[0].message, /crochet de veille en erreur le .* \(Stop\)/);
   assert.ok(!e[0].message.includes(accueil), 'ni chemin ni message dans l’écart');
@@ -403,11 +404,11 @@ test('veille : une erreur du crochet, configuration illisible comprise, ne fait 
 test('veille : le contrôle compare ce que le gardien dit tenir à ce que demandent les sessions, accès distant ou /remote-control', async () => {
   const c = (veille) => executer('veille-retardee', { veille }, 'audit').ecarts.map((x) => x.cle);
   const frais = { maj: new Date().toISOString(), besoin: true, tenue: true };
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 1, besoin: true, tenu: frais }), []);
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 1, besoin: true, tenu: { ...frais, tenue: false } }), ['retenue'], 'le gardien tourne mais ne tient rien');
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', distants: 1, besoin: true, tenu: { ...frais, maj: new Date(Date.now() - 5 * min).toISOString() } }), ['retenue'], 'gardien bloqué : plus de passage');
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'absent', distants: 0, besoin: true, tenu: null }), ['retenue'], 'session reliée par /remote-control, sans accès distant ni gardien');
-  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'absent', distants: 0, besoin: false, tenu: null }), []);
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: true, tenu: frais }), []);
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: true, tenu: { ...frais, tenue: false } }), ['retenue'], 'le gardien tourne mais ne tient rien');
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: true, tenu: { ...frais, maj: new Date(Date.now() - 5 * min).toISOString() } }), ['retenue'], 'gardien bloqué : plus de passage');
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'absent', besoin: true, tenu: null }), ['gardien', 'retenue'], 'session reliée par /remote-control, sans gardien');
+  assert.deepEqual(c({ mecanisme: '/ps', gardien: 'actif', besoin: false, tenu: null }), []);
   // Le gardien écrit à chaque passage ce qu'il tient ; le contrôle le lit sur le poste (accueil du site).
   const accueil = tmp();
   const g = creerGardien({ accueil, commande: TEMOIN });

@@ -98,7 +98,7 @@ switch (cmd) {
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : affichage.importer(r)); break; }
   case 'indexer': afficher(socle().indexer()); break;
   case 'distant': {
-    const d = creerDistant(chargerConfig(), { veille: () => veilleDuCompte() }); const [action, projet] = args.filter((a) => !a.startsWith('--'));
+    const d = creerDistant(chargerConfig()); const [action, projet] = args.filter((a) => !a.startsWith('--'));
     try {
       if (action === 'activer') { const r = d.activer(projet); afficher(json ? r : `accès distant actif : ${r.nom} (${r.chemin}), service ${r.unite}${r.confiance_declaree ? ' ; dossier déclaré de confiance pour Claude Code' : ''}`); }
       else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}`); }

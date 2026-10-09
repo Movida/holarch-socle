@@ -283,17 +283,18 @@ function commitsPousses(ctx) {
 // ---------- veille retardée (décision environnement-d-execution) ----------
 
 /**
- * Le poste retarde sa veille sous une session distante : un mécanisme existe (Windows, vu de WSL) ; dès qu'un accès
- * distant est actif, le gardien tourne ; et quand une session notée retient la veille (une session reliée par
- * `/remote-control` aussi, sans accès distant), le gardien dit tenir la demande depuis moins de GARDIEN_FRAIS. Les
- * crochets qui notent les sessions sont vus par `reglages-poses`. `ctx.veille` remplace la lecture du poste (essais).
+ * Le poste retarde sa veille sous une session distante : un mécanisme existe (Windows, vu de WSL) ; le gardien tourne
+ * dès que la règle s'applique (il la suit, comme les crochets, accès distant ou non) ; et quand une session notée retient
+ * la veille (une session reliée par `/remote-control` aussi), le gardien dit tenir la demande depuis moins de
+ * GARDIEN_FRAIS. Les crochets qui notent les sessions sont vus par `reglages-poses`. `ctx.veille` remplace la lecture du
+ * poste (essais).
  */
 function veilleRetardee(ctx) {
   const e = ctx.veille || { mecanisme: mecanisme(), ...etatVeille(), besoin: ctx.accueil ? evaluer({ accueil: ctx.accueil }).besoin : false,
     tenu: ctx.accueil ? lireJson(fichierGardien(ctx.accueil), null) : null, erreur: ctx.accueil ? lireJson(fichierErreur(ctx.accueil), null) : null };
   if (!e.mecanisme) return { indisponible: 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)' };
   const ecarts = [];
-  if (e.distants && e.gardien !== 'actif') ecarts.push({ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${e.gardien} avec ${e.distants} accès distant(s) actif(s) : la veille n'est pas retardée` });
+  if (e.gardien !== 'actif') ecarts.push({ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${e.gardien} : la veille n'est pas retardée${e.gardien === 'absent' ? ' (holarch regles appliquer le pose)' : ''}` });
   const frais = e.tenu && Date.now() - Date.parse(e.tenu.maj) < GARDIEN_FRAIS;
   if (e.besoin && !(e.gardien === 'actif' && frais && e.tenu.tenue)) {
     ecarts.push({ fichier: null, ligne: null, cle: 'retenue', message: `une session distante retient la veille, mais la demande d'éveil n'est pas tenue (gardien ${e.gardien}${frais ? '' : ', sans passage récent'})` });

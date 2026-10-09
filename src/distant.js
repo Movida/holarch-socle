@@ -131,12 +131,12 @@ WantedBy=timers.target
 `;
 
 // Veille retardée (décision environnement-d-execution, livraison B) : le gardien qui tient la demande d'éveil de Windows
-// tant qu'une session distante l'interdit (src/veille.js). Posé avec le minuteur de réveil, comme lui hors PREFIXE, et
-// seulement quand la règle `veille-retardee` s'applique au compte, comme les crochets qui notent les sessions ; retiré
-// avec le dernier accès distant ou avec la règle.
+// tant qu'une session distante l'interdit (src/veille.js). Il suit la seule règle `veille-retardee`, comme les crochets
+// qui notent les sessions : posé et retiré par `regles appliquer` et la pose de la copie de service, jamais par un accès
+// distant (une session reliée par `/remote-control` n'en a pas besoin pour être retenue). Nom hors PREFIXE.
 const UNITE_VEILLE = 'holarch-veille.service';
 export function uniteVeille({ node = process.execPath, holarch, accueil }) {
-  return `${MARQUE} : veille retardée sous une session distante. Retirée avec le dernier accès distant.
+  return `${MARQUE} : veille retardée sous une session distante. Posée et retirée avec la règle veille-retardee (holarch regles appliquer).
 [Unit]
 Description=HOLARCH : veille retardée sous une session distante
 
@@ -154,11 +154,12 @@ WantedBy=default.target
 }
 
 /**
- * Le réveil et le gardien de veille, après une pose de la copie de service : `reecrire`, l'unité de réveil réécrite si
- * elle est de HOLARCH, pour lancer la copie posée (écrite avant, elle lancerait la copie de travail) ; `gardien`, posé
- * avec elle, ou réécrit et relancé (une relance relâche puis reprend la demande). Le réveil absent, rien n'est posé :
- * ils viennent avec le premier accès distant. Un gardien coupé à la main est réécrit sans être rallumé (décision
- * routines-posees) ; inchangé, il est relancé, comme l'interface : son chemin est celui du lien de la copie en service.
+ * Le réveil et le gardien de veille, après une pose de la copie de service ou des règles : `reecrire`, l'unité de réveil
+ * réécrite si elle est de HOLARCH, pour lancer la copie posée (écrite avant, elle lancerait la copie de travail) ; le
+ * réveil absent, rien n'est posé (il vient avec le premier accès distant). `gardien`, posé si la règle s'applique, ou
+ * réécrit et relancé (une relance relâche puis reprend la demande), retiré sinon. Un gardien coupé à la main est réécrit
+ * sans être rallumé (décision routines-posees) ; inchangé, il est relancé, comme l'interface : son chemin est celui du
+ * lien de la copie en service.
  */
 export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
   const sv = services({ unites, systemctl }); const f = path.join(unites, `${UNITE_REVEIL}.service`); const g = path.join(unites, UNITE_VEILLE);
@@ -171,7 +172,6 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
     },
     // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règles illisibles : rien ne change.
     gardien({ veille = null, relancer = true } = {}) {
-      if (!fs.existsSync(f) || !sv.geree(f)) return { unite: UNITE_VEILLE, etat: 'sans accès distant : non posé' };
       if (veille === null) return { unite: UNITE_VEILLE, etat: 'règles du compte illisibles : laissé' };
       if (!veille) return { unite: UNITE_VEILLE, etat: retirerVeille(sv, g) };
       const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
@@ -199,16 +199,11 @@ function retirerVeille(sv, g) {
   sv.retirer(g); return 'règle veille-retardee non appliquée : retiré';
 }
 
-/**
- * État de la veille retardée vu des services : le gardien (absent, actif, arrêté, coupé, écrit à la main) et le nombre
- * d'accès distants actifs (sans eux, un gardien absent n'est pas un écart).
- */
+/** État du gardien de veille vu des services : absent, actif, arrêté, coupé ou écrit à la main. */
 export function etatVeille({ unites = UNITES, systemctl = SYSTEMCTL } = {}) {
   const sv = services({ unites, systemctl }); const g = path.join(unites, UNITE_VEILLE);
-  let noms = []; try { noms = fs.readdirSync(unites); } catch { /* aucune unité */ }
-  const distants = noms.filter((n) => n.startsWith(PREFIXE) && n.endsWith('.service') && sv.geree(path.join(unites, n)) && sv.actif(path.join(unites, n))).length;
   const gardien = !fs.existsSync(g) ? 'absent' : !sv.geree(g) ? 'écrit à la main' : sv.actif(g) ? 'actif' : sv.coupee(g) ? 'coupé' : 'arrêté';
-  return { unite: UNITE_VEILLE, gardien, distants };
+  return { unite: UNITE_VEILLE, gardien };
 }
 
 /** Les accès distants posés par HOLARCH (unités marquées) et leur dossier de travail, lus sans systemctl. */
@@ -223,24 +218,18 @@ export function creerDistant(config, {
   claude = null,
   projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
   accueil = config.accueil || accueilParDefaut(), holarch = binaireService(accueil), node = process.execPath, maintenant = Date.now,
-  // La règle `veille-retardee` s'applique au compte (vrai, faux, ou null si illisible), lue seulement à la pose.
-  veille = () => null,
 } = {}) {
   const sv = services({ unites, systemctl });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
-  const reveil = { service: path.join(unites, `${UNITE_REVEIL}.service`), minuteur: path.join(unites, `${UNITE_REVEIL}.timer`), passage: path.join(accueil, 'distant-reveil'), gardien: path.join(unites, UNITE_VEILLE) };
+  const reveil = { service: path.join(unites, `${UNITE_REVEIL}.service`), minuteur: path.join(unites, `${UNITE_REVEIL}.timer`), passage: path.join(accueil, 'distant-reveil') };
   const poserReveil = () => {
     for (const x of [reveil.service, reveil.minuteur]) if (fs.existsSync(x) && !sv.geree(x)) return;
     if (sv.ecrire(reveil.service, uniteReveil({ node, holarch, accueil }))) sv.lancer(['daemon-reload']);
     sv.poser(reveil.minuteur, MINUTEUR_REVEIL);
-    const v = veille();
-    if (v) poserVeille(sv, reveil.gardien, uniteVeille({ node, holarch, accueil }));
-    else if (v === false) retirerVeille(sv, reveil.gardien);
   };
   const retirerReveil = () => {
     if (fs.existsSync(reveil.minuteur) && sv.geree(reveil.minuteur)) sv.retirer(reveil.minuteur);
     if (fs.existsSync(reveil.service) && sv.geree(reveil.service)) { fs.rmSync(reveil.service); sv.lancer(['daemon-reload']); }
-    if (fs.existsSync(reveil.gardien) && sv.geree(reveil.gardien)) sv.retirer(reveil.gardien);
   };
 
   // Un projet du catalogue, désigné par son identifiant, son nom ou un chemin (module projets, comme partout ailleurs).
