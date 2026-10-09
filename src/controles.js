@@ -479,6 +479,26 @@ function privilegesDe(c, opts) {
   return l;
 }
 
+// Les variables de l'hôte qui entrent dans le conteneur : toute référence `${localEnv:…}` (ou `${env:…}`) hors de ce
+// qui se résout sur l'hôte (montages, `initializeCommand`), et, dans `runArgs`, `-e NOM` sans valeur (le CLI Docker la
+// prend dans l'environnement de l'hôte) et `--env-file`. Leur nom seulement, jamais leur valeur.
+const COTE_HOTE = new Set(['mounts', 'workspaceMount', 'initializeCommand']);
+function variablesDe(c, opts) {
+  const l = []; const montages = new Set(opts.filter((o) => o.nom === 'volume' || o.nom === 'mount').map((o) => o.ou));
+  const parcourir = (v, ou) => {
+    if (typeof v === 'string') {
+      const noms = [...v.matchAll(/\$\{(?:localEnv|env):([^}:]*)/g)].map((m) => m[1]);
+      if (noms.length && !(ou[0] === 'runArgs' && montages.has(ou[1]))) l.push({ ou, noms, ou_lu: ou.join('.') });
+    } else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) parcourir(x, [...ou, Array.isArray(v) ? Number(k) : k]);
+  };
+  for (const [k, v] of Object.entries(c)) if (!COTE_HOTE.has(k)) parcourir(v, [k]);
+  for (const o of opts) {
+    if (o.nom === 'env' && o.val && !o.val.includes('=')) l.push({ ou: ['runArgs', o.ou], noms: [o.val], ou_lu: `runArgs.${o.ou}` });
+    if (o.nom === 'env-file') l.push({ ou: ['runArgs', o.ou], noms: [`fichier ${o.val}`], ou_lu: `runArgs.${o.ou}` });
+  }
+  return l;
+}
+
 // Une configuration lue (JSONC), avec son arbre pour situer une ligne ; `erreur` si elle ne se lit pas.
 function lireConfig(depot, f) {
   const texte = fs.readFileSync(path.join(depot, f), 'utf8'); const erreurs = [];
@@ -519,7 +539,7 @@ function sourceHote(source, depot, maison, env) {
 /**
  * Ce qui expose l'hôte dans les configurations Dev Containers du dépôt : un montage d'un identifiant, du Docker de
  * l'hôte ou des données de HOLARCH en écriture (`mounts`, `workspaceMount`, `-v` et `--mount` de `runArgs`, features
- * locales), et un privilège qui défait l'isolement. Compose : non disponible. `ctx.maison`, `ctx.env` et `ctx.holarch`
+ * locales), une variable de l'hôte passée au conteneur, et un privilège qui défait l'isolement. Compose : non disponible. `ctx.maison`, `ctx.env` et `ctx.holarch`
  * remplacent ceux du poste (essais).
  */
 function montageSensible(ctx) {
@@ -551,6 +571,10 @@ function montageSensible(ctx) {
         const qui = vu === touche.chemin ? affiche(vu) : dedans(touche.chemin, vu) ? `${affiche(vu)}, qui contient ${affiche(touche.chemin)}` : `${affiche(vu)}, dans ${affiche(touche.chemin)}`;
         ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, m.ou), cle: `montage:${lu.f}:${m.cible}`,
           message: `monte ${qui} (${touche.quoi}) dans le conteneur, ${m.lecture ? 'en lecture' : 'en écriture'}` });
+      }
+      for (const x of variablesDe(lu.c, opts)) {
+        ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, x.ou), cle: `environnement:${lu.f}:${x.ou_lu}`,
+          message: `passe ${x.noms.join(', ')} de l’hôte au conteneur (${x.ou_lu}) : rien de l’environnement de l’hôte n’y entre` });
       }
       for (const x of privilegesDe(lu.c, opts)) {
         ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, x.ou), cle: `privilege:${lu.f}:${x.cle}`, message: `${x.quoi} : l’isolement du conteneur ne tient plus` });

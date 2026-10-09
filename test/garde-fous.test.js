@@ -600,3 +600,17 @@ test('Contre-épreuve du conteneur (3) : options de runArgs lues comme le CLI Do
   config({ features: { './manque': {} } });
   assert.match(lire().indisponible, /manque\/devcontainer-feature\.json absent/);
 });
+
+test('Contre-épreuve du conteneur (24) : toute variable de l’hôte qui entre dans le conteneur est un écart, nommée sans sa valeur', () => {
+  const { config, lire, ctx } = conteneurEssai();
+  ctx.env.JETON = 'valeur-secrete';
+  config({ initializeCommand: 'mkdir -p ${localEnv:HOME}/.claude/rules', mounts: ['type=bind,source=${localEnv:HOME}/.claude/rules,target=/r,readonly'],
+    remoteEnv: { DEPLOI: '${localEnv:JETON}', PATH: '${containerEnv:PATH}:/x' }, containerEnv: { HOTE: 'chez ${env:USER}' },
+    build: { args: { CLE: '${localEnv:JETON:aucun}' } }, postCreateCommand: 'echo ${localEnv:JETON} > /tmp/x',
+    runArgs: ['-v', '${localEnv:HOME}/cache:/cache', '-e', 'JETON', '-e', 'FIXE=1', '--env-file', '/home/alice/.env'] });
+  const r = lire();
+  assert.deepEqual(r.ecarts.map((e) => e.cle.split(':').pop()), ['remoteEnv.DEPLOI', 'containerEnv.HOTE', 'build.args.CLE', 'postCreateCommand', 'runArgs.3', 'runArgs.7']);
+  assert.match(r.ecarts[0].message, /passe JETON de l’hôte au conteneur \(remoteEnv\.DEPLOI\)/);
+  assert.match(r.ecarts[5].message, /passe fichier \/home\/alice\/\.env/);
+  assert.ok(!JSON.stringify(r).includes('valeur-secrete'), 'la valeur n’est jamais écrite');
+});
