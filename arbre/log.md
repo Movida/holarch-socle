@@ -2,6 +2,19 @@
 
 ## 2026-10-09
 
+* **Tranche 12 : deux décisions, livraison A** : le brouillon `environnement-d-execution` réécrit en deux, à approuver :
+  `partage-et-bac-a-sable` (P7 étendu à la part partageable d'un projet, §5.4 : une session distante est une
+  exécution ; l'accès sur l'hôte vaut dérogation jusqu'à D) et `environnement-d-execution` (mise en œuvre, livraisons A
+  à E, chacune avec son critère). Q27 résolue sans lancer de serveur, par l'aide lue dans le binaire 2.1.295 :
+  `--[no-]create-session-in-dir`, incompatible avec `--continue`. A livrée : `acces_distant.session_au_demarrage`
+  (`aucune` par défaut, `reprendre`), une valeur inconnue refusée avant d'écrire l'unité ou la confiance (94 tests
+  verts) ; copie de service posée. Le service du poste garde son ancienne unité jusqu'à ce que l'auteur relance
+  `holarch distant activer holarch-socle` (la relance coupe les sessions servies) ; critère de A à vérifier ensuite.
+  Noms de projets personnels et chemin du poste, venus du brouillon, retirés à la demande de la garde avant commit.
+  Leçon de clôture : déroulé annoncé (deux décisions, A, commits sans envoi) ; réalisé. Ce qui a fait dévier : une
+  substitution sur un repère qui se répète dans le fichier (`Choix techniques (P12)`), qui l'a dupliqué, réparé avant
+  commit ; la confiance déclarée avant le contrôle du réglage, vue à la relecture et corrigée avec son test.
+
 * **Constats des contre-épreuves corrigés** (A à H, puis 1 à 5 d'une troisième) : dix commits avec un test qui
   reproduit chacun (93 tests verts), envoyés sur `origin/main` sur demande de l'auteur. `gitLu` (inventaire, contrôles
   de l'audit) lit un dépôt quelconque sans rien exécuter de ce qu'il déclare : crochets, filtres et pilotes (passés par
