@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { noter, evaluer, effacerNote, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
-import { creerDistant, creerReveil, etatVeille, etatRoutines } from '../src/distant.js';
+import { creerDistant, creerReveil, etatVeille, etatRoutines, uniteVeille } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -200,7 +200,7 @@ test('veille : le gardien suit la seule règle, comme les crochets : posé si el
     appels.push(args.join(' '));
     if (args[0] === 'enable') actifs.add(args.at(-1));
     if (args[0] === 'disable') actifs.delete(args.at(-1));
-    return { status: 0, stdout: args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : args[0] === 'is-enabled' ? 'enabled\n' : '', stderr: '' };
+    return { status: 0, stdout: args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : args[0] === 'is-enabled' ? 'enabled\n' : args[0] === 'is-system-running' ? 'running\n' : '', stderr: '' };
   };
   const g = path.join(unites, 'holarch-veille.service');
   const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, systemctl, node: '/opt/node/bin/node' });
@@ -231,15 +231,39 @@ test('veille : le gardien suit la seule règle, comme les crochets : posé si el
 
 test('veille : la pose du gardien ne lève jamais : un systemctl en échec ou une règle illisible se disent, après ce qui est écrit', () => {
   const unites = tmp();
-  const enPanne = (args) => (args[0] === 'is-active' || args[0] === 'is-enabled' ? { status: 3, stdout: 'inactive\n', stderr: '' } : { status: 1, stdout: '', stderr: 'Failed to connect to bus: No medium found' });
+  const enPanne = (args) => (args[0] === 'is-system-running' ? { status: 1, stdout: 'degraded\n', stderr: '' } : args[0] === 'is-active' || args[0] === 'is-enabled' ? { status: 3, stdout: 'inactive\n', stderr: '' } : { status: 1, stdout: '', stderr: 'Failed to reload daemon: Access denied' });
   const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, systemctl: enPanne, node: '/opt/node/bin/node' });
   const r = reveil.gardien({ veille: true, relancer: false });
-  assert.deepEqual([r.etat, r.message], ['erreur', 'systemctl --user daemon-reload : Failed to connect to bus: No medium found']);
+  assert.deepEqual([r.etat, r.message], ['erreur', 'systemctl --user daemon-reload : Failed to reload daemon: Access denied']);
   // La règle se lit au moment de poser : une lecture qui échoue se dit de même.
   const lue = reveil.gardien({ veille: () => { throw new Error('arbre du profil illisible'); } });
   assert.deepEqual([lue.etat, lue.message], ['erreur', 'arbre du profil illisible']);
   const neuf = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites: tmp(), systemctl: enPanne, node: '/opt/node/bin/node' });
   assert.equal(neuf.gardien({ veille: () => false }).etat, 'règle veille-retardee non appliquée : non posé', 'une fonction qui lit la règle');
+});
+
+test('veille : sans systemd utilisateur, le gardien voulu n’est pas posé : rien d’écrit, aucune erreur (WSL sans systemd, conteneur)', () => {
+  const g = (unites) => path.join(unites, 'holarch-veille.service');
+  // Le faux systemctl des images Dev Containers répond 0 à tout, avec un texte ; un site sans systemctl, ENOENT.
+  const fauxDevcontainer = () => ({ status: 0, stdout: '\n"systemd" is not running in this container due to its overhead.\n', stderr: '' });
+  const absent = () => ({ status: null, stdout: undefined, stderr: undefined, error: new Error('spawnSync systemctl ENOENT') });
+  const horsLigne = () => ({ status: 1, stdout: 'offline\n', stderr: 'System has not been booted with systemd as init system (PID 1). Can\'t operate.' });
+  for (const systemctl of [fauxDevcontainer, absent, horsLigne]) {
+    const unites = tmp(); const appels = [];
+    const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, systemctl: (a) => { appels.push(a.join(' ')); return systemctl(a); }, node: '/opt/node/bin/node' });
+    assert.deepEqual(reveil.gardien({ veille: true, relancer: false }), { unite: 'holarch-veille.service', etat: 'sans systemd utilisateur : non posé' });
+    assert.deepEqual(reveil.gardien({ veille: true }), { unite: 'holarch-veille.service', etat: 'sans systemd utilisateur : non posé' }, 'la copie de service non plus');
+    assert.ok(!fs.existsSync(g(unites)), 'aucune unité écrite'); assert.deepEqual([...new Set(appels)], ['is-system-running']);
+    // `holarch veille` et le contrôle ne renvoient pas à `regles appliquer`, qui ne peut rien y poser.
+    assert.equal(etatVeille({ unites, systemctl }).gardien, 'impossible sans systemd utilisateur');
+    // Une unité déjà là (posée quand systemd tournait) : laissée, pas plus retirée que posée.
+    ecrire(g(unites), uniteVeille({ holarch: '/opt/holarch.js', accueil: '/a' }));
+    assert.equal(reveil.gardien({ veille: true }).etat, 'sans systemd utilisateur : laissé');
+    assert.equal(reveil.gardien({ veille: false }).etat, 'règle veille-retardee non appliquée, sans systemd utilisateur : laissé'); assert.ok(fs.existsSync(g(unites)));
+  }
+  // systemd qui répond mais un appel qui échoue sans sortie : l'erreur du lancement se dit, pas « code null ».
+  const r = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites: tmp(), systemctl: (a) => (a[0] === 'is-system-running' ? { status: 0, stdout: 'running\n' } : { status: null, error: new Error('spawnSync systemctl EACCES') }), node: '/opt/node/bin/node' }).gardien({ veille: true });
+  assert.deepEqual([r.etat, r.message], ['erreur', 'systemctl --user daemon-reload : spawnSync systemctl EACCES']);
 });
 
 test('veille : un profil absent ou en double rend la règle indéterminée, pas retirée', () => {
@@ -405,7 +429,7 @@ test('veille : la copie de service pose le gardien, le réécrit ou le relance ;
     appels.push(args.join(' '));
     if (args[0] === 'enable') { actifs.add(args.at(-1)); coupees.delete(args.at(-1)); }
     if (args[0] === 'disable') { actifs.delete(args.at(-1)); coupees.add(args.at(-1)); }
-    const out = args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : args[0] === 'is-enabled' ? (coupees.has(args[1]) ? 'disabled\n' : 'enabled\n') : '';
+    const out = args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : args[0] === 'is-enabled' ? (coupees.has(args[1]) ? 'disabled\n' : 'enabled\n') : args[0] === 'is-system-running' ? 'running\n' : '';
     return { status: 0, stdout: out, stderr: '' };
   };
   const pose = (holarch, o = { node: '/opt/node/bin/node' }) => creerReveil({ holarch, accueil: '/a' }, { unites, systemctl, ...o });

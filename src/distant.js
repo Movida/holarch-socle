@@ -28,9 +28,12 @@ export const pathService = (...bins) => [...new Set([...bins.map((b) => path.dir
  */
 function services({ unites, systemctl }) {
   const geree = (f) => fichierMarque(f, MARQUE);
-  const lancer = (args) => { const r = systemctl(args); if (r.status !== 0) throw new Error(`systemctl --user ${args.join(' ')} : ${(r.stderr || '').trim() || `code ${r.status}`}`); return r; };
+  const lancer = (args) => { const r = systemctl(args); if (r.status !== 0) throw new Error(`systemctl --user ${args.join(' ')} : ${(r.stderr || '').trim() || r.error?.message || `code ${r.status}`}`); return r; };
   return {
     unites, geree, lancer,
+    // Un gestionnaire systemd utilisateur répond : `is-system-running` dit son état (aide de systemctl). Sans lui (WSL
+    // sans systemd, conteneur), rien ne répond ; le faux systemctl des images Dev Containers répond 0 à tout, avec un texte.
+    disponible: () => ETATS_SYSTEMD.includes(systemctl(['is-system-running']).stdout?.trim()),
     actif: (f) => fs.existsSync(f) && systemctl(['is-active', path.basename(f)]).stdout?.trim() === 'active',
     // Coupée à la main (`systemctl --user disable`) : une pose la réécrit sans la rallumer (décision routines-posees).
     coupee: (f) => fs.existsSync(f) && systemctl(['is-enabled', path.basename(f)]).stdout?.trim() === 'disabled',
@@ -55,6 +58,7 @@ function services({ unites, systemctl }) {
     },
   };
 }
+const ETATS_SYSTEMD = ['initializing', 'starting', 'running', 'degraded', 'maintenance', 'stopping'];
 const UNITES = path.join(os.homedir(), '.config', 'systemd', 'user');
 const SYSTEMCTL = (args) => spawnSync('systemctl', ['--user', ...args], { encoding: 'utf8' });
 
@@ -173,6 +177,9 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
       sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: `${etat}, relancé` };
     }
     if (!veille) return { unite: UNITE_VEILLE, etat: retirerVeille(sv, g) };
+    // Sans systemd utilisateur, aucun gardien ne peut tourner : rien ne s'écrit, et la commande n'échoue pas (le contrôle
+    // dit l'écart là où un mécanisme existe).
+    if (!sv.disponible()) return { unite: UNITE_VEILLE, etat: `sans systemd utilisateur : ${fs.existsSync(g) ? 'laissé' : 'non posé'}` };
     const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
     // Texte inchangé (le lien `courant` ne change pas de chemin) : le gardien tourne encore l'ancien code.
     if (etat === 'inchangée' && relancer) { sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
@@ -207,13 +214,14 @@ function poserVeille(sv, g, texte) {
 function retirerVeille(sv, g) {
   if (!fs.existsSync(g)) return 'règle veille-retardee non appliquée : non posé';
   if (!sv.geree(g)) return 'non écrite par HOLARCH : laissée';
+  if (!sv.disponible()) return 'règle veille-retardee non appliquée, sans systemd utilisateur : laissé';
   sv.retirer(g); return 'règle veille-retardee non appliquée : retiré';
 }
 
-/** État du gardien de veille vu des services : absent, actif, arrêté, coupé ou écrit à la main. */
+/** État du gardien de veille vu des services : absent (impossible sans systemd utilisateur), actif, arrêté, coupé ou écrit à la main. */
 export function etatVeille({ unites = UNITES, systemctl = SYSTEMCTL } = {}) {
   const sv = services({ unites, systemctl }); const g = path.join(unites, UNITE_VEILLE);
-  const gardien = !fs.existsSync(g) ? 'absent' : !sv.geree(g) ? 'écrit à la main' : sv.actif(g) ? 'actif' : sv.coupee(g) ? 'coupé' : 'arrêté';
+  const gardien = !fs.existsSync(g) ? (sv.disponible() ? 'absent' : 'impossible sans systemd utilisateur') : !sv.geree(g) ? 'écrit à la main' : sv.actif(g) ? 'actif' : sv.coupee(g) ? 'coupé' : 'arrêté';
   return { unite: UNITE_VEILLE, gardien };
 }
 
