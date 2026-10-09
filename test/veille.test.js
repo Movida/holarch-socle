@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { noter, evaluer, processusSession, vivant, attenteDansTranscription, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { spawnSync } from 'node:child_process';
+import { noter, evaluer, processusSession, vivant, attenteDansTranscription, transcriptionLisible, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte } from '../src/materialisation.js';
@@ -24,6 +25,8 @@ const enVie = ({ pid, debut }) => vivants.get(pid) === debut;
 const session = () => ({ pid: 4242, debut: '777' });
 const note = (accueil, evenement, id = 'sess-1', o = {}) => noter({ evenement, entree: { session_id: id, transcript_path: o.transcription || null, cwd: '/home/x/projet-a' }, accueil, env: DISTANTE, maintenant: o.t ?? T0, session: o.session || session });
 const ligne = (o) => `${JSON.stringify(o)}\n`;
+// Une transcription a la forme de celles de Claude Code : sous un dossier `projects/`.
+const transcription = (nom = 's.jsonl') => path.join(tmp(), 'projects', '-dossier', nom);
 
 test('veille : les crochets notent l’état d’une session distante, jamais d’une session locale ; SessionEnd efface la note', () => {
   const accueil = tmp(); const f = path.join(dossierVeille(accueil), 'sess-1.json');
@@ -79,7 +82,7 @@ test('veille : une session qui travaille retient la veille ; une attente, moins 
 });
 
 test('veille : un tour interrompu (aucun Stop) ou une question à l’auteur restée sans réponse comptent comme une attente', () => {
-  const accueil = tmp(); const t = path.join(tmp(), 's.jsonl');
+  const accueil = tmp(); const t = transcription();
   const prompt = { type: 'user', timestamp: '2026-10-09T09:00:00.000Z', message: { content: 'fais X' } };
   const appel = (nom, ts) => ({ type: 'assistant', timestamp: ts, message: { content: [{ type: 'tool_use', id: 'u1', name: nom, input: {} }] } });
   ecrire(t, ligne(prompt) + ligne(appel('Bash', '2026-10-09T09:01:00.000Z')));
@@ -106,7 +109,7 @@ test('veille : un tour interrompu (aucun Stop) ou une question à l’auteur res
 });
 
 test('veille : une session qui « travaille » sans que sa transcription bouge depuis 30 min attend (permission, élicitation, Stop manqué) ; une attente suivie d’écritures travaille de nouveau', () => {
-  const accueil = tmp(); const t = path.join(tmp(), 's.jsonl'); ecrire(t, ligne({ type: 'user', timestamp: '2026-10-09T09:00:00.000Z', message: { content: 'fais X' } }));
+  const accueil = tmp(); const t = transcription(); ecrire(t, ligne({ type: 'user', timestamp: '2026-10-09T09:00:00.000Z', message: { content: 'fais X' } }));
   const ecrite = (ms) => fs.utimesSync(t, new Date(ms), new Date(ms));
   const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
   note(accueil, 'UserPromptSubmit', 's', { t: T0, transcription: t });
@@ -125,7 +128,7 @@ test('veille : une session qui « travaille » sans que sa transcription bouge d
 });
 
 test('veille : après Stop, un sous-agent de fond qui écrit retient le poste tant que sa transcription bouge ; un shell de fond, non', () => {
-  const accueil = tmp(); const t = path.join(tmp(), 'sess.jsonl'); ecrire(t, ligne({ type: 'assistant', timestamp: '2026-10-09T10:00:00.000Z', message: { content: [] } }));
+  const accueil = tmp(); const t = transcription('sess.jsonl'); ecrire(t, ligne({ type: 'assistant', timestamp: '2026-10-09T10:00:00.000Z', message: { content: [] } }));
   fs.utimesSync(t, new Date(T0), new Date(T0));
   const agent = path.join(t.replace(/\.jsonl$/, ''), 'subagents', 'agent-a1.jsonl'); ecrire(agent, ligne({ type: 'assistant' }));
   const e = (m) => evaluer({ accueil, maintenant: m, enVie }).sessions[0];
@@ -162,6 +165,18 @@ test('veille : le gardien suit la règle comme les crochets : posé si elle s’
   assert.equal(reveil.gardien({ veille: null }).etat, 'règles du compte illisibles : laissé'); assert.ok(fs.existsSync(g));
   // La règle retirée : le gardien part avec elle.
   assert.equal(reveil.gardien({ veille: false }).etat, 'règle veille-retardee non appliquée : retiré'); assert.ok(!fs.existsSync(g));
+});
+
+test('veille : un chemin de transcription noté ne se lit que s’il désigne un fichier .jsonl sous projects/ (une FIFO bloquerait le gardien)', () => {
+  const accueil = tmp(); const d = path.join(tmp(), 'projects', '-x'); fs.mkdirSync(d, { recursive: true });
+  const fifo = path.join(d, 'fifo.jsonl');
+  const r = spawnSync('mkfifo', [fifo]); assert.equal(r.status, 0, 'mkfifo disponible');
+  note(accueil, 'UserPromptSubmit', 'f', { transcription: fifo });
+  const e = evaluer({ accueil, maintenant: T0, enVie });
+  assert.deepEqual(e.sessions.map((s) => [s.session, s.etat]), [['f', 'travaille']], 'lue sans bloquer, bornée par sa note');
+  assert.equal(transcriptionLisible(fifo), false);
+  assert.equal(transcriptionLisible('/etc/passwd'), false); assert.equal(transcriptionLisible('relatif/projects/s.jsonl'), false);
+  const vraie = path.join(d, 's.jsonl'); ecrire(vraie, '{}\n'); assert.equal(transcriptionLisible(vraie), true);
 });
 
 // Demande d'éveil témoin : dit « tenue », tient jusqu'à la fin de son entrée standard.

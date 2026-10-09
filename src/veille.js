@@ -77,11 +77,20 @@ export function noter({ evenement, entree = {}, accueil, env = process.env, main
 }
 
 /**
+ * Un chemin de transcription venu d'une note se lit seulement s'il en a la forme (`.jsonl` absolu, sous un dossier
+ * `projects/` de Claude Code) et désigne un fichier : une FIFO ou un périphérique bloqueraient le gardien à l'ouverture.
+ */
+export function transcriptionLisible(f) {
+  if (typeof f !== 'string' || !path.isAbsolute(f) || !f.endsWith('.jsonl') || !f.split(path.sep).includes('projects')) return false;
+  try { return fs.statSync(f).isFile(); } catch { return false; }
+}
+
+/**
  * Date (ms) à laquelle la conversation principale s'est mise à attendre l'auteur, d'après la fin de la transcription :
  * tour interrompu (aucun `Stop` ne vient), ou appel d'un outil qui attend sa réponse (question, plan). Null sinon.
  */
 export function attenteDansTranscription(transcription, octets = 256 * 1024) {
-  if (!transcription) return null;
+  if (!transcriptionLisible(transcription)) return null;
   for (const e of evenements(finDeTranscription(transcription, octets))) {
     if ((e.type !== 'user' && e.type !== 'assistant') || e.isSidechain) continue;
     const c = e.message?.content; const t = Date.parse(e.timestamp);
@@ -98,12 +107,12 @@ export function attenteDansTranscription(transcription, octets = 256 * 1024) {
  * n'écrit dans aucune transcription : il ne retient rien (un serveur permanent tiendrait le poste sans fin).
  */
 export function activite(transcription) {
-  if (!transcription) return null;
+  if (!transcriptionLisible(transcription)) return null;
   const dates = [];
   const lire = (f) => { try { dates.push(fs.statSync(f).mtimeMs); } catch { /* absente */ } };
   lire(transcription);
   const d = path.join(transcription.replace(/\.jsonl$/, ''), 'subagents');
-  try { for (const n of fs.readdirSync(d)) if (n.endsWith('.jsonl')) lire(path.join(d, n)); } catch { /* aucun sous-agent */ }
+  try { for (const n of fs.readdirSync(d)) if (n.endsWith('.jsonl') && transcriptionLisible(path.join(d, n))) lire(path.join(d, n)); } catch { /* aucun sous-agent */ }
   return dates.length ? Math.max(...dates) : null;
 }
 
