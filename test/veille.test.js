@@ -528,6 +528,14 @@ test('veille : une erreur du crochet ne fait pas échouer le tour ; gardée dat�
   assert.deepEqual(c(), [], 'plus d’une semaine : plus dite');
   lancer('{ coupé'); assert.ok(fs.existsSync(fichierErreur(accueil)));
   lancer('{"session_id":"s1"}'); assert.ok(!fs.existsSync(fichierErreur(accueil)), 'la note réussie suivante efface l’erreur');
+  // Une note non faite n'efface rien : elle est une erreur de même (entrée vide, identifiant illisible).
+  for (const input of ['', '{"session_id":"../x"}']) {
+    assert.equal(lancer(input).status, 0);
+    assert.equal(JSON.parse(fs.readFileSync(fichierErreur(accueil), 'utf8')).message, 'identifiant de session absent ou illisible');
+    lancer('{"session_id":"s1"}');
+  }
+  const local = spawnSync(process.execPath, ['--no-warnings', noteur, 'Stop'], { input: '{"session_id":"s1"}', encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil, CLAUDE_CODE_ENVIRONMENT_KIND: 'local', CLAUDE_CODE_BRIDGE_SESSION_ID: '' } });
+  assert.equal(local.status, 0); assert.ok(!fs.existsSync(fichierErreur(accueil)), 'une session locale n’est pas une erreur');
 });
 
 test('veille : si node ne démarre pas ou que le point d’entrée ne charge pas ses modules, la commande du crochet écrit l’erreur elle-même', () => {
