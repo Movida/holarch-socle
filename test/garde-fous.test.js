@@ -133,9 +133,11 @@ test('X3 : l’interface est servie avec une politique de contenu qui n’admet 
 
 test('X3 : l’interface n’insère aucune donnée du journal ou d’une fiche sans l’échapper', () => {
   const app = fs.readFileSync(new URL('../src/web/public/app.js', import.meta.url), 'utf8');
-  const brutes = [...app.matchAll(/\$\{((?:e\.data|x|p|f|e)\??\.[\w.?]+)\}/g)].map((m) => m[1])
-    // Exceptions nommées : nombres, texte posé hors HTML (textContent), config du site, ou déjà dans un h(`…`) englobant.
-    .filter((v) => !/^(e\.fiches_par_type\.length|f\.n|e\.site|e\.tarifs\.releve|e\.tarifs\.source|f\.attributes\.dossier|e\.provenance\.arbre|e\.provenance\.noeud)$/.test(v));
+  // Toute propriété insérée telle quelle, quel que soit le nom de la variable (seconde contre-épreuve, G).
+  const brutes = [...app.matchAll(/\$\{([A-Za-z_]\w*(?:\??\.\w+)+)\}/g)].map((m) => m[1])
+    // Exceptions nommées : nombres (`.length`, comptes, statut HTTP), texte posé hors HTML (textContent, message
+    // d'erreur), config du site, ou déjà dans un h(`…`) englobant.
+    .filter((v) => !/\.length$/.test(v) && !/^(f\.n|m\.n|r\.status|e\.site|e\.tarifs\.releve|e\.tarifs\.source|f\.attributes\.dossier|e\.provenance\.arbre|e\.provenance\.noeud)$/.test(v));
   assert.deepEqual(brutes, [], 'à échapper avec h()');
 });
 
