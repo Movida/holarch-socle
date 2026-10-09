@@ -2,6 +2,17 @@
 
 ## 2026-10-09
 
+* **Relecture du fil des commits** : reprise à 19 h 22 (message différé), les trois instances repartent de leur
+  transcription, sans relire à l'aveugle (164 k, 220 k et 213 k tokens). 197 objectifs relevés ; aucun n'a quitté le
+  texte ; 6 changés de sens sans décision, 4 incertains, détail et propositions au Reste de l'étape, à présenter à
+  l'auteur un par un. Plusieurs se tranchent dans `modules-et-palliatifs` avant son approbation.
+  Leçon de clôture : déroulé annoncé (envoi, relecture, faille du conteneur, corrections de B ; choix de l'effort et de la
+  copie de service) ; réalisés : l'envoi et la relecture ; la faille et B passent à la session suivante, en `xhigh`. Ce
+  qui a fait dévier : la session ouverte en `max` (plan en `xhigh`), le quota à 93 % avec trois sous-agents lancés
+  (arrêtés, reprise 42 min plus tard sans perte), le seuil de passation franchi au retour du quota ; I34 ajoutée à la
+  demande. La demande qui y aurait mené : ouvrir en « extra » et dire le quota restant au départ, ce qui fixe le
+  nombre de sous-agents.
+
 * **Reprise : envoi, relecture du fil des commits suspendue par le quota, garde de quota** : les 6 commits poussés
   sur `origin/main` (104 tests verts ; pas d'intégration continue à lire). Relecture du fil des commits (point 6 de
   `idees-fondatrices`) lancée sur trois instances neuves en lecture seule, une par famille (sommet, architecture,

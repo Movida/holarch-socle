@@ -947,7 +947,34 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   Essai réel dans un accueil temporaire : note d'une session (processus `claude` retrouvé), demande tenue (0x1),
   relâchée moins de 5 s après `SessionEnd` (0x0), deux événements au journal. Règle `veille-retardee` proposée au
   profil (brouillon, `blocking`, contrôle `veille-retardee`).
+- **Fait (2026-10-09)** : relecture du fil des commits (point 6 de `idees-fondatrices`) par trois instances neuves
+  en lecture seule (sommet, architecture, contrats et étapes), suspendue à 93 % du quota puis reprise : 197 objectifs
+  relevés dans les premières versions du 2026-10-03, aucun sorti du texte, 6 changés de sens sans décision et 4 incertains
+  (au Reste). La dérive est dans la pratique et le code, et dans des décisions dont le texte n'a pas suivi
+  (`forme-etape-2` : §4 et §10 jamais réécrits ; `passerelle-par-site` sans `modifies`). Idée I34 (garde de quota), Q29.
 - **Reste** :
+  0. **Suite prévue (2026-10-09), en Opus 5.5 `xhigh`** : faille du conteneur, puis corrections de B (point 7), puis
+     essai Q29. Faille : le `~/.claude` de l'hôte monté en écriture par le modèle `modeles/projet/devcontainer.json:16` et
+     par cinq conteneurs de projets du poste, dont celui du socle (où `HOLARCH_HOME` est dedans) ; volume nommé, contrôle
+     « montage sensible » ; les autres dépôts sur accord, un par un. Copie de service : réponse de l'auteur attendue
+     (`service poser` poserait le gardien `holarch-veille`, inerte sans crochets ; correction proposée : le gardien suit la
+     règle, comme les crochets). Essai Q29 : ligne d'état posée au compte sur accord, le temps de l'essai, puis retirée.
+  0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
+     décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
+     constat 6 de `revue-page-blanche` non tranché ; (2) un conteneur par brique (fondation n° 3) : un programme Node et
+     des services systemd, noté dans la seule spec ; (3) règles sur déclencheur (`guided`, `trigger`) abandonnées le
+     2026-10-08 sans la décision annoncée (garder comme palier de I27, ou retirer du contrat) ; (4) carnet d'idées réduit
+     à un registre : ni fiche `idea` ni `idea.*` (contrats stables), effort et expiration perdus ; (5) clés des données
+     « en anglais » (`contrats/index.md:4`), en français partout ; (6) contrat événement 0.10.0 (`power.*`) et `3fb2624`
+     (forme des écarts, sans version) sans décision qui les nomme. Incertains : (7) P3 précisé avant l'approbation des
+     principes (`dd45ffa`), `README.md:72` et §3 non alignés ; (8) contre-épreuve lancée par le producteur, pas par le
+     système (§5.5) ; (9) serveur permanent ni reporté ni abandonné ; (10) règles transmises à Desktop par le point
+     d'entrée, non tranché. Plusieurs se tranchent dans `modules-et-palliatifs` avant son approbation : retrait du
+     conteneur par brique (`modifies` sur `fondation.md`), module interface, hub et lettre de P6, condition du serveur,
+     brique Intentions absente de la répartition, règles hors du hub. Code en écart avec le texte : `context` jamais
+     rempli, aucune lecture filtrée par classification, registre des types non lu (`src/regles.js:26-28`), `stable`
+     sans `approved` (`src/regles.js:80`). Documents en retard : `README.md` (étape 2, hub unique, conteneurs),
+     `arbre/index.md`, `contrats/index.md` sans `config.md`.
   0. **Mineurs** de la troisième contre-épreuve (2026-10-09) : (6) le contrôle d'échappement de `app.js` ne voit pas
      `${f.nom || "—"}`, `${f.tags.join(…)}`, `${f["nom"]}`, `${nom}`, `${c ? f.nom : ""}` (aucune fuite réelle trouvée) ;
      (7) `gitleaks git --pre-commit` lance son git sans neutralisation (dépôt de l'auteur, cohérent avec (D) ; non
