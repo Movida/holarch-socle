@@ -224,6 +224,10 @@ test('veille : une demande refusée ou absente se dit une fois ; morte hors du g
   assert.match(evs()[0].data.message, /refusée \(code 3\) : refusee : PowerSetRequest/);
   const sans = creerGardien({ accueil, journal, commande: null }); await sans.passer(); await sans.passer();
   assert.match(evs().at(-1).data.message, /aucun mécanisme/); assert.equal(evs().length, 2);
+  // Le mécanisme absent au démarrage du service, présent ensuite : cherché à chaque besoin, la demande vient.
+  const monte = { c: null }; const tardif = creerGardien({ accueil, commande: () => monte.c });
+  await tardif.passer(); assert.equal(tardif.tenue(), false);
+  monte.c = TEMOIN; await tardif.passer(); assert.equal(tardif.tenue(), true, 'Windows monté après le démarrage'); await tardif.arreter();
   // Sans réponse dans le délai : arrêtée et dite.
   await assert.rejects(lancerDemande([process.execPath, '-e', 'setInterval(() => {}, 1000)'], { delai: 300 }), /sans réponse/);
   await assert.rejects(lancerDemande(['/nulle/part/powershell.exe']), /non lancée/);

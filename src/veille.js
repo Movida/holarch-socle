@@ -225,7 +225,9 @@ const attendreFin = (enfant, delai) => new Promise((ok) => {
  * changements vont au journal (P4) : `power.held` (sessions qui la retiennent), `power.released` (raison),
  * `power.failed` (une fois par message : un passage toutes les 30 s ne répète pas la même panne).
  */
-export function creerGardien({ accueil, journal = null, commande = commandeWindows(), attente = ATTENTE_MIN, maintenant = Date.now, log = () => {}, delai = 60e3 }) {
+export function creerGardien({ accueil, journal = null, commande = () => commandeWindows(), attente = ATTENTE_MIN, maintenant = Date.now, log = () => {}, delai = 60e3 }) {
+  // Le mécanisme se cherche à chaque besoin : absent au démarrage du service (Windows pas encore monté), il peut venir.
+  const commandeDuMoment = () => (typeof commande === 'function' ? commande() : commande);
   let demande = null; let panne = null; let file = Promise.resolve();
   const ecrire = (kind, data) => {
     if (!journal) return;
@@ -245,9 +247,10 @@ export function creerGardien({ accueil, journal = null, commande = commandeWindo
   async function passer() {
     const e = evaluer({ accueil, maintenant: maintenant(), attente, nettoyer: true });
     if (e.besoin && !demande) {
-      if (!commande) { echec("aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)"); return e; }
+      const c = commandeDuMoment();
+      if (!c) { echec("aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)"); return e; }
       try {
-        const enfant = await lancerDemande(commande, { delai });
+        const enfant = await lancerDemande(c, { delai });
         demande = enfant; panne = null;
         enfant.once('exit', (code) => { if (demande === enfant) { demande = null; echec(`demande d'éveil arrêtée hors du gardien (code ${code})`); } });
         const s = retenues(e); ecrire('power.held', { sessions: s }); log(`demande d'éveil tenue : ${s.map((x) => `${x.projet || x.session} (${x.etat})`).join(', ')}`);

@@ -6,7 +6,7 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface, creerReveil, etatVeille } from '../src/distant.js';
-import { noter, evaluer, creerGardien, surveiller, commandeWindows, mecanisme } from '../src/veille.js';
+import { noter, evaluer, creerGardien, surveiller, mecanisme } from '../src/veille.js';
 import { Journal } from '../src/stockage/journal.js';
 import { appliquerRegles, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -120,9 +120,8 @@ switch (cmd) {
     }
     if (action === 'tenir') {
       const log = (m) => console.log(m);
-      const commande = commandeWindows();
-      if (!commande) log('aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL) : le gardien ne tiendra rien');
-      surveiller(creerGardien({ accueil: config.accueil, journal: new Journal(config.donnees, config.site), commande, log }), { accueil: config.accueil, log });
+      if (!mecanisme()) log('aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL) pour l’instant : cherché de nouveau à chaque besoin');
+      surveiller(creerGardien({ accueil: config.accueil, journal: new Journal(config.donnees, config.site), log }), { accueil: config.accueil, log });
       break;
     }
     if (action) { console.error(`holarch veille : action inconnue ${action}`); process.exit(2); }
