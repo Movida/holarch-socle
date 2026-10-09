@@ -1099,7 +1099,8 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
     return { status: args[0] === 'test' && !testsVerts ? 1 : 0, stdout: '', stderr: args[0] === 'test' ? '1 test rouge' : '' };
   };
   const systemctl = (args) => ({ status: 0, stdout: '', stderr: '' });
-  const sv = creerService({ accueil, comptes: [{ nom: 'perso', home }] }, { source: src, unites, systemctl, npm: 'npm', lancer, node: '/opt/node/bin/node' });
+  // La règle de veille se lit à la pose : illisible, la pose continue et le dit sur la ligne du gardien.
+  const sv = creerService({ accueil, comptes: [{ nom: 'perso', home }], veille: () => { throw new Error('arbre du profil illisible'); } }, { source: src, unites, systemctl, npm: 'npm', lancer, node: '/opt/node/bin/node' });
 
   assert.equal(sv.etat().copie, null);
   assert.equal(binaireService(accueil), path.resolve('bin/holarch.js'), 'sans copie : le code qui s\'exécute');
@@ -1117,7 +1118,8 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
   assert.equal(fs.readlinkSync(path.join(accueil, 'service', 'courant')), c1, 'lien relatif');
   assert.equal(copieEnService(accueil).commit, c1); assert.ok(!fs.existsSync(path.join(accueil, 'service', c1, '.git')), 'un export, pas un dépôt');
   // Points d'entrée : interface absente laissée, minuteur d'import marqué sur le lien, entrée MCP réécrite (le reste gardé).
-  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['recolte', 'posé'], ['reveil', 'absente'], ['veille', 'règle'], ['mcp perso', 'posé']]);
+  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['recolte', 'posé'], ['reveil', 'absente'], ['veille', 'erreur'], ['mcp perso', 'posé']]);
+  assert.equal(r1.points.find((p) => p.point === 'veille').message, 'arbre du profil illisible');
   const unite = fs.readFileSync(path.join(unites, 'holarch-import.service'), 'utf8');
   assert.match(unite, /^# Écrit par HOLARCH/); assert.ok(unite.includes(`"${bin}" inventaire`)); assert.ok(fs.existsSync(path.join(unites, 'holarch-import.timer')));
   assert.ok(fs.readFileSync(path.join(unites, 'holarch-recolte.service'), 'utf8').includes(`"${bin}" recolte --proposer`));

@@ -142,7 +142,8 @@ switch (cmd) {
     break; }
   case 'service': {
     const config = chargerConfig(); const [action, ref] = args.filter((a) => !a.startsWith('--'));
-    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}), veille: action === 'poser' ? veilleDuCompte() : null });
+    // La règle de veille se lit au moment de poser le gardien : illisible, elle se dit sur sa ligne, après le reste.
+    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}), veille: () => veilleDuCompte() });
     try {
       if (action === 'poser') { const r = sv.poser(ref); afficher(json ? r : affichage.posee(r)); if (r.points.some((p) => p.etat === 'erreur')) process.exit(1); }
       else if (action) throw new Error(`action inconnue : ${action}`);
@@ -154,12 +155,13 @@ switch (cmd) {
     try {
       if (action === 'appliquer') {
         const { comptes, projets } = appliquerRegles(s, refs, comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {}));
-        // Le gardien de veille suit la règle, comme les crochets ; posé, il n'est pas relancé pour autant.
-        const gardien = creerReveil({ holarch: binaireService(s.config.accueil), accueil: s.config.accueil }).gardien({ veille: veilleDuCompte(s), relancer: false });
-        const texte = `${affichage.appliquer({ comptes, projets })}\ngardien de veille : ${gardien.etat}`;
+        // Le gardien de veille suit la règle, comme les crochets ; posé, il n'est pas relancé pour autant. Son erreur
+        // (systemctl, règle illisible) se dit sur sa ligne, après ce qui est écrit, et la commande échoue.
+        const gardien = creerReveil({ holarch: binaireService(s.config.accueil), accueil: s.config.accueil }).gardien({ veille: () => veilleDuCompte(s), relancer: false });
+        const texte = `${affichage.appliquer({ comptes, projets })}\ngardien de veille : ${gardien.etat}${gardien.message ? ` — ${gardien.message}` : ''}`;
         afficher(json ? texte.split('\n') : texte);
         // Un settings.json illisible n'est jamais réécrit, et la commande échoue (comme avant la consolidation).
-        if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur)) process.exit(1);
+        if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur) || gardien.etat === 'erreur') process.exit(1);
       } else if (action) {
         const r = s.regles({ projet: action });
         afficher(json ? r : affichage.reglesProjet(r));

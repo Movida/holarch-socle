@@ -163,6 +163,21 @@ WantedBy=default.target
  */
 export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, node = process.execPath } = {}) {
   const sv = services({ unites, systemctl }); const f = path.join(unites, `${UNITE_REVEIL}.service`); const g = path.join(unites, UNITE_VEILLE);
+  // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règle indéterminée (règles du compte
+  // illisibles, aucun profil ou plusieurs) : rien ne se pose ni ne se retire, mais un gardien actif est relancé (il
+  // garderait sinon le code d'avant la pose).
+  function suivreRegle(veille, relancer) {
+    if (veille === null) {
+      const etat = 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé';
+      if (!relancer || !sv.geree(g) || !sv.actif(g)) return { unite: UNITE_VEILLE, etat };
+      sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: `${etat}, relancé` };
+    }
+    if (!veille) return { unite: UNITE_VEILLE, etat: retirerVeille(sv, g) };
+    const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
+    // Texte inchangé (le lien `courant` ne change pas de chemin) : le gardien tourne encore l'ancien code.
+    if (etat === 'inchangée' && relancer) { sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
+    return { unite: UNITE_VEILLE, etat };
+  }
   return {
     reecrire() {
       if (!fs.existsSync(f)) return { unite: path.basename(f), etat: 'absente' };
@@ -170,20 +185,10 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
       if (!sv.ecrire(f, uniteReveil({ node, holarch, accueil }))) return { unite: path.basename(f), etat: 'inchangée' };
       sv.lancer(['daemon-reload']); return { unite: path.basename(f), etat: 'réécrite' };
     },
-    // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règle indéterminée (règles du compte
-    // illisibles, aucun profil ou plusieurs) : rien ne se pose ni ne se retire, mais un gardien actif est relancé (il
-    // garderait sinon le code d'avant la pose).
+    // `veille` : la valeur, ou la fonction qui lit la règle au moment de poser. Ne lève jamais : une règle illisible ou
+    // un systemctl en échec rendent `erreur` et son message, que la commande appelante dit après ce qu'elle a écrit.
     gardien({ veille = null, relancer = true } = {}) {
-      if (veille === null) {
-        const etat = 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé';
-        if (!relancer || !sv.geree(g) || !sv.actif(g)) return { unite: UNITE_VEILLE, etat };
-        sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: `${etat}, relancé` };
-      }
-      if (!veille) return { unite: UNITE_VEILLE, etat: retirerVeille(sv, g) };
-      const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
-      // Texte inchangé (le lien `courant` ne change pas de chemin) : le gardien tourne encore l'ancien code.
-      if (etat === 'inchangée' && relancer) { sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
-      return { unite: UNITE_VEILLE, etat };
+      try { return suivreRegle(typeof veille === 'function' ? veille() : veille, relancer); } catch (e) { return { unite: UNITE_VEILLE, etat: 'erreur', message: e.message }; }
     },
   };
 }

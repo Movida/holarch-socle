@@ -229,6 +229,19 @@ test('veille : le gardien suit la seule règle, comme les crochets : posé si el
   d.activer('demo'); assert.ok(!fs.existsSync(g), 'un accès distant ne le pose pas');
 });
 
+test('veille : la pose du gardien ne lève jamais : un systemctl en échec ou une règle illisible se disent, après ce qui est écrit', () => {
+  const unites = tmp();
+  const enPanne = (args) => (args[0] === 'is-active' || args[0] === 'is-enabled' ? { status: 3, stdout: 'inactive\n', stderr: '' } : { status: 1, stdout: '', stderr: 'Failed to connect to bus: No medium found' });
+  const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, systemctl: enPanne, node: '/opt/node/bin/node' });
+  const r = reveil.gardien({ veille: true, relancer: false });
+  assert.deepEqual([r.etat, r.message], ['erreur', 'systemctl --user daemon-reload : Failed to connect to bus: No medium found']);
+  // La règle se lit au moment de poser : une lecture qui échoue se dit de même.
+  const lue = reveil.gardien({ veille: () => { throw new Error('arbre du profil illisible'); } });
+  assert.deepEqual([lue.etat, lue.message], ['erreur', 'arbre du profil illisible']);
+  const neuf = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites: tmp(), systemctl: enPanne, node: '/opt/node/bin/node' });
+  assert.equal(neuf.gardien({ veille: () => false }).etat, 'règle veille-retardee non appliquée : non posé', 'une fonction qui lit la règle');
+});
+
 test('veille : un profil absent ou en double rend la règle indéterminée, pas retirée', () => {
   const sans = regleDuCompte([]);
   assert.equal(sans.indetermine, true); assert.deepEqual(sans.illisibles, []);
