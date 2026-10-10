@@ -1,5 +1,15 @@
 # Journal de l'arbre
 
+## 2026-10-10
+
+* **Critère de B tenu, livraison close** : dans une session distante (Opus 5.5 `xhigh`), délai de veille baissé à
+  10 min de 09:28 à 09:44 ; le poste, sans saisie depuis 31,7 min, est resté éveillé sous la demande (`power.held`,
+  aucune veille vue par le réveil) ; délai remis à 300 min et relu ; demande relâchée 30,2 min après le dernier tour
+  (`power.released`). Leçon de clôture : déroulé annoncé en six points (état, délai baissé, réveil, temps 2 et délai
+  remis, temps 3, consignation), tenu. Ce qui l'a fait dévier : une mesure ajoutée en route, le temps sans saisie de
+  Windows, pour montrer que le poste se serait endormi sans la demande ; `holarch` absent du `PATH` de la session
+  (lancé par `node bin/holarch.js`). La demande qui y aurait mené : « On continue », le Reste portait le protocole.
+
 ## 2026-10-09
 
 * **Approbation, pose et premier temps du critère de B** : décision `veille-et-conteneur-precisions`, règle

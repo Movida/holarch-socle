@@ -1036,30 +1036,22 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   une session déjà ouverte (documentation : « normally picked up automatically by the file watcher ») ; la session
   distante en cours notée, demande d'éveil tenue, aucune erreur ; hors mode auto, une demande de permission la note
   « attend », comme prévu. Délai de veille non baissé : passation d'abord.
+- **Fait (2026-10-10)** : critère de B tenu, dans une session distante (Opus 5.5 `xhigh`) ; livraison B close. Temps 2 :
+  session notée, demande tenue (`power.held` à 09:27), délai de veille sur secteur baissé à 10 min à 09:28, tour fini ;
+  au réveil programmé de 09:44, aucune saisie sur Windows depuis 31,7 min (`GetLastInputInfo` : sans la demande, le
+  poste se serait endormi), aucune « veille de » du réveil (passé chaque minute), même session ; délai remis à 300 min
+  à 09:44 et relu (`0x4650`). Temps 3 : `power.released` (`aucune-session`) à 10:15:17, 30,2 min après la dernière
+  entrée de la transcription (09:45:08) ; le réveil suivant renote la session (`power.held` à 10:23). La veille
+  effective après la levée n'est pas observée (elle couperait la session) ; elle est attestée par la levée.
 - **Reste** :
-  0. **Critère de B, temps 2 et 3, dans une session distante** (Opus 5.5 `xhigh`) : le délai de veille sur secteur est à
-     300 min (`0x4650` s, lu par `powercfg.exe /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE`). Ne le baisser qu'une fois
-     la session notée et la demande tenue (`holarch veille`) : le poste est sans doute inactif depuis plus de 10 min, il
-     s'endormirait aussitôt, et après une veille le réveil ouvre un environnement neuf (la session serait perdue, le délai
-     resterait à 10). Puis `powercfg.exe /change standby-timeout-ac 10`, finir le tour (la session attend, retenue
-     30 min), réveil programmé à +15 min (`send_later`) : poste resté éveillé (session vivante, aucune « veille de » du
-     réveil), `power.held` au journal ; remettre aussitôt `powercfg.exe /change standby-timeout-ac 300` et le relire.
-     Temps 3, réveil à +35 min après le dernier tour : `power.released`, rien de retenu. La veille effective après la
-     levée n'est pas observée (elle couperait la session) ; elle est attestée par la levée de la demande. Ensuite :
-     proposer à l'auteur une contre-épreuve des corrections du 2026-10-09 au soir (`ab3ee9e` à `520a1df`).
+  0. **Contre-épreuve des corrections du 2026-10-09 au soir** (`ab3ee9e` à `520a1df`), à proposer à l'auteur.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Suite prévue** : finir ce qui précède ; puis, sur l'accord de l'auteur : approbation de la décision
-     `veille-et-conteneur-precisions` et du contrat événement 0.10.0
-     (règles `veille-retardee`, `conteneur-isole` et `approbation-recapitulee` approuvées le 2026-10-09 ; d'ici la
-     pose, l'audit horaire de l'ancienne copie dit leurs écarts), `holarch regles appliquer` (crochets et gardien),
-     `holarch service poser` (copie en retard), critère de B (délai de veille raccourci le temps de l'essai :
-     `powercfg /change standby-timeout-ac 10`, puis remis à 300), envoi des commits (socle, profil, quatre dépôts).
-     Dans le conteneur du socle, le volume `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node`
+  0. **Pour C** : dans le conteneur du socle, le volume `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node`
      (réparation en C) ; C reprend les deux montages de l'hôte dans la génération (clé `conteneur.connexion_claude`).
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
@@ -1162,12 +1154,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        arrive ou part pendant la tenue n'est pas au journal ; (15) `crochetVoulu` impute toujours `veille-retardee` ;
        (16) 0,2 s par invite pour une session locale : tester les variables dans la commande shell avant node ;
        (17) lecture du ppid sur le vrai `/proc` non testée (test proposé : `sh -c "node … processusSession()"`).
-       Ensuite : approbation par l'auteur de la règle `veille-retardee` et du contrat événement 0.10.0 (`power.*`) ;
-       pose (`holarch service poser` d'abord, puis `holarch regles appliquer` : les crochets au compte, et le
-       gardien) ; vérifier qu'un crochet de session distante reçoit bien `CLAUDE_CODE_ENVIRONMENT_KIND`
-       (`holarch veille` montre la session notée) ; critère, avec le délai de veille raccourci le temps de l'essai
-       (`powercfg /change standby-timeout-ac 10`, puis remis à 300). Limites connues : dans la décision
-       `veille-et-conteneur-precisions` (en brouillon). Reste du critère de A : une session archivée le reste après une
-       relance.
+       Approbation et pose faites le 2026-10-09, critère tenu le 2026-10-10 (Fait ci-dessus) : livraison close. Limites
+       connues : dans la décision `veille-et-conteneur-precisions` (stable). Reste du critère de A : une session
+       archivée le reste après une relance.
   8. **Tranches suivantes** : réglages de Claude Code par projet, adaptateurs (§5.2, §5.8), à spécifier à leur
      ouverture.
