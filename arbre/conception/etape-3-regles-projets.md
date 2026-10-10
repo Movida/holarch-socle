@@ -1085,12 +1085,14 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   0.4.0 ; `arbre-des-regles` amendée (contexte hors du dépôt du profil lu quand le site le désigne). Mesures du poste :
   un seul déclarant (contexte personnel, 6 projets), aucun `id` en double, aucun montage du profil, trois exceptions de
   `donnees_personnelles`, toutes dans un dépôt ; rien ne change dans les règles effectives hormis leur déménagement.
-  Q32 ouverte (site de travail). Code à écrire (Reste).
+  Q32 ouverte (site de travail). Code à écrire (Reste). Automatisation acceptée par l'auteur : `holarch rapport
+  <sous-agent>` (`src/transcription.js`, `rapportSousAgent`), le rapport final d'un sous-agent lu dans sa transcription
+  (remise par `SubagentHandback`, sinon dernier texte ; copie la plus récente quand une session reprise en garde une) ;
+  1 test (148 verts). Copie de service posée (`ba0a61c`), socle poussé à la demande de l'auteur.
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
-     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport dans la transcription `80c50cac`, sous-agent
-     `aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service posée le 2026-10-10
-     (`5d1971a`), à reposer après les corrections de (a) et (c).
+     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport : `holarch rapport aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service posée le 2026-10-10
+     (`ba0a61c`), à reposer après les corrections de (a) et (c).
      (a) et (c) : décision `profil-designe` approuvée le 2026-10-10 (Fait ci-dessous), code à écrire. Elle couvre aussi
      trois mineurs du rapport (déclaration depuis un autre dépôt, contrat de configuration, exceptions de
      `donnees_personnelles` lues dans le dépôt contrôlé).
