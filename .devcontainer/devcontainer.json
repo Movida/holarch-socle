@@ -11,7 +11,7 @@
     "source=${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle,target=/home/node/.claude/projects/-workspaces-holarch-socle,type=bind",
     "source=${localEnv:HOME}/.claude/rules,target=/home/node/.claude/rules,type=bind,readonly",
     // Deploy keys du conteneur (deploy-keys.sh), dans un volume nommé propre à ce dépôt.
-    "source=holarch-socle-ssh,target=/home/vscode/.ssh,type=volume"
+    "source=holarch-socle-ssh,target=/home/node/.ssh,type=volume"
   ],
   "forwardPorts": [4280],
   "portsAttributes": { "4280": { "label": "HOLARCH — interface", "onAutoForward": "notify" } },
