@@ -415,7 +415,7 @@ test('contrôles : liste privée déduite et amendée, mots entiers, un écart d
   // un fichier, ni pour un terme (Alice Exemple reste dans la liste privée ci-dessus).
   assert.deepEqual(executer('donnees-personnelles', { ...ctx, couches: couche({ fichier: 'a.md' }, { fichier: 'carnet-prive.txt', pourquoi: ' ' }) }, 'audit').ecarts.map((e) => e.fichier).sort(), ['a.md', 'carnet-prive.txt'], 'sans raison, rien n’est soustrait');
   assert.deepEqual(exceptions([{ origine: 'contexte', provenance: 'profil:/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: [{ ecart: 'a:b', pourquoi: 'jusqu’à D' }, { ecart: 'c' }, 'd'] } } }], 'montage_sensible', 'ecart'),
-    [{ valeur: 'a:b', pourquoi: 'jusqu’à D', origine: 'contexte', provenance: 'profil:/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md' }], 'chaque exception avec sa provenance');
+    [{ valeur: 'a:b', champ: 'ecart', pourquoi: 'jusqu’à D', origine: 'contexte', provenance: 'profil:/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md' }], 'chaque exception avec sa provenance');
   assert.deepEqual(fusionnerConfig({ donnees_personnelles: { termes: ['a'] }, journal: 'x' }, { donnees_personnelles: { exceptions: [{ fichier: 'L' }] }, journal: 'y' }),
     { donnees_personnelles: { termes: ['a'], exceptions: [{ fichier: 'L' }] }, journal: 'y' }, 'réglages : objets fusionnés, listes allongées, le plus spécifique l’emporte');
   assert.match(executer('donnees-personnelles', { depot: d, termes: [] }, 'audit').indisponible, /vide/);
@@ -512,9 +512,13 @@ test('garde : une exception ajoutée à l’arbre vaut au commit suivant, sans a
   s.indexer();
   ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', '.');
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['rien-de-personnel']);
-  // L'auteur ajoute l'exception que le refus lui indique, puis relance le commit (défaut A4).
-  racine('config:\n  donnees_personnelles:\n    exceptions: [{ fichier: note.md, pourquoi: essai }]\n');
-  const plusTard = new Date(Date.now() + 2000); fs.utimesSync(path.join(d, 'arbre', 'index.md'), plusTard, plusTard);
+  // Écrite dans le dépôt contrôlé, l'exception ne vaut pas (décision profil-designe) : le refus tient.
+  const plusTard = (f) => { const t = new Date(Date.now() + 2000); fs.utimesSync(f, t, t); };
+  racine('config:\n  donnees_personnelles:\n    exceptions: [{ fichier: note.md, pourquoi: essai }]\n'); plusTard(path.join(d, 'arbre', 'index.md'));
+  assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['rien-de-personnel'], 'l’exception du dépôt ne fait rien taire');
+  // L'auteur l'ajoute au contexte, comme le refus le lui indique, puis relance le commit (défaut A4).
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\nconfig:\n  donnees_personnelles:\n    exceptions: [{ fichier: note.md, pourquoi: essai }]\n---\n');
+  plusTard(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'));
   const catalogue = fs.readFileSync(path.join(accueil, 'catalogue', 'local.json'), 'utf8');
   assert.deepEqual(s.garde({ depot: d }).refus, [], 'l’exception vaut tout de suite');
   assert.equal(fs.readFileSync(path.join(accueil, 'catalogue', 'local.json'), 'utf8'), catalogue, 'rien n’est écrit depuis le crochet');
@@ -922,11 +926,11 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     // « GitHub » : des dépôts nus sous un dossier `github.com`, pour que l'adresse se lise comme celle d'un dépôt GitHub.
     const r = tmp(); const accueil = tmp(); const github = path.join(tmp(), 'github.com');
     // Profil (identité, dossier des projets, une règle bloquante), un contexte, et un socle qui porte un type public.
-    ecrire(path.join(r, 'profil', 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  identite: { nom: Alice Exemple, email: alice@noreply.test }\n  creation: { dossier: ${r} }\n---\n`);
+    ecrire(path.join(r, 'profil', 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  identite: { nom: Alice Exemple, email: alice@noreply.test }\n  creation: { dossier: ${r} }\n  donnees_personnelles: { exceptions: [{ fichier: LICENSE, pourquoi: titulaire }] }\n---\n`);
     ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: identite-de-commit\n  statement: Chaque commit porte l’identité de son contexte.\n  level: blocking\n  check: [identite-de-commit]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
     ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n# Les projets du contexte.\nprojects:\n  - holarch:project:ancien   # ancien\n---\n\n# Perso\n');
     ecrire(path.join(r, 'socle', 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\n---\n');
-    ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'index.md'), '---\ntype: template\nid: public\ntitle: Public\nstatus: draft\nconfig:\n  creation: { visibilite: public, licence: MIT, journal: arbre/log.md }\n  donnees_personnelles: { exceptions: [{ fichier: LICENSE, pourquoi: titulaire }] }\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+    ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'index.md'), '---\ntype: template\nid: public\ntitle: Public\nstatus: draft\nconfig:\n  creation: { visibilite: public, licence: MIT, journal: arbre/log.md }\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
     ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'rules.yaml'), '- id: rien-de-prive\n  statement: Rien de privé dans ce dépôt.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n- id: rien-de-personnel\n  statement: Aucun nom de personne.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
     for (const d of ['profil', 'socle']) { const { g } = depotGit(path.join(r, d)); g('add', '.'); g('commit', '-qm', 'départ'); }
     const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {},

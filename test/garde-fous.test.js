@@ -784,7 +784,8 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
     assert.equal(lu.exceptions, undefined, depot);
     assert.deepEqual(lu.exceptions_ignorees, [{ ecart: 'acces-distant:projet', raison: 'écrite dans le dépôt contrôlé', provenance: 'profil:/arbre/contextes/perso.md' }], depot);
   }
-  assert.equal(exceptions([{ origine: 'projet', fichier: path.join(d, 'arbre', 'index.md'), config: { donnees_personnelles: { exceptions: [{ fichier: 'LICENSE', pourquoi: 'titulaire' }] } } }], 'donnees_personnelles', 'fichier', { depot: d }).length, 1);
+  // De même pour celles des données personnelles (décision profil-designe).
+  assert.equal(exceptions([{ origine: 'contexte', fichier: path.join(d, 'arbre', 'index.md'), config: { donnees_personnelles: { exceptions: [{ fichier: 'LICENSE', pourquoi: 'titulaire' }] } } }], 'donnees_personnelles', 'fichier', { depot: d }).length, 0);
   // Une clé de réglage au nom d'une propriété d'objet, écrite par le conteneur, ne met pas la règle effective en panne
   // (sans quoi la garde laissait passer le commit sans contrôle).
   r = arbres({ contexte: exception(), projet: 'config:\n  constructor: 1\n  toString: x\n  __proto__: { a: 1 }\n  hasOwnProperty: 2\n' });
@@ -1132,4 +1133,64 @@ test('Profil désigné (décision profil-designe) : le dépôt du profil monté 
   e.devcontainer({ mounts: [`source=${e.p},target=/p,type=bind`] }); e.relire();
   const ecarts = e.s.audit({}).cibles.find((c) => c.projet === 'holarch:project:depot').ecarts.filter((x) => x.controle === 'montage-sensible');
   assert.deepEqual(ecarts.map((x) => [x.regle_id, x.cle]), [['conteneur-isole', 'montage:.devcontainer/devcontainer.json:/p']]);
+});
+
+test('Exceptions des données personnelles (décision profil-designe) : au profil et au contexte, hors du dépôt contrôlé, et dites quand elles sont écartées ; les termes se lisent partout', async () => {
+  const affichage = await import('../bin/affichage.js');
+  const { listePrivee } = await import('../src/controles.js');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot');
+  const config = (x) => (x ? `config:\n  donnees_personnelles:\n${x}` : '');
+  const exc = (...x) => `    exceptions: [${x.join(', ')}]\n`;
+  const LICENSE = '{ fichier: LICENSE, pourquoi: titulaire }'; const OMEGA = '{ terme: Projet Omega, pourquoi: public }';
+  const arbres = ({ profil = '', contexte = '', type = '', projet = '' } = {}) => {
+    ecrireF(path.join(p, 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  donnees_personnelles:\n    termes: [Zeta Martin]\n${profil}---\n`);
+    ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n${config(contexte)}---\n`);
+    ecrireF(path.join(p, 'arbre', 'types', 'public', 'index.md'), `---\ntype: template\nid: public\ntitle: Public\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n${config(type)}---\n`);
+    ecrireF(path.join(p, 'arbre', 'types', 'public', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle.\n  level: verified\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
+    // Le projet allonge la liste privée de ses propres termes : eux se lisent dans le dépôt.
+    ecrireF(path.join(d, 'arbre', 'index.md'), `---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\ntypes: [public]\nconfig:\n  donnees_personnelles:\n    termes: [Projet Omega]\n${projet}---\n`);
+  };
+  fs.mkdirSync(d, { recursive: true });
+  const g = (...a) => { const x = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(x.status, 0, x.stderr); };
+  g('init', '-q'); g('config', 'user.name', 'Alice Exemple'); g('config', 'user.email', 'alice@exemple.test');
+  ecrireF(path.join(d, 'LICENSE'), 'Copyright (c) 2026 Zeta Martin\n'); ecrireF(path.join(d, 'note.md'), 'note du Projet Omega\n');
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+  const auditer = () => {
+    g('add', '.');
+    s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d], profil: p, projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+      { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
+    const a = s.audit({ journaliser: true }); const c = a.cibles.find((x) => x.projet === 'holarch:project:depot');
+    return { a, fichiers: c.ecarts.filter((e) => e.controle === 'donnees-personnelles').map((e) => e.fichier).sort(),
+      ignorees: c.controles.find((x) => x.id === 'donnees-personnelles').exceptions_ignorees, signaux: regleEffective(s.fiches(), 'holarch:project:depot', { profil: p }).signaux };
+  };
+  // Sans exception : la licence (terme du profil), la note et la racine qui le déclare (terme du projet, lu dans le dépôt).
+  arbres();
+  assert.deepEqual(auditer().fichiers, ['LICENSE', 'arbre/index.md', 'note.md']);
+  // Portées par un type ou par la racine du projet, que le conteneur du projet écrit : ni lues, ni muettes.
+  arbres({ type: exc(LICENSE), projet: exc(OMEGA) });
+  let x = auditer();
+  assert.deepEqual(x.fichiers, ['LICENSE', 'arbre/index.md', 'note.md']);
+  // Chacune une fois, sous son champ, couche par couche.
+  assert.deepEqual(x.ignorees, [
+    { fichier: 'LICENSE', raison: 'porté par un type, il se lit au profil et au contexte', provenance: 'profil:/arbre/types/public/index.md' },
+    { terme: 'Projet Omega', raison: 'porté par un projet, il se lit au profil et au contexte', provenance: 'depot:/arbre/index.md' }]);
+  assert.deepEqual(x.signaux.filter((y) => y.startsWith('donnees_personnelles')).map((y) => y.split(' : ')[0]),
+    ['donnees_personnelles.exceptions porté par profil:/arbre/types/public/index.md (type)', 'donnees_personnelles.exceptions porté par depot:/arbre/index.md (projet)']);
+  assert.ok(x.signaux.some((y) => y.endsWith('(décision profil-designe)')));
+  assert.match(affichage.audit(x.a), /exception donnees-personnelles ignorée : fichier LICENSE — porté par un type, il se lit au profil et au contexte \(profil:\/arbre\/types\/public\/index\.md\)/);
+  assert.match(affichage.audit(x.a), /exception donnees-personnelles ignorée : terme Projet Omega — porté par un projet/);
+  // À la racine du profil et au contexte : elles valent, et rien n'est dit.
+  arbres({ profil: exc(LICENSE), contexte: exc(OMEGA) });
+  x = auditer();
+  assert.deepEqual([x.fichiers, x.ignorees, x.signaux.filter((y) => y.startsWith('donnees_personnelles'))], [[], undefined, []]);
+  // Le dépôt du profil, s'il est le dépôt contrôlé, ne s'excepte pas lui-même ; ni pour un fichier, ni pour un terme.
+  const couches = regleEffective(s.fiches(), 'holarch:project:depot', { profil: p }).couches;
+  assert.deepEqual(['fichier', 'terme'].map((champ) => exceptions(couches, 'donnees_personnelles', champ, { depot: p }).length), [0, 0]);
+  assert.ok(listePrivee({ depot: p, couches, config: { donnees_personnelles: { termes: ['Projet Omega'] } } }).includes('Projet Omega'));
+  ecrireF(path.join(p, 'LICENSE'), 'Copyright (c) 2026 Zeta Martin\n');
+  for (const a of [['init', '-q'], ['add', 'LICENSE']]) spawnSync('git', ['-C', p, ...a]);
+  const lu = executer('donnees-personnelles', { depot: p, couches, termes: ['Zeta Martin'] }, 'audit');
+  assert.deepEqual([lu.ecarts.map((e) => e.fichier), lu.exceptions_ignorees.filter((e) => e.fichier)], [['LICENSE'], [{ fichier: 'LICENSE', raison: 'écrite dans le dépôt contrôlé', provenance: 'profil:/arbre/index.md' }]]);
+  assert.ok(!listePrivee({ depot: d, couches, config: { donnees_personnelles: { termes: ['Projet Omega'] } } }).includes('Projet Omega'));
 });

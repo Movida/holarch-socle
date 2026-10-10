@@ -24,8 +24,9 @@ const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
  * Liste privée d'un projet : déduite de la machine (identité git, dossier personnel, comptes Claude Code, noms des
  * projets non publics que déclare un contexte), complétée et amendée par le réglage `donnees_personnelles` de la règle
  * effective (`termes` : chaînes ou `{terme, pourquoi}`, dans la configuration fusionnée ; `exceptions`, lues couche par
- * couche par la fonction commune : `{terme, pourquoi}` retire un terme, `{fichier, pourquoi}` soustrait un fichier du
- * contrôle). Le nom du projet lui-même n'en fait jamais partie.
+ * couche par la fonction commune, au profil et au contexte, hors du dépôt contrôlé (décision profil-designe) :
+ * `{terme, pourquoi}` retire un terme, `{fichier, pourquoi}` soustrait un fichier du contrôle). Le nom du projet
+ * lui-même n'en fait jamais partie.
  */
 export function listePrivee({ depot, config = {}, couches = [], comptes = [], projetsPrives = [], nomProjet = null }) {
   const lireGit = (cle) => (gitLu(depot, ['config', '--get', cle]).stdout || '').trim();
@@ -33,12 +34,16 @@ export function listePrivee({ depot, config = {}, couches = [], comptes = [], pr
   const reglage = config.donnees_personnelles || {};
   const termes = [lireGit('user.name'), lireGit('user.email'), os.userInfo().username, os.homedir(),
     ...comptes.map((c) => c.home).filter(Boolean), ...projetsPrives, ...[].concat(reglage.termes || []).map(valeur)];
-  const exclus = new Set([nomProjet, ...exceptions(couches, 'donnees_personnelles', 'terme').map((x) => x.valeur)].filter(Boolean).map((t) => t.toLowerCase()));
+  const exclus = new Set([nomProjet, ...exceptions(couches, 'donnees_personnelles', 'terme', { depot }).map((x) => x.valeur)].filter(Boolean).map((t) => t.toLowerCase()));
   return [...new Set(termes.map((t) => t.trim()).filter((t) => t.length >= 3 && !exclus.has(t.toLowerCase())))];
 }
 
 /** Fichiers soustraits au contrôle des données personnelles (`exceptions: [{fichier, pourquoi}]`), chemins du dépôt. */
-export const fichiersExclus = (couches = []) => exceptions(couches, 'donnees_personnelles', 'fichier').map((x) => x.valeur);
+export const fichiersExclus = (couches = [], depot = null) => exceptions(couches, 'donnees_personnelles', 'fichier', { depot }).map((x) => x.valeur);
+
+// Les exceptions qui ne valent pas, dites par le contrôle telles qu'elles s'écrivent (`{<champ>: valeur}`), avec ce qui
+// les écarte et leur provenance.
+const ecartees = (ignorees) => ignorees.map((x) => ({ [x.champ]: x.valeur || null, raison: x.raison, provenance: x.provenance }));
 
 /** Un chercheur de termes en mots entiers, sans casse ; null si la liste est vide. */
 export function chercheur(termes) {
@@ -77,7 +82,7 @@ function parFichier(trouves, message) {
 function donneesPersonnelles(ctx, moment) {
   const trouve = chercheur(ctx.termes || []);
   if (!trouve) return { indisponible: 'liste privée vide' };
-  const trouves = []; const exclu = new Set(fichiersExclus(ctx.couches));
+  const trouves = []; const exclu = new Set(fichiersExclus(ctx.couches, ctx.depot));
   if (moment === 'avant-commit') {
     for (const f of listeZ(gitLu(ctx.depot, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']))) if (!exclu.has(f) && trouve(f)) trouves.push({ fichier: f, ligne: null });
     for (const l of lignesAjoutees(ctx.depot)) if (!exclu.has(l.fichier) && trouve(l.texte)) trouves.push(l);
@@ -91,7 +96,9 @@ function donneesPersonnelles(ctx, moment) {
       texte.split('\n').forEach((l, i) => { if (trouve(l)) trouves.push({ fichier: f, ligne: i + 1 }); });
     }
   }
-  return { ecarts: parFichier(trouves, 'terme de la liste privée') };
+  // Celles qui ne valent pas (hors de leur portée, dans le dépôt contrôlé, sans valeur ni raison) se disent à l'audit.
+  const ignorees = ecartees(lireExceptions(ctx.couches, 'donnees_personnelles', ['terme', 'fichier'], { depot: ctx.depot }).ignorees);
+  return { ecarts: parFichier(trouves, 'terme de la liste privée'), ...(ignorees.length && { exceptions_ignorees: ignorees }) };
 }
 
 // ---------- secrets (gitleaks) ----------
@@ -667,8 +674,8 @@ function montageSensible(ctx) {
   const dites = lues.map((x) => ({ ecart: x.valeur, pourquoi: x.pourquoi, provenance: x.provenance, utilisee: ecarts.some((e) => e.cle === x.valeur),
     jugee: !nonLus.length || ['acces-distant', 'crochets'].includes(x.valeur.split(':')[0]) }));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
-  const ecartees = ignorees.map((x) => ({ ecart: x.valeur || null, raison: x.raison, provenance: x.provenance }));
-  return { ecarts: gardes, ...(dites.length && { exceptions: dites }), ...(ecartees.length && { exceptions_ignorees: ecartees }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };
+  const ecartes = ecartees(ignorees);
+  return { ecarts: gardes, ...(dites.length && { exceptions: dites }), ...(ecartes.length && { exceptions_ignorees: ecartes }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };
 }
 
 /**

@@ -124,23 +124,34 @@ export function fusionnerConfig(...couches) {
   return couches.filter(objet).reduce(fusion, {});
 }
 
-// Portée d'un réglage qui ne se lit pas partout (décision exceptions-hors-du-depot) : les couches qui peuvent le porter,
-// et s'il se lit hors du dépôt contrôlé. `montage_sensible` fait taire un écart du conteneur : il ne se lit pas dans
-// les fichiers que ce conteneur écrit (types et racine du projet), ni dans le dépôt contrôlé s'il est celui du profil.
+// Portée d'un réglage qui ne se lit pas partout : une clé (`a`) ou une sous-clé (`a.b`), les couches qui peuvent la
+// porter, si elle se lit hors du dépôt contrôlé, et la décision qui le dit. Une exception fait taire un écart : elle ne
+// se lit pas dans les fichiers qu'un conteneur du projet écrit (types et racine du projet), ni dans le dépôt contrôlé
+// s'il est celui du profil. `montage_sensible` entier (décision exceptions-hors-du-depot) ; de `donnees_personnelles`,
+// les seules `exceptions`, les `termes` allongeant la liste privée à toutes les couches (décision profil-designe).
 // Une clé absente de cette table se lit à toutes les couches.
 // Une `Map` : une clé écrite dans l'arbre (`constructor`, `toString`…) ne se confond pas avec une propriété d'objet.
-const PORTEE = new Map([['montage_sensible', { couches: ['profil', 'contexte'], horsDepot: true }]]);
+const PORTEE = new Map([
+  ['montage_sensible', { couches: ['profil', 'contexte'], horsDepot: true, decision: 'exceptions-hors-du-depot' }],
+  ['donnees_personnelles.exceptions', { couches: ['profil', 'contexte'], horsDepot: true, decision: 'profil-designe' }]]);
+const porteeDe = (cle) => PORTEE.get(cle) || PORTEE.get(`${cle}.exceptions`);
 
-// Les réglages d'une couche dans leur portée (`config`) ; une clé posée hors de sa portée n'est pas lue (`ecartee`), et
-// se dit.
+// Les réglages d'une couche dans leur portée (`config`) ; une clé posée hors de sa portée n'est pas lue (`ecartee`, de
+// même forme), et se dit.
 function dansPortee(c, signaux) {
   const config = c.noeud.attributes?.config;
-  if (!config || typeof config !== 'object' || Array.isArray(config)) return { config: config ?? null, ecartee: null };
-  const hors = Object.keys(config).filter((k) => PORTEE.has(k) && !PORTEE.get(k).couches.includes(c.origine));
-  for (const k of hors) signaux.push(`${k} porté par ${designation(c.noeud)} (${c.origine}) : non lu, il se lit au ${PORTEE.get(k).couches.join(' et au ')} (décision exceptions-hors-du-depot)`);
-  if (!hors.length) return { config, ecartee: null };
-  const garde = (oui) => Object.fromEntries(Object.entries(config).filter(([k]) => hors.includes(k) === oui));
-  return { config: garde(false), ecartee: garde(true) };
+  const objet = (x) => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
+  if (!objet(config)) return { config: config ?? null, ecartee: null };
+  let garde = config; let ecartee = null;
+  for (const [chemin, p] of PORTEE) {
+    const [k, sous] = chemin.split('.');
+    if (p.couches.includes(c.origine) || !Object.hasOwn(garde, k) || (sous && !(objet(garde[k]) && Object.hasOwn(garde[k], sous)))) continue;
+    signaux.push(`${chemin} porté par ${designation(c.noeud)} (${c.origine}) : non lu, il se lit au ${p.couches.join(' et au ')} (décision ${p.decision})`);
+    const { [sous ?? k]: hors, ...reste } = sous ? garde[k] : garde;
+    ecartee = { ...ecartee, [k]: sous ? { [sous]: hors } : hors };
+    garde = sous ? { ...garde, [k]: reste } : reste;
+  }
+  return { config: garde, ecartee };
 }
 
 // Les couches telles que les lisent la configuration fusionnée et les contrôles : origine, nœud qui la porte
@@ -150,22 +161,25 @@ const couchesLues = (couches, signaux) => couches.map((c) => ({ origine: c.origi
 
 /**
  * Les exceptions d'un réglage (`<cle>.exceptions`), lues d'une seule façon par tous les contrôles : couche par couche,
- * chacune avec sa raison et sa provenance. Sans sa valeur (`champ` : `terme`, `fichier`, `ecart`) ou sans raison, une
- * exception ne vaut pas. Une clé qui se lit hors du dépôt contrôlé (`PORTEE`) ignore les couches dont le fichier est
- * dans `depot`. { lues, ignorees } : celles qui ne valent pas, avec ce qui les écarte.
+ * chacune avec sa raison et sa provenance. Sans sa valeur (`champ` : `terme`, `fichier`, `ecart`, ou une liste de champs
+ * possibles, le premier présent étant le sien) ou sans raison, une exception ne vaut pas. Une clé qui se lit hors du
+ * dépôt contrôlé (`PORTEE`) ignore les couches dont le fichier est dans `depot`. { lues, ignorees } : chacune avec son
+ * champ ; celles qui ne valent pas, avec ce qui les écarte.
  */
 export function lireExceptions(couches = [], cle, champ, { depot = null } = {}) {
   const texte = (x) => (x === null || x === undefined || typeof x === 'object' ? '' : String(x).trim());
-  const dansDepot = (f) => Boolean(PORTEE.get(cle)?.horsDepot && depot && f) && dedans(path.resolve(f), path.resolve(depot));
+  const champs = [].concat(champ);
+  const dansDepot = (f) => Boolean(porteeDe(cle)?.horsDepot && depot && f) && dedans(path.resolve(f), path.resolve(depot));
   const lues = []; const ignorees = [];
   for (const c of couches) {
     const de = { origine: c.origine, provenance: c.provenance, fichier: c.fichier };
     const ecartee = [].concat(c.ecartee?.[cle]?.exceptions || []);
     for (const x of [].concat(c.config?.[cle]?.exceptions || []).concat(ecartee)) {
-      const valeur = x && typeof x === 'object' ? texte(x[champ]) : ''; const pourquoi = x && typeof x === 'object' ? texte(x.pourquoi) : '';
-      const raison = ecartee.includes(x) ? `porté par un ${c.origine}, il se lit au ${PORTEE.get(cle).couches.join(' et au ')}`
-        : dansDepot(c.fichier) ? 'écrite dans le dépôt contrôlé' : !valeur ? `sans ${champ}` : !pourquoi ? 'sans raison' : null;
-      (raison ? ignorees : lues).push({ valeur, ...(raison ? { raison } : { pourquoi }), ...de });
+      const objet = x && typeof x === 'object'; const sien = (objet && champs.find((k) => texte(x[k]))) || champs[0];
+      const valeur = objet ? texte(x[sien]) : ''; const pourquoi = objet ? texte(x.pourquoi) : '';
+      const raison = ecartee.includes(x) ? `porté par un ${c.origine}, il se lit au ${porteeDe(cle).couches.join(' et au ')}`
+        : dansDepot(c.fichier) ? 'écrite dans le dépôt contrôlé' : !valeur ? `sans ${champs.join(' ni ')}` : !pourquoi ? 'sans raison' : null;
+      (raison ? ignorees : lues).push({ valeur, champ: sien, ...(raison ? { raison } : { pourquoi }), ...de });
     }
   }
   return { lues, ignorees };
