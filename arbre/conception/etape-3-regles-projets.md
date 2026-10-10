@@ -1157,6 +1157,28 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   `onCreateCommand` objet nommé) ; les couches apportent `conteneur.devcontainer` (outils partagés en `features`,
   commande de démarrage en chaîne, posée par une seule couche) ; `gpu` : `requis` donne `hostRequirements.gpu: true`,
   `optionnel` donne `"optional"` (lu dans le code de la CLI). Passation au seuil (165 k), avant le code.
+- **Fait (2026-10-10)** : livraison C de la tranche 12, temps 3 à 5 (Opus 5.5 `xhigh`). Deux choix de l'auteur en un
+  tour, recommandations suivies : gh hors du profil (2 conteneurs sur 8 l'avaient, tous deux tirés de l'ancien modèle ;
+  une connexion gh ouvre tous les dépôts du compte, une clé de déploiement un seul) ; l'audit ne compare que les
+  fichiers générés, les 8 écrits à la main se migrent projet par projet. Module `src/conteneur.js` (lecture pure) : les
+  couches apportent `conteneur.devcontainer`, le socle pose ensuite ses clés (`name`, `initializeCommand`, montages
+  selon `connexion_claude`, `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_PROJECT_DIR_NAME`, `ANTHROPIC_API_KEY` vidée,
+  `onCreateCommand.holarch`, qui rend aussi `~/.ssh`) ; une couche qui en pose une, `remoteUser` absent, ou une valeur
+  inconnue de `gpu` ou `connexion_claude` : pas de génération, et c'est dit. Forme objet de `onCreateCommand` lue dans
+  la CLI 0.89.0 (commandes en parallèle). Étape `conteneur` de `projet creer`, après `regles` : fichier absent écrit,
+  marqué et différent réécrit, écrit à la main jamais touché (geste : le retirer, puis relancer, commande donnée) ;
+  `deploy-key.sh` seulement si la commande générée l'appelle (rejouée à blanc avant, la création l'aurait ajouté au
+  socle, qui a le sien) ; `modeles/projet/devcontainer.json` retiré. Écart `conteneur-genere` à l'audit d'un projet,
+  non disponible sur des règles illisibles. Contrat de configuration 0.8.0. Base au profil (`7a9e6db` du profil : image
+  Debian sous `vscode`, extension Claude Code, clé de déploiement), propre du socle dans la racine de son arbre
+  (`073a166`) ; code et tests (`843b961`). Mesure : le fichier généré pour le socle ne diffère de celui écrit à la main
+  que par le nom (`holarch-socle`), `onCreateCommand` en objet qui rend aussi `~/.ssh`, et `remoteUser: node` explicite.
+  Tests : 164 verts ; test de l'étape rouge sur les parents de `creation.js` et d'`audit.js`, 27 mutants tués sur 27
+  (13 de la génération, dont deux d'abord sans effet, l'un mal écrit, l'autre qui a fait ajouter les formes invalides ;
+  12 de l'étape et de l'écart ; 2 du cas illisible). Audit à blanc identique avant et après (10 lignes) ; copie de
+  service posée (`073a166`) ; audit réel : 0 écart apparu, 0 résolu. Rien poussé. Passation au temps 6 (contexte
+  environ 260 k, seuil 150 k : l'alerte de passation ne part qu'à l'envoi d'un message de l'auteur, et cette séance a
+  tenu en un seul tour).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1227,12 +1249,15 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Pour C, reprise au temps 3** (déroulé annoncé le 2026-10-10 ; temps 1 et 2 faits, choix du temps 3 faits, Fait
-     ci-dessus) : (3) clé `conteneur` au registre de configuration, contrat config 0.8.0, dans la forme retenue ; (4)
-     génération par l'étape `conteneur` de `projet creer`, fichier marqué, `modeles/projet/devcontainer.json` retiré ;
-     (5) écart d'audit quand le fichier diffère de la configuration ; (6) critère : rejeu sur `holarch-socle`, VS Code
-     (geste de l'auteur) et `devcontainer up` avec les deux étiquettes de VS Code (Q23) dans le même conteneur, écart à
-     la main vu ; (7) contre-épreuve en instance neuve, `xhigh`. Garde-fou à proposer à l'auteur : réglage
+  0. **Pour C, reprise au temps 6** (déroulé annoncé le 2026-10-10 ; temps 1 à 5 faits, Fait ci-dessus) : (6) critère :
+     `git -C ~/holarch-socle rm -q .devcontainer/devcontainer.json` (le geste que l'étape donne, ce que la décision
+     approuve pour le socle), puis `holarch projet creer holarch-socle` (fichier généré, commité, rien de personnel :
+     la garde avant commit le contrôle) ; `devcontainer up` avec les deux étiquettes de VS Code (Q23 : `--id-label
+     devcontainer.local_folder=$(wslpath -w ~/holarch-socle)`, `--id-label devcontainer.config_file=` en chemin
+     Linux), conteneur neuf (aucun conteneur du socle sur le poste le 2026-10-10 ; le volume `holarch-socle-claude`
+     n'existe pas encore, `holarch-socle-ssh` garde la clé), sortie dans un fichier ; VS Code ouvre le même conteneur
+     (geste de l'auteur) ; écart à la main vu à l'audit, puis rétabli par le rejeu. (7) contre-épreuve en instance
+     neuve, `xhigh`, sur `843b961`, `073a166` et `7a9e6db` du profil. Garde-fou à proposer à l'auteur : réglage
      `dev.containers.mountWaylandSocket: false` de son VS Code (sans lui, un conteneur créé par VS Code ne redémarre pas
      hors de VS Code ; une reconstruction depuis VS Code n'est pas essayée). Le contrôle `outils-a-jour` ne suit pas
      `devcontainer` : la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm.

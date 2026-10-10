@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+* **Livraison C de la tranche 12 : clé `conteneur`, génération, écart d'audit, et passation** (environ 260 k tokens) :
+  deux choix de l'auteur en un tour, recommandations suivies (gh hors du profil ; l'audit ne compare que les fichiers
+  générés). Module de génération, étape `conteneur` de `projet creer`, écart `conteneur-genere`, contrat de
+  configuration 0.8.0, modèle recopié retiré (`843b961`) ; conteneur du socle dans la racine de son arbre (`073a166`) ;
+  base au profil (`7a9e6db` du profil). 164 tests verts, 27 mutants tués sur 27 ; audit à blanc identique avant et
+  après ; copie de service posée (`073a166`), audit réel : 0 apparu, 0 résolu. Rien poussé. Leçon de passation :
+  déroulé annoncé en cinq temps (clé, étape, écart puis passation probable, critère, contre-épreuve) ; tenu jusqu'au
+  temps 5, passation au point annoncé. Ce qui l'a fait dévier : le contexte, mesuré seulement après trois commits
+  (environ 260 k, seuil 150 k) : l'alerte de passation est un crochet `UserPromptSubmit`, muet pendant une séance d'un
+  seul tour ; un mutant mal écrit (saut de ligne dans le remplacement), un autre resté vert qui a fait tester les formes
+  invalides ; trois trous de test vus avant d'éprouver (montage en chaîne, projet non déclaré, commit refusé). La
+  demande qui y aurait mené : « livraison C, temps 3 à 5 avec les choix de gh et de la portée de l'audit en un tour,
+  pose, puis passation avant le critère ».
+
 * **Livraison C de la tranche 12 : Q23, conteneur du socle réparé, choix de la génération, et passation** (environ
   165 k tokens) : outil `devcontainer` installé (0.89.0, accord de l'auteur) ; Q23 résolue sur un dossier jetable
   (`1cbcaa1`) : un conteneur créé par `devcontainer up` avec les deux étiquettes de VS Code redémarre hors de VS Code et
