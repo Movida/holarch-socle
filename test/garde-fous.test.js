@@ -1433,3 +1433,23 @@ test('Contre-épreuve du profil désigné (mineur 1) : un contexte illisible hor
   // Témoin : dans le dépôt du profil, il pouvait déclarer ce projet.
   assert.deepEqual(illisibles(p).map((l) => l.map((x) => x.replace(/ : .*/, ''))), [['profil:/arbre/contextes/casse.md'], ['profil:/arbre/contextes/casse.md']]);
 });
+
+test('Contre-épreuve du profil désigné (mineur 2) : un profil désigné par un lien symbolique se lit une fois, et son chemin réel est protégé', async () => {
+  const { profilDuSite } = await import('../src/config.js');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = fs.realpathSync(tmp()); const accueil = tmp(); const vrai = path.join(r, 'vrai'); const lien = path.join(r, 'lien');
+  fs.mkdirSync(vrai); spawnSync('git', ['init', '-q', vrai]); fs.symlinkSync(vrai, lien);
+  ecrireF(path.join(vrai, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+  ecrireF(path.join(vrai, 'arbre', 'rules.yaml'), '- id: note\n  statement: Note.\n  level: reminder\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
+  assert.deepEqual([profilDuSite({ profil: lien }), profilDuSite({ profil: `${r}/absent/../x/` })], [vrai, path.join(r, 'x')]);
+  // L'inventaire trouve le dépôt par son chemin réel, et le profil désigné par le lien : un seul arbre.
+  const s = new Socle({ site: 'local', profil: lien, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { 'depots-git': { racines: [r], profondeur: 1 }, arbre: { actif: true, depots: [] } } });
+  await s.inventaire(); s.indexer();
+  const c = s.regles().compte;
+  assert.deepEqual([c.signaux.filter((x) => /en double/.test(x)), c.regles.map((e) => e.id)], [[], ['note']]);
+  // Un conteneur qui monte le chemin réel, ou le lien, écrit le profil.
+  const { ctx, config, lire, cibles } = conteneurEssai();
+  ctx.profil = s.profil();
+  config({ workspaceMount: 'type=bind,source=${localWorkspaceFolder},target=/workspaces/projet', mounts: [`type=bind,source=${vrai},target=/v`, `type=bind,source=${lien},target=/l`] });
+  assert.deepEqual(cibles(lire()), ['/v', '/l']);
+});

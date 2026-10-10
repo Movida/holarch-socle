@@ -77,14 +77,16 @@ export function chargerConfig(fichier = path.join(accueil(), 'config.yaml'), sit
 /**
  * Le dépôt du profil que la configuration du site désigne (décision profil-designe), seule lecture de la clé `profil`
  * pour tous les appelants des règles (garde, audit, `regles appliquer`, création, reprise, interface, MCP) : son chemin
- * normalisé, ou null s'il n'est pas désigné. Une valeur qui n'est pas un chemin absolu se rend telle quelle : le profil
- * est alors désigné, mais introuvable.
+ * réel (un lien symbolique résolu : l'inventaire lirait sinon le même arbre deux fois, et le contrôle d'un montage ne
+ * reconnaîtrait pas le chemin réel), normalisé s'il n'existe pas, ou null s'il n'est pas désigné. Une valeur qui n'est
+ * pas un chemin absolu se rend telle quelle : le profil est alors désigné, mais introuvable.
  */
 export function profilDuSite(config) {
   const v = config?.profil;
   if (v === null || v === undefined || v === '') return null;
   const s = typeof v === 'string' ? v : JSON.stringify(v);
-  return path.isAbsolute(s) ? path.resolve(s) : s;
+  if (!path.isAbsolute(s)) return s;
+  try { return fs.realpathSync(s); } catch { return path.resolve(s); }
 }
 
 // Les comptes Claude Code qu'un adaptateur doit lire : ceux de `comptes_claude_code`, sinon son seul `home` (sans nom :
