@@ -9,7 +9,8 @@
   un commit et un test chacun, 143 tests verts, chaque test rouge sur son parent. Contre-épreuve (instance neuve,
   `xhigh`) : (1) à (9) et la décision tenus, quatre majeurs nouveaux, dont une régression (clé de réglage
   `constructor` : garde en panne, commit non contrôlé) corrigée aussitôt ; les trois autres et les mineurs au Reste.
-  Test « un commit fautif est refusé » : 0 rouge sur 25 suites. Rien posé, rien poussé. Leçon de clôture : déroulé
+  Test « un commit fautif est refusé » : 0 rouge sur 25 suites. Pose après les corrections (choix de l'auteur) ; socle
+  et profil poussés à sa demande (`4c5d1b0`, `bfc352f`, aucune intégration continue). Leçon de clôture : déroulé
   annoncé en cinq temps (code, profil, textes, tests et contre-épreuve, pose et journal) ; tenus sauf la pose. Ce qui
   l'a fait dévier : un défaut vu en lisant le poste (un commit de plus), une régression trouvée par la contre-épreuve,
   puis le seuil de passation franchi avec trois majeurs ouverts, qui rendent la pose à l'auteur ; la boucle du test

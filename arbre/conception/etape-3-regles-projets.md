@@ -1060,8 +1060,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   audit en panne, commit laissé passer), corrigée aussitôt (`f161457`). Copie de service non posée.
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
-     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`). Copie de service non posée : la poser maintenant (sur le poste,
-     tous les projets déclarés sont présents, (b) ne s'y produit pas) ou après les corrections, choix de l'auteur.
+     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`). Copie de service non posée : après les corrections (choix de
+     l'auteur) ; socle et profil poussés à sa demande.
      Majeurs, reproduits :
      - (a) un nœud du dépôt qui porte `projects:` peut devenir le déclarant retenu (le premier par titre, `regles.js:147`) :
        la chaîne repart de la racine du dépôt, `conteneur-isole` disparaît sans dérogation ; en `type: context`, le dépôt
