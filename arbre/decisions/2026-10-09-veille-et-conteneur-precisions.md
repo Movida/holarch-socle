@@ -33,7 +33,7 @@ datées.
 | Borne d'immobilité (décision, point « Veille ») | ajouter : « Une session dont rien de daté ne s'écrit depuis 30 min, ni dans sa transcription ni dans celles de ses sous-agents, est tenue pour en attente depuis sa dernière écriture : une demande de permission, une élicitation ou une fin de tour manquée ne tiennent pas le poste éveillé sans fin. Un sous-agent de fond retient le poste tant qu'il écrit ; un shell de fond, non. » |
 | Règle `veille-retardee` (profil) | « Le poste ne se met pas en veille d'inactivité tant qu'une session distante travaille, ou attend une réponse de l'auteur depuis moins de 30 min ; une session immobile depuis 30 min est en attente depuis sa dernière écriture ; une veille demandée à la main reste possible, et Windows reprend la main si l'adaptateur s'arrête. » |
 | Gardien (choix de l'auteur, 2026-10-09) | à consigner : le gardien suit la seule règle, comme les crochets ; posé et retiré par `holarch regles appliquer` et la pose de la copie de service, plus par l'accès distant (une session reliée par `/remote-control` est retenue sans accès distant) ; sans systemd utilisateur (WSL sans systemd, conteneur), il n'est pas posé, sans erreur |
-| Risque résiduel jusqu'à D | tant que l'accès distant tourne sur l'hôte (dérogation de `partage-et-bac-a-sable`), un conteneur qui monte son dépôt en écriture peut y écrire ce que l'hôte exécute : `.claude/settings*.json` (crochets lancés par une session de l'hôte dans ce dépôt), `.git/hooks` et `.git/config` (lancés par git sur l'hôte), `initializeCommand` (lancé sur l'hôte au démarrage du conteneur). Le contrôle `montage-sensible` le dit (écart `acces-distant`), sauf exception portée par l'arbre du projet (`montage_sensible.exceptions`, contrat de configuration 0.4.0). D le ferme. Choix de l'auteur ci-dessous |
+| Risque résiduel jusqu'à D | tant que l'accès distant tourne sur l'hôte (dérogation de `partage-et-bac-a-sable`), un conteneur qui monte son dépôt en écriture peut y écrire ce que l'hôte exécute : `.claude/settings*.json` (crochets lancés par une session de l'hôte dans ce dépôt), `.git/hooks` et `.git/config` (lancés par git sur l'hôte), `initializeCommand` (lancé sur l'hôte au démarrage du conteneur). Le contrôle `montage-sensible` le dit (écart `acces-distant`), sauf exception portée par l'arbre du projet (`montage_sensible.exceptions`, contrat de configuration 0.4.0 ; depuis la 0.5.0, par le profil ou un contexte seulement, décision `exceptions-hors-du-depot`). D le ferme. Choix de l'auteur ci-dessous |
 | Contrat événement 0.10.0 | `power.*` (`held`, `released`, `failed`) tel qu'écrit ; `data.environnement` (`conteneur`) sur les événements d'une session tenue dans un conteneur, distinct de `origine` d'un refus d'outil |
 | Contrat de configuration 0.4.0 | `montage_sensible.exceptions` : `{ecart, pourquoi}`, la clé exacte d'un écart du contrôle et sa raison ; le risque reste, l'écart ne se dit plus |
 
@@ -47,18 +47,26 @@ datées.
   garde) : une panne passagère entre deux audits horaires peut ne pas se voir.
 - Le gardien tourne partout où la règle s'applique et où un systemd utilisateur répond, même sur un site sans
   mécanisme : il le dit une fois au journal (`power.failed`, `sans-mecanisme`). Sans systemd utilisateur, il n'est pas
-  posé, et `holarch veille` le dit impossible.
+  posé, et `holarch veille` le dit impossible ; un systemd utilisateur injoignable (sans `XDG_RUNTIME_DIR` ni bus) n'est
+  pas une absence : la pose rend une erreur, `holarch veille` dit le gardien illisible, le contrôle se dit non
+  disponible (décision `exceptions-hors-du-depot`).
+- À chaque pose de la copie de service ou des règles, le gardien relancé relâche la demande d'éveil environ 0,68 s
+  (mesure de la contre-épreuve) : `power.released` (`arret`) puis `power.held` au journal ; pendant le trou,
+  `holarch veille` et le contrôle disent le gardien en relance (décision `exceptions-hors-du-depot`).
 - Un projet du poste sans dépôt git : son correctif de conteneur n'est ni versionné ni audité.
 - Un compte sans profil, ou à plusieurs profils : le gardien est laissé tel quel, et `holarch regles appliquer`
-  refuse d'écrire le compte (choix 2 ci-dessous).
+  refuse d'écrire le compte, et les projets qu'on lui nomme (leur règle hérite du profil ; choix 2 ci-dessous, précisé
+  par la décision `exceptions-hors-du-depot`).
 
 **Choix de l'auteur (2026-10-09, choix cliquables).**
 
 1. Le risque résiduel jusqu'à D : levé par une exception du socle jusqu'à D (l'écart `acces-distant` ne se dit plus,
    le risque reste le même ; la recommandation de l'agent était de le garder visible). Portée par la racine de l'arbre
-   du socle (`montage_sensible.exceptions`) ; D la retire.
+   du socle (`montage_sensible.exceptions`) ; D la retire. Déplacée au contexte personnel du profil le 2026-10-10,
+   même clé et même raison (décision `exceptions-hors-du-depot`).
 2. Compte sans profil unique : `holarch regles appliquer` refuse d'écrire le compte, comme pour des règles
-   illisibles ; ce qui est posé reste jusqu'à la correction.
+   illisibles ; ce qui est posé reste jusqu'à la correction. Il refuse aussi les projets qu'on lui nomme, dont la règle
+   hérite du profil (décision `exceptions-hors-du-depot`).
 3. Reste à faire : l'approbation du tout, une fois corrigés les mineurs de la contre-épreuve (faits le 2026-10-09), puis
    l'écriture des textes (décision, règle du profil, contrats événement et configuration).
 
@@ -68,3 +76,7 @@ session en conteneur qui travaille sous l'accès distant avant D.
 **Conséquences.** À l'approbation : la ligne B et le point « Veille » réécrits dans `environnement-d-execution`, la règle
 `veille-retardee` réécrite dans le profil (approbation consignée), le contrat événement approuvé en 0.10.0, le contrat de
 configuration en 0.4.0.
+
+**Amendée le 2026-10-10** par [`exceptions-hors-du-depot`](/arbre/decisions/2026-10-10-exceptions-hors-du-depot.md)
+(approuvée) : exception du socle lue au profil et au contexte, hors du dépôt contrôlé, et déplacée au contexte
+personnel ; limites du systemd injoignable, de la relance du gardien et du profil unique.
