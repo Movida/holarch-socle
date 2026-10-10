@@ -80,3 +80,8 @@ configuration en 0.4.0.
 **Amendée le 2026-10-10** par [`exceptions-hors-du-depot`](/arbre/decisions/2026-10-10-exceptions-hors-du-depot.md)
 (approuvée) : exception du socle lue au profil et au contexte, hors du dépôt contrôlé, et déplacée au contexte
 personnel ; limites du systemd injoignable, de la relance du gardien et du profil unique.
+
+**Amendée le 2026-10-10** par [`profil-designe`](/arbre/decisions/2026-10-10-profil-designe.md) (approuvée) : il
+n'y a plus de compte « à plusieurs profils » : le profil est celui que nomme la configuration du site ; non désigné,
+c'est un écart du compte ; désigné mais absent ou illisible, la règle effective est incomplète, et `holarch regles
+appliquer` refuse comme pour des règles illisibles.

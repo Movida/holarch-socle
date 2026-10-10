@@ -48,3 +48,8 @@ périmées), la règle `conteneur-isole` réécrite au profil (approbation consi
 contexte personnel, le contrat de configuration dans la version choisie, les trois limites écrites dans
 `veille-et-conteneur-precisions` avec le renvoi à cette décision. Chaque changement de code avec son test, puis une
 contre-épreuve.
+
+**Amendée le 2026-10-10** par [`profil-designe`](/arbre/decisions/2026-10-10-profil-designe.md) (approuvée) : les
+exceptions de `donnees_personnelles` se lisent de même, au profil et au contexte, hors du dépôt contrôlé (les `termes`,
+à toutes les couches) ; le dépôt du profil monté en écriture par un conteneur est un écart de `montage-sensible` ; un
+nœud ne déclare un projet que dans l'arbre du profil que désigne le site.

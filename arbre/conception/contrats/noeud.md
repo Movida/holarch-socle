@@ -3,10 +3,10 @@ type: contract
 title: Contrat — nœud de l'arbre
 description: Ce qu'est un nœud (un fichier Markdown à en-tête YAML), ses champs, ses liens typés, son cycle de vie et l'héritage de configuration.
 status: draft
-version: 0.3.0
+version: 0.4.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/decisions/2026-10-03-classification.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/fondations/principes.md, /arbre/decisions/2026-10-07-passation-sereine.md]
+  constrained_by: [/arbre/decisions/2026-10-03-classification.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/fondations/principes.md, /arbre/decisions/2026-10-07-passation-sereine.md, /arbre/decisions/2026-10-10-profil-designe.md]
 ---
 
 # Contrat — nœud de l'arbre
@@ -18,7 +18,9 @@ regroupe les nœuds d'un même niveau et porte un `index.md` (liste des nœuds, 
 L'identité d'un nœud est son chemin depuis la racine de l'arbre ; un `id` explicite survit aux déplacements.
 
 Un dépôt porte au plus un arbre. Sa **racine** est `arbre/index.md`, sinon l'`index.md` d'un bundle OKF à la racine du
-dépôt (en-tête `okf_version`). L'`id` de la racine nomme l'arbre et sert aux liens entre arbres (§3).
+dépôt (en-tête `okf_version`). L'`id` de la racine nomme l'arbre et sert aux liens entre arbres (§3). Il est unique
+sur un site, comme celui d'un type (`template`) : un doublon n'est jamais résolu. Le profil que désigne le site garde le
+sien ; deux autres racines, ou deux types, de même `id` ne sont pas retenus (décision `profil-designe`).
 
 Un nœud n'existe que s'il aide à décider ou à agir (principe P8).
 
@@ -36,7 +38,7 @@ Un nœud n'existe que s'il aide à décider ou à agir (principe P8).
 | `as_of`, `stale_after` | non | date de validité, date de péremption |
 | `classification` | non (hérité) | `public` · `internal` · `confidential` · `sensitive` |
 | `types` | non | types transverses d'un `project`, dans l'ordre d'héritage (`id` de leur nœud `template`) |
-| `projects` | non | pour un `context` ou une `activity` : les projets qu'il porte, par identifiant du catalogue (`holarch:project:<id>`) |
+| `projects` | non | pour un `context` ou une `activity` de l'arbre du profil que désigne le site : les projets qu'il porte, par identifiant du catalogue (`holarch:project:<id>`) ; ailleurs, non lu, et l'audit le dit (décision `profil-designe`) |
 | `roles` | non (hérité) | `{subject: [human:…], operator: [human:…], …}` |
 | `config` | non (hérité) | réglages, clés prises dans le registre de configuration (`contrats/config.md`) |
 | `links` | selon le type | voir §3 |
@@ -54,9 +56,10 @@ Un nœud n'existe que s'il aide à décider ou à agir (principe P8).
 | `modifies` | une décision modifie un nœud |
 | `realized_by` | ce qui réalise le nœud (tranche, livrable, élément du catalogue) |
 
-Les liens sont des chemins absolus depuis la racine du dépôt de l'arbre, ou des identifiants du catalogue
-(`holarch:<kind>:<slug>`, contrat fiche), ou, vers un autre arbre, `<id de sa racine>:<chemin>` (exemple fictif :
-`profil:/arbre/contextes/perso.md`) ; un lien non résolu est signalé et ne casse rien.
+Les liens sont des chemins absolus depuis la racine du dépôt de l'arbre, résolus dans le dépôt du nœud qui les porte,
+ou des identifiants du catalogue (`holarch:<kind>:<slug>`, contrat fiche), ou, vers un autre arbre,
+`<id de sa racine>:<chemin>` (exemple fictif : `profil:/arbre/contextes/perso.md`) ; un lien non résolu, ou vers un `id`
+en double, est signalé et ne casse rien.
 
 **Entre arbres, le lien se pose du côté le plus fermé** : un contexte (privé) déclare ses projets (`projects`) ; un
 dépôt plus ouvert ne cite jamais un arbre plus fermé. À l'intérieur d'un arbre, l'enfant déclare son parent

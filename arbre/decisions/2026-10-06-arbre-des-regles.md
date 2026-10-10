@@ -61,3 +61,9 @@ lui-même) ; un besoin de règles communes à plusieurs personnes (un niveau au-
 0.2.0 (classification d'une règle, matérialisation par portée) ; registre des types : premiers types transverses ;
 architecture §5.2 révisée ; tranche 3 de l'étape 3 : profil, règle effective et adaptateur Claude Code, essayés sur
 HOLARCH et sur un second projet (Q16), avec le dépôt du profil (Q17).
+
+**Amendée le 2026-10-10** par [`profil-designe`](/arbre/decisions/2026-10-10-profil-designe.md) (approuvée) : le
+profil est le dépôt que nomme la configuration du site, et seuls ses contextes et activités déclarent un projet ; un
+contexte de travail qui vit dans le dépôt privé d'un employeur se lira quand la configuration du site le désignera aussi
+(clé ajoutée avec le premier contexte de travail, Q18) ; l'`id` d'une racine est unique sur un site, un doublon n'est
+jamais résolu (contrat nœud 0.4.0).
