@@ -1044,7 +1044,21 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   entrée de la transcription (09:45:08) ; le réveil suivant renote la session (`power.held` à 10:23). La veille
   effective après la levée n'est pas observée (elle couperait la session) ; elle est attestée par la levée.
 - **Reste** :
-  0. **Contre-épreuve des corrections du 2026-10-09 au soir** (`ab3ee9e` à `520a1df`), à proposer à l'auteur.
+  0. **Contre-épreuve des corrections du 2026-10-09 au soir** (`ab3ee9e` à `520a1df`, 2026-10-10, instance neuve en
+     lecture seule, `xhigh`, scripts dans `/tmp/contre-epreuve-b2/`) : les sept corrections tenues, quatre avec réserve ;
+     chaque test qui éprouve du code échoue sur le commit parent. Un majeur, antérieur au périmètre, vérifié : (1)
+     l'import ne lit pas `subagents/workflows/wf_<id>/` (`src/import/claude-code-transcriptions.js:96`, `profondeur < 3`) :
+     187 transcriptions d'agents de workflow (deux projets en conteneur) absentes du journal et de la consommation, alors
+     que la veille les lit ; un seul parcours partagé. Mineurs : (2) un systemd utilisateur injoignable (sans
+     `XDG_RUNTIME_DIR` ni bus : `sudo -u`, `env -i`) pris pour une absence (`src/distant.js:36`), le test qui gardait
+     l'erreur réécrit ; (3) `etatVeille` ne lit `disponible()` que si l'unité manque (`src/distant.js:224`) ; (4) relance
+     du gardien : demande relâchée 0,68 s à chaque `service poser`, dite « non tenue », absente des limites connues ;
+     (5) `workflows/wf_<id>/journal.jsonl` lu comme une transcription (`src/veille.js:139`), « 195 » vaut 187 agents et
+     8 journaux ; (6) `montage_sensible.exceptions` lue aussi dans l'arbre du dépôt que le conteneur écrit, muette une fois
+     périmée, lecture des `exceptions` sans fonction commune (`src/controles.js:650`) ; (7) le refus sans profil unique
+     vaut aussi pour les projets, le texte ne dit que le compte ; (8) trois mentions du contrat de configuration 0.4.0
+     pour C au lieu de 0.5.0 (`environnement-d-execution` l. 4 et 56, cette spécification) ; (9) heure locale formatée
+     en trois endroits. Corrections à choisir par l'auteur.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
