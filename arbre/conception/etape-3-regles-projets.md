@@ -1089,29 +1089,35 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   <sous-agent>` (`src/transcription.js`, `rapportSousAgent`), le rapport final d'un sous-agent lu dans sa transcription
   (remise par `SubagentHandback`, sinon dernier texte ; copie la plus récente quand une session reprise en garde une) ;
   1 test (148 verts). Copie de service posée (`ba0a61c`), socle poussé à la demande de l'auteur.
+- **Fait (2026-10-10)** : décision `profil-designe`, pas 1 à 3, un commit et un test chacun (151 tests verts ; chaque
+  test rouge sur son parent et sur un mutant par branche nouvelle : 4, 8 et 8 mutants ; un neuvième, resté vert, a fait
+  ajouter une assertion). Pas 1 (`7caa89c`) : clé
+  `profil` du site, lue par la seule `profilDuSite` et passée par `Socle.profil()` à toute lecture des règles ; une
+  lecture qui ne la passe pas échoue ; l'inventaire et la relecture de la garde lisent le dépôt désigné ; 18 tests
+  adaptés (ils déduisaient le profil), dont deux réécrits (« plusieurs profils » n'existe plus). Pas 2 (`c9a623b`) :
+  seuls les `context` et `activity` du profil déclarent ; ailleurs, non lu et écart du compte (contrôle
+  `profil-designe`, avec le nœud), de même qu'un site qui lit des arbres sans profil désigné ; profil introuvable ou
+  projet déclaré deux fois : règle incomplète ; sans profil, l'audit ne juge rien de ce qui est posé au compte. Le
+  scénario (b) de la contre-épreuve précédente reposait sur le défaut (a) (un nœud du dépôt déclarant son projet) :
+  rebâti sur un second déclarant du profil. Pas 3 (`134418e`) : racines et types en double non retenus, lien interne
+  résolu dans le dépôt du nœud (`depotDe`, tiré de l'emplacement), lien vers un `id` en double non résolu et dit ;
+  fiches de règles `<id>@<projet>` pour deux arbres de même `id`, le profil et un arbre unique gardent les leurs (le
+  catalogue n'en gardait qu'une, la relecture de la garde les deux). Mesuré à blanc sur le poste, profil désigné : un
+  seul déclarant (contexte personnel, 6 projets), rien de non lu, aucun doublon, 26 règles au compte. Rien posé, rien
+  poussé.
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
      2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport : `holarch rapport aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service posée le 2026-10-10
      (`ba0a61c`), à reposer après les corrections de (a) et (c).
-     (a) et (c) : décision `profil-designe` approuvée le 2026-10-10 (Fait ci-dessous), code à écrire. Elle couvre aussi
+     (a) et (c) : décision `profil-designe` approuvée le 2026-10-10 (Fait ci-dessus), code en cours. Elle couvre aussi
      trois mineurs du rapport (déclaration depuis un autre dépôt, contrat de configuration, exceptions de
      `donnees_personnelles` lues dans le dépôt contrôlé).
-     Suite, session neuve (Opus 5.5 `xhigh`), un commit et un test chacun, éprouvés par `npm run eprouver` (parent ou
-     mutant) ; dans cet ordre, parce que chaque pas s'appuie sur le précédent :
-     1. clé `profil` de la configuration du site (défaut nul) ; une seule fonction la lit pour tous les appelants de
-        `regleEffective`, `regleDuCompte`, `configAvantProjet`, `projetsCouverts` et de la récolte (`socle.js:416`) :
-        garde, audit, `regles appliquer`, création, reprise, interface, MCP. Le profil est la racine dont le fichier est
-        sous ce dépôt (`regles.js`, `arbresDe`, aujourd'hui « les arbres qui portent des contextes ») ;
-     2. déclarants : les seuls nœuds `context` ou `activity` de l'arbre du profil ; ailleurs, `projects:` ou `context`
-        non lus et écart du compte, avec leur fichier ; profil non désigné : écart du compte (aujourd'hui l'audit se tait,
-        `audit.js:188`) ; désigné mais absent ou illisible, ou projet déclaré deux fois : règle effective incomplète, par
-        le mécanisme des règles illisibles (`illisibles`, garde `audit.js:69`, `materialisation.js:18`) ;
-     3. identifiants en double : le profil garde son `id`, deux autres racines ou deux types de même `id` ne sont pas
-        retenus (règle effective incomplète de qui en dépend) ; lien interne résolu dans le dépôt du nœud
-        (`arbresDe`, `parent`, aujourd'hui par `<id>:<chemin>`) ; lien vers un `id` en double non résolu, dit.
-        Attention : les fiches de règles se nomment `holarch:rule:<id de l'arbre>/…` (`inventaire/arbre.js`) ; deux
-        arbres de même `id` écrivent les mêmes fiches au catalogue. À régler sans changer l'identifiant des règles d'un
-        arbre unique, que portent les écarts au journal ;
+     Pas 1 à 3 faits le 2026-10-10 (Fait ci-dessus). Suite, session neuve (Opus 5.5 `xhigh`), un commit et un test
+     chacun, éprouvés par `npm run eprouver` (parent ou mutant), dans cet ordre ; les bancs `essaiProfil` (profil,
+     `autre`, `depot`) et `essaiExceptions` de `test/garde-fous.test.js` servent aux pas suivants. **Copie de service à
+     ne poser qu'après la clé du pas 7** : sans elle, le poste n'a plus de profil (mesuré à blanc : compte indéterminé ;
+     par construction, les réglages du profil, dont les termes de sa liste privée, ne sont plus lus par la garde) ; la
+     copie posée (`ba0a61c`) ignore cette clé, qui peut donc être ajoutée avant :
      4. `montage-sensible` : le dépôt du profil monté en écriture par un conteneur est un écart ;
      5. exceptions de `donnees_personnelles` au profil et au contexte, hors du dépôt contrôlé (`PORTEE` vaut aujourd'hui
         pour une clé entière : les `termes` restent lisibles partout) ; dans le même pas, les trois exceptions

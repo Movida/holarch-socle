@@ -2,6 +2,18 @@
 
 ## 2026-10-10
 
+* **Décision `profil-designe`, pas 1 à 3, et passation** (environ 285 k tokens) : clé `profil` du site et sa lecture
+  unique (`7caa89c`), déclarants du seul profil et écarts du compte (`c9a623b`), identifiants en double jamais résolus
+  (`134418e`) ; un test chacun, rouge sur son parent et sur 20 mutants en tout (un 21e, resté vert, a fait ajouter une
+  assertion : le compte ne passait pas par la chaîne du contexte) ; 151 tests verts. Mesuré à blanc sur le poste, profil
+  désigné : un seul déclarant, rien de non lu, aucun doublon. Rien posé (sans la clé du pas 7, le poste perdrait son
+  profil), rien poussé. Leçon de clôture : déroulé annoncé en sept pas (clé, déclarants, doublons, montage, exceptions,
+  textes, geste) ; tenus les trois premiers, passation sur un pas fini comme annoncé. Ce qui l'a fait dévier : le seuil
+  de passation, franchi tôt (lectures de modules entiers, dont `regles.js` et `audit.js`, et 18 tests à adapter au
+  profil désigné, prévus nulle part) ; un test de la contre-épreuve précédente bâti sur le défaut même que corrigeait le
+  pas 2. La demande qui y aurait mené : « pas 1 à 3 de `profil-designe`, puis passation ; 4 à 7 dans la session
+  suivante ». Aucun avis de passation : il ne part qu'à l'invite, et la session tenait en un tour (idée I37).
+
 * **Décision `profil-designe` (constats (a) et (c) de la contre-épreuve), et passation** (environ 210 k tokens) :
   rapport relu dans la transcription, poste mesuré (un seul déclarant, aucun `id` en double, aucun montage du profil,
   trois exceptions de `donnees_personnelles`, toutes dans un dépôt), décision proposée en brouillon (un nom privé
