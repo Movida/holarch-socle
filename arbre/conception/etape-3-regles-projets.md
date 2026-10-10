@@ -1195,6 +1195,18 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   sur la seule présence d'une clé au dépôt. À la demande de l'auteur (« lance les commandes ») : clé neuve enregistrée
   en écriture (166033947), script relancé dans le conteneur (clé active, `git ls-remote` lu), ancienne retirée
   (165264113, créée et utilisée une seule fois le 2026-10-03 ; clé publique gardée dans `/tmp/cles-socle/`).
+- **Fait (2026-10-10)** : contre-épreuve de C lue, M-1 et M-2 (création) corrigés (Opus 5.5). Rapport : 27 mutants
+  tués sur 36, 2 majeurs, 8 mineurs, 3 suppositions. M-1 (`a288b39`) : les variables d'environnement du socle
+  (`CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_PROJECT_DIR_NAME`, `ANTHROPIC_API_KEY`) réservées dans les deux sections
+  (`remoteEnv` l'emporte pour les sessions, `containerEnv` se commite en clair), `onCreateCommand.holarch` testé ; le
+  contrat 0.8.0 les nomme sans section, inchangé. M-2, choix de l'auteur (garde commune, recommandation suivie ; avis
+  donné : le risque relève déjà du risque résiduel jusqu'à D, un `.git/hooks` écrit par le conteneur étant pire) :
+  `ecrireSansLien` (`src/commun.js`) refuse un chemin dont un dossier ou le fichier est un lien symbolique, ou qui sort
+  du dépôt ; posée aux étapes 2 et 5 de la création (`428b85d`), l'étape échoue et le dit. `O_NOFOLLOW` essayé puis
+  retiré : sa course ne se teste pas, son mutant restait vert. Inventaire : sept écritures dans un dépôt (quatre dites
+  dans la question), cinq au Reste. Mesuré avant chaque commit : 6 projets déclarés, aucune couche ne pose ces variables,
+  aucun lien aux chemins écrits. Tests rouges sur leur parent et sur leurs mutants (2 et 2) ; 164 verts. Copie de
+  service posée (`428b85d`, gardien relancé), audit réel : 0 apparu, 0 résolu. Rien poussé.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1265,19 +1277,24 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Pour C, reprise au temps 7** (déroulé annoncé le 2026-10-10 ; critère tenu, Fait ci-dessus) : contre-épreuve en
-     instance neuve (`xhigh`) sur `843b961`, `073a166` et `7a9e6db` du profil, lancée le 2026-10-10, scripts dans
-     `/tmp/contre-epreuve-c/`. Rendue après la passation : 27 mutants tués sur 36, 2 majeurs, 8 mineurs, suite verte
-     sur la copie, aucun effet de bord ; non lue par l'agent qui la consigne. Rapport complet extrait dans
-     `/tmp/contre-epreuve-c/rapport.md` (perdu au redémarrage) ; sinon dans la transcription du sous-agent
-     (`ls -t ~/.claude/projects/*holarch-socle/*/subagents/agent-*.jsonl | head -1`, le plus long message qui commence
-     par « # Contre-épreuve de la livraison C ») : la remise du rapport est refusée hors du mode auto, et `holarch
-     rapport` ne lit que le dernier message (défaut mineur, à corriger avec un test : lire le dernier message qui porte
-     le titre). Puis ses corrections, un commit et un test chacune, et l'approbation de C par l'auteur.
-     Défaut à corriger avec un test : l'étape `cle` compare la présence d'une clé au dépôt, pas la clé du conteneur
-     (lisible par `docker exec` quand il tourne, sinon geste). Le contrôle `outils-a-jour` ne suit pas `devcontainer` :
-     la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm. Les autres projets se migrent
-     par `projet creer` rejoué, avec l'accord de l'auteur projet par projet.
+  0. **Pour C, reprise après M-1 et M-2** (contre-épreuve rendue : rapport dans `/tmp/contre-epreuve-c/rapport.md`,
+     perdu au redémarrage ; sinon la transcription du sous-agent, `ls -t
+     ~/.claude/projects/*holarch-socle/*/subagents/agent-*.jsonl`, le plus long message qui commence par « # Contre-épreuve
+     de la livraison C ») : faits M-1 (`a288b39`) et M-2 pour la création (`428b85d`), Fait ci-dessus. Reste, dans
+     l'ordre : (a) `ecrireSansLien` aux cinq autres écritures dans un dépôt, un commit : fichier de contexte du profil
+     (étape 3 de `creation.js`) ; règles et leur dossier (`appliquer` de `regles-claude-code.js`, retrait des fichiers
+     marqués compris) ; `.claude/settings*.json` et manifeste (`ecrireJson` : le renommage remplace un lien final, un
+     dossier lien reste à garder) ; crochet git quand il est dans le dépôt (`garde-git.js`) ; `rules.yaml` de la récolte
+     (`ajouterRegles`, `proposerRegles`). Lecture de l'audit (`ecartsConteneur`) laissée : aucun contenu n'en sort.
+     (b) Mineurs m-1 à m-8 (mutants M04, M05, M15, M17, M19, M20, C03, C04, A02), assertions données par le rapport, un
+     commit. (c) `holarch rapport` ne lit que le dernier message : lire le dernier qui porte le titre, avec un test.
+     (d) Étape `cle` : elle compare la présence d'une clé au dépôt, pas la clé du conteneur (lisible par `docker exec`
+     quand il tourne, sinon geste), avec un test. (e) Suppositions du rapport, à soumettre à l'auteur :
+     `runArgs: ['--network=host']` non dit par `montage-sensible` ; casse du nom (`nom.toLowerCase()` : deux projets qui
+     ne diffèrent que par la casse partageraient volumes de connexion et clé) ; marque retirée à la main (le fichier passe
+     pour écrit à la main). Puis l'approbation de C par l'auteur. Le contrôle `outils-a-jour` ne suit pas
+     `devcontainer` : la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm. Les autres
+     projets se migrent par `projet creer` rejoué, avec l'accord de l'auteur projet par projet.
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
      constat 6 de `revue-page-blanche` non tranché ; (2) un conteneur par brique (fondation n° 3) : un programme Node et

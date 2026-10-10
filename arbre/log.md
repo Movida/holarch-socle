@@ -2,6 +2,17 @@
 
 ## 2026-10-10
 
+* **Livraison C : contre-épreuve lue, M-1 et M-2 (création) corrigés, et passation** (environ 150 k tokens) :
+  variables du socle réservées dans les deux sections d'environnement (`a288b39`) ; garde commune contre l'écriture à
+  travers un lien symbolique, au choix de l'auteur (recommandation suivie), posée aux étapes 2 et 5 de la création
+  (`428b85d`). 164 tests verts, chaque test rouge sur son parent et ses mutants ; aucune couche ni aucun lien du poste
+  touché ; copie de service posée, audit réel : 0 apparu, 0 résolu. Rien poussé. Leçon de passation : déroulé annoncé
+  en cinq temps (M-1, M-2 et son choix, mineurs, `holarch rapport`, pose et journal), passation prévue vers le temps 4 ;
+  tenue après le temps 2, M-2 coupé en deux commits. Ce qui l'a fait dévier : l'inventaire de M-2 a trouvé sept
+  écritures dans un dépôt, quatre dites dans la question ; la lecture du rapport et du Reste à l'ouverture ; `holarch`
+  hors du PATH de la session. La demande qui y aurait mené : « contre-épreuve de C : M-1, puis M-2 en garde commune
+  pour la création seule, pose et passation ; les autres écritures et les mineurs ensuite ».
+
 * **Livraison C de la tranche 12 : critère tenu, clé de déploiement remplacée** (environ 150 k tokens) : fichier du
   socle généré par `projet creer` et commité (`c19c9c8`), rien de personnel ; `devcontainer up` avec les étiquettes de
   VS Code, puis VS Code (lancé depuis la session, l'auteur absent) dans le même conteneur ; écart à la main vu à l'audit,
