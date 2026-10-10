@@ -799,6 +799,7 @@ test('contexte : une session arrêtée en route (appel d’outil sans résultat)
   const t = resume(s, d, { transcription: courante, maintenant });
   const ligne = t.split('\n')[1];
   assert.match(ligne, /^Session\(s\) arrêtée\(s\) en route \(24 h\) : .*\. À signaler à l’auteur\.$/, 'juste après l’en-tête');
+  assert.match(ligne, /: \d{4}-\d{2}-\d{2} \d{2}:\d{2}, /, 'l’heure locale dite comme ailleurs (AAAA-MM-JJ HH:MM)');
   assert.match(ligne, /question restée sans réponse : « Comment régler l’autonomie des sessions \? »/); assert.match(ligne, /pendant Bash \(Lancer les tests\)/);
   assert.doesNotMatch(resume(s, d), /arrêtée/, 'sans transcription : rien');
 });

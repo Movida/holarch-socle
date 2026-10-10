@@ -675,6 +675,9 @@ test('veille : holarch veille et le contrôle disent la même chose de la demand
   const auLoin = auFuseau(() => [etatGardien({ accueil, gardien: 'arrêté', besoin: true }), affichage.veille({ sessions: [], finies: [], mecanisme: '/ps', unite: 'holarch-veille.service', ...etatGardien({ accueil, gardien: 'arrêté', besoin: true }) })]);
   assert.ok(auLoin[0].constats[0].message.endsWith(`dernier passage du gardien le ${heureDuFuseau(maj)})`), 'à l’heure locale');
   assert.ok(auLoin[1].includes(`(dernier passage du gardien à ${heureDuFuseau(maj).slice(11)})`), 'la vue aussi');
+  // Une seule façon de dire l'heure locale : la copie en service la dit de même.
+  const copie = auFuseau(() => affichage.service({ copie: { commit: 'abc1234', pose_le: maj, source: '/src' }, retard: 0, copies: ['abc1234'], routines: [], binaire: '/b' }));
+  assert.ok(copie.includes(`(posée le ${heureDuFuseau(maj)}, source /src)`), copie);
   // L'erreur d'un crochet se voit aussi dans la vue.
   ecrire(fichierErreur(accueil), JSON.stringify({ at: new Date().toISOString(), evenement: 'Stop', message: 'x' }));
   const avecErreur = affichage.veille({ sessions: [], finies: [], mecanisme: '/ps', unite: 'holarch-veille.service', ...etatGardien({ accueil, gardien: 'actif', besoin: false }) });

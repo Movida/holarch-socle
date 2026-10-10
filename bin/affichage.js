@@ -1,4 +1,5 @@
 // Mise en forme texte de la ligne de commande (étape 3, tranche 6) : ce que `holarch` affiche hors `--json`.
+import { heureLocale } from '../src/commun.js';
 
 export const inventaire = (r) => `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.deplacees.length} déplacées, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}${r.comptes_non_lus?.length ? `\nATTENTION comptes Claude Code non lus : ${r.comptes_non_lus.join(', ')}` : ''}\naudit : ${r.audit.ouverts} écart(s) ouvert(s) ; ${r.audit.apparus} apparu(s), ${r.audit.resolus} résolu(s)`;
 
@@ -61,7 +62,7 @@ export function creation(r) {
 }
 
 export const service = (e) => (e.copie
-  ? `copie en service : ${e.copie.commit} (posée le ${new Date(e.copie.pose_le).toLocaleString('sv-SE').slice(0, 16)}, source ${e.copie.source})${e.retard ? ` ; ${e.retard} commit(s) de retard sur HEAD (holarch service poser)` : e.retard === 0 ? ' ; à jour' : ''}\ncopies gardées : ${e.copies.join(', ')}`
+  ? `copie en service : ${e.copie.commit} (posée le ${heureLocale(e.copie.pose_le)}, source ${e.copie.source})${e.retard ? ` ; ${e.retard} commit(s) de retard sur HEAD (holarch service poser)` : e.retard === 0 ? ' ; à jour' : ''}\ncopies gardées : ${e.copies.join(', ')}`
   : `aucune copie de service : les points d'entrée lancent ${e.binaire} (holarch service poser)`)
   + `\nroutines : ${e.routines.map((r) => `${r.unite} ${r.etat}`).join(' · ')}${e.routines.some((r) => r.etat === 'coupée') ? ' (une routine coupée reste coupée : systemctl --user enable --now <unité> pour la rallumer)' : ''}`;
 
@@ -90,7 +91,7 @@ export function recolte(r) {
 
 /** État de la veille retardée : le gardien, le mécanisme, les sessions distantes notées (module veille). */
 export function veille(e) {
-  const heure = (iso) => new Date(iso).toLocaleString('sv-SE').slice(11, 16);
+  const heure = (iso) => heureLocale(iso, { seule: true });
   const l = [`gardien de veille : ${e.gardien}${e.systemd ? ` (${e.systemd})` : ''} (${e.unite}) ; mécanisme : ${e.mecanisme ? 'demande d’éveil de Windows' : 'aucun sur ce site'}`];
   if (!e.sessions.length) l.push('aucune session distante notée');
   for (const s of e.sessions) l.push(`  ${s.etat.padEnd(9)} ${s.dossier ? s.dossier.split('/').pop() : '?'}  ${s.session.slice(0, 8)}  depuis ${heure(s.depuis)}${s.etat === 'attend' ? (s.retient ? ` (retient encore ${s.reste_min} min)` : ' (ne retient plus)') : ''}`);

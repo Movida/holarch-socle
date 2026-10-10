@@ -8,6 +8,7 @@ import { etatDepot, integrationContinue } from './inventaire/depots-git.js';
 import { copieEnService, retard } from './service.js';
 import { aApprouver } from './regles.js';
 import { finDeTranscription, evenements } from './transcription.js';
+import { heureLocale } from './commun.js';
 
 /**
  * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), lu à la fin de
@@ -104,8 +105,7 @@ export function resume(s, dossier, { max = 1500, transcription = null, maintenan
   // Avant le reste : une question restée sans réponse ne doit pas tomber sous la troncature.
   const coupees = sessionsCoupees(transcription, { maintenant });
   if (coupees.length) {
-    const heure = (d) => new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    l.push(`Session(s) arrêtée(s) en route (24 h) : ${coupees.slice(0, 3).map((c) => `${heure(c.date)}, ${c.question ? `question restée sans réponse : « ${court(c.question, 120)} »` : `pendant ${c.outil}${c.quoi ? ` (${court(c.quoi, 60)})` : ''}`}`).join(' ; ')}. À signaler à l’auteur.`);
+    l.push(`Session(s) arrêtée(s) en route (24 h) : ${coupees.slice(0, 3).map((c) => `${heureLocale(c.date)}, ${c.question ? `question restée sans réponse : « ${court(c.question, 120)} »` : `pendant ${c.outil}${c.quoi ? ` (${court(c.quoi, 60)})` : ''}`}`).join(' ; ')}. À signaler à l’auteur.`);
   }
   if (v.etape) {
     l.push(`Étape ${v.etape.numero} : ${court(v.etape.titre, 90)}${v.etape.close ? ' (close)' : ''}.`);

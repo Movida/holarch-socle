@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { ecrireJson, lireJson } from './commun.js';
+import { ecrireJson, lireJson, heureLocale } from './commun.js';
 import { finDeTranscription, evenements, sousAgents } from './transcription.js';
 import { ulid } from './ulid.js';
 
@@ -223,9 +223,6 @@ export function evaluer({ accueil, maintenant = Date.now(), attente = ATTENTE_MI
   return { besoin: sessions.some((x) => x.retient), sessions, finies };
 }
 
-// Heure locale du poste (celle que lit l'auteur), à la minute.
-const quand = (iso) => new Date(iso).toLocaleString('sv-SE').slice(0, 16);
-
 /**
  * L'état de la veille retardée, dit d'une seule façon pour le contrôle `veille-retardee` et `holarch veille` : ce que
  * demandent les sessions (`besoin`), ce que le gardien tient (`tenue` : unité active, passage depuis moins de
@@ -243,12 +240,12 @@ export function etatGardien({ accueil, gardien, besoin = evaluer({ accueil }).be
   const relance = frais && ecrit?.relance === true;
   const err = lireJson(fichierErreur(accueil), null); const t = Date.parse(err?.at);
   const erreur = Number.isFinite(t) && maintenant - t < ERREUR_VUE_JOURS * 864e5 ? { at: new Date(t).toISOString(), evenement: String(err.evenement || '?') } : null;
-  const vu = passage ? `dernier passage du gardien le ${quand(passage)}` : 'aucun passage du gardien';
+  const vu = passage ? `dernier passage du gardien le ${heureLocale(passage)}` : 'aucun passage du gardien';
   const constats = [];
   if (besoin && !tenue && !relance) constats.push({ cle: 'retenue', message: `une session distante retient la veille, mais la demande d'éveil n'est pas tenue (gardien ${gardien}${frais ? '' : `, ${vu}`})` });
   if (!besoin && gardien === 'actif' && !frais && ecrit?.tenue === true) constats.push({ cle: 'sans-besoin', message: `demande d'éveil peut-être encore tenue sans session qui la retienne (${vu})` });
   // Daté et nommé par son événement ; le message, qui peut citer un chemin, reste dans le fichier.
-  if (erreur) constats.push({ cle: 'crochet', message: `crochet de veille en erreur le ${quand(erreur.at)} (${erreur.evenement}) : des sessions peuvent ne pas être notées ; détail dans veille-erreur.json de l'accueil HOLARCH` });
+  if (erreur) constats.push({ cle: 'crochet', message: `crochet de veille en erreur le ${heureLocale(erreur.at)} (${erreur.evenement}) : des sessions peuvent ne pas être notées ; détail dans veille-erreur.json de l'accueil HOLARCH` });
   return { gardien, besoin, tenue, relance, frais, passage, erreur, constats };
 }
 

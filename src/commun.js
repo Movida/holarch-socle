@@ -121,4 +121,10 @@ export function gitLu(depot, args, o = {}) {
 export const configClaude = (home) => (path.resolve(home) === path.join(os.homedir(), '.claude') ? path.join(os.homedir(), '.claude.json') : path.join(home, '.claude.json'));
 
 /** Clé d'un serveur MCP, telle qu'elle apparaît dans le nom de ses outils (`mcp__<clé>__<outil>`). */
+// Heure locale du poste, « AAAA-MM-JJ HH:MM » (`seule` : « HH:MM ») : une seule façon de la dire, au terminal, dans les
+// constats et dans le résumé de reprise.
+export function heureLocale(iso, { seule = false } = {}) {
+  const t = new Date(iso).toLocaleString('sv-SE').slice(0, 16);
+  return seule ? t.slice(11) : t;
+}
 export const cleServeur = (nom) => String(nom).replace(/[^A-Za-z0-9_-]/g, '_');
