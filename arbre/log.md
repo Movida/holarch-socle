@@ -2,6 +2,18 @@
 
 ## 2026-10-10
 
+* **Décision `profil-designe` (constats (a) et (c) de la contre-épreuve), et passation** (environ 195 k tokens) :
+  rapport relu dans la transcription, poste mesuré (un seul déclarant, aucun `id` en double, aucun montage du profil,
+  trois exceptions de `donnees_personnelles`, toutes dans un dépôt), décision proposée en brouillon (un nom privé
+  refusé par la garde au premier commit, retiré), puis approuvée par l'auteur point par point, dix points sur
+  récapitulatif et choix cliquables, recommandations suivies ; Q32 ouverte. Code détaillé au Reste, en sept pas. Rien
+  posé, rien poussé. Leçon de clôture : déroulé annoncé en cinq temps (lire et mesurer, brouillon, choix et
+  approbation, code, mineurs et pose) ; tenus les trois premiers, le code renvoyé à la session suivante comme annoncé.
+  Ce qui l'a fait dévier : la lecture du rapport (dans un message du sous-agent de la transcription parente, pas dans
+  sa propre transcription : quatre essais) ; le déroulé annoncé après la lecture plutôt qu'à l'ouverture ;
+  l'approbation demandée point par point (trois tours de choix au lieu d'un). La demande qui y aurait mené : « décision
+  de (a) et (c), chaque point détaillé pour une approbation unitaire, puis passation ».
+
 * **Contre-épreuve de `exceptions-hors-du-depot` : (b), (d) et quatre mineurs, et passation** (environ 215 k tokens) :
   (d) le filtre « hors du dépôt » éprouvé par le contrôle ; (b) une exception n'est plus dite périmée quand son contrôle
   ne l'a pas lue dans un projet qu'elle couvre (dépôt absent de ce site, contrôle en échec, chaîne détournée) ; mineurs

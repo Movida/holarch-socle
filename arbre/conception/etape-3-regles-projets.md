@@ -1076,35 +1076,62 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   1 test (147 verts), essayé sur le socle (mutant du mineur 6 rouge, mutant de l'outil vu par son test). Copie de
   service posée à la demande de l'auteur (`5d1971a`) ; envoi refusé à l'agent par le classifieur du mode `auto`, puis
   fait en mode manuel sur approbation de l'auteur (`54fa3ed`).
+- **Fait (2026-10-10)** : décision `profil-designe` pour (a) et (c) de la contre-épreuve, proposée puis approuvée par
+  l'auteur, dix points un à un sur récapitulatif et choix cliquables (recommandations suivies ; montage du profil en
+  écriture seulement). Le dépôt du profil est nommé par la configuration du site ; seuls ses nœuds déclarent un projet ;
+  profil non désigné : écart du compte ; profil absent ou illisible, ou projet déclaré deux fois : règle effective
+  incomplète ; identifiants de racine ou de type en double jamais résolus ; dépôt du profil monté en écriture : écart ;
+  exceptions de `donnees_personnelles` hors du dépôt contrôlé ; contrat de configuration 0.6.0 (C en 0.7.0), nœud
+  0.4.0 ; `arbre-des-regles` amendée (contexte hors du dépôt du profil lu quand le site le désigne). Mesures du poste :
+  un seul déclarant (contexte personnel, 6 projets), aucun `id` en double, aucun montage du profil, trois exceptions de
+  `donnees_personnelles`, toutes dans un dépôt ; rien ne change dans les règles effectives hormis leur déménagement.
+  Q32 ouverte (site de travail). Code à écrire (Reste).
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
      2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport dans la transcription `80c50cac`, sous-agent
      `aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service posée le 2026-10-10
      (`5d1971a`), à reposer après les corrections de (a) et (c).
-     Majeurs restants, reproduits :
-     - (a) un nœud du dépôt qui porte `projects:` peut devenir le déclarant retenu (le premier par titre, `regles.js`,
-       `regleEffective`) : la chaîne repart de la racine du dépôt, `conteneur-isole` disparaît sans dérogation ; en
-       `type: context`, le dépôt devient un second profil, le compte indéterminé, l'audit dit « conforme » ; seul signal,
-       dans la vue des règles. Défaut antérieur (famille X1) ; le corriger change qui peut déclarer un projet : décision.
-       Piste du rapport : seul un nœud d'un arbre de profil hors du dépôt contrôlé déclare, toute ambiguïté est un écart
-       (`projetsCouverts` lit déjà ainsi les déclarations).
-     - (c) collision d'identifiant d'arbre (`id: profil` à la racine du socle) : le lien du contexte se résout vers elle,
-       ses règles prises pour celles du profil, sans signal. Défaut antérieur ; piste : refuser deux racines de même `id`.
-     Mineurs restants : exception utilisée visible seulement en ligne de commande (ni journal, ni interface, ni MCP) ; un
-     nœud d'un autre dépôt peut déclarer un projet avec ses exceptions (tient à (a)) ; contrat de configuration :
-     `donnees_personnelles` dit « profil, projet », posé au type, et la périmée « sur ce site, là où elle a été lue en
-     entier » non dite (changer le contrat : décision) ; hors décision, les exceptions de `donnees_personnelles` se
-     lisent dans le dépôt contrôlé (même menace). Premier lot, réserves : profondeur des agents de workflow bornée à 4 (le
+     (a) et (c) : décision `profil-designe` approuvée le 2026-10-10 (Fait ci-dessous), code à écrire. Elle couvre aussi
+     trois mineurs du rapport (déclaration depuis un autre dépôt, contrat de configuration, exceptions de
+     `donnees_personnelles` lues dans le dépôt contrôlé).
+     Suite, session neuve (Opus 5.5 `xhigh`), un commit et un test chacun, éprouvés par `npm run eprouver` (parent ou
+     mutant) ; dans cet ordre, parce que chaque pas s'appuie sur le précédent :
+     1. clé `profil` de la configuration du site (défaut nul) ; une seule fonction la lit pour tous les appelants de
+        `regleEffective`, `regleDuCompte`, `configAvantProjet`, `projetsCouverts` et de la récolte (`socle.js:416`) :
+        garde, audit, `regles appliquer`, création, reprise, interface, MCP. Le profil est la racine dont le fichier est
+        sous ce dépôt (`regles.js`, `arbresDe`, aujourd'hui « les arbres qui portent des contextes ») ;
+     2. déclarants : les seuls nœuds `context` ou `activity` de l'arbre du profil ; ailleurs, `projects:` ou `context`
+        non lus et écart du compte, avec leur fichier ; profil non désigné : écart du compte (aujourd'hui l'audit se tait,
+        `audit.js:188`) ; désigné mais absent ou illisible, ou projet déclaré deux fois : règle effective incomplète, par
+        le mécanisme des règles illisibles (`illisibles`, garde `audit.js:69`, `materialisation.js:18`) ;
+     3. identifiants en double : le profil garde son `id`, deux autres racines ou deux types de même `id` ne sont pas
+        retenus (règle effective incomplète de qui en dépend) ; lien interne résolu dans le dépôt du nœud
+        (`arbresDe`, `parent`, aujourd'hui par `<id>:<chemin>`) ; lien vers un `id` en double non résolu, dit.
+        Attention : les fiches de règles se nomment `holarch:rule:<id de l'arbre>/…` (`inventaire/arbre.js`) ; deux
+        arbres de même `id` écrivent les mêmes fiches au catalogue. À régler sans changer l'identifiant des règles d'un
+        arbre unique, que portent les écarts au journal ;
+     4. `montage-sensible` : le dépôt du profil monté en écriture par un conteneur est un écart ;
+     5. exceptions de `donnees_personnelles` au profil et au contexte, hors du dépôt contrôlé (`PORTEE` vaut aujourd'hui
+        pour une clé entière : les `termes` restent lisibles partout) ; dans le même pas, les trois exceptions
+        déménagent : `LICENSE` et `NOTICE` du type `depot-public` à la racine du profil, le nom de dépôt public de la
+        racine d'okf-bundle-template au contexte personnel (commits dans le profil et dans okf-bundle-template, après
+        `git pull`, rien poussé sans demande) ;
+     6. textes : contrat de configuration 0.6.0, C en 0.7.0 (`environnement-d-execution` l. 4, 56, 92, 107 ; cette
+        spécification, ligne de C) ; contrat nœud 0.4.0 ; renvoi à `profil-designe` dans `arbre-des-regles` ;
+     7. geste, avec l'accord de l'auteur : la clé dans la configuration du poste,
+        `printf '\n# Dépôt du profil de ce site (décision profil-designe)\nprofil: ~/holarch-profil\n' >> ~/.claude/holarch/config.yaml` ;
+        puis audit du poste (attendu : aucun écart nouveau), pose (`holarch service poser`) et contre-épreuve par une
+        instance neuve. Site de travail : Q32.
+     Mineurs restants : exception utilisée visible seulement en ligne de commande (ni journal, ni interface, ni MCP).
+     Premier lot, réserves : profondeur des agents de workflow bornée à 4 (le
      texte dit « à tout niveau ») ; `etatRoutines` et l'interface disent le gardien activé sans systemd ; trois formats de
      date dans l'interface web ; le contrôle `veille-retardee` ne dit pas « en relance » alors que la limite écrite le
      dit ; `holarch veille` dit « non tenue » sur un systemd injoignable ; marque de relance laissée si `restart` échoue,
      « en relance » affiché jusqu'à 2 min ; aucune assertion sur l'affichage ; dates en UTC (`creation.js:131`,
      `socle.js:409`) ; commentaire de `cleServeur` déplacé ; des tests écrivent `/a`. Tests qui ne prouvent rien :
      l'ajout de `f7aad0d` dans `veille` ; mutants verts du sous-agent : retrait de « en relance » (`affichage.js`), du
-     message systemd (`affichage.js`), de l'effacement de la marque de relance (`veille.js`).
-     Suite proposée, session neuve (Opus 5.5 `xhigh`) : (a) et (c) en une décision brouillon, avec le contrat de
-     configuration et les exceptions de `donnees_personnelles`, à approuver avant le code ; puis les mineurs restants, un
-     commit et un test chacun ; puis pose et contre-épreuve. Chaque test s'éprouve par `npm run eprouver` (parent ou
+     message systemd (`affichage.js`), de l'effacement de la marque de relance (`veille.js`). Après la décision : les
+     mineurs, un commit et un test chacun ; chaque test s'éprouve par `npm run eprouver` (parent ou
      mutant, sur une copie de la copie de travail). Test « un commit fautif est refusé
      par le crochet » : 0 rouge sur 25 suites entières le 2026-10-10, 1 sur 42 en tout, cause inconnue.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
