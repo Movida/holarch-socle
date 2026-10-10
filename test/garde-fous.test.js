@@ -1372,3 +1372,43 @@ test('Contre-épreuve du profil désigné (4) : l’audit du compte lit les cont
   relire([construit]);
   assert.deepEqual(compte(s.audit({})).ecarts.filter((x) => x.cle.startsWith('conteneur:')).map((x) => x.cle), ['conteneur:kp:/w'], 'témoin');
 });
+
+test('Contre-épreuve du profil désigné (5) : un projet déclaré, vu sur ce site et absent du catalogue, est un écart du compte', async () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot');
+  const g = (x, ...a) => spawnSync('git', ['-C', x, '-c', 'user.name=Alice', '-c', 'user.email=alice@exemple.test', ...a], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z' } });
+  const idDe = (x) => `holarch:project:${g(x, 'log', '--max-parents=0', '--format=%ct %H').stdout.trim().split('\n').sort()[0].split(' ')[1].slice(0, 12)}`;
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+  ecrireF(path.join(p, 'arbre', 'rules.yaml'), '- id: note\n  statement: Note.\n  level: reminder\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
+  const declarer = (...ids) => ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [${ids.join(', ')}]\n---\n`);
+  for (const x of [p, d]) { fs.mkdirSync(x, { recursive: true }); g(x, 'init', '-q'); g(x, 'commit', '-q', '--allow-empty', '-m', path.basename(x)); }
+  const avant = idDe(d);
+  // Un projet présent, et un projet déclaré jamais vu sur ce site (cloné ailleurs) : rien.
+  declarer(avant, 'holarch:project:jamais');
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { 'depots-git': { racines: [r], profondeur: 2 }, arbre: { actif: true, depots: [] } } });
+  const auditer = async () => { await s.inventaire(); s.indexer(); return s.audit({ journaliser: true }); };
+  const absents = (a) => (a.cibles.find((x) => x.projet === null)?.ecarts || []).filter((e) => e.cle.startsWith('projet-absent:'));
+  const vu = (site) => new Journal(accueil, site).ajouter([{ id: ulid(), at: new Date().toISOString(), kind: 'element.created', actor: 'system:inventaire', subject: 'holarch:project:jamais', data: {}, classification: 'internal' }]);
+  vu('ailleurs');
+  assert.deepEqual(absents(await auditer()), [], 'vu sur un autre site seulement');
+  // Un commit racine plus ancien, fusionné : l'identifiant du projet change, la déclaration ne vise plus rien.
+  const vieux = spawnSync('git', ['-C', d, 'commit-tree', '4b825dc642cb6eb9a060e54bf8d69288fbee4904', '-m', 'vieux'], { encoding: 'utf8',
+    env: { ...process.env, GIT_AUTHOR_NAME: 'Alice', GIT_AUTHOR_EMAIL: 'alice@exemple.test', GIT_COMMITTER_NAME: 'Alice', GIT_COMMITTER_EMAIL: 'alice@exemple.test', GIT_AUTHOR_DATE: '2019-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2019-01-01T00:00:00Z' } }).stdout.trim();
+  g(d, 'merge', '-q', '--allow-unrelated-histories', '-m', 'fusion', vieux);
+  const apres = idDe(d); assert.notEqual(apres, avant);
+  let a = await auditer();
+  assert.deepEqual(absents(a).map((e) => [e.regle_id, e.controle, e.cle, e.fichier]), [['profil-designe', 'profil-designe', `projet-absent:${avant}`, 'profil:/arbre/contextes/perso.md']]);
+  assert.match(absents(a)[0].message, new RegExp(`^projet déclaré absent du catalogue de ce site \\(ré-identifié en ${apres} le \\d{4}-\\d\\d-\\d\\d\\) : la déclaration ne vise plus rien$`));
+  // La déclaration suivie : l'écart se résout.
+  declarer(apres, 'holarch:project:jamais');
+  a = await auditer();
+  assert.deepEqual([absents(a), a.journal.resolus, s.ecartsOuverts().filter((o) => o.cle.startsWith('projet-absent:'))], [[], 1, []]);
+  // Le dépôt retiré de ce site : de même.
+  fs.rmSync(d, { recursive: true });
+  a = await auditer();
+  assert.deepEqual(absents(a).map((e) => e.cle), [`projet-absent:${apres}`]);
+  assert.match(absents(a)[0].message, /\(retiré de l’inventaire le \d{4}-\d\d-\d\d\)/);
+  // Vu sur ce site, sorti du catalogue sans retrait journalisé : de même.
+  vu('local');
+  assert.deepEqual(absents(await auditer()).map((e) => [e.cle, e.message.match(/\((\S+)/)[1]]), [[`projet-absent:${apres}`, 'retiré'], ['projet-absent:holarch:project:jamais', 'vu']]);
+});

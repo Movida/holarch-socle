@@ -337,5 +337,8 @@ export function projetsCouverts(fiches, { profil } = {}) {
   return r;
 }
 
+/** Les déclarations des nœuds du profil (décision profil-designe) : chaque projet déclaré, avec le nœud qui le déclare. */
+export const declarationsDe = (fiches, { profil } = {}) => arbresDe(fiches, { profil }).declarants.flatMap((n) => n.attributes.projects.map((projet) => ({ projet, noeud: designation(n) })));
+
 /** Les projets que déclarent les nœuds du profil (décision profil-designe). */
-export const projetsDeclares = (fiches, { profil } = {}) => new Set(arbresDe(fiches, { profil }).declarants.flatMap((n) => n.attributes.projects));
+export const projetsDeclares = (fiches, o = {}) => new Set(declarationsDe(fiches, o).map((x) => x.projet));

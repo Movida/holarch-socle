@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { comptesClaudeCode, accueil } from './config.js';
 import { projetsDe, localiserProjet } from './projets.js';
-import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts } from './regles.js';
+import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts, declarationsDe } from './regles.js';
 import { listePrivee, executer, CONTROLES } from './controles.js';
 import { trouverOutil } from './commun.js';
 import { racineArbre } from './inventaire/arbre.js';
@@ -121,6 +121,26 @@ const ecartsDeclarations = ({ declarations: d }) => {
     ...(d?.non_lues || []).map((x) => e(`declaration:${x.noeud}`, x.noeud, `${x.raison} : non lu`))];
 };
 
+// Un projet déclaré, vu sur ce site (journal de l'inventaire) et absent du catalogue (décision fusion-et-profil-audite) :
+// la déclaration ne vise plus rien (projet ré-identifié par un commit racine plus ancien, retiré de l'inventaire). Jamais
+// vu sur ce site (cloné ailleurs), il ne dit rien.
+function ecartsDisparus(s, declarations, projets) {
+  const presents = new Set(projets.map((p) => p.id));
+  const absents = declarations.filter((x) => !presents.has(x.projet));
+  if (!absents.length) return [];
+  const dernier = new Map();
+  for (const ev of s.index.requete("SELECT at, kind, subject, json_extract(data,'$.de.id') de FROM evenements WHERE kind IN ('element.created','element.moved','element.retired') AND site=? ORDER BY id", s.config.site)) {
+    for (const id of new Set([ev.subject, ev.de].filter(Boolean))) dernier.set(id, ev);
+  }
+  return absents.filter((x) => dernier.has(x.projet)).map((x) => {
+    const ev = dernier.get(x.projet); const le = ev.at.slice(0, 10);
+    // Un identifiant qui n'est pas le sujet de son dernier événement en est l'ancien : le projet a été ré-identifié.
+    const quoi = ev.subject !== x.projet ? `ré-identifié en ${ev.subject} le ${le}` : ev.kind === 'element.retired' ? `retiré de l’inventaire le ${le}` : `vu le ${le}`;
+    return { regle: 'profil-designe', regle_id: 'profil-designe', controle: 'profil-designe', cle: `projet-absent:${x.projet}`, fichier: x.noeud,
+      message: `projet déclaré absent du catalogue de ce site (${quoi}) : la déclaration ne vise plus rien` };
+  });
+}
+
 function ecartsFichiers(regles, m, prefixe) {
   const regleDe = new Map(m.plan.fichiers.map((x) => [x.fichier, x.regle]));
   const e = (f, message) => { const id = regleDe.get(f) || f.replace(/\.md$/, ''); return { regle: regleNommee(regles, id), regle_id: id, controle: 'regles-a-jour', cle: f, fichier: `${prefixe}/${f}`, message }; };
@@ -200,7 +220,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
 
   // Compte : ce qui vaut pour tous les projets du site.
   const compte = regleDuCompte(fiches, { profil: s.profil() });
-  const declarations = ecartsDeclarations(compte); faits.add('|profil-designe');
+  const declarations = [...ecartsDeclarations(compte), ...ecartsDisparus(s, declarationsDe(fiches, { profil: s.profil() }), projets)]; faits.add('|profil-designe');
   if (compte.regles.length || compte.illisibles.length || declarations.length) {
     const rc = { projet: null, nom: 'compte', ecarts: [...ecartsIllisibles(compte), ...declarations], controles: [] };
     faits.add('|regles-lisibles');
