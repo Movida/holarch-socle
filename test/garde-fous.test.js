@@ -729,9 +729,10 @@ test('Contre-épreuve du conteneur (6) : ce qui, dans le dépôt que le conteneu
   assert.match(r.ecarts[0].message, /crochets SessionStart dans un dépôt que le conteneur écrit/);
   // L'arbre du projet excepte un écart par sa clé exacte, avec sa raison (le socle, jusqu'à la livraison D) ; sans
   // raison, l'exception ne vaut pas.
-  const excepter = (...x) => { ctx.couches = [{ origine: 'contexte', config: { montage_sensible: { exceptions: x } } }]; };
+  const excepter = (...x) => { ctx.couches = [{ origine: 'contexte', arbre: 'profil', noeud: '/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: x } } }]; };
   excepter({ ecart: 'acces-distant:projet' }, { ecart: 'crochets', pourquoi: 'x' });
   assert.deepEqual(lire().ecarts.map((e) => e.cle), ['crochets:.claude/settings.local.json', 'acces-distant:projet']);
+  assert.deepEqual(lire().exceptions_ignorees, [{ ecart: 'acces-distant:projet', raison: 'sans raison', provenance: 'profil:/arbre/contextes/perso.md' }]);
   excepter({ ecart: 'acces-distant:projet', pourquoi: 'risque accepté jusqu’à D' });
   assert.deepEqual(lire().ecarts.map((e) => e.cle), ['crochets:.claude/settings.local.json']);
   delete ctx.couches;
@@ -758,6 +759,9 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
   let r = arbres({ type: exception(), projet: exception() });
   ctx.couches = r.couches;
   assert.deepEqual(lire().ecarts.map((e) => e.cle), ['acces-distant:projet'], 'l’exception écrite dans le dépôt ne fait rien taire');
+  assert.deepEqual(lire().exceptions_ignorees, [
+    { ecart: 'acces-distant:projet', raison: 'porté par un type, il se lit au profil et au contexte', provenance: 'profil:/arbre/types/conteneur.md' },
+    { ecart: 'acces-distant:projet', raison: 'porté par un projet, il se lit au profil et au contexte', provenance: 'projet:/arbre/index.md' }]);
   assert.equal(r.config.montage_sensible, undefined);
   assert.deepEqual(r.signaux.filter((x) => x.startsWith('montage_sensible')).map((x) => x.split(' : ')[0]), ['montage_sensible porté par profil:/arbre/types/conteneur.md (type)', 'montage_sensible porté par projet:/arbre/index.md (projet)']);
   // Portée par le contexte du profil, hors du dépôt : elle vaut.
@@ -776,6 +780,7 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
     const lu = executer('montage-sensible', { ...ctx, depot, distants: [{ nom: 'projet', chemin: p }] }, 'audit');
     assert.deepEqual(lu.ecarts.map((e) => e.cle), ['acces-distant:projet'], depot);
     assert.equal(lu.exceptions, undefined, depot);
+    assert.deepEqual(lu.exceptions_ignorees, [{ ecart: 'acces-distant:projet', raison: 'écrite dans le dépôt contrôlé', provenance: 'profil:/arbre/contextes/perso.md' }], depot);
   }
   assert.equal(exceptions([{ origine: 'projet', fichier: path.join(d, 'arbre', 'index.md'), config: { donnees_personnelles: { exceptions: [{ fichier: 'LICENSE', pourquoi: 'titulaire' }] } } }], 'donnees_personnelles', 'fichier', { depot: d }).length, 1);
   // Une clé de réglage au nom d'une propriété d'objet, écrite par le conteneur, ne met pas la règle effective en panne
@@ -807,7 +812,7 @@ function essaiExceptions() {
 
 test('Exceptions hors du dépôt : une exception qui sert se dit, une exception qui ne sert plus est un écart du compte', async () => {
   const affichage = await import('../bin/affichage.js');
-  const { s, cle, contexte, devcontainer, relire, perimees, ouvertes } = essaiExceptions();
+  const { s, d, cle, ecrireF, contexte, devcontainer, relire, perimees, ouvertes } = essaiExceptions();
   // L'exception du contexte fait taire l'écart du dépôt, et le dit (clé, raison, provenance) ; dans l'autre projet, elle
   // ne sert pas, mais elle sert quelque part : rien de périmé.
   contexte(cle); devcontainer({ mounts: ['source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind'] }); relire();
@@ -817,6 +822,11 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
   const regle = s.fiches({ kind: 'rule' }).find((f) => f.name === 'conteneur-isole').id;
   assert.deepEqual(rd.controles.find((c) => c.id === 'montage-sensible').exceptions, [{ ecart: cle, pourquoi: 'essai', provenance: 'profil:/arbre/contextes/perso.md', utilisee: true, jugee: true, regle, regle_id: 'conteneur-isole' }]);
   assert.match(affichage.audit(a), new RegExp(`exception montage-sensible : ${cle.replace(/[.]/g, '\\.')} — essai \\(profil:/arbre/contextes/perso\\.md\\)`));
+  // Écrite dans la racine de l'arbre du projet, elle ne vaut pas, et l'audit le dit.
+  ecrireF(path.join(d, 'arbre', 'index.md'), `---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\ntypes: [conteneur]\nconfig:\n  montage_sensible:\n    exceptions: [{ ecart: "x", pourquoi: y }]\n---\n`);
+  relire();
+  assert.match(affichage.audit(s.audit({ journaliser: true })), /exception montage-sensible ignorée : x — porté par un projet, il se lit au profil et au contexte \(depot:\/arbre\/index\.md\)/);
+  ecrireF(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\ntypes: [conteneur]\n---\n'); relire();
   assert.deepEqual(perimees(a), []);
   // Le montage retiré, l'exception ne fait plus rien taire nulle part : un écart du compte, au journal.
   devcontainer({});

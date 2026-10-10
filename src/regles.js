@@ -86,33 +86,46 @@ export function fusionnerConfig(...couches) {
 // Une `Map` : une clé écrite dans l'arbre (`constructor`, `toString`…) ne se confond pas avec une propriété d'objet.
 const PORTEE = new Map([['montage_sensible', { couches: ['profil', 'contexte'], horsDepot: true }]]);
 
-// Les réglages d'une couche dans leur portée ; une clé posée hors de sa portée n'est pas lue, et se dit.
+// Les réglages d'une couche dans leur portée (`config`) ; une clé posée hors de sa portée n'est pas lue (`ecartee`), et
+// se dit.
 function dansPortee(c, signaux) {
   const config = c.noeud.attributes?.config;
-  if (!config || typeof config !== 'object' || Array.isArray(config)) return config ?? null;
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return { config: config ?? null, ecartee: null };
   const hors = Object.keys(config).filter((k) => PORTEE.has(k) && !PORTEE.get(k).couches.includes(c.origine));
   for (const k of hors) signaux.push(`${k} porté par ${c.noeud.attributes?.arbre}:${c.noeud.node} (${c.origine}) : non lu, il se lit au ${PORTEE.get(k).couches.join(' et au ')} (décision exceptions-hors-du-depot)`);
-  return hors.length ? Object.fromEntries(Object.entries(config).filter(([k]) => !hors.includes(k))) : config;
+  if (!hors.length) return { config, ecartee: null };
+  const garde = (oui) => Object.fromEntries(Object.entries(config).filter(([k]) => hors.includes(k) === oui));
+  return { config: garde(false), ecartee: garde(true) };
 }
 
 // Les couches telles que les lisent la configuration fusionnée et les contrôles : origine, nœud, fichier qui la porte,
-// et ses réglages dans leur portée.
+// ses réglages dans leur portée, et ceux qui en sont écartés.
 const couchesLues = (couches, signaux) => couches.map((c) => ({ origine: c.origine, arbre: c.noeud.attributes?.arbre ?? null, noeud: c.noeud.node ?? null,
-  fichier: c.noeud.location ?? null, config: dansPortee(c, signaux) }));
+  fichier: c.noeud.location ?? null, ...dansPortee(c, signaux) }));
 
 /**
  * Les exceptions d'un réglage (`<cle>.exceptions`), lues d'une seule façon par tous les contrôles : couche par couche,
  * chacune avec sa raison et sa provenance. Sans sa valeur (`champ` : `terme`, `fichier`, `ecart`) ou sans raison, une
  * exception ne vaut pas. Une clé qui se lit hors du dépôt contrôlé (`PORTEE`) ignore les couches dont le fichier est
- * dans `depot`.
+ * dans `depot`. { lues, ignorees } : celles qui ne valent pas, avec ce qui les écarte.
  */
-export function exceptions(couches = [], cle, champ, { depot = null } = {}) {
+export function lireExceptions(couches = [], cle, champ, { depot = null } = {}) {
   const texte = (x) => (x === null || x === undefined || typeof x === 'object' ? '' : String(x).trim());
   const dansDepot = (f) => Boolean(PORTEE.get(cle)?.horsDepot && depot && f) && !path.relative(path.resolve(depot), path.resolve(f)).startsWith('..');
-  return couches.filter((c) => !dansDepot(c.fichier)).flatMap((c) => [].concat(c.config?.[cle]?.exceptions || [])
-    .filter((x) => x && typeof x === 'object' && texte(x[champ]) && texte(x.pourquoi))
-    .map((x) => ({ valeur: texte(x[champ]), pourquoi: texte(x.pourquoi), origine: c.origine, arbre: c.arbre, noeud: c.noeud, fichier: c.fichier })));
+  const lues = []; const ignorees = [];
+  for (const c of couches) {
+    const de = { origine: c.origine, arbre: c.arbre, noeud: c.noeud, fichier: c.fichier };
+    const ecartee = [].concat(c.ecartee?.[cle]?.exceptions || []);
+    for (const x of [].concat(c.config?.[cle]?.exceptions || []).concat(ecartee)) {
+      const valeur = x && typeof x === 'object' ? texte(x[champ]) : ''; const pourquoi = x && typeof x === 'object' ? texte(x.pourquoi) : '';
+      const raison = ecartee.includes(x) ? `porté par un ${c.origine}, il se lit au ${PORTEE.get(cle).couches.join(' et au ')}`
+        : dansDepot(c.fichier) ? 'écrite dans le dépôt contrôlé' : !valeur ? `sans ${champ}` : !pourquoi ? 'sans raison' : null;
+      (raison ? ignorees : lues).push({ valeur, ...(raison ? { raison } : { pourquoi }), ...de });
+    }
+  }
+  return { lues, ignorees };
 }
+export const exceptions = (...a) => lireExceptions(...a).lues;
 
 const applicable = (e) => e.statut === 'stable' && !e.derogee;
 // Sources de règles illisibles (un `rules.yaml` ou un en-tête en cours d'édition, un conflit de fusion) : la règle

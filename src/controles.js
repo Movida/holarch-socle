@@ -13,7 +13,7 @@ import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
 import { dossierClaude } from './projets.js';
-import { exceptions } from './regles.js';
+import { exceptions, lireExceptions } from './regles.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
 const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
@@ -655,14 +655,16 @@ function montageSensible(ctx) {
   // dit plus.
   // Chaque exception lue se dit dans le résultat, avec sa raison, sa provenance, si elle a fait taire un écart et si cela
   // se juge ici (l'audit signale celle qui n'en fait taire aucun) : l'accès distant et les crochets du dépôt se lisent
-  // toujours en entier ; le reste, seulement si rien n'est resté illisible.
-  const lues = exceptions(ctx.couches, 'montage_sensible', 'ecart', { depot: ctx.depot });
+  // toujours en entier ; le reste, seulement si rien n'est resté illisible. Celle qui ne vaut pas se dit aussi, avec ce
+  // qui l'écarte.
+  const { lues, ignorees } = lireExceptions(ctx.couches, 'montage_sensible', 'ecart', { depot: ctx.depot });
   const exceptes = new Set(lues.map((x) => x.valeur));
   const gardes = ecarts.filter((e) => !exceptes.has(e.cle));
   const dites = lues.map((x) => ({ ecart: x.valeur, pourquoi: x.pourquoi, provenance: `${x.arbre}:${x.noeud}`, utilisee: ecarts.some((e) => e.cle === x.valeur),
     jugee: !nonLus.length || ['acces-distant', 'crochets'].includes(x.valeur.split(':')[0]) }));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
-  return { ecarts: gardes, ...(dites.length && { exceptions: dites }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };
+  const ecartees = ignorees.map((x) => ({ ecart: x.valeur || null, raison: x.raison, provenance: `${x.arbre}:${x.noeud}` }));
+  return { ecarts: gardes, ...(dites.length && { exceptions: dites }), ...(ecartees.length && { exceptions_ignorees: ecartees }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };
 }
 
 /**
