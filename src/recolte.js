@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import YAML from 'yaml';
-import { fichiers } from './import/claude-code-transcriptions.js';
+import { transcriptions } from './transcription.js';
 import { localiserProjet } from './projets.js';
 import { gitleaks } from './controles.js';
 import { claudeIntrouvable } from './commun.js';
@@ -31,7 +31,7 @@ const dansPeriode = (at, depuis, jusqua) => Boolean(at) && (!depuis || at >= dep
 export function messagesAuteur(comptes, { depuis = null, jusqua = null, projetDe = () => null } = {}) {
   const vus = new Set(); const out = [];
   for (const c of comptes) {
-    for (const f of fichiers(c.home)) {
+    for (const f of transcriptions(c.home)) {
       if (f.includes(`${path.sep}subagents${path.sep}`)) continue;
       for (const l of fs.readFileSync(f, 'utf8').split('\n')) {
         if (!l.includes('"type":"user"')) continue;

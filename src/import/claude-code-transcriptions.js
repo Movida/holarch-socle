@@ -1,11 +1,12 @@
-// Import des transcriptions Claude Code (~/.claude/projects/<projet>/<session>.jsonl, sous-agents compris) vers le
-// journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas depuis le dernier import),
-// tool.denied (refus d'outil : origine et outil, jamais le contenu), tool.called (appel d'un outil MCP : serveur, outil,
-// issue ; jamais les arguments ni la réponse), tool.failed (erreur d'outil qui n'est pas un refus : motif d'une liste
-// fixe, code de sortie et nom du programme d'une commande shell ; jamais la commande ni la sortie), et en fin de session
-// les tests lancés et rouges (décision echecs-au-journal). Une session se rattache aux projets du catalogue dont ses appels d'outils
-// ont touché le dépôt (`data.projets` : identifiant et nombre d'appels ; jamais les chemins ni les commandes).
-// Idempotent : identifiants déterministes et état d'import par fichier. Ne copie aucun contenu de conversation.
+// Import des transcriptions Claude Code (~/.claude/projects/<projet>/<session>.jsonl, sous-agents compris, ceux des
+// workflows aussi) vers le journal : session.started, session.finished, cost.recorded (tokens par modèle, en deltas
+// depuis le dernier import), tool.denied (refus d'outil : origine et outil, jamais le contenu), tool.called (appel d'un
+// outil MCP : serveur, outil, issue ; jamais les arguments ni la réponse), tool.failed (erreur d'outil qui n'est pas un
+// refus : motif d'une liste fixe, code de sortie et nom du programme d'une commande shell ; jamais la commande ni la
+// sortie), et en fin de session les tests lancés et rouges (décision echecs-au-journal). Une session se rattache aux
+// projets du catalogue dont ses appels d'outils ont touché le dépôt (`data.projets` : identifiant et nombre d'appels ;
+// jamais les chemins ni les commandes). Idempotent : identifiants déterministes et état d'import par fichier. Ne copie
+// aucun contenu de conversation.
 import { cleServeur, lireJson, ecrireJson } from '../commun.js';
 // Un fichier se repère par son chemin relatif au répertoire du compte (`projects/…`), pas par son chemin absolu : le
 // même répertoire lu depuis deux points de montage (un conteneur et l'hôte) ne compte qu'une fois.
@@ -15,6 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { ulid } from '../ulid.js';
 import { localiserProjet, projetDuDossierConteneur } from '../projets.js';
+import { transcriptions } from '../transcription.js';
 
 const IGNORER_MODELES = new Set(['<synthetic>']);
 // Version de l'état d'import : un fichier lu par une version antérieure est relu une fois, et l'écart des cumuls devient
@@ -83,23 +85,6 @@ export function echecOutil(outil, texte, entree) {
   return { motif: m ? m[0] : code != null ? 'sortie' : 'autre', ...shell };
 }
 const texteDe = (c) => (Array.isArray(c) ? c.map((x) => x?.text || '').join(' ') : c);
-
-/** Les transcriptions d'un compte (`<home>/projects/…/*.jsonl`, sous-agents compris, mémoires exclues) ; un dossier illisible est passé. */
-export function fichiers(home) {
-  const projets = path.join(home, 'projects');
-  if (!fs.existsSync(projets)) return [];
-  const out = [];
-  const marcher = (d, profondeur) => {
-    let entrees; try { entrees = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
-    for (const e of entrees) {
-      const p = path.join(d, e.name);
-      if (e.isDirectory() && profondeur < 3 && e.name !== 'memory') marcher(p, profondeur + 1);
-      else if (e.isFile() && e.name.endsWith('.jsonl')) out.push(p);
-    }
-  };
-  marcher(projets, 0);
-  return out;
-}
 
 // Chemins qu'un appel d'outil désigne : arguments de fichier, et, dans une commande shell, les chemins absolus (ou `~/…`)
 // et les cibles de `cd` et de `git -C`, résolus depuis le répertoire courant de la ligne.
@@ -207,7 +192,7 @@ export default function importerTranscriptions(options, { journal, donnees, pass
   const evenements = []; let lus = 0; let enCours = 0; let illisibles = 0; let tropGrands = 0;
   const plafond = (options.taille_max_mo ?? TAILLE_MAX_MO) * 2 ** 20;
   // Plusieurs comptes (un répertoire chacun) : chaque événement porte le compte qui a produit la session.
-  const sources = (comptes || [{ nom: null, home: options.home }]).flatMap((c) => fichiers(c.home).map((f) => [f, c.nom, c.home]));
+  const sources = (comptes || [{ nom: null, home: options.home }]).flatMap((c) => transcriptions(c.home).map((f) => [f, c.nom, c.home]));
   for (const [f, nomCompte, home] of sources) {
     const cle = cleDe(home, f, nomCompte);
     if (!etat[cle] && anciens.has(cleDe(home, f, null))) etat[cle] = anciens.get(cleDe(home, f, null));

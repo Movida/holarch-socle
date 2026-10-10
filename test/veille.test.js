@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { noter, evaluer, effacerNote, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { noter, evaluer, activite, effacerNote, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines, uniteVeille } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte, veilleVoulue } from '../src/materialisation.js';
@@ -184,6 +184,14 @@ test('veille : après Stop, un sous-agent de fond qui écrit retient le poste ta
   // Un shell de fond n'écrit dans aucune transcription : l'attente compte depuis Stop.
   fs.rmSync(path.dirname(agent), { recursive: true });
   assert.equal(e(T0 + 31 * min).retient, false);
+});
+
+test('veille : le journal d’un workflow n’est pas une transcription, il ne retient rien', () => {
+  const t = transcription('w.jsonl'); ecrire(t, ligne({ type: 'assistant', timestamp: new Date(T0).toISOString(), message: { content: [] } }));
+  const wf = path.join(t.replace(/\.jsonl$/, ''), 'subagents', 'workflows', 'wf_abc123'); const etapes = path.join(wf, 'journal.jsonl');
+  ecrire(path.join(wf, 'agent-c3.jsonl'), ligne({ type: 'assistant', timestamp: new Date(T0 + 5 * min).toISOString() }));
+  ecrire(etapes, ligne({ type: 'launched' })); fs.utimesSync(etapes, new Date(T0 + 50 * min), new Date(T0 + 50 * min));
+  assert.deepEqual(activite(t), { derniere: T0 + 5 * min, sous_agents: T0 + 5 * min }, 'l’agent du workflow compte, ses étapes non');
 });
 
 test('veille : une question à l’auteur ne fait pas attendre une session dont un sous-agent de fond écrit après elle', () => {

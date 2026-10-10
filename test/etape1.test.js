@@ -11,6 +11,7 @@ import { Catalogue } from '../src/stockage/catalogue.js';
 import inventaireClaudeCode from '../src/inventaire/claude-code.js';
 import { trouverDepots } from '../src/inventaire/depots-git.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
+import { transcriptions } from '../src/transcription.js';
 import { Socle } from '../src/socle.js';
 import { prix } from '../src/tarifs.js';
 import http from 'node:http';
@@ -161,6 +162,22 @@ test('import : le même répertoire lu depuis deux points de montage ne compte q
   const ev = [...journal.lire()];
   assert.equal(ev.filter((e) => e.kind === 'session.started').length, 1);
   assert.equal(ev.filter((e) => e.kind === 'cost.recorded').reduce((x, e) => x + e.cost.tokens.out, 0), 12);
+});
+
+test('import : les agents d’un workflow se lisent comme les sous-agents ; ni le journal du workflow ni les mémoires', () => {
+  const home = tmp(); const donnees = tmp(); const d = path.join(home, 'projects', '-ws-demo');
+  const tour = (id, out) => JSON.stringify({ type: 'assistant', sessionId: 's1', cwd: '/ws/demo', timestamp: '2026-10-01T10:00:05Z', requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', usage: { input_tokens: 1, output_tokens: out } } }) + '\n';
+  const principal = path.join(d, 's1.jsonl'); const direct = path.join(d, 's1', 'subagents', 'agent-a1.jsonl');
+  const wf = path.join(d, 's1', 'subagents', 'workflows', 'wf_abc-123', 'agent-b2.jsonl'); const etapes = path.join(path.dirname(wf), 'journal.jsonl');
+  ecrire(principal, tour(1, 5)); ecrire(direct, tour(2, 7)); ecrire(wf, tour(3, 11)); ecrire(path.join(d, 'memory', 'notes.jsonl'), tour(4, 13));
+  ecrire(etapes, '{"type":"launched"}\n{"type":"started","agentId":"b2","label":"x"}\n');
+  for (const f of [principal, direct, wf, etapes]) vieillir(f);
+  assert.deepEqual(transcriptions(home).map((f) => path.relative(d, f).split(path.sep).join('/')).sort(), ['s1.jsonl', 's1/subagents/agent-a1.jsonl', 's1/subagents/workflows/wf_abc-123/agent-b2.jsonl']);
+  const journal = new Journal(donnees, 'local');
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees });
+  assert.deepEqual([...journal.lire()].filter((e) => e.kind === 'cost.recorded').map((e) => e.cost.tokens.out).sort((a, b) => a - b), [5, 7, 11]);
+  const agent = [...journal.lire()].find((e) => e.kind === 'session.started' && e.correlation === 's1:agent-b2');
+  assert.deepEqual([agent?.data.sous_agent, agent?.data.parent], [true, 's1'], 'l’agent du workflow se rattache à sa session');
 });
 
 test('configuration : commune, puis propre au site, le site venant de HOLARCH_SITE ou du fichier commun', async () => {

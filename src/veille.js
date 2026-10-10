@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { ecrireJson, lireJson } from './commun.js';
-import { finDeTranscription, evenements } from './transcription.js';
+import { finDeTranscription, evenements, sousAgents } from './transcription.js';
 import { ulid } from './ulid.js';
 
 // Décision environnement-d-execution : 98 % des réponses de l'auteur arrivent sous 15 min ; marge du double.
@@ -129,17 +129,17 @@ function dateDe(f, octets = 64 * 1024) {
 
 /**
  * Dernière écriture (ms) d'une session, `derniere` : sa transcription et celles de ses sous-agents, à tout niveau sous
- * `<session>/subagents/` (ceux d'un workflow de fond sont dans `workflows/wf_<id>/`), qui bougent encore après `Stop` quand
- * un sous-agent de fond travaille ; `sous_agents`, la leur seule (null sans sous-agent) ; null si rien ne se lit. Un shell
- * de fond n'écrit dans aucune transcription : il ne retient rien (un serveur permanent tiendrait le poste sans fin).
+ * `<session>/subagents/` (ceux d'un workflow de fond sont dans `workflows/wf_<id>/`, son journal n'en est pas une), qui
+ * bougent encore après `Stop` quand un sous-agent de fond travaille ; `sous_agents`, la leur seule (null sans
+ * sous-agent) ; null si rien ne se lit. Un shell de fond n'écrit dans aucune transcription : il ne retient rien (un
+ * serveur permanent tiendrait le poste sans fin).
  */
 export function activite(transcription) {
   if (!transcriptionLisible(transcription)) return null;
-  const d = path.join(transcription.replace(/\.jsonl$/, ''), 'subagents'); let sous = [];
-  try { sous = fs.readdirSync(d, { recursive: true }).filter((n) => n.endsWith('.jsonl') && transcriptionLisible(path.join(d, n))).map((n) => dateDe(path.join(d, n))).filter(Number.isFinite); } catch { /* aucun sous-agent */ }
-  const sousAgents = sous.length ? Math.max(...sous) : null;
-  const toutes = [dateDe(transcription), sousAgents].filter(Number.isFinite);
-  return toutes.length ? { derniere: Math.max(...toutes), sous_agents: sousAgents } : null;
+  const sous = sousAgents(transcription.replace(/\.jsonl$/, '')).map((f) => dateDe(f)).filter(Number.isFinite);
+  const derniereSous = sous.length ? Math.max(...sous) : null;
+  const toutes = [dateDe(transcription), derniereSous].filter(Number.isFinite);
+  return toutes.length ? { derniere: Math.max(...toutes), sous_agents: derniereSous } : null;
 }
 
 /**

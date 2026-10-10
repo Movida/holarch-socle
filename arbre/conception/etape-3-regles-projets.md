@@ -1019,7 +1019,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   seulement si un systemd utilisateur dit son état (`is-system-running`) : sans lui, « non posé », rien d'écrit, aucune
   erreur, et `holarch veille` le dit impossible ; essayé dans un conteneur jetable de l'image du socle, avec son faux
   `systemctl` (qui répond 0 à tout) et sans `systemctl` ; une erreur de lancement se dit (plus « code null »).
-  Sous-agents lus à tout niveau (`subagents/workflows/wf_<id>/`, 195 transcriptions de workflow en 30 jours). Une note
+  Sous-agents lus à tout niveau (`subagents/workflows/wf_<id>/` : 187 agents de workflow en 30 jours, et 8 journaux de
+  workflow, qui ne sont pas des transcriptions). Une note
   non faite garde l'erreur du crochet. Heure locale éprouvée à UTC+14. Exception du socle jusqu'à D :
   `montage_sensible.exceptions` (`{ecart, pourquoi}`, contrat de configuration 0.4.0) à la racine de l'arbre du socle ;
   vu sur le vrai socle, `montage-sensible` fait, sans écart ; D la retire. `regles appliquer` refuse d'écrire un compte
