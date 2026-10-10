@@ -10,6 +10,11 @@
   Windows, pour montrer que le poste se serait endormi sans la demande ; `holarch` absent du `PATH` de la session
   (lancé par `node bin/holarch.js`). La demande qui y aurait mené : « On continue », le Reste portait le protocole.
 
+* **Contre-épreuve des corrections de B** (`ab3ee9e` à `520a1df`, instance neuve en lecture seule) : sept corrections
+  tenues, quatre avec réserve ; un majeur antérieur, vérifié (l'import ne lit pas les sous-agents de workflow :
+  187 transcriptions hors du journal) et huit mineurs, au Reste. Corrections dans une session neuve (choix de
+  l'auteur) ; l'exception de `montage_sensible` attend son choix.
+
 ## 2026-10-09
 
 * **Approbation, pose et premier temps du critère de B** : décision `veille-et-conteneur-precisions`, règle

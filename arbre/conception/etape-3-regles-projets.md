@@ -1058,7 +1058,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      périmée, lecture des `exceptions` sans fonction commune (`src/controles.js:650`) ; (7) le refus sans profil unique
      vaut aussi pour les projets, le texte ne dit que le compte ; (8) trois mentions du contrat de configuration 0.4.0
      pour C au lieu de 0.5.0 (`environnement-d-execution` l. 4 et 56, cette spécification) ; (9) heure locale formatée
-     en trois endroits. Corrections à choisir par l'auteur.
+     en trois endroits. Choix de l'auteur (2026-10-10) : toutes les corrections dans une session neuve (Opus 5.5
+     `xhigh`), le majeur d'abord, un commit et un test chacune, puis une contre-épreuve ; (4) dire la relance (« gardien
+     en relance » pendant le trou) et écrire le trou dans les limites connues. (6) en attente de l'auteur, avis de
+     l'agent : fermer la voie plutôt que la montrer, par une courte décision (`montage_sensible` lue au profil et au
+     contexte seulement, hors du dépôt monté ; `conteneur-isole` en `derogable: false` ; exception du socle déplacée au
+     contexte personnel jusqu'à D ; exception utilisée dite, périmée signalée, une seule lecture des `exceptions`) ;
+     autre voie : exception gardée dans l'arbre et rendue visible.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
