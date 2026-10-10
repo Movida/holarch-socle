@@ -1058,36 +1058,50 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   `/tmp/contre-epreuve-b3/`) : constats (1) à (9) tenus, sept avec réserve ; décision tenue à la lettre ; quatre
   majeurs nouveaux, dont une régression de `b7590da` (une clé de réglage `constructor` ou `toString` mettait garde et
   audit en panne, commit laissé passer), corrigée aussitôt (`f161457`). Copie de service non posée.
+- **Fait (2026-10-10)** : contre-épreuve de `exceptions-hors-du-depot`, (b), (d) et quatre mineurs, un commit et un test
+  chacun (146 tests verts ; chaque test échoue sur son parent, ou sur un mutant quand le parent ne se charge pas, et
+  chaque branche nouvelle tuée par un mutant). (d) : le filtre « hors du dépôt » éprouvé par le contrôle lui-même (mutant
+  M1 rouge). (b) : une exception s'applique aux projets que son nœud couvre (`projetsCouverts`, déclarés sous lui dans
+  l'arbre du profil) ; elle n'est pas jugée si, dans l'un d'eux, le dépôt est absent de ce site, le projet hors du
+  catalogue, le contrôle en échec, ou la chaîne du projet ne passe plus par son nœud. Mineur 1 : un écart non jugé ne
+  retient que lui-même. Mineur 5 : branche `crochets` éprouvée (M5 rouge). Mineur 2 : une exception écrite dans le dépôt
+  contrôlé, sans valeur, sans raison, ou portée par un type ou un projet, se dit à l'audit avec ce qui l'écarte
+  (`lireExceptions`, `exceptions_ignorees`). Mineur 6 : un seul test « dedans » (`commun.js` ; l'ancien de `regles.js`
+  prenait un dossier `..x` du dépôt pour l'extérieur) et une seule désignation d'un nœud (`designation`, `arbre:chemin`).
+  Laissés, avec leur raison : `provenance` objet pour une règle, chaîne pour une exception (la chaîne est la forme d'un
+  lien du contrat nœud §3, celle que portent l'écart au journal et l'affichage) ; `projets.js:24` teste « dedans » par un
+  préfixe sur des chemins normalisés, dans la boucle de l'import (le changer changerait le sens d'un chemin relatif).
+  Copie de service non posée, rien poussé.
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
-     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`). Copie de service non posée : après les corrections (choix de
-     l'auteur) ; socle et profil poussés à sa demande.
-     Majeurs, reproduits :
-     - (a) un nœud du dépôt qui porte `projects:` peut devenir le déclarant retenu (le premier par titre, `regles.js:147`) :
-       la chaîne repart de la racine du dépôt, `conteneur-isole` disparaît sans dérogation ; en `type: context`, le dépôt
-       devient un second profil, le compte indéterminé, l'audit dit « conforme » ; seul signal, dans la vue des règles.
-       Défaut antérieur (famille X1) ; le corriger change qui peut déclarer un projet : décision.
-     - (b) une exception dite périmée à tort quand le contrôle ne la lit pas là où elle sert (dépôt absent du site,
-       contrôle qui lève, règle retirée) : faux `rule.violated`, puis résolu ; piste : compter « non jugé ».
+     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport dans la transcription `80c50cac`, sous-agent
+     `aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service non posée : après
+     les corrections (choix de l'auteur).
+     Majeurs restants, reproduits :
+     - (a) un nœud du dépôt qui porte `projects:` peut devenir le déclarant retenu (le premier par titre, `regles.js`,
+       `regleEffective`) : la chaîne repart de la racine du dépôt, `conteneur-isole` disparaît sans dérogation ; en
+       `type: context`, le dépôt devient un second profil, le compte indéterminé, l'audit dit « conforme » ; seul signal,
+       dans la vue des règles. Défaut antérieur (famille X1) ; le corriger change qui peut déclarer un projet : décision.
+       Piste du rapport : seul un nœud d'un arbre de profil hors du dépôt contrôlé déclare, toute ambiguïté est un écart
+       (`projetsCouverts` lit déjà ainsi les déclarations).
      - (c) collision d'identifiant d'arbre (`id: profil` à la racine du socle) : le lien du contexte se résout vers elle,
        ses règles prises pour celles du profil, sans signal. Défaut antérieur ; piste : refuser deux racines de même `id`.
-     - (d) le filtre « hors du dépôt » n'est éprouvé qu'en appelant `exceptions` : un mutant qui le retire du contrôle
-       passe les 143 tests ; assertion à faire par `executer('montage-sensible', …)`.
-     Mineurs : résolution des périmées bloquée par contrôle plutôt que par exception ; exception ignorée sans le dire
-     (dans le dépôt, sans raison) ; exception utilisée visible seulement en ligne de commande (ni journal, ni interface,
-     ni MCP) ; un nœud d'un autre dépôt peut déclarer un projet avec ses exceptions ; branche `crochets` de `jugee` non
-     testée ; une notion écrite deux fois (test « dedans » en `controles.js` et `regles.js`, `provenance` objet ou chaîne,
-     deux formes de `couches`) ; contrat de configuration : `donnees_personnelles` dit « profil, projet », posé au type,
-     et la périmée « sur ce site » non dite ; hors décision, les exceptions de `donnees_personnelles` se lisent dans le
-     dépôt contrôlé (même menace). Premier lot, réserves : profondeur des agents de workflow bornée à 4 (le texte dit « à
-     tout niveau ») ; `etatRoutines` et l'interface disent le gardien activé sans systemd ; trois formats de date dans
-     l'interface web ; le contrôle `veille-retardee` ne dit pas « en relance » alors que la limite écrite le dit ;
-     `holarch veille` dit « non tenue » sur un systemd injoignable ; marque de relance laissée si `restart` échoue,
+     Mineurs restants : exception utilisée visible seulement en ligne de commande (ni journal, ni interface, ni MCP) ; un
+     nœud d'un autre dépôt peut déclarer un projet avec ses exceptions (tient à (a)) ; contrat de configuration :
+     `donnees_personnelles` dit « profil, projet », posé au type, et la périmée « sur ce site, là où elle a été lue en
+     entier » non dite (changer le contrat : décision) ; hors décision, les exceptions de `donnees_personnelles` se
+     lisent dans le dépôt contrôlé (même menace). Premier lot, réserves : profondeur des agents de workflow bornée à 4 (le
+     texte dit « à tout niveau ») ; `etatRoutines` et l'interface disent le gardien activé sans systemd ; trois formats de
+     date dans l'interface web ; le contrôle `veille-retardee` ne dit pas « en relance » alors que la limite écrite le
+     dit ; `holarch veille` dit « non tenue » sur un systemd injoignable ; marque de relance laissée si `restart` échoue,
      « en relance » affiché jusqu'à 2 min ; aucune assertion sur l'affichage ; dates en UTC (`creation.js:131`,
      `socle.js:409`) ; commentaire de `cleServeur` déplacé ; des tests écrivent `/a`. Tests qui ne prouvent rien :
-     l'ajout de `f7aad0d` dans `veille`, et les mutants verts du rapport.
-     Suite proposée, session neuve (Opus 5.5 `xhigh`) : (b), (d) et les mineurs, un commit et un test chacun ; (a) et (c)
-     en décision brouillon, à approuver avant le code ; puis pose et contre-épreuve. Test « un commit fautif est refusé
+     l'ajout de `f7aad0d` dans `veille` ; mutants verts du sous-agent : retrait de « en relance » (`affichage.js`), du
+     message systemd (`affichage.js`), de l'effacement de la marque de relance (`veille.js`).
+     Suite proposée, session neuve (Opus 5.5 `xhigh`) : (a) et (c) en une décision brouillon, avec le contrat de
+     configuration et les exceptions de `donnees_personnelles`, à approuver avant le code ; puis les mineurs restants, un
+     commit et un test chacun ; puis pose et contre-épreuve. Outils : `/tmp/mutants-s/muter.sh` (mutation d'une copie de
+     travail) et `parent.sh` (test neuf sur le code de HEAD). Test « un commit fautif est refusé
      par le crochet » : 0 rouge sur 25 suites entières le 2026-10-10, 1 sur 42 en tout, cause inconnue.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé

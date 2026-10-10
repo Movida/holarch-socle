@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+* **Contre-épreuve de `exceptions-hors-du-depot` : (b), (d) et quatre mineurs, et passation** (environ 215 k tokens) :
+  (d) le filtre « hors du dépôt » éprouvé par le contrôle ; (b) une exception n'est plus dite périmée quand son contrôle
+  ne l'a pas lue dans un projet qu'elle couvre (dépôt absent de ce site, contrôle en échec, chaîne détournée) ; mineurs
+  1 (un écart non jugé ne retient que lui-même), 2 (exceptions écartées dites à l'audit, avec leur raison), 5 (branche
+  `crochets` éprouvée), 6 (un seul test « dedans », qui prenait un dossier `..x` pour l'extérieur, une seule désignation
+  d'un nœud). Six commits, chacun avec son test, 146 tests verts ; chaque test rouge sur son parent, ou sur un mutant
+  quand le parent ne se charge pas ; chaque branche nouvelle tuée par un mutant. Rien posé, rien poussé. Leçon de
+  clôture : déroulé annoncé en six temps ((d), (b), mineurs des exceptions, décision brouillon de (a) et (c), mineurs du
+  premier lot, contre-épreuve et journal) ; tenus les trois premiers et le journal. Ce qui l'a fait dévier : le seuil de
+  passation, franchi après les mineurs ; le détail des constats, absent du Reste, relu dans la transcription du
+  rapport ; deux mineurs plus larges que leur énoncé (lecture commune qui rend les exceptions écartées, désignation à
+  huit endroits). La demande qui y aurait mené : « (b), (d) et les mineurs des exceptions, puis passation ; décision de
+  (a) et (c) dans la session suivante ». Le Reste pointe désormais le rapport.
+
 * **Application de `exceptions-hors-du-depot`, contre-épreuve, et passation** (241 k tokens) : lecture commune des
   exceptions, `montage_sensible` au profil et au contexte hors du dépôt contrôlé, exceptions dites et périmées, un
   défaut trouvé à l'usage (un projet lu en partie taisait tout signal de périmée) ; profil (`conteneur-isole` non
