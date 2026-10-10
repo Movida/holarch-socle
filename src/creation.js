@@ -1,6 +1,6 @@
 // Création de projet (décision creation-de-projet, étape 3, tranche 10) : les étapes de mise en place d'un projet,
 // chacune rejouable sans risque. Une étape regarde ce qui est en place et fait ce qui manque, rien d'autre ; un fichier
-// présent n'est jamais réécrit. Ce que l'agent ne peut pas faire sort en geste réservé, avec la commande ou le lien
+// présent n'est jamais réécrit, sauf un fichier généré qui porte sa marque (le conteneur). Ce que l'agent ne peut pas faire sort en geste réservé, avec la commande ou le lien
 // prêts, et la commande rejouée le reprend. Le reste est fait par ce qui existe déjà : git, gh, l'identité de commit,
 // `regles appliquer`, `distant activer`, l'audit.
 import fs from 'node:fs';
@@ -8,19 +8,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { git, trouverOutil } from './commun.js';
+import { git, trouverOutil, porteMarque } from './commun.js';
 import { configAvantProjet, fusionnerConfig } from './regles.js';
-import { identiteDeclaree, dossierClaude } from './controles.js';
+import { identiteDeclaree } from './controles.js';
 import { poserIdentite } from './identite-git.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserProjet } from './materialisation.js';
 import { creerDistant } from './distant.js';
+import { genererConteneur, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
 
 const MODELES = fileURLToPath(new URL('../modeles/projet/', import.meta.url));
 // Valeurs par défaut, tirées de la mesure des 9 dépôts du poste (décision) ; la clé `creation` du registre de
 // configuration les change, portée par le profil, le contexte ou un type (depot-public : public et licence).
 const DEFAUTS = { dossier: null, visibilite: 'private', licence: null, journal: null, proprietaire: null, etapes: { github: true, conteneur: true, distant: true } };
 const BRANCHE = 'main';
+const SCRIPT_CLE = '.devcontainer/deploy-key.sh';
 
 const GH = (args) => { const gh = trouverOutil('gh'); return gh ? spawnSync(gh, args, { encoding: 'utf8', timeout: 60e3 }) : { status: 127, stdout: '', stderr: 'gh introuvable' }; };
 const modele = (f, valeurs = {}) => fs.readFileSync(path.join(MODELES, f), 'utf8').replace(/\{\{(\w+)\}\}/g, (_, k) => valeurs[k] ?? '');
@@ -124,8 +126,6 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     ['.gitignore', () => modele('gitignore')],
     ['CLAUDE.md', () => claudeMd({ nom, description, contexte: avant.contexte.nom, types, journal: cfg.journal })],
     ...(cfg.licence ? [['LICENSE', () => modele(`licences/${cfg.licence}`, { annee: maintenant.getFullYear(), titulaire: identite?.nom ?? '[À COMPLÉTER : titulaire du droit d’auteur]' })]] : []),
-    ...(cfg.etapes.conteneur ? [['.devcontainer/devcontainer.json', () => modele('devcontainer.json', { nom, volume: nom.toLowerCase(), dossier_claude: dossierClaude(`/workspaces/${nom}`) })],
-      ['.devcontainer/deploy-key.sh', () => modele('deploy-key.sh'), 0o755]] : []),
     // L'arbre et son journal ne s'écrivent que pour un projet qui n'a pas encore d'arbre : un arbre existant tient le sien.
     ...(typee && !arbreExistant ? [['arbre/index.md', () => racineIndex({ nom, description, types, journal: cfg.journal })],
       ...(cfg.journal ? [[cfg.journal, () => `# Journal de l'arbre\n\n## ${maintenant.toISOString().slice(0, 10)}\n\n* **Création** : projet créé par \`holarch projet creer\`.\n`]] : [])] : []),
@@ -157,7 +157,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   // 3. Déclaration dans le contexte. Le projet entre au catalogue par l'inventaire (son identifiant vient de son dépôt).
   const projetIci = () => socle.fiches({ kind: 'project' }).find((p) => p.location === dossier) || null;
   // À blanc, rien ne s'écrit, pas même le catalogue : un projet que l'inventaire n'a pas encore vu s'arrête là.
-  if (aBlanc && !projetIci()) { for (const e of ['declaration', 'regles', 'github', 'cle', 'distant', 'audit']) noter(e, 'a-faire', estGit ? 'après l’inventaire' : 'après la création du dépôt'); return r; }
+  if (aBlanc && !projetIci()) { for (const e of ['declaration', 'regles', 'conteneur', 'github', 'cle', 'distant', 'audit']) noter(e, 'a-faire', estGit ? 'après l’inventaire' : 'après la création du dépôt'); return r; }
   if (!projetIci()) { await socle.inventaire(); socle.indexer(); }
   const projet = projetIci();
   if (!projet) { noter('declaration', 'echec', `${dossier} n'entre pas au catalogue : hors des racines de l'inventaire (inventaire.depots-git.racines) ou sans commit`); return r; }
@@ -202,7 +202,42 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     }
   }
 
-  // 5. Dépôt GitHub, remote `origin` en SSH, premier envoi de la branche.
+  // 5. Conteneur (décision environnement-d-execution) : `.devcontainer/devcontainer.json` généré depuis la clé `conteneur`
+  // de la configuration effective, marqué, réécrit quand il en diffère ; un fichier écrit à la main n'est jamais touché
+  // (geste : le migrer). Le script de la clé de déploiement, recopié du modèle, quand la commande générée l'appelle et
+  // qu'il manque.
+  if (!cfg.etapes.conteneur) noter('conteneur', 'desactivee', 'creation.etapes.conteneur');
+  else if (!re.declare) noter('conteneur', aBlanc ? 'a-faire' : 'echec', aBlanc ? 'après la déclaration' : 'projet non déclaré : sa configuration est incomplète');
+  else {
+    const gen = genererConteneur({ nom, config: re.config });
+    const lire = (f) => { try { return fs.readFileSync(path.join(dossier, f), 'utf8'); } catch { return null; } };
+    const present = lire(CONTENEUR);
+    if (gen.erreur) noter('conteneur', 'echec', gen.erreur);
+    else if (present !== null && !porteMarque(present, MARQUE_CONTENEUR)) {
+      noter('conteneur', 'geste', `${CONTENEUR} écrit à la main : rien n’est touché`, { quoi: 'reporter ce qui lui est propre dans la clé conteneur de la racine de l’arbre du projet, retirer le fichier, puis relancer', commande: `git -C ${dossier} rm -q ${CONTENEUR}` });
+    } else {
+      const voulus = [[CONTENEUR, gen.texte], ...(JSON.stringify(gen.conteneur).includes(SCRIPT_CLE) && lire(SCRIPT_CLE) === null ? [[SCRIPT_CLE, modele('deploy-key.sh'), 0o755]] : [])];
+      const aEcrire = voulus.filter(([f, t]) => lire(f) !== t);
+      // Écrits à un passage précédent dont le commit a été refusé : à commiter.
+      const statut = (f) => (g('status', '--porcelain', '--', f).stdout || '').trim();
+      const enAttente = [...(statut(CONTENEUR) ? [CONTENEUR] : []), ...(statut(SCRIPT_CLE).startsWith('??') ? [SCRIPT_CLE] : [])];
+      const aCommiter = [...new Set([...aEcrire.map(([f]) => f), ...enAttente])];
+      if (!aCommiter.length) noter('conteneur', 'deja', CONTENEUR);
+      else if (aBlanc) noter('conteneur', 'a-faire', aCommiter.join(', '));
+      else {
+        for (const [f, t, mode] of aEcrire) { const p = path.join(dossier, f); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, t); if (mode) fs.chmodSync(p, mode); }
+        try {
+          const a = g('add', '--', ...aCommiter); if (a.status !== 0) throw new Error(erreur(a));
+          // Une modification jamais commitée, remplacée par le texte déjà commité : rien à commiter.
+          const changes = aCommiter.filter(statut);
+          if (changes.length) commiter(present === null ? 'Générer la configuration du conteneur' : 'Régénérer la configuration du conteneur', changes);
+          noter('conteneur', 'faite', aCommiter.join(', '));
+        } catch (e) { noter('conteneur', 'echec', e.message); }
+      }
+    }
+  }
+
+  // 6. Dépôt GitHub, remote `origin` en SSH, premier envoi de la branche.
   let distantGithub = depuisGithub(g('remote', 'get-url', 'origin').stdout?.trim());
   const amont = () => g('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}').status === 0;
   const envoyer = () => { const p = g('push', '-q', '-u', 'origin', BRANCHE); if (p.status !== 0) throw new Error(`envoi refusé : ${erreur(p)}`); };
@@ -232,7 +267,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     }
   }
 
-  // 6. Clé de déploiement du conteneur : créée dans le conteneur, enregistrée par l'auteur (geste réservé).
+  // 7. Clé de déploiement du conteneur : créée dans le conteneur, enregistrée par l'auteur (geste réservé).
   if (!cfg.etapes.conteneur) noter('cle', 'desactivee', 'creation.etapes.conteneur');
   else if (!distantGithub && g('remote', 'get-url', 'origin').status === 0) noter('cle', 'desactivee', 'remote origin hors de GitHub : la clé se gère chez son hébergeur');
   else if (!distantGithub) noter('cle', aBlanc ? 'a-faire' : 'geste', 'sans dépôt GitHub, pas de clé de déploiement', aBlanc ? null : { quoi: 'créer le dépôt GitHub (étape github), puis relancer' });
@@ -243,7 +278,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     else noter('cle', 'geste', `aucune clé de déploiement sur ${o}/${n}`, { quoi: 'ouvrir le dossier dans son conteneur (la clé s’y crée), puis enregistrer la clé affichée, écriture permise', commande: '.devcontainer/deploy-key.sh', lien: `https://github.com/${o}/${n}/settings/keys/new` });
   }
 
-  // 7. Accès distant par projet.
+  // 8. Accès distant par projet.
   if (!cfg.etapes.distant) noter('distant', 'desactivee', 'creation.etapes.distant');
   else {
     try {
@@ -254,7 +289,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     } catch (e) { noter('distant', 'echec', e.message); }
   }
 
-  // 8. Audit du projet : aucun écart attendu hors gestes réservés.
+  // 9. Audit du projet : aucun écart attendu hors gestes réservés.
   if (aBlanc) noter('audit', 'a-faire', 'audit du projet');
   else {
     const a = socle.audit({ projet: projet.id, journaliser: true });

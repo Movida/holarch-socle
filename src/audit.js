@@ -6,11 +6,12 @@ import { comptesClaudeCode, accueil } from './config.js';
 import { projetsDe, localiserProjet } from './projets.js';
 import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts, declarationsDe } from './regles.js';
 import { listePrivee, executer, CONTROLES } from './controles.js';
-import { trouverOutil } from './commun.js';
+import { trouverOutil, porteMarque } from './commun.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserCompte, materialiserProjet } from './materialisation.js';
 import { ulid } from './ulid.js';
 import { crochetVoulu } from './regles-claude-code.js';
+import { genererConteneur, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
 
 // Un écart se reconnaît d'un audit à l'autre par son projet, sa règle, son contrôle et sa clé (jamais par son contenu).
 const cleEcart = (projet, d) => [projet ?? '', d.regle, d.controle, d.cle].join('|');
@@ -166,6 +167,18 @@ function ecartsCrochet({ demande, etat }) {
   return [];
 }
 
+// Le conteneur généré (décision environnement-d-execution) : un fichier qui porte la marque se compare au texte que donne
+// la configuration effective. Un fichier écrit à la main ne se compare pas : il se migre projet par projet (choix de
+// l'auteur, 2026-10-10).
+function ecartsConteneur(r, depot) {
+  let present; try { present = fs.readFileSync(path.join(depot, CONTENEUR), 'utf8'); } catch { return []; }
+  if (!porteMarque(present, MARQUE_CONTENEUR)) return [];
+  const gen = genererConteneur({ nom: path.basename(depot), config: r.config });
+  if (gen.texte === present) return [];
+  return [{ regle: 'conteneur', regle_id: 'conteneur', controle: 'conteneur-genere', cle: CONTENEUR, fichier: CONTENEUR,
+    message: gen.erreur ? `la configuration ne le génère plus : ${gen.erreur}` : `diffère de la configuration (clé conteneur) : modifié à la main, ou configuration changée depuis ; \`holarch projet creer ${path.basename(depot)}\` le réécrit` }];
+}
+
 const remplacees = (regles, memoires) => regles.filter((e) => e.applicable && e.remplace?.length).flatMap((e) => memoires
   .filter((m) => e.remplace.includes(m.name) || e.remplace.includes(path.basename(m.location || '', '.md')))
   .map((m) => ({ regle: e.fiche, regle_id: e.id, controle: 'memoire-remplacee', cle: m.id, fichier: m.name, message: 'mémoire encore présente, remplacée par la règle' })));
@@ -209,7 +222,8 @@ function perimees(sorties, faits, couverts, chaines) {
 
 /**
  * Audit de conformité : pour le compte et chaque projet qui a des règles (ou celui demandé), les contrôles de ses règles
- * `blocking` et `verified`, et la matérialisation (fichiers générés, crochet, permissions, mémoires remplacées).
+ * `blocking` et `verified`, et la matérialisation (fichiers générés, crochet, permissions, mémoires remplacées,
+ * conteneur généré).
  * `journaliser` : un écart apparu s'écrit `rule.violated`, un écart disparu `rule.resolved` (si son contrôle a pu
  * s'exécuter). Rien d'autre n'est écrit.
  */
@@ -272,11 +286,11 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const propres = { illisibles: r.illisibles.filter((m) => !compte.illisibles.includes(m)) };
     const rp = { projet: id, nom: p.name, ecarts: [...ecartsIllisibles(propres), ...ecarts], controles };
     faits.add(`${id}|regles-lisibles`);
-    if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
+    if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'conteneur-genere', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
     else if (p.location && fs.existsSync(p.location)) {
       const m = materialiserProjet(r, p.location, { accueil: s.config.accueil || accueil(), ecrire: false });
-      rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch'), ...ecartsCrochet(m.crochet));
-      faits.add(`${id}|regles-a-jour`); faits.add(`${id}|crochet-pose`);
+      rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch'), ...ecartsCrochet(m.crochet), ...ecartsConteneur(r, p.location));
+      faits.add(`${id}|regles-a-jour`); faits.add(`${id}|crochet-pose`); faits.add(`${id}|conteneur-genere`);
     }
     if (!r.illisibles.length) {
       rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));

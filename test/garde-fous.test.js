@@ -433,6 +433,8 @@ test('Contre-épreuve (7) : un profil illisible fait un écart au compte, pas un
   ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
   ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
   ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel fictif.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  // Un conteneur généré, que la configuration incomplète ne permet pas de comparer.
+  const { MARQUE } = await import('../src/conteneur.js'); ecrire(path.join(d, '.devcontainer', 'devcontainer.json'), `${MARQUE}\n{}\n`);
   const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
   s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
     { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
@@ -440,6 +442,7 @@ test('Contre-épreuve (7) : un profil illisible fait un écart au compte, pas un
   const lisibles = a.cibles.map((c) => [c.projet, c.ecarts.filter((e) => e.controle === 'regles-lisibles').length]);
   assert.deepEqual(lisibles, [[null, 1], ['holarch:project:depot', 0]]);
   assert.ok(a.cibles[1].controles.some((c) => c.id === 'regles-a-jour' && c.etat === 'indisponible'), 'les règles du projet restent incomplètes');
+  assert.deepEqual([a.cibles[1].controles.find((c) => c.id === 'conteneur-genere')?.etat, a.cibles[1].ecarts.filter((e) => e.controle === 'conteneur-genere')], ['indisponible', []]);
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles'], 'la garde du projet refuse toujours');
 });
 

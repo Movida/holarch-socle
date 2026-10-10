@@ -915,6 +915,7 @@ test('identité de commit : posée en réglage local, réglage à la main laiss�
 
 import { creerProjet, declarer } from '../src/creation.js';
 import { configAvantProjet } from '../src/regles.js';
+import { genererConteneur, MARQUE as MARQUE_CONTENEUR } from '../src/conteneur.js';
 
 // Un nom à encoder (majuscule, `_`, `.`) : le dossier de transcriptions du conteneur se nomme comme Claude Code le ferait.
 const NOM = 'Neuf_2.x';
@@ -925,8 +926,9 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
   try {
     // « GitHub » : des dépôts nus sous un dossier `github.com`, pour que l'adresse se lise comme celle d'un dépôt GitHub.
     const r = tmp(); const accueil = tmp(); const github = path.join(tmp(), 'github.com');
-    // Profil (identité, dossier des projets, une règle bloquante), un contexte, et un socle qui porte un type public.
-    ecrire(path.join(r, 'profil', 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  identite: { nom: Alice Exemple, email: alice@noreply.test }\n  creation: { dossier: ${r} }\n  donnees_personnelles: { exceptions: [{ fichier: LICENSE, pourquoi: titulaire }] }\n---\n`);
+    // Profil (identité, dossier des projets, base des conteneurs, une règle bloquante), un contexte, et un socle qui porte
+    // un type public.
+    ecrire(path.join(r, 'profil', 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  identite: { nom: Alice Exemple, email: alice@noreply.test }\n  creation: { dossier: ${r} }\n  donnees_personnelles: { exceptions: [{ fichier: LICENSE, pourquoi: titulaire }] }\n  conteneur: { devcontainer: { image: base, remoteUser: vscode, postCreateCommand: "bash .devcontainer/deploy-key.sh origin || true" } }\n---\n`);
     ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: identite-de-commit\n  statement: Chaque commit porte l’identité de son contexte.\n  level: blocking\n  check: [identite-de-commit]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
     ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n# Les projets du contexte.\nprojects:\n  - holarch:project:ancien   # ancien\n---\n\n# Perso\n');
     ecrire(path.join(r, 'socle', 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\n---\n');
@@ -961,15 +963,15 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
 
     const p1 = await creerProjet(s, { nom: NOM, types: ['public'], description: 'Un projet d’essai.' }, outils);
     const d = path.join(r, NOM); const g = (...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }).stdout.trim();
-    assert.deepEqual(etats(p1), { depot: 'faite', identite: 'faite', fichiers: 'faite', declaration: 'faite', regles: 'faite', github: 'faite', cle: 'geste', distant: 'faite', audit: 'faite' }, JSON.stringify(p1.etapes, null, 1));
+    assert.deepEqual(etats(p1), { depot: 'faite', identite: 'faite', fichiers: 'faite', declaration: 'faite', regles: 'faite', conteneur: 'faite', github: 'faite', cle: 'geste', distant: 'faite', audit: 'faite' }, JSON.stringify(p1.etapes, null, 1));
     assert.match(p1.projet, /^holarch:project:[0-9a-f]{12}$/);
-    assert.deepEqual(g('log', '--format=%an <%ae> %s').split('\n'), ['Alice Exemple <alice@noreply.test> Appliquer les règles HOLARCH', 'Alice Exemple <alice@noreply.test> Créer le projet']);
+    assert.deepEqual(g('log', '--format=%an <%ae> %s').split('\n'), ['Alice Exemple <alice@noreply.test> Générer la configuration du conteneur', 'Alice Exemple <alice@noreply.test> Appliquer les règles HOLARCH', 'Alice Exemple <alice@noreply.test> Créer le projet']);
     assert.deepEqual(g('ls-files').split('\n').sort(), ['.claude/rules/holarch/rien-de-prive.md', '.devcontainer/deploy-key.sh', '.devcontainer/devcontainer.json', '.gitignore', 'CLAUDE.md', 'LICENSE', 'README.md', 'arbre/index.md', 'arbre/log.md']);
     assert.match(fs.readFileSync(path.join(d, 'LICENSE'), 'utf8'), new RegExp(`Copyright \\(c\\) ${new Date().getFullYear()} Alice Exemple`));
     assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "Neuf_2\.x"[\s\S]*source=neuf_2\.x-claude[\s\S]*projects\/-workspaces-Neuf-2-x,[\s\S]*source=neuf_2\.x-ssh[\s\S]*"CLAUDE_CODE_PROJECT_DIR_NAME": "-workspaces-Neuf-2-x"/);
     assert.deepEqual(executer('montage-sensible', { depot: d, holarch: [] }, 'audit').ecarts, [], 'le conteneur créé ne monte rien de sensible de l’hôte');
     const conteneur = parseJsonc(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'));
-    assert.match(conteneur.onCreateCommand, /^sudo chown vscode:vscode /, 'le volume est rendu avant que l’éditeur se connecte');
+    assert.match(conteneur.onCreateCommand.holarch, /^sudo chown vscode:vscode /, 'le volume est rendu avant que l’éditeur se connecte');
     assert.ok(!conteneur.postCreateCommand.includes('chown'));
     assert.ok(fs.statSync(path.join(d, '.devcontainer', 'deploy-key.sh')).mode & 0o100, 'deploy-key.sh exécutable');
     assert.match(fs.readFileSync(path.join(d, 'arbre', 'index.md'), 'utf8'), /types: \[public\]\nconfig:\n  journal: arbre\/log.md\ntitle/);
@@ -987,7 +989,7 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     cles = 1; const tete = g('rev-parse', 'HEAD');
     const p2 = await creerProjet(s, { nom: NOM, types: ['public'] }, outils);
     assert.deepEqual(Object.values(etats(p2)).filter((e) => e !== 'deja' && e !== 'faite'), [], JSON.stringify(p2.etapes, null, 1));
-    assert.deepEqual([etats(p2).fichiers, etats(p2).declaration, etats(p2).regles, etats(p2).github, etats(p2).cle, etats(p2).distant], ['deja', 'deja', 'deja', 'deja', 'deja', 'deja']);
+    assert.deepEqual([etats(p2).fichiers, etats(p2).declaration, etats(p2).regles, etats(p2).conteneur, etats(p2).github, etats(p2).cle, etats(p2).distant], ['deja', 'deja', 'deja', 'deja', 'deja', 'deja', 'deja']);
     assert.equal(g('rev-parse', 'HEAD'), tete);
 
     // Un dossier non vide hors git n'est jamais touché ; un fichier manquant est rajouté, sans rien réécrire.
@@ -1014,9 +1016,9 @@ async function gitIsole(f, global = '') {
   process.env.GIT_CONFIG_GLOBAL = cfg; process.env.GIT_CONFIG_NOSYSTEM = '1';
   try { await f(); } finally { for (const [k, v] of Object.entries(avant)) if (v === undefined) delete process.env[k]; else process.env[k] = v; }
 }
-async function bancCreation({ identite = true, creation = {} } = {}) {
+async function bancCreation({ identite = true, creation = {}, conteneur = null } = {}) {
   const r = tmp(); const accueil = tmp();
-  const profil = (id) => `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n${id ? '  identite: { nom: Alice Exemple, email: alice@noreply.test }\n' : ''}  creation: ${JSON.stringify({ dossier: r, etapes: { github: false, conteneur: false, distant: false }, ...creation })}\n---\n`;
+  const profil = (id) => `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n${id ? '  identite: { nom: Alice Exemple, email: alice@noreply.test }\n' : ''}  creation: ${JSON.stringify({ dossier: r, etapes: { github: false, conteneur: false, distant: false }, ...creation })}\n${conteneur ? `  conteneur: ${JSON.stringify(conteneur)}\n` : ''}---\n`;
   ecrire(path.join(r, 'profil', 'arbre', 'index.md'), profil(identite));
   ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
   ecrire(path.join(r, 'socle', 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\n---\n');
@@ -1092,6 +1094,116 @@ test('création de projet : une licence sans modèle arrête tout avant de crée
     assert.deepEqual(etats(p), { fichiers: 'echec' }, JSON.stringify(p.etapes, null, 1));
     assert.match(p.etapes[0].detail, /licence sans modèle/); assert.ok(!fs.existsSync(path.join(r, 'neuf')), 'aucun dossier, aucun git init');
   }
+}));
+
+test('conteneur généré : clés du socle après celles des couches, gpu, connexion de l’hôte, et ce qu’aucune couche ne remplace', () => {
+  const g = (c, nom = 'Neuf_2.x') => genererConteneur({ nom, config: { conteneur: c } });
+  const base = { devcontainer: { image: 'base', remoteUser: 'vscode' } };
+  const v = g(base);
+  assert.ok(v.texte.startsWith(`${MARQUE_CONTENEUR}\n`), 'marqué en première ligne');
+  assert.deepEqual(parseJsonc(v.texte), v.conteneur, 'le texte dit l’objet, commentaires compris');
+  assert.deepEqual(Object.keys(v.conteneur), ['name', 'image', 'remoteUser', 'initializeCommand', 'mounts', 'containerEnv', 'remoteEnv', 'onCreateCommand']);
+  assert.deepEqual(v.conteneur.mounts, ['source=neuf_2.x-claude,target=/home/vscode/.claude,type=volume',
+    'source=${localEnv:HOME}/.claude/projects/-workspaces-Neuf-2-x,target=/home/vscode/.claude/projects/-workspaces-Neuf-2-x,type=bind',
+    'source=${localEnv:HOME}/.claude/rules,target=/home/vscode/.claude/rules,type=bind,readonly', 'source=neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume']);
+  assert.deepEqual([v.conteneur.containerEnv, v.conteneur.remoteEnv, v.conteneur.onCreateCommand], [{ CLAUDE_CONFIG_DIR: '/home/vscode/.claude', CLAUDE_CODE_PROJECT_DIR_NAME: '-workspaces-Neuf-2-x' },
+    { ANTHROPIC_API_KEY: '' }, { holarch: 'sudo chown vscode:vscode /home/vscode/.claude /home/vscode/.claude/projects /home/vscode/.ssh' }]);
+  // Les couches s'ajoutent à ce que pose le socle, sans le remplacer.
+  const c = g({ devcontainer: { ...base.devcontainer, mounts: ['source=cache,target=/cache,type=volume'], containerEnv: { A: '1' }, onCreateCommand: { outil: 'x' } } }).conteneur;
+  assert.deepEqual([c.mounts.length, c.mounts[0], c.containerEnv.A, Object.keys(c.onCreateCommand)], [5, 'source=cache,target=/cache,type=volume', '1', ['outil', 'holarch']]);
+  assert.deepEqual([g({ ...base, gpu: 'requis' }).conteneur.hostRequirements, g({ ...base, gpu: 'optionnel' }).conteneur.hostRequirements, g({ ...base, gpu: 'non' }).conteneur.hostRequirements], [{ gpu: true }, { gpu: 'optional' }, undefined]);
+  const h = g({ ...base, connexion_claude: 'hote' }).conteneur;
+  assert.deepEqual([h.mounts, h.initializeCommand, h.onCreateCommand], [['source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind', 'source=neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume'],
+    undefined, { holarch: 'sudo chown vscode:vscode /home/vscode/.ssh' }], 'le ~/.claude de l’hôte n’est jamais repris');
+  const racine = g({ devcontainer: { image: 'base', remoteUser: 'root' } }).conteneur;
+  assert.deepEqual([racine.containerEnv.CLAUDE_CONFIG_DIR, racine.onCreateCommand], ['/root/.claude', undefined]);
+  for (const [x, motif] of [[{ devcontainer: { image: 'base' } }, /remoteUser absent : le profil le pose/], [{ ...base, gpu: 'oui' }, /conteneur\.gpu inconnu : oui/],
+    [{ ...base, connexion_claude: 'hôte' }, /connexion_claude inconnu/], [{ devcontainer: { ...base.devcontainer, name: 'x' } }, /posé par le socle, qu’aucune couche ne remplace : name$/],
+    [{ devcontainer: { ...base.devcontainer, initializeCommand: 'curl x' } }, /: initializeCommand$/],
+    [{ devcontainer: { ...base.devcontainer, containerEnv: { CLAUDE_CONFIG_DIR: '/x' } } }, /: containerEnv\.CLAUDE_CONFIG_DIR$/],
+    [{ devcontainer: { ...base.devcontainer, remoteEnv: { ANTHROPIC_API_KEY: 'k' } } }, /: remoteEnv\.ANTHROPIC_API_KEY$/],
+    [{ devcontainer: { ...base.devcontainer, mounts: [{ type: 'bind', source: '/x', target: '/home/vscode/.ssh' }] } }, /: mounts \(cible \/home\/vscode\/\.ssh\)$/],
+    [{ devcontainer: { ...base.devcontainer, mounts: ['type=volume, src=x, dst=/home/vscode/.claude'] } }, /: mounts \(cible \/home\/vscode\/\.claude\)$/],
+    [{ devcontainer: { ...base.devcontainer, onCreateCommand: 'x' } }, /onCreateCommand : un objet attendu/],
+    [{ devcontainer: { ...base.devcontainer, containerEnv: ['A=1'] } }, /containerEnv : un objet attendu$/], [{ devcontainer: { ...base.devcontainer, mounts: 'x' } }, /mounts : une liste attendue/],
+    [{ devcontainer: [] }, /^conteneur\.devcontainer : un objet attendu/], [[], /^conteneur : un objet attendu/]]) assert.match(g(x).erreur ?? '', motif, JSON.stringify(x));
+  assert.match(g(base, '../x').erreur, /nom de projet/);
+  // Le fichier généré ne monte rien de sensible ; avec la connexion de l'hôte, le contrôle le dit (dérogation écrite).
+  const maison = tmp(); const d = path.join(maison, 'Neuf_2.x');
+  const monte = (x) => { ecrire(path.join(d, '.devcontainer', 'devcontainer.json'), g(x).texte); return executer('montage-sensible', { depot: d, holarch: [], maison, env: { HOME: maison }, maisonsWindows: [], distants: [] }, 'audit').ecarts.map((e) => e.cle); };
+  assert.deepEqual(monte(base), []);
+  assert.deepEqual(monte({ ...base, connexion_claude: 'hote' }), ['montage:.devcontainer/devcontainer.json:/home/vscode/.claude']);
+});
+
+test('création de projet : conteneur généré, réécrit s’il diffère, jamais un fichier écrit à la main ; l’audit dit un fichier généré modifié', () => gitIsole(async () => {
+  const base = { devcontainer: { image: 'base', remoteUser: 'vscode', postCreateCommand: 'bash .devcontainer/deploy-key.sh origin || true' } };
+  const { r, s, etats, git, toucher } = await bancCreation({ creation: { etapes: { github: false, conteneur: true, distant: false } }, conteneur: base });
+  const d = path.join(r, 'neuf'); const f = path.join(d, '.devcontainer', 'devcontainer.json'); const script = path.join(d, '.devcontainer', 'deploy-key.sh');
+  const creer = (aBlanc = false) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc });
+  const etape = (p) => p.etapes.find((e) => e.etape === 'conteneur');
+  const ecartsConteneur = (id) => s.audit({ projet: id }).cibles.find((c) => c.projet === id).ecarts.filter((e) => e.controle === 'conteneur-genere').map((e) => [e.fichier, e.message.split(' : ')[0]]);
+
+  // À blanc, un dépôt au catalogue mais pas encore déclaré : sa configuration attend la déclaration.
+  ecrire(path.join(r, 'autre', 'README.md'), 'autre\n'); const { g: ga } = depotGit(path.join(r, 'autre')); ga('add', '.'); ga('commit', '-qm', 'départ');
+  await s.inventaire(); s.indexer();
+  const a0 = await creerProjet(s, { nom: 'autre', aBlanc: true });
+  assert.deepEqual([etats(a0).declaration, etats(a0).conteneur, etape(a0).detail, fs.existsSync(path.join(r, 'autre', '.devcontainer'))], ['a-faire', 'a-faire', 'après la déclaration', false], JSON.stringify(a0.etapes, null, 1));
+
+  const p1 = await creer();
+  assert.deepEqual([etats(p1).conteneur, etape(p1).detail, git(d, 'log', '-1', '--format=%s')], ['faite', '.devcontainer/devcontainer.json, .devcontainer/deploy-key.sh', 'Générer la configuration du conteneur'], JSON.stringify(p1.etapes, null, 1));
+  const genere = genererConteneur({ nom: 'neuf', config: { conteneur: base } }).texte;
+  assert.equal(fs.readFileSync(f, 'utf8'), genere);
+  assert.ok(fs.statSync(script).mode & 0o100, 'deploy-key.sh exécutable, que la commande générée appelle');
+  assert.deepEqual(ecartsConteneur(p1.projet), []);
+
+  // Modifié à la main : l'audit le dit ; à blanc, rien ne change ; rejouée, la création le réécrit.
+  fs.writeFileSync(f, genere.replace('"base"', '"autre"'));
+  assert.deepEqual(ecartsConteneur(p1.projet), [['.devcontainer/devcontainer.json', 'diffère de la configuration (clé conteneur)']]);
+  const blanc = await creer(true);
+  assert.deepEqual([etats(blanc).conteneur, fs.readFileSync(f, 'utf8').includes('"autre"')], ['a-faire', true]);
+  const p2 = await creer();
+  assert.deepEqual([etats(p2).conteneur, git(d, 'log', '-1', '--format=%s'), fs.readFileSync(f, 'utf8'), git(d, 'status', '--porcelain')], ['faite', 'Générer la configuration du conteneur', genere, ''],
+    'la modification jamais commitée est remplacée sans commit : le fichier commité est déjà le bon');
+  fs.writeFileSync(f, genere.replace('"base"', '"autre"')); git(d, 'commit', '-qam', 'à la main');
+  const p3 = await creer();
+  assert.deepEqual([etats(p3).conteneur, git(d, 'log', '-1', '--format=%s'), fs.readFileSync(f, 'utf8')], ['faite', 'Régénérer la configuration du conteneur', genere]);
+  assert.deepEqual(ecartsConteneur(p1.projet), []);
+
+  // Écrit à la main (sans la marque) : ni l'audit ni la création n'y touchent ; le geste dit la commande, puis la création
+  // le génère.
+  fs.writeFileSync(f, '{ "image": "a-la-main" }\n'); git(d, 'commit', '-qam', 'à la main');
+  assert.deepEqual(ecartsConteneur(p1.projet), []);
+  const p4 = await creer();
+  assert.deepEqual([etats(p4).conteneur, etape(p4).geste.commande, fs.readFileSync(f, 'utf8')], ['geste', `git -C ${d} rm -q .devcontainer/devcontainer.json`, '{ "image": "a-la-main" }\n'], JSON.stringify(p4.etapes, null, 1));
+  git(d, 'rm', '-q', '.devcontainer/devcontainer.json');
+  const p5 = await creer();
+  assert.deepEqual([etats(p5).conteneur, git(d, 'log', '-1', '--format=%s'), fs.readFileSync(f, 'utf8'), git(d, 'status', '--porcelain')], ['faite', 'Générer la configuration du conteneur', genere, '']);
+
+  // La racine du projet porte sa propre commande : le script de la clé n'est plus appelé, il ne revient pas une fois retiré.
+  git(d, 'rm', '-q', '.devcontainer/deploy-key.sh'); git(d, 'commit', '-qm', 'sans script');
+  const index = path.join(d, 'arbre', 'index.md');
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('types: [methode]\n', 'types: [methode]\nconfig:\n  conteneur: { devcontainer: { postCreateCommand: "npm install" } }\n')); toucher(index);
+  git(d, 'commit', '-qam', 'commande propre');
+  const p6 = await creer();
+  assert.deepEqual([etats(p6).conteneur, etape(p6).detail, fs.existsSync(script)], ['faite', '.devcontainer/devcontainer.json', false], JSON.stringify(p6.etapes, null, 1));
+  assert.equal(parseJsonc(fs.readFileSync(f, 'utf8')).postCreateCommand, 'npm install');
+
+  // Un commit refusé laisse le fichier écrit ; rejouée, la création le commite sans le réécrire.
+  const crochet = path.join(d, '.git', 'hooks', 'pre-commit'); ecrire(crochet, '#!/bin/sh\necho refusé >&2\nexit 1\n'); fs.chmodSync(crochet, 0o755);
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('"npm install"', '"npm ci"')); toucher(index);
+  git(d, 'commit', '-qam', 'npm ci', '--no-verify');
+  const p8 = await creer();
+  assert.deepEqual([etats(p8).conteneur, etape(p8).detail], ['echec', 'commit refusé : refusé'], JSON.stringify(p8.etapes, null, 1));
+  fs.rmSync(crochet);
+  const p9 = await creer();
+  assert.deepEqual([etats(p9).conteneur, git(d, 'log', '-1', '--format=%s'), git(d, 'status', '--porcelain'), parseJsonc(fs.readFileSync(f, 'utf8')).postCreateCommand], ['faite', 'Régénérer la configuration du conteneur', '', 'npm ci']);
+
+  // Une configuration qui ne se génère plus : l'étape échoue sans rien écrire, l'audit le dit.
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('postCreateCommand: "npm ci"', 'name: autre')); toucher(index);
+  git(d, 'commit', '-qam', 'nom');
+  const avant = fs.readFileSync(f, 'utf8'); const p7 = await creer();
+  assert.deepEqual([etats(p7).conteneur, etape(p7).detail, fs.readFileSync(f, 'utf8')], ['echec', 'posé par le socle, qu’aucune couche ne remplace : name', avant]);
+  assert.deepEqual(ecartsConteneur(p1.projet), [['.devcontainer/devcontainer.json', 'la configuration ne le génère plus']]);
 }));
 
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
