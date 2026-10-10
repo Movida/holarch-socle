@@ -1230,8 +1230,17 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
 
   // Un lien symbolique posé dans le dépôt (le conteneur l'écrit) ne détourne aucune écriture vers l'hôte : le fichier ou
   // son dossier, l'étape échoue et rien ne s'écrit dehors ; de même pour les fichiers de base.
-  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('name: autre', 'postCreateCommand: "npm i"')); toucher(index);
-  git(d, 'commit', '-qam', 'npm i');
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('name: autre', 'postCreateCommand: "bash .devcontainer/deploy-key.sh origin || true"')); toucher(index);
+  git(d, 'commit', '-qam', 'clé');
+  // Le script de la clé, écrit par un passage dont le commit est refusé, reste indexé sans commit : rejouée, la création
+  // le commite avec le reste (m-4).
+  ecrire(crochet, '#!/bin/sh\necho refusé >&2\nexit 1\n'); fs.chmodSync(crochet, 0o755);
+  const k1 = await creer();
+  assert.deepEqual([etats(k1).conteneur, git(d, 'status', '--porcelain', '--', '.devcontainer/deploy-key.sh')], ['echec', 'A  .devcontainer/deploy-key.sh'], JSON.stringify(k1.etapes, null, 1));
+  fs.rmSync(crochet);
+  const k2 = await creer();
+  assert.deepEqual([etats(k2).conteneur, git(d, 'status', '--porcelain'), git(d, 'ls-files', '.devcontainer/deploy-key.sh')], ['faite', '', '.devcontainer/deploy-key.sh'], JSON.stringify(k2.etapes, null, 1));
+
   const dehors = path.join(r, 'dehors'); fs.mkdirSync(dehors);
   fs.rmSync(f); fs.symlinkSync(path.join(dehors, 'cible.json'), f);
   const l1 = await creer();

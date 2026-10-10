@@ -221,9 +221,10 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     } else {
       const voulus = [[CONTENEUR, gen.texte], ...(JSON.stringify(gen.conteneur).includes(SCRIPT_CLE) && lire(SCRIPT_CLE) === null ? [[SCRIPT_CLE, modele('deploy-key.sh'), 0o755]] : [])];
       const aEcrire = voulus.filter(([f, t]) => lire(f) !== t);
-      // Écrits à un passage précédent dont le commit a été refusé : à commiter.
+      // Écrits à un passage précédent dont le commit a été refusé : à commiter. Le script, absent de HEAD (le `git add`
+      // a pu passer : indexé, pas seulement non suivi).
       const statut = (f) => (g('status', '--porcelain', '--', f).stdout || '').trim();
-      const enAttente = [...(statut(CONTENEUR) ? [CONTENEUR] : []), ...(statut(SCRIPT_CLE).startsWith('??') ? [SCRIPT_CLE] : [])];
+      const enAttente = [...(statut(CONTENEUR) ? [CONTENEUR] : []), ...(lire(SCRIPT_CLE) !== null && !commite(SCRIPT_CLE) ? [SCRIPT_CLE] : [])];
       const aCommiter = [...new Set([...aEcrire.map(([f]) => f), ...enAttente])];
       if (!aCommiter.length) noter('conteneur', 'deja', CONTENEUR);
       else if (aBlanc) noter('conteneur', 'a-faire', aCommiter.join(', '));
