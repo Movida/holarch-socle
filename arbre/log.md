@@ -20,7 +20,17 @@
   l'auteur, critères dits (fréquence mesurée, coût, bénéficiaires, effets de bord, existant, coût de tenue, signe de
   réussite) ; bilan des mécanismes en place retenu (I36), après les corrections de B ; `proposer-automatisations`
   amendée (la proposition dit sa fréquence mesurée, son coût, ses effets de bord et son signe de réussite), approuvée
-  sur récapitulatif et choix cliquables, écrite au compte (`regles appliquer`).
+  sur récapitulatif et choix cliquables, écrite au compte (`regles appliquer`). Fenêtre du bilan : depuis la pose de
+  chaque mécanisme, jugé sur ses occasions d'agir (le socle a 7 jours ; « 30 jours » ne voulait rien dire), parce que
+  l'auteur veut un HOLARCH réactif quand il se lance à fond sur un projet.
+
+* **Passation** (161 k tokens) : critère de B, contre-épreuve et ses choix, critères d'une proposition, I36. Leçon de
+  clôture : le déroulé annoncé (six points du critère) a été tenu ; la contre-épreuve suivait, prévue au Reste. Ce qui
+  a fait dévier : une proposition faite sans mesure (`holarch` dans le `PATH`), qui a ouvert trois sujets (critères,
+  règle amendée, bilan) et mené au seuil de passation ; le changement d'avis sur (6), venu de la question de l'auteur.
+  La demande qui y aurait mené : « critère de B et contre-épreuve, puis passation » ; « une proposition se mesure
+  avant d'être faite » est désormais dans `proposer-automatisations`. Suite : session neuve (Opus 5.5 `xhigh`),
+  corrections de la contre-épreuve de B, majeur d'abord, décision (6) en brouillon à approuver avant son code.
 
 ## 2026-10-09
 
