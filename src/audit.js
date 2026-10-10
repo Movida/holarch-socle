@@ -135,21 +135,20 @@ const remplacees = (regles, memoires) => regles.filter((e) => e.applicable && e.
   .map((m) => ({ regle: e.fiche, regle_id: e.id, controle: 'memoire-remplacee', cle: m.id, fichier: m.name, message: 'mémoire encore présente, remplacée par la règle' })));
 
 /**
- * Exceptions périmées (décision exceptions-hors-du-depot) : une exception lue entièrement par son contrôle dans chaque
- * projet où elle s'applique, sans y faire taire aucun écart, est un écart du compte (elle vit au profil ou dans un
- * contexte), jusqu'à ce qu'elle serve ou soit retirée. Jugée sur l'audit de tous les projets, et sur ce site : une
- * exception qui sert ailleurs y est périmée. Un contrôle non disponible là où l'exception s'applique ne juge rien, et ne
- * résout rien.
+ * Exceptions périmées (décision exceptions-hors-du-depot) : une exception jugée par son contrôle dans chaque projet où
+ * elle s'applique, sans y faire taire aucun écart, est un écart du compte (elle vit au profil ou dans un contexte),
+ * jusqu'à ce qu'elle serve ou soit retirée. Jugée sur l'audit de tous les projets, et sur ce site : une exception qui
+ * sert ailleurs y est périmée. Là où son contrôle n'a pas pu la juger (lu en partie), rien ne se juge ni ne se résout.
  */
 function perimees(sorties, faits) {
   const vues = new Map(); const nonJuges = new Set(); const controles = new Set();
   for (const c of sorties.filter((x) => x.projet).flatMap((x) => x.controles)) {
-    if (c.etat === 'fait') controles.add(c.id);
+    if (c.etat === 'fait' || c.exceptions?.length) controles.add(c.id);
     for (const x of c.exceptions || []) {
-      const k = `${c.id}|${x.provenance}|${x.ecart}`;
+      const k = `${c.id}|${x.provenance}|${x.ecart}`; const jugee = x.jugee ?? c.etat === 'fait';
       const v = vues.get(k) || { ...x, controle: c.id, utilisee: false, entiere: true };
-      v.utilisee ||= x.utilisee; v.entiere &&= c.etat === 'fait'; vues.set(k, v);
-      if (c.etat !== 'fait') nonJuges.add(c.id);
+      v.utilisee ||= x.utilisee; v.entiere &&= jugee; vues.set(k, v);
+      if (!jugee) nonJuges.add(c.id);
     }
   }
   const ecarts = [...vues.values()].filter((v) => !v.utilisee && v.entiere).map((v) => ({ regle: v.regle, regle_id: v.regle_id, controle: v.controle,

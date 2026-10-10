@@ -779,7 +779,7 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
   const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
   const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot'); const autre = path.join(r, 'autre');
   const cle = 'montage:.devcontainer/devcontainer.json:/home/node/.ssh';
-  const contexte = (exc) => ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot, holarch:project:autre]\n${exc ? `config:\n  montage_sensible:\n    exceptions: [{ ecart: "${cle}", pourquoi: essai }]\n` : ''}---\n`);
+  const contexte = (...cles) => ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot, holarch:project:autre]\n${cles.length ? `config:\n  montage_sensible:\n    exceptions: [${cles.map((k) => `{ ecart: "${k}", pourquoi: essai }`).join(', ')}]\n` : ''}---\n`);
   ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
   ecrireF(path.join(p, 'arbre', 'types', 'conteneur', 'index.md'), '---\ntype: template\nid: conteneur\ntitle: Conteneur\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
   ecrireF(path.join(p, 'arbre', 'types', 'conteneur', 'rules.yaml'), '- id: conteneur-isole\n  statement: Rien de l’hôte dans le conteneur.\n  level: verified\n  check: [montage-sensible]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
@@ -792,12 +792,12 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
   const ouvertes = () => s.ecartsOuverts().filter((o) => o.cle.startsWith('exception-perimee:')).map((o) => [o.projet, o.regle, o.cle, o.fichier]);
   // L'exception du contexte fait taire l'écart du dépôt, et le dit (clé, raison, provenance) ; dans l'autre projet, elle
   // ne sert pas, mais elle sert quelque part : rien de périmé.
-  contexte(true); devcontainer({ mounts: ['source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind'] }); relire();
+  contexte(cle); devcontainer({ mounts: ['source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind'] }); relire();
   let a = s.audit({ journaliser: true });
   const rd = a.cibles.find((c) => c.projet === 'holarch:project:depot');
   assert.deepEqual(rd.ecarts.filter((e) => e.controle === 'montage-sensible'), []);
   const regle = s.fiches({ kind: 'rule' }).find((f) => f.name === 'conteneur-isole').id;
-  assert.deepEqual(rd.controles.find((c) => c.id === 'montage-sensible').exceptions, [{ ecart: cle, pourquoi: 'essai', provenance: 'profil:/arbre/contextes/perso.md', utilisee: true, regle, regle_id: 'conteneur-isole' }]);
+  assert.deepEqual(rd.controles.find((c) => c.id === 'montage-sensible').exceptions, [{ ecart: cle, pourquoi: 'essai', provenance: 'profil:/arbre/contextes/perso.md', utilisee: true, jugee: true, regle, regle_id: 'conteneur-isole' }]);
   assert.match(affichage.audit(a), new RegExp(`exception montage-sensible : ${cle.replace(/[.]/g, '\\.')} — essai \\(profil:/arbre/contextes/perso\\.md\\)`));
   assert.deepEqual(perimees(a), []);
   // Le montage retiré, l'exception ne fait plus rien taire nulle part : un écart du compte, au journal.
@@ -811,8 +811,13 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
   devcontainer({ dockerComposeFile: 'compose.yml' });
   assert.deepEqual(perimees(s.audit({ journaliser: true })), []);
   assert.equal(ouvertes().length, 1, 'toujours ouverte');
-  // Retirée du contexte : l'écart se résout.
-  devcontainer({}); contexte(false); relire();
+  // L'accès distant et les crochets du dépôt se lisent toujours en entier : une exception sur eux se juge même là où le
+  // contrôle a lu le reste en partie (sur le poste, un projet aux features publiées non lues).
+  contexte(cle, 'acces-distant:fantome'); relire();
+  assert.deepEqual(perimees(s.audit({ journaliser: true })).map((e) => e.cle), ['exception-perimee:acces-distant:fantome']);
+  assert.equal(ouvertes().length, 2);
+  // Retirées du contexte : les écarts se résolvent.
+  devcontainer({}); contexte(); relire();
   a = s.audit({ journaliser: true });
   assert.deepEqual(perimees(a), []);
   assert.deepEqual(ouvertes(), []);

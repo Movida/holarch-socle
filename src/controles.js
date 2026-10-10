@@ -653,12 +653,14 @@ function montageSensible(ctx) {
   // comme les exceptions des données personnelles, mais au profil et au contexte seulement, hors du dépôt contrôlé
   // (décision exceptions-hors-du-depot) : le conteneur n'écrit pas ce qui le fait taire. Le risque reste, l'écart ne se
   // dit plus.
-  // Chaque exception lue se dit dans le résultat, avec sa raison, sa provenance et si elle a fait taire un écart (l'audit
-  // signale celle qui n'en fait taire aucun).
+  // Chaque exception lue se dit dans le résultat, avec sa raison, sa provenance, si elle a fait taire un écart et si cela
+  // se juge ici (l'audit signale celle qui n'en fait taire aucun) : l'accès distant et les crochets du dépôt se lisent
+  // toujours en entier ; le reste, seulement si rien n'est resté illisible.
   const lues = exceptions(ctx.couches, 'montage_sensible', 'ecart', { depot: ctx.depot });
   const exceptes = new Set(lues.map((x) => x.valeur));
   const gardes = ecarts.filter((e) => !exceptes.has(e.cle));
-  const dites = lues.map((x) => ({ ecart: x.valeur, pourquoi: x.pourquoi, provenance: `${x.arbre}:${x.noeud}`, utilisee: ecarts.some((e) => e.cle === x.valeur) }));
+  const dites = lues.map((x) => ({ ecart: x.valeur, pourquoi: x.pourquoi, provenance: `${x.arbre}:${x.noeud}`, utilisee: ecarts.some((e) => e.cle === x.valeur),
+    jugee: !nonLus.length || ['acces-distant', 'crochets'].includes(x.valeur.split(':')[0]) }));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
   return { ecarts: gardes, ...(dites.length && { exceptions: dites }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };
 }
