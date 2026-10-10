@@ -12,6 +12,7 @@ import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
 import { shell, systemd, fichierMarque, lireJson, ecrireJson, binaireClaude, configClaude, claudeIntrouvable } from './commun.js';
 import { accueil as accueilParDefaut } from './config.js';
 import { binaireService } from './service.js';
+import { marquerRelance } from './veille.js';
 
 const MARQUE = '# Écrit par HOLARCH (holarch distant)';
 const PREFIXE = 'holarch-distant-';
@@ -44,13 +45,13 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
     actif: (f) => fs.existsSync(f) && systemctl(['is-active', path.basename(f)]).stdout?.trim() === 'active',
     // Coupée à la main (`systemctl --user disable`) : une pose la réécrit sans la rallumer (décision routines-posees).
     coupee: (f) => fs.existsSync(f) && systemctl(['is-enabled', path.basename(f)]).stdout?.trim() === 'disabled',
-    // Écrit l'unité et la démarre ; une unité déjà active dont le texte change est redémarrée.
-    poser(f, texte) {
+    // Écrit l'unité et la démarre ; une unité déjà active dont le texte change est redémarrée (`avantRelance` juste avant).
+    poser(f, texte, { avantRelance = () => {} } = {}) {
       if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
       const avant = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
       fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(f, texte);
       lancer(['daemon-reload']); lancer(['enable', '--now', path.basename(f)]);
-      if (avant != null && avant !== texte) lancer(['restart', path.basename(f)]);
+      if (avant != null && avant !== texte) { avantRelance(); lancer(['restart', path.basename(f)]); }
     },
     // Écrit une unité sans la démarrer (le service d'un minuteur), même garde que `poser` ; vrai si le texte a changé.
     ecrire(f, texte) {
@@ -186,19 +187,21 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
   // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règle indéterminée (règles du compte
   // illisibles, aucun profil ou plusieurs) : rien ne se pose ni ne se retire, mais un gardien actif est relancé (il
   // garderait sinon le code d'avant la pose).
+  // Une relance se marque juste avant : l'état du gardien la dit pendant le trou (module veille, `marquerRelance`).
+  const relancerGardien = () => { marquerRelance(accueil); sv.lancer(['restart', UNITE_VEILLE]); };
   function suivreRegle(veille, relancer) {
     if (veille === null) {
       const etat = 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé';
       if (!relancer || !sv.geree(g) || !sv.actif(g)) return { unite: UNITE_VEILLE, etat };
-      sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: `${etat}, relancé` };
+      relancerGardien(); return { unite: UNITE_VEILLE, etat: `${etat}, relancé` };
     }
     if (!veille) return { unite: UNITE_VEILLE, etat: retirerVeille(sv, g) };
     // Sans systemd utilisateur, aucun gardien ne peut tourner : rien ne s'écrit, et la commande n'échoue pas (le contrôle
     // dit l'écart là où un mécanisme existe). Injoignable, c'est une erreur.
     if (!systemdPresent(sv)) return { unite: UNITE_VEILLE, etat: `sans systemd utilisateur : ${fs.existsSync(g) ? 'laissé' : 'non posé'}` };
-    const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }));
+    const etat = poserVeille(sv, g, uniteVeille({ node, holarch, accueil }), () => marquerRelance(accueil));
     // Texte inchangé (le lien `courant` ne change pas de chemin) : le gardien tourne encore l'ancien code.
-    if (etat === 'inchangée' && relancer) { sv.lancer(['restart', UNITE_VEILLE]); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
+    if (etat === 'inchangée' && relancer) { relancerGardien(); return { unite: UNITE_VEILLE, etat: 'relancée' }; }
     return { unite: UNITE_VEILLE, etat };
   }
   return {
@@ -218,11 +221,11 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
 
 // Pose du gardien : unité de la main laissée, coupée à la main réécrite sans être rallumée, sinon posée (démarrée,
 // relancée si son texte change).
-function poserVeille(sv, g, texte) {
+function poserVeille(sv, g, texte, avantRelance) {
   if (fs.existsSync(g) && !sv.geree(g)) return 'non écrite par HOLARCH : laissée';
   if (sv.coupee(g)) { if (sv.ecrire(g, texte)) sv.lancer(['daemon-reload']); return 'coupée à la main : laissée'; }
   const avant = fs.existsSync(g) ? fs.readFileSync(g, 'utf8') : null;
-  sv.poser(g, texte);
+  sv.poser(g, texte, { avantRelance });
   return avant === null ? 'posée' : avant === texte ? 'inchangée' : 'réécrite';
 }
 

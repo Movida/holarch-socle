@@ -20,6 +20,20 @@ export const dossierVeille = (accueil) => path.join(accueil, 'veille');
 // `holarch veille` le comparent à ce que demandent les sessions.
 export const fichierGardien = (accueil) => path.join(accueil, 'veille-gardien.json');
 export const GARDIEN_FRAIS = 2 * 60e3;
+// Relance du gardien (pose de la copie de service ou des règles) : marquée juste avant par qui relance, lue à l'arrêt.
+// L'état écrit à l'arrêt la dit jusqu'au premier passage du nouveau gardien (0,68 s mesurées, contre-épreuve de B) :
+// « gardien en relance », pas une demande non tenue. Le journal dit `power.released` (`arret`), puis `power.held`.
+export const fichierRelance = (accueil) => path.join(accueil, 'veille-relance.json');
+const RELANCE_VUE = 60e3;
+export function marquerRelance(accueil, maintenant = Date.now()) {
+  try { ecrireJson(fichierRelance(accueil), { at: new Date(maintenant).toISOString() }); } catch { /* accueil illisible : la relance se dira « non tenue » */ }
+}
+// Lue une fois : vraie si marquée depuis moins de RELANCE_VUE ; la marque est effacée.
+function relanceMarquee(accueil, maintenant) {
+  const t = Date.parse(lireJson(fichierRelance(accueil), null)?.at);
+  try { fs.rmSync(fichierRelance(accueil), { force: true }); } catch { /* rien à effacer */ }
+  return Number.isFinite(t) && maintenant - t >= 0 && maintenant - t < RELANCE_VUE;
+}
 // Dernière erreur d'un crochet de veille : `2>/dev/null` du crochet (un tour ne doit jamais échouer) la cacherait ;
 // gardée datée, le contrôle la signale une semaine.
 export const fichierErreur = (accueil) => path.join(accueil, 'veille-erreur.json');
@@ -218,22 +232,24 @@ const quand = (iso) => new Date(iso).toLocaleString('sv-SE').slice(0, 16);
  * GARDIEN_FRAIS et demande tenue à ce passage), son dernier passage, l'erreur d'un crochet de moins de ERREUR_VUE_JOURS.
  * `constats`, ce qui ne va pas : une session retenue sans demande tenue ; une demande peut-être encore tenue sans
  * besoin (gardien actif sans passage récent : arrêté, sa demande meurt avec lui) ; un crochet en erreur. `gardien` :
- * l'état de son unité (module distant, `etatVeille`).
+ * l'état de son unité (module distant, `etatVeille`). `relance` : le gardien s'est arrêté pour une relance il y a moins
+ * de GARDIEN_FRAIS et le nouveau n'est pas encore passé ; la demande non tenue n'est pas un constat.
  */
 export function etatGardien({ accueil, gardien, besoin = evaluer({ accueil }).besoin, maintenant = Date.now() }) {
   const ecrit = lireJson(fichierGardien(accueil), null); const maj = Date.parse(ecrit?.maj);
   const passage = Number.isFinite(maj) ? new Date(maj).toISOString() : null;
   const frais = passage !== null && maintenant - maj < GARDIEN_FRAIS;
   const tenue = gardien === 'actif' && frais && ecrit.tenue === true;
+  const relance = frais && ecrit?.relance === true;
   const err = lireJson(fichierErreur(accueil), null); const t = Date.parse(err?.at);
   const erreur = Number.isFinite(t) && maintenant - t < ERREUR_VUE_JOURS * 864e5 ? { at: new Date(t).toISOString(), evenement: String(err.evenement || '?') } : null;
   const vu = passage ? `dernier passage du gardien le ${quand(passage)}` : 'aucun passage du gardien';
   const constats = [];
-  if (besoin && !tenue) constats.push({ cle: 'retenue', message: `une session distante retient la veille, mais la demande d'éveil n'est pas tenue (gardien ${gardien}${frais ? '' : `, ${vu}`})` });
+  if (besoin && !tenue && !relance) constats.push({ cle: 'retenue', message: `une session distante retient la veille, mais la demande d'éveil n'est pas tenue (gardien ${gardien}${frais ? '' : `, ${vu}`})` });
   if (!besoin && gardien === 'actif' && !frais && ecrit?.tenue === true) constats.push({ cle: 'sans-besoin', message: `demande d'éveil peut-être encore tenue sans session qui la retienne (${vu})` });
   // Daté et nommé par son événement ; le message, qui peut citer un chemin, reste dans le fichier.
   if (erreur) constats.push({ cle: 'crochet', message: `crochet de veille en erreur le ${quand(erreur.at)} (${erreur.evenement}) : des sessions peuvent ne pas être notées ; détail dans veille-erreur.json de l'accueil HOLARCH` });
-  return { gardien, besoin, tenue, frais, passage, erreur, constats };
+  return { gardien, besoin, tenue, relance, frais, passage, erreur, constats };
 }
 
 // ---------- demande d'éveil de Windows ----------
@@ -342,8 +358,8 @@ export function creerGardien({ accueil, journal = null, commande = () => command
     try { await suite(e); } finally { etat(e.besoin); }
     return e;
   }
-  function etat(besoin) {
-    try { ecrireJson(fichierGardien(accueil), { maj: new Date(maintenant()).toISOString(), besoin, tenue: Boolean(demande) }); } catch (err) { log(`état du gardien non écrit : ${err.message}`); }
+  function etat(besoin, relance = false) {
+    try { ecrireJson(fichierGardien(accueil), { maj: new Date(maintenant()).toISOString(), besoin, tenue: Boolean(demande), ...(relance && { relance: true }) }); } catch (err) { log(`état du gardien non écrit : ${err.message}`); }
   }
   async function suite(e) {
     if (demande && maintenant() - tenueDepuis >= COURTE) {
@@ -375,7 +391,7 @@ export function creerGardien({ accueil, journal = null, commande = () => command
   return {
     // Les passages s'enchaînent, jamais deux à la fois (minuteur et changement d'une note peuvent se croiser).
     passer() { const p = file.then(passer); file = p.catch((err) => log(`passage en échec : ${err.message}`)); return p; },
-    async arreter() { await file; await relacher('arret'); etat(null); },
+    async arreter() { await file; const relance = relanceMarquee(accueil, maintenant()); await relacher('arret'); etat(null, relance); },
     tenue: () => Boolean(demande),
     pid: () => demande?.pid ?? null,
   };
@@ -387,6 +403,8 @@ export function creerGardien({ accueil, journal = null, commande = () => command
  */
 export function surveiller(gardien, { accueil, intervalle = 30e3, log = () => {} }) {
   const d = dossierVeille(accueil); fs.mkdirSync(d, { recursive: true });
+  // Une marque laissée par un démarrage (rien à arrêter) ne fera pas dire « relance » à un arrêt plus tard.
+  try { fs.rmSync(fichierRelance(accueil), { force: true }); } catch { /* rien à effacer */ }
   let prevu = null;
   const bientot = () => { if (!prevu) prevu = setTimeout(() => { prevu = null; gardien.passer().catch(() => {}); }, 1000); };
   let veilleur = null;

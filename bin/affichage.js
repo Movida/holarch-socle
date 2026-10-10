@@ -97,7 +97,7 @@ export function veille(e) {
   if (e.finies.length) l.push(`${e.finies.length} session(s) finie(s) sans fin dite (processus disparu)`);
   // Ce que demandent les sessions et ce que tient le gardien, puis ce qui ne va pas : les mêmes constats que le contrôle.
   const vu = e.passage ? ` (dernier passage du gardien à ${heure(e.passage)})` : ' (aucun passage du gardien)';
-  l.push(e.besoin ? `une session retient la veille ; demande d’éveil ${e.tenue ? 'tenue' : 'non tenue'}${vu}` : `rien ne retient la veille${e.tenue ? ' ; demande d’éveil encore tenue, relâchée au prochain passage du gardien' : ''}${vu}`);
+  l.push(e.besoin ? `une session retient la veille ; demande d’éveil ${e.tenue ? 'tenue' : e.relance ? 'reprise au démarrage du gardien, en relance' : 'non tenue'}${vu}` : `rien ne retient la veille${e.tenue ? ' ; demande d’éveil encore tenue, relâchée au prochain passage du gardien' : ''}${vu}`);
   for (const c of e.constats) l.push(`à voir : ${c.message}`);
   return l.join('\n');
 }

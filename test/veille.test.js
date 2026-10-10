@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { noter, evaluer, activite, effacerNote, etatGardien, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { noter, evaluer, activite, effacerNote, etatGardien, marquerRelance, fichierRelance, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines, uniteVeille } from '../src/distant.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte, veilleVoulue } from '../src/materialisation.js';
@@ -390,6 +390,43 @@ test('veille : le gardien tient la demande d’éveil tant qu’une session l’
   note(accueil, 'UserPromptSubmit', 'a', { session: () => processusSession(process.pid), t: horloge.t });
   await g.passer(); assert.equal(g.tenue(), true); await g.arreter(); assert.equal(g.tenue(), false);
   assert.equal([...journal.lire()].at(-1).data.raison, 'arret');
+});
+
+test('veille : une relance du gardien se dit « en relance » jusqu’au passage du nouveau, pas une demande non tenue', async () => {
+  const accueil = tmp(); const journal = new Journal(accueil, 'local'); const horloge = { t: T0 };
+  const lire = (o = {}) => etatGardien({ accueil, gardien: 'actif', besoin: true, maintenant: horloge.t, ...o });
+  note(accueil, 'UserPromptSubmit', 'a', { session: () => processusSession(process.pid) });
+  const g = creerGardien({ accueil, journal, commande: TEMOIN, maintenant: () => horloge.t });
+  await g.passer(); assert.equal(g.tenue(), true);
+  // Qui relance marque juste avant ; l'arrêt la lit, l'écrit dans l'état et l'efface. Le journal dit l'arrêt.
+  marquerRelance(accueil, horloge.t); horloge.t += 1e3; await g.arreter();
+  assert.ok(!fs.existsSync(fichierRelance(accueil)), 'la marque est lue une fois');
+  assert.equal([...journal.lire()].at(-1).data.raison, 'arret', 'contrat événement inchangé');
+  assert.deepEqual([lire().tenue, lire().relance, lire().constats], [false, true, []]);
+  // Le nouveau gardien ne passe pas : passé GARDIEN_FRAIS, la demande non tenue redevient un constat.
+  assert.deepEqual(lire({ maintenant: horloge.t + 3 * min }).constats.map((c) => c.cle), ['retenue']);
+  // Le nouveau passe : l'état ne dit plus la relance.
+  const nouveau = creerGardien({ accueil, journal, commande: TEMOIN, maintenant: () => horloge.t });
+  await nouveau.passer(); assert.deepEqual([lire().tenue, lire().relance], [true, false]);
+  // Un arrêt sans marque, ou marqué il y a plus d'une minute, n'est pas une relance.
+  marquerRelance(accueil, horloge.t - 2 * min); await nouveau.arreter();
+  assert.deepEqual([lire().relance, lire().constats.map((c) => c.cle)], [false, ['retenue']]);
+});
+
+test('veille : la pose marque la relance du gardien juste avant de le relancer', () => {
+  const accueil = tmp(); const unites = tmp(); const vu = [];
+  const systemctl = (args) => {
+    if (args[0] === 'restart') vu.push(fs.existsSync(fichierRelance(accueil)));
+    return { status: 0, stdout: args[0] === 'is-active' ? 'active\n' : args[0] === 'is-enabled' ? 'enabled\n' : args[0] === 'is-system-running' ? 'running\n' : '', stderr: '' };
+  };
+  const pose = (holarch) => creerReveil({ holarch, accueil }, { unites, systemctl, node: '/opt/node/bin/node' });
+  assert.equal(pose('/v1/holarch.js').gardien({ veille: true }).etat, 'posée'); assert.deepEqual(vu, [], 'un démarrage n’est pas une relance');
+  assert.equal(pose('/v1/holarch.js').gardien({ veille: true }).etat, 'relancée');
+  fs.rmSync(fichierRelance(accueil));
+  assert.equal(pose('/v2/holarch.js').gardien({ veille: true }).etat, 'réécrite');
+  fs.rmSync(fichierRelance(accueil));
+  assert.equal(pose('/v2/holarch.js').gardien({ veille: null }).etat, 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé, relancé');
+  assert.deepEqual(vu, [true, true, true], 'marquée avant chacune des trois relances');
 });
 
 test('veille : une demande refusée ou absente se dit une fois ; morte hors du gardien, elle est reprise au passage suivant', async () => {
