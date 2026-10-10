@@ -13,7 +13,8 @@
   "scripts": {
     "test": "node --test --no-warnings test/*.test.js",
     "voir": "node --no-warnings bin/holarch.js voir",
-    "test:visuel": "node --test --no-warnings test/visuel/*.test.js"
+    "test:visuel": "node --test --no-warnings test/visuel/*.test.js",
+    "eprouver": "node --no-warnings bin/eprouver.js"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.0",

@@ -1259,3 +1259,31 @@ test('récolte : une redite nouvelle devient une règle brouillon au nœud commu
   assert.equal(ajouterRegles(fd, [{ id: 'du-projet', statement: 'x' }]).ecrites.length, 0, 'rejouer n’ajoute rien');
   assert.throws(() => s.recolte({ jusqua: '2026-10-06T00:00:00Z', proposer: true }), /rejeu/);
 });
+
+test('eprouver : un test neuf rouge sur le parent ou sur un mutant ; vert, ou rouge au seul chargement, il ne prouve rien', async () => {
+  const { eprouver } = await import('../bin/eprouver.js');
+  const { spawnSync } = await import('node:child_process');
+  const r = tmp(); const ecrire = (f, t) => { fs.mkdirSync(path.dirname(path.join(r, f)), { recursive: true }); fs.writeFileSync(path.join(r, f), t); };
+  const g = (...a) => spawnSync('git', ['-C', r, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' });
+  ecrire('package.json', '{ "type": "module" }');
+  ecrire('src/a.js', 'export const double = (x) => x * 2;\n');
+  ecrire('test/a.test.js', "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport * as a from '../src/a.js';\ntest('double', () => assert.equal(a.double(2), 4));\n");
+  g('init', '-q'); g('add', '.'); g('commit', '-qm', 'a');
+  // La correction : `triple`, et ses tests (l'un importe le module entier, l'autre le nom, qui manque au parent).
+  ecrire('src/a.js', 'export const double = (x) => x * 2;\nexport const triple = (x) => x * 3;\n');
+  fs.appendFileSync(path.join(r, 'test/a.test.js'), "test('triple', () => assert.equal(a.triple?.(2), 6));\n");
+  ecrire('test/b.test.js', "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { triple } from '../src/a.js';\ntest('triple nommé', () => assert.equal(triple(2), 6));\n");
+  const e = (o) => eprouver({ racine: r, ...o });
+  assert.equal(e({ mode: 'parent', motif: '^triple$', fichiers: ['src/a.js'] }).code, 0);
+  assert.match(e({ mode: 'parent', motif: 'triple nommé', fichiers: ['src/a.js'] }).message, /seul le chargement échoue \(test\/b\.test\.js\)/);
+  assert.equal(e({ mode: 'parent', motif: '^double$', fichiers: ['src/a.js'] }).code, 1, 'vert sur le parent');
+  assert.equal(e({ mode: 'mutant', motif: '^triple$', fichier: 'src/a.js', expression: 'x \\* 3', remplacement: 'x * 2' }).code, 0);
+  assert.equal(e({ mode: 'mutant', motif: '^double$', fichier: 'src/a.js', expression: 'x \\* 2', remplacement: 'x + x' }).code, 1, 'mutant équivalent');
+  assert.match(e({ mode: 'mutant', motif: '^double$', fichier: 'src/a.js', expression: 'absent', remplacement: '' }).message, /mutation sans effet/);
+  assert.match(e({ mode: 'parent', motif: 'aucun test', fichiers: ['src/a.js'] }).message, /aucun test ne correspond/);
+  ecrire('test/c.test.js', "import test from 'node:test';\ntest('rouge', () => { throw new Error('x'); });\n");
+  assert.match(e({ mode: 'parent', motif: '^rouge$', fichiers: ['src/a.js'] }).message, /déjà rouge sur la copie telle quelle/);
+  assert.equal(e({ mode: 'inconnu', motif: 'x' }).code, 2);
+  // La copie temporaire est retirée ; la copie de travail n'a pas bougé.
+  assert.match(fs.readFileSync(path.join(r, 'src/a.js'), 'utf8'), /triple/);
+});
