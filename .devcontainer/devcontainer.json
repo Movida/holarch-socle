@@ -1,30 +1,52 @@
+// Généré par HOLARCH (holarch projet creer) : ne pas modifier ici, changer la clé conteneur de l’arbre.
+// Source : la clé conteneur de la configuration effective du projet (profil, contexte, types, racine de son arbre), où
+// se disent les raisons de ses réglages ; `holarch projet creer holarch-socle` réécrit ce fichier.
 {
-  "name": "HOLARCH socle",
+  "name": "holarch-socle",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
-  // Les dossiers de l'hôte montés ci-dessous, créés s'ils manquent.
+  "remoteUser": "node",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code"
+      ]
+    }
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin",
+  "forwardPorts": [
+    4280
+  ],
+  "portsAttributes": {
+    "4280": {
+      "label": "HOLARCH — interface",
+      "onAutoForward": "notify"
+    }
+  },
+  // Socle : les dossiers de l’hôte montés ci-dessous, créés s’ils manquent.
   "initializeCommand": "mkdir -p ${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle ${localEnv:HOME}/.claude/rules",
+  // Socle : Claude Code dans un volume propre au conteneur, jamais le ~/.claude de l’hôte (identifiants de tous les
+  // projets, crochets que l’hôte exécute) ; la connexion s’y fait une fois. De l’hôte, seulement : les transcriptions
+  // et la mémoire de ce projet (HOLARCH les lit), et les règles du compte en lecture. La clé de déploiement dans un
+  // volume propre au projet.
   "mounts": [
-    // Claude Code dans un volume propre au conteneur, jamais le ~/.claude de l'hôte (identifiants de tous les projets,
-    // crochets que l'hôte exécute) ; l'image tourne sous `node`. La connexion s'y fait une fois. De l'hôte, seulement :
-    // les transcriptions et la mémoire de ce projet (HOLARCH les lit), et les règles du compte en lecture.
     "source=holarch-socle-claude,target=/home/node/.claude,type=volume",
     "source=${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle,target=/home/node/.claude/projects/-workspaces-holarch-socle,type=bind",
     "source=${localEnv:HOME}/.claude/rules,target=/home/node/.claude/rules,type=bind,readonly",
-    // Deploy keys du conteneur (deploy-keys.sh), dans un volume nommé propre à ce dépôt.
     "source=holarch-socle-ssh,target=/home/node/.ssh,type=volume"
   ],
-  "forwardPorts": [4280],
-  "portsAttributes": { "4280": { "label": "HOLARCH — interface", "onAutoForward": "notify" } },
-  // Tout ce que le dépôt vérifie s'installe ici, pour qu'une reconstruction ne perde rien : dépendances, puis Chromium
-  // et ses bibliothèques système pour le test visuel (npm run test:visuel).
-  // Un volume neuf appartient à root : il est rendu à `node` avant que l'éditeur se connecte et y écrive
-  // (onCreateCommand passe avant updateContentCommand, qu'il attend ; postCreateCommand vient après).
-  "onCreateCommand": "sudo chown node:node /home/node/.claude /home/node/.claude/projects",
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin",
-  // HOLARCH du conteneur garde ses données chez lui (~/.holarch) : celles de l'hôte n'y sont jamais montées en écriture.
-  // Toute session, ouverte dans un sous-dossier ou un worktree comprise, range ses transcriptions dans le dossier monté
-  // (CLAUDE_CODE_PROJECT_DIR_NAME, Claude Code 2.1.234 et suivants, avec CLAUDE_CONFIG_DIR).
-  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/node/.claude", "CLAUDE_CODE_PROJECT_DIR_NAME": "-workspaces-holarch-socle" },
-  "remoteEnv": { "ANTHROPIC_API_KEY": "" },
-  "customizations": { "vscode": { "extensions": ["anthropic.claude-code"] } }
+  // Socle : toute session, ouverte dans un sous-dossier ou un worktree comprise, range ses transcriptions dans le
+  // dossier de ce projet (CLAUDE_CODE_PROJECT_DIR_NAME, Claude Code 2.1.234 et suivants, avec CLAUDE_CONFIG_DIR).
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "CLAUDE_CODE_PROJECT_DIR_NAME": "-workspaces-holarch-socle"
+  },
+  // Socle : la connexion Claude du conteneur sert, jamais une clé d’API reçue de l’hôte.
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": ""
+  },
+  // Socle : un volume neuf appartient à root ; il est rendu à l’utilisateur avant que l’éditeur se connecte et y écrive
+  // (onCreateCommand passe avant updateContentCommand et postCreateCommand).
+  "onCreateCommand": {
+    "holarch": "sudo chown node:node /home/node/.claude /home/node/.claude/projects /home/node/.ssh"
+  }
 }
