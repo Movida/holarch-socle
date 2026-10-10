@@ -5,6 +5,19 @@ id: holarch
 types: [methode-holarch, depot-public]
 config:
   journal: arbre/log.md
+  # Conteneur du socle (décision environnement-d-execution, livraison C) : ce qui lui est propre, en attendant qu'un
+  # second projet en ait l'usage (un type, alors). Image Node 24, qui tourne sous `node` ; port de l'interface. Tout ce
+  # que le dépôt vérifie s'installe à la création, pour qu'une reconstruction ne perde rien : bubblewrap et socat (bac à
+  # sable de Claude Code), Claude Code, les dépendances, Chromium et ses bibliothèques système pour le test visuel
+  # (npm run test:visuel), puis les clés de déploiement (deploy-keys.sh). HOLARCH du conteneur garde ses données chez
+  # lui (~/.holarch) : celles de l'hôte n'y sont jamais montées en écriture.
+  conteneur:
+    devcontainer:
+      image: mcr.microsoft.com/devcontainers/javascript-node:24
+      remoteUser: node
+      forwardPorts: [4280]
+      portsAttributes: { "4280": { label: "HOLARCH — interface", onAutoForward: notify } }
+      postCreateCommand: "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin"
 title: HOLARCH — ligne directrice
 description: Un socle autour des runtimes d'agents d'IA, qui embarque les règles, rend tout visible, conserve et vérifie le savoir, et se régule.
 status: draft
