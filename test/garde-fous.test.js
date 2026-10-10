@@ -770,6 +770,13 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
   assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: p }).length, 0);
   assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: maison }).length, 0, 'un dépôt qui contient le profil');
   assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: d }).length, 1);
+  // Vu par le contrôle lui-même : le dépôt du profil (ou celui qui le contient), contrôlé, garde son écart.
+  for (const depot of [p, maison]) {
+    ecrireF(path.join(depot, '.devcontainer', 'devcontainer.json'), '{}');
+    const lu = executer('montage-sensible', { ...ctx, depot, distants: [{ nom: 'projet', chemin: p }] }, 'audit');
+    assert.deepEqual(lu.ecarts.map((e) => e.cle), ['acces-distant:projet'], depot);
+    assert.equal(lu.exceptions, undefined, depot);
+  }
   assert.equal(exceptions([{ origine: 'projet', fichier: path.join(d, 'arbre', 'index.md'), config: { donnees_personnelles: { exceptions: [{ fichier: 'LICENSE', pourquoi: 'titulaire' }] } } }], 'donnees_personnelles', 'fichier', { depot: d }).length, 1);
   // Une clé de réglage au nom d'une propriété d'objet, écrite par le conteneur, ne met pas la règle effective en panne
   // (sans quoi la garde laissait passer le commit sans contrôle).
