@@ -79,7 +79,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(nom || '')) throw new Error(`nom de projet invalide : ${nom ?? '(absent)'} (lettres, chiffres, . _ -)`);
   // L'arbre relu s'il a changé depuis l'inventaire : un geste fait dans le profil (« puis relancer ») vaut tout de suite.
   const noeuds = () => socle.arbreFrais();
-  const avant = configAvantProjet(noeuds(), { contexte, types });
+  const avant = configAvantProjet(noeuds(), { contexte, types, profil: socle.profil() });
   const cfg = fusionnerConfig(DEFAUTS, avant.config.creation || {});
   const identite = identiteDeclaree(avant.config);
   const dossier = path.join(cfg.dossier ? String(cfg.dossier).replace(/^~(?=$|\/)/, os.homedir()) : os.homedir(), nom);

@@ -92,7 +92,7 @@ if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (hol
 
 const socle = () => new Socle(chargerConfig());
 // La règle veille-retardee s'applique au compte (arbre relu s'il a changé, sans inventaire) : le gardien la suit.
-const veilleDuCompte = (s = socle()) => veilleVoulue(regleDuCompte(s.arbreFrais()));
+const veilleDuCompte = (s = socle()) => veilleVoulue(regleDuCompte(s.arbreFrais(), { profil: s.profil() }));
 
 switch (cmd) {
   // Rien ne s'écrit sur la sortie standard en mode MCP : c'est le canal du protocole.

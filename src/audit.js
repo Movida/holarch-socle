@@ -25,7 +25,7 @@ export function contexteControle(s, projet, r, depot = projet.location) {
   // porte le type depot-public) ; une seule notion avec la commande de création.
   const fiches = [...noeuds, ...s.fiches({ kind: 'rule' })];
   const publique = (id) => noeuds.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public')
-    || regleEffective(fiches, id).config?.creation?.visibilite === 'public';
+    || regleEffective(fiches, id, { profil: s.profil() }).config?.creation?.visibilite === 'public';
   const projetsPrives = s.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
   const config = r.config || {}; const couches = r.couches || []; const reglages = s.config.controles || {};
   return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, couches, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),
@@ -65,7 +65,7 @@ export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journ
   if (!p) return { projet: null, refus: [], indisponibles: [] };
   const fiche = projets.find((x) => x.id === p.id);
   // L'arbre relu s'il a changé : une exception ajoutée vaut au commit suivant, pas une heure plus tard.
-  const r = regleEffective(s.arbreFrais(), p.id);
+  const r = regleEffective(s.arbreFrais(), p.id, { profil: s.profil() });
   // Règles illisibles : une règle bloquante peut manquer ; le commit est refusé plutôt que dit conforme, et journalisé
   // comme tout refus.
   const enonce = 'les règles du projet ne se lisent pas toutes : la garde ne peut pas dire ce commit conforme';
@@ -184,7 +184,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
   const faits = new Set(); const sorties = [];
 
   // Compte : ce qui vaut pour tous les projets du site.
-  const compte = regleDuCompte(fiches);
+  const compte = regleDuCompte(fiches, { profil: s.profil() });
   if (compte.regles.length || compte.illisibles.length) {
     const rc = { projet: null, nom: 'compte', ecarts: ecartsIllisibles(compte), controles: [] };
     faits.add('|regles-lisibles');
@@ -211,7 +211,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
   const chaines = new Map();
   for (const id of cibles) {
     const p = projets.find((x) => x.id === id); if (!p) continue;
-    const r = regleEffective(fiches, id);
+    const r = regleEffective(fiches, id, { profil: s.profil() });
     // Un dépôt absent de ce site : ses types, donc ses règles, sont inconnus ; rien ne s'y juge.
     if (p.location && fs.existsSync(p.location)) chaines.set(id, new Set(r.couches.map((c) => c.provenance)));
     const { ecarts, controles } = controler(r, contexteControle(s, p, r), 'audit', ['blocking', 'verified']);
@@ -232,7 +232,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     }
     sorties.push(rp);
   }
-  const retenus = projet ? new Set() : perimees(sorties, faits, projetsCouverts(fiches), chaines);
+  const retenus = projet ? new Set() : perimees(sorties, faits, projetsCouverts(fiches, { profil: s.profil() }), chaines);
 
   let journal = null;
   if (journaliser) {

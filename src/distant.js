@@ -185,13 +185,13 @@ WantedBy=default.target
 export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl = SYSTEMCTL, sousSystemd = SOUS_SYSTEMD, node = process.execPath } = {}) {
   const sv = services({ unites, systemctl, sousSystemd }); const f = path.join(unites, `${UNITE_REVEIL}.service`); const g = path.join(unites, UNITE_VEILLE);
   // `veille` : la règle s'applique (module materialisation, `veilleVoulue`) ; null, règle indéterminée (règles du compte
-  // illisibles, aucun profil ou plusieurs) : rien ne se pose ni ne se retire, mais un gardien actif est relancé (il
+  // illisibles, ou sans profil) : rien ne se pose ni ne se retire, mais un gardien actif est relancé (il
   // garderait sinon le code d'avant la pose).
   // Une relance se marque juste avant : l'état du gardien la dit pendant le trou (module veille, `marquerRelance`).
   const relancerGardien = () => { marquerRelance(accueil); sv.lancer(['restart', UNITE_VEILLE]); };
   function suivreRegle(veille, relancer) {
     if (veille === null) {
-      const etat = 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé';
+      const etat = 'règle veille-retardee indéterminée (règles du compte illisibles, ou sans profil) : laissé';
       if (!relancer || !sv.geree(g) || !sv.actif(g)) return { unite: UNITE_VEILLE, etat };
       relancerGardien(); return { unite: UNITE_VEILLE, etat: `${etat}, relancé` };
     }

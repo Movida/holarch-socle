@@ -13,6 +13,9 @@ const DEFAUTS = () => ({
   site: 'local',
   // Identifiant de la personne qui utilise ce site (contrat acteurs : jamais un nom ni un courriel).
   humain: 'auteur',
+  // Dépôt du profil de ce site (décision profil-designe) : chemin absolu (`~/…` admis ; `~` seul vaut null en YAML).
+  // Seul son arbre est le profil ; vide, ce site n'a pas de profil. Lu par `profilDuSite`, et par elle seule.
+  profil: null,
   donnees: accueil(),
   web: { hote: '127.0.0.1', port: 4280 },
   inventaire: {
@@ -71,6 +74,19 @@ export function chargerConfig(fichier = path.join(accueil(), 'config.yaml'), sit
   return developper({ ...fusion(fusion(DEFAUTS(), commune), propre), site: nom, accueil: path.dirname(path.resolve(fichier)) });
 }
 
+/**
+ * Le dépôt du profil que la configuration du site désigne (décision profil-designe), seule lecture de la clé `profil`
+ * pour tous les appelants des règles (garde, audit, `regles appliquer`, création, reprise, interface, MCP) : son chemin
+ * normalisé, ou null s'il n'est pas désigné. Une valeur qui n'est pas un chemin absolu se rend telle quelle : le profil
+ * est alors désigné, mais introuvable.
+ */
+export function profilDuSite(config) {
+  const v = config?.profil;
+  if (v === null || v === undefined || v === '') return null;
+  const s = typeof v === 'string' ? v : JSON.stringify(v);
+  return path.isAbsolute(s) ? path.resolve(s) : s;
+}
+
 // Les comptes Claude Code qu'un adaptateur doit lire : ceux de `comptes_claude_code`, sinon son seul `home` (sans nom :
 // les identifiants des fiches et les événements restent ceux d'un site à un compte).
 export function comptesClaudeCode(config, opts = {}) {
@@ -94,6 +110,7 @@ export function ecrireConfigExemple(fichier = path.join(accueil(), 'config.yaml'
   fs.mkdirSync(path.dirname(fichier), { recursive: true });
   fs.writeFileSync(fichier, `# Configuration HOLARCH de ce site (hors dépôt). Toute clé absente prend sa valeur par défaut.
 site: local
+# profil: ~/<dépôt du profil>   # le seul arbre qui fait profil sur ce site ; sans cette clé, aucun profil
 web: { hote: 127.0.0.1, port: 4280 }
 inventaire:
   depots-git:

@@ -2,7 +2,7 @@
 // lecture sont celles que l'interface web et, à l'étape 2, le hub MCP exposent.
 import fs from 'node:fs';
 import path from 'node:path';
-import { chargerConfig, comptesClaudeCode } from './config.js';
+import { chargerConfig, comptesClaudeCode, profilDuSite } from './config.js';
 import { Journal } from './stockage/journal.js';
 import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
@@ -38,6 +38,9 @@ export class Socle {
 
   async inventaire() { return inventorier(this.config, { catalogue: this.catalogue, journal: this.journal }); }
 
+  // Le dépôt du profil désigné par la configuration du site (décision profil-designe), que reçoit toute lecture des règles.
+  profil() { return profilDuSite(this.config); }
+
   // Le catalogue date du dernier inventaire (horaire) : une lecture des règles ou de la reprise le refait d'abord quand
   // un arbre connu a changé depuis, sans quoi une règle ajoutée reste invisible jusqu'à l'heure suivante (idée I28).
   // Rend vrai s'il a fallu l'inventaire ; l'index reste à reconstruire par l'appelant.
@@ -52,7 +55,7 @@ export class Socle {
     const o = this.config.inventaire?.arbre;
     if (!o || o.actif === false) return null;
     const depuis = this.catalogue.date(); const fiches = this.catalogue.lire({ site: this.config.site });
-    const depots = new Set([...(o.depots || []), ...fiches.filter((f) => f.kind === 'project' && f.location).map((f) => f.location)]);
+    const depots = new Set([...(o.depots || []), ...fiches.filter((f) => f.kind === 'project' && f.location).map((f) => f.location), ...(this.profil() ? [this.profil()] : [])]);
     return { change: !depuis || [...depots].some((d) => arbreModifieDepuis(d, depuis)), fiches, options: o, depots };
   }
 
@@ -149,7 +152,7 @@ export class Socle {
   // portée par les longues sessions, celles qui coûtent), et les sessions de la semaine au-dessus du seuil de passation.
   contexte() {
     const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
-    const seuil = +regleDuCompte(fiches).config?.claude_code?.passation?.seuil_tokens || 150000;
+    const seuil = +regleDuCompte(fiches, { profil: this.profil() }).config?.claude_code?.passation?.seuil_tokens || 150000;
     const l = this.sessions({ jours: 30 }).filter((x) => x.tours_total && x.cache_lu);
     const moyen = (a) => { const t = a.reduce((x, y) => x + y.tours_total, 0); return t ? Math.round(a.reduce((x, y) => x + y.cache_lu, 0) / t) : null; };
     const j7 = new Date(Date.now() - 7 * 864e5).toISOString(); const semaine = l.filter((x) => x.fin >= j7);
@@ -368,16 +371,16 @@ export class Socle {
     const projets = this.fiches({ kind: 'project' });
     const ouverts = this.ecartsOuverts();
     if (projet) {
-      const id = this.projetDe(projet); const r = regleEffective(fiches, id);
+      const id = this.projetDe(projet); const r = regleEffective(fiches, id, { profil: this.profil() });
       return { nom: projets.find((p) => p.id === id)?.name ?? null, chemin: projets.find((p) => p.id === id)?.location ?? null, ...portees(r, r.arbre?.classification),
         ecarts: ouverts.filter((o) => o.projet === id) };
     }
     const declares = projetsDeclares(fiches);
-    const resume = projets.map((p) => ({ p, r: regleEffective(fiches, p.id) }))
+    const resume = projets.map((p) => ({ p, r: regleEffective(fiches, p.id, { profil: this.profil() }) }))
       .filter(({ p, r }) => declares.has(p.id) || r.arbre?.types.length || r.regles.some((e) => e.origine === 'projet'))
       .map(({ p, r }) => ({ id: p.id, nom: p.name, declare: declares.has(p.id), types: r.arbre?.types || [], appliquees: r.regles.filter((e) => e.applicable).length,
         proposees: r.regles.filter(aApprouver).length, rappels: r.rappels, signaux: r.signaux.length, ecarts: ouverts.filter((o) => o.projet === p.id).length }));
-    return { compte: { ...portees(regleDuCompte(fiches), 'sensitive'), ecarts: ouverts.filter((o) => !o.projet) }, projets: resume };
+    return { compte: { ...portees(regleDuCompte(fiches, { profil: this.profil() }), 'sensitive'), ecarts: ouverts.filter((o) => !o.projet) }, projets: resume };
   }
 
   // ---------- contrôles et audit (étape 3, tranches 4 et 5) : module audit ----------
@@ -408,12 +411,12 @@ export class Socle {
   // du projet, posée s'il n'en a pas (comme à la création). Rien n'est commité : l'auteur approuve, puis on commite.
   proposerRegles(redites, { at = new Date().toISOString().slice(0, 10) } = {}) {
     const t = trier(redites);
-    const a = arbresDe(this.fiches());
+    const a = arbresDe(this.fiches(), { profil: this.profil() });
     const projets = new Map(this.fiches({ kind: 'project' }).map((p) => [p.id, p]));
     const parFichier = new Map(); const sans = [];
     for (const g of t.proposees) {
       let fichier = null;
-      if (g.noeud.profil) fichier = a.profils.length === 1 ? path.join(path.dirname(a.profils[0].location), 'rules.yaml') : null;
+      if (g.noeud.profil) fichier = a.profil ? path.join(path.dirname(a.profil.location), 'rules.yaml') : null;
       else {
         const p = projets.get(g.noeud.projet);
         if (p?.location) {
@@ -427,7 +430,7 @@ export class Socle {
           fichier = path.join(racine.dossier, 'rules.yaml');
         }
       }
-      if (!fichier) { sans.push({ id: g.id, raison: g.noeud.profil ? `profil introuvable ou multiple (${a.profils.length})` : `projet sans dépôt connu : ${g.noeud.nom}` }); continue; }
+      if (!fichier) { sans.push({ id: g.id, raison: g.noeud.profil ? a.sansProfil : `projet sans dépôt connu : ${g.noeud.nom}` }); continue; }
       if (!parFichier.has(fichier)) parFichier.set(fichier, []);
       parFichier.get(fichier).push(regleProposee(g, at));
     }

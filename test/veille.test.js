@@ -229,7 +229,7 @@ test('veille : le gardien suit la seule règle, comme les crochets : posé si el
   appels.length = 0; assert.equal(reveil.gardien({ veille: true, relancer: false }).etat, 'inchangée'); assert.ok(!appels.includes('restart holarch-veille.service'));
   // Règle indéterminée (règles illisibles, profil absent ou en double) : laissé ; actif, relancé par la copie de service.
   appels.length = 0;
-  assert.equal(reveil.gardien({ veille: null, relancer: false }).etat, 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé');
+  assert.equal(reveil.gardien({ veille: null, relancer: false }).etat, 'règle veille-retardee indéterminée (règles du compte illisibles, ou sans profil) : laissé');
   assert.ok(!appels.includes('restart holarch-veille.service'));
   assert.match(reveil.gardien({ veille: null }).etat, /indéterminée .* : laissé, relancé$/); assert.ok(appels.includes('restart holarch-veille.service')); assert.ok(fs.existsSync(g));
   actifs.delete('holarch-veille.service'); appels.length = 0;
@@ -306,14 +306,16 @@ test('veille : un systemd utilisateur injoignable n’est pas une absence : erre
   assert.equal(r.indisponible, 'gardien de veille illisible, systemd utilisateur injoignable (Failed to connect to bus: No medium found)');
 });
 
-test('veille : un profil absent ou en double rend la règle indéterminée, pas retirée', () => {
-  const sans = regleDuCompte([]);
+test('veille : un profil non désigné ou introuvable rend la règle indéterminée, pas retirée', () => {
+  const sans = regleDuCompte([], { profil: null });
   assert.equal(sans.indetermine, true); assert.deepEqual(sans.illisibles, []);
   assert.equal(veilleVoulue(sans), null, 'un dépôt de profil absent ou déplacé ne retire pas le gardien');
-  const noeud = (arbre, type) => ({ kind: 'node', id: `${arbre}:${type}`, node: type === 'racine' ? '/index.md' : '/contextes/c.md', attributes: { arbre, ...(type === 'racine' ? { racine: true } : { type: 'context' }) } });
-  const deux = regleDuCompte(['p1', 'p2'].flatMap((a) => [noeud(a, 'racine'), noeud(a, 'contexte')]));
-  assert.match(deux.signaux[0], /plusieurs profils/); assert.equal(veilleVoulue(deux), null);
-  const un = regleDuCompte([noeud('p1', 'racine'), noeud('p1', 'contexte')]);
+  const noeud = (arbre, type) => ({ kind: 'node', id: `${arbre}:${type}`, node: type === 'racine' ? '/arbre/index.md' : '/arbre/contextes/c.md',
+    location: `/d/${arbre}/arbre/${type === 'racine' ? 'index.md' : 'contextes/c.md'}`, attributes: { arbre, ...(type === 'racine' ? { racine: true } : { type: 'context' }) } });
+  const deux = ['p1', 'p2'].flatMap((a) => [noeud(a, 'racine'), noeud(a, 'contexte')]);
+  const introuvable = regleDuCompte(deux, { profil: '/d/absent' });
+  assert.match(introuvable.signaux[0], /profil désigné introuvable : \/d\/absent/); assert.equal(veilleVoulue(introuvable), null);
+  const un = regleDuCompte(deux, { profil: '/d/p1' });
   assert.equal(un.indetermine, undefined); assert.equal(veilleVoulue(un), false, 'un profil sans la règle : non voulue');
   assert.equal(veilleVoulue({ regles: [{ id: 'veille-retardee', applicable: true, controles: ['veille-retardee'] }] }), true);
 });
@@ -425,7 +427,7 @@ test('veille : la pose marque la relance du gardien juste avant de le relancer',
   fs.rmSync(fichierRelance(accueil));
   assert.equal(pose('/v2/holarch.js').gardien({ veille: true }).etat, 'réécrite');
   fs.rmSync(fichierRelance(accueil));
-  assert.equal(pose('/v2/holarch.js').gardien({ veille: null }).etat, 'règle veille-retardee indéterminée (règles du compte illisibles, aucun profil ou plusieurs) : laissé, relancé');
+  assert.equal(pose('/v2/holarch.js').gardien({ veille: null }).etat, 'règle veille-retardee indéterminée (règles du compte illisibles, ou sans profil) : laissé, relancé');
   assert.deepEqual(vu, [true, true, true], 'marquée avant chacune des trois relances');
 });
 

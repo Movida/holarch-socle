@@ -288,7 +288,7 @@ function arbresFictifs() {
   ecrire(path.join(d('bundle'), 'rules.yaml'), 'pas: une liste\n');
   ecrire(path.join(d('bundle'), 'notes', 'doc.md'), '---\ntype: Protocole\ntitle: Document du bundle\n---\n');
   const ctx = { depots: ['profil', 'socle', 'bundle'].map(d), projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) };
-  return { r, d, fiches: inventaireArbre({}, ctx) };
+  return { r, d, fiches: inventaireArbre({}, ctx), profil: { profil: d('profil') } };
 }
 
 test('règles : l’inventaire lit les règles des nœuds, la racine d’un bundle OKF, et signale un rules.yaml invalide', () => {
@@ -305,8 +305,8 @@ test('règles : l’inventaire lit les règles des nœuds, la racine d’un bund
 });
 
 test('règles : règle effective d’un projet (profil, contexte, types, projet), redéfinition, dérogation, non dérogeable', () => {
-  const { fiches } = arbresFictifs();
-  const e = regleEffective(fiches, 'holarch:project:socle');
+  const { fiches, profil } = arbresFictifs();
+  const e = regleEffective(fiches, 'holarch:project:socle', profil);
   const par = Object.fromEntries(e.regles.map((x) => [x.id, x]));
   assert.deepEqual(e.arbre.types, ['methode']);
   assert.equal(par['avis-argumente'].origine, 'projet', 'le plus spécifique l’emporte');
@@ -318,21 +318,21 @@ test('règles : règle effective d’un projet (profil, contexte, types, projet)
   assert.deepEqual([par.francais.applicable, par.francais.derogee.pourquoi], [false, 'dépôt en anglais']);
   assert.deepEqual([par.proposee.applicable, par.proposee.statut], [false, 'draft'], 'un brouillon se montre, il ne s’applique pas');
   assert.ok(e.rappels > 0);
-  const b = regleEffective(fiches, 'holarch:project:bundle');
+  const b = regleEffective(fiches, 'holarch:project:bundle', profil);
   assert.ok(b.signaux.some((x) => /type inconnu : inexistant/.test(x)) && b.signaux.some((x) => /liste de règles/.test(x)));
   assert.ok(b.regles.some((x) => x.id === 'jamais-inventer'), 'un bundle OKF adopte un type par sa racine');
-  const sans = regleEffective(fiches, 'holarch:project:inconnu');
+  const sans = regleEffective(fiches, 'holarch:project:inconnu', profil);
   assert.ok(sans.signaux.some((x) => /aucun contexte ne déclare/.test(x)) && sans.regles.every((x) => x.origine === 'profil'));
-  const c = regleDuCompte(fiches);
+  const c = regleDuCompte(fiches, profil);
   assert.deepEqual(c.regles.map((x) => x.id).sort(), ['avis-argumente', 'commit-sur-main', 'francais', 'proposee', 'secret-du-profil'], 'un seul contexte : profil et contexte au compte');
 });
 
 test('règles : un brouillon plus bas ne remplace pas une règle approuvée de même id ; il reste proposé', () => {
-  const { d } = arbresFictifs();
+  const { d, profil } = arbresFictifs();
   // Une redite récoltée au nœud du projet, sous l'id d'une règle approuvée du type (bloquante, contrôlée).
   fs.appendFileSync(path.join(d('socle'), 'arbre', 'rules.yaml'), '- id: garde\n  statement: Une redite récoltée.\n');
   const ctx = { depots: ['profil', 'socle', 'bundle'].map(d), projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) };
-  const e = regleEffective(inventaireArbre({}, ctx), 'holarch:project:socle');
+  const e = regleEffective(inventaireArbre({}, ctx), 'holarch:project:socle', profil);
   const g = e.regles.find((x) => x.id === 'garde');
   assert.deepEqual([g.origine, g.statut, g.niveau, g.applicable], ['type', 'stable', 'blocking', true], 'l’approuvée tient');
   assert.equal(g.proposee?.enonce, 'Une redite récoltée.', 'le brouillon reste visible, à approuver');
@@ -340,8 +340,8 @@ test('règles : un brouillon plus bas ne remplace pas une règle approuvée de m
 });
 
 test('règles : l’adaptateur Claude Code écrit un fichier marqué par règle, retire ce qui n’a plus de règle, ne touche pas le reste', () => {
-  const { fiches } = arbresFictifs();
-  const e = regleEffective(fiches, 'holarch:project:socle');
+  const { fiches, profil } = arbresFictifs();
+  const e = regleEffective(fiches, 'holarch:project:socle', profil);
   const plan = planifier(e.regles, { portee: 'projet', classificationDepot: 'internal' });
   assert.deepEqual(plan.fichiers.map((x) => x.fichier).sort(), ['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md', 'tests-verts.md']);
   assert.deepEqual(Object.fromEntries(plan.non.map((x) => [x.regle, x.raison])), { garde: 'niveau blocking sans contrôle ni permission' });
@@ -364,7 +364,7 @@ test('règles : l’adaptateur Claude Code écrit un fichier marqué par règle,
   assert.equal(fs.readFileSync(path.join(dossier, 'tests-verts.md'), 'utf8'), 'écrite à la main, même nom\n', 'un fichier non marqué n’est jamais touché');
   assert.ok(fs.existsSync(path.join(dossier, 'a-la-main.md')));
   assert.deepEqual(appliquer(dossier, plan).inchanges.sort(), ['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md'], 'idempotent');
-  const compte = planifier(regleDuCompte(fiches).regles, { portee: 'compte' });
+  const compte = planifier(regleDuCompte(fiches, profil).regles, { portee: 'compte' });
   assert.deepEqual(compte.fichiers.map((x) => x.fichier).sort(), ['avis-argumente.md', 'commit-sur-main.md', 'francais.md', 'secret-du-profil.md']);
 });
 
@@ -431,11 +431,11 @@ test('contrôles : un projet déclaré public, par sa classification ou par ses 
   const racine = (nom, entete) => { fs.mkdirSync(path.join(r, nom)); depotGit(path.join(r, nom)); ecrire(path.join(r, nom, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${nom}\ntitle: ${nom}\nstatus: draft\n${entete}---\n`); return path.join(r, nom); };
   const depots = [racine('ouvert', 'types: [public]\n'), racine('classe', 'classification: public\n'), racine('ferme', '')];
   const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil'), ...depots], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
-  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
   const projets = depots.map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }));
   s.catalogue.remplacer([...fiches, ...projets]); s.indexer();
-  const termes = s.contexteControle(projets[2], regleEffective([...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })], projets[2].id)).termes;
-  const autre = s.contexteControle(projets[0], regleEffective([...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })], projets[0].id)).termes;
+  const termes = s.contexteControle(projets[2], regleEffective([...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })], projets[2].id, { profil: s.profil() })).termes;
+  const autre = s.contexteControle(projets[0], regleEffective([...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })], projets[0].id, { profil: s.profil() })).termes;
   assert.ok(!termes.includes('ouvert') && !termes.includes('classe'), termes.join(' | '));
   assert.ok(autre.includes('ferme'), 'un projet sans rien qui le dise public reste privé');
 });
@@ -507,7 +507,7 @@ test('garde : une exception ajoutée à l’arbre vaut au commit suivant, sans a
   ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
   ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
   const projetDe = (x) => ({ id: `holarch:project:${path.basename(x)}` });
-  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
+  const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
   s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
   s.indexer();
   ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', '.');
@@ -530,7 +530,7 @@ test('audit : un commit fautif est refusé par le crochet ; forcé, il apparaît
   ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
   const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
   ecrire(path.join(accueil, 'config.yaml'), 'site: local\ninventaire: { claude-code: { actif: false }, depots-git: { actif: false }, arbre: { actif: false }, docker: { actif: false }, claude-desktop: { actif: false } }\n');
-  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
   s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
   s.indexer();
 
@@ -661,7 +661,7 @@ test('audit : un contrôle de portée site s’exécute au compte, jamais dans c
   ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
   fs.mkdirSync(path.join(r, 'depot')); depotGit(path.join(r, 'depot'));
   const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
-  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
   s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: path.join(r, 'depot'), provenance: { source: 't' } }]);
   s.indexer();
   const a = s.audit();
@@ -866,7 +866,7 @@ test('identité de commit : posée en réglage local, réglage à la main laiss�
     fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));  // réglage local posé à la main
     ecrire(path.join(d, 'note.md'), 'un\n'); g('add', '.'); g('commit', '-qm', 'départ');
     const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
-    const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+    const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
     s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
     s.indexer();
 
@@ -928,13 +928,13 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'index.md'), '---\ntype: template\nid: public\ntitle: Public\nstatus: draft\nconfig:\n  creation: { visibilite: public, licence: MIT, journal: arbre/log.md }\n  donnees_personnelles: { exceptions: [{ fichier: LICENSE, pourquoi: titulaire }] }\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
     ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'public', 'rules.yaml'), '- id: rien-de-prive\n  statement: Rien de privé dans ce dépôt.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n- id: rien-de-personnel\n  statement: Aucun nom de personne.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
     for (const d of ['profil', 'socle']) { const { g } = depotGit(path.join(r, d)); g('add', '.'); g('commit', '-qm', 'départ'); }
-    const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
+    const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
       inventaire: { 'depots-git': { actif: true, racines: [r], profondeur: 2, ignorer: [] }, arbre: { actif: true, depots: [] } } });
     await s.inventaire(); s.indexer();
 
-    assert.throws(() => configAvantProjet([...s.fiches({ kind: 'node' })], { contexte: 'pro' }), /contexte inconnu : pro \(perso\)/);
-    assert.throws(() => configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['prive'] }), /type inconnu : prive/);
-    assert.deepEqual(configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['public'] }).config.creation, { dossier: r, visibilite: 'public', licence: 'MIT', journal: 'arbre/log.md' });
+    assert.throws(() => configAvantProjet([...s.fiches({ kind: 'node' })], { contexte: 'pro', profil: s.profil() }), /contexte inconnu : pro \(perso\)/);
+    assert.throws(() => configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['prive'], profil: s.profil() }), /type inconnu : prive/);
+    assert.deepEqual(configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['public'], profil: s.profil() }).config.creation, { dossier: r, visibilite: 'public', licence: 'MIT', journal: 'arbre/log.md' });
     await assert.rejects(creerProjet(s, { nom: '../evasion' }), /nom de projet invalide/);
 
     const appels = []; let cles = 0; const actifs = [];
@@ -1018,7 +1018,7 @@ async function bancCreation({ identite = true, creation = {} } = {}) {
   ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'index.md'), '---\ntype: template\nid: methode\ntitle: Méthode\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
   ecrire(path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'rules.yaml'), '- id: tests-verts\n  statement: Les tests passent avant de rendre la main.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
   for (const d of ['profil', 'socle']) { const { g } = depotGit(path.join(r, d)); g('add', '.'); g('commit', '-qm', 'départ'); }
-  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
+  const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
     inventaire: { 'depots-git': { actif: true, racines: [r], profondeur: 2, ignorer: [] }, arbre: { actif: true, depots: [] } } });
   await s.inventaire(); s.indexer();
   const toucher = (f) => { const t = new Date(Date.now() + 2000); fs.utimesSync(f, t, t); };
@@ -1238,7 +1238,7 @@ test('récolte : une redite nouvelle devient une règle brouillon au nœud commu
   const donnees = tmp(); const profil = tmp(); const demo = tmp();
   ecrire(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\ntitle: Profil\nstatus: draft\n---\n');
   ecrire(path.join(profil, 'arbre', 'rules.yaml'), '# Règles du profil (commentaire gardé)\n- id: melee\n  statement: "Déjà là."\n  status: deprecated\n');
-  const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {} });
+  const s = new Socle({ site: 'local', profil, donnees, web: {}, inventaire: {}, import: {} });
   const noeud = (id, location, attributes) => ({ id, kind: 'node', name: id, status: 'proposed', provenance: { source: 't' }, location, node: '/arbre/index.md', attributes });
   s.catalogue.remplacer([
     noeud('holarch:node:profil', path.join(profil, 'arbre', 'index.md'), { type: 'guideline', arbre: 'profil', racine: true }),

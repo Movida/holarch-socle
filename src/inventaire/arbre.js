@@ -1,8 +1,9 @@
 // Adaptateur d'inventaire de l'arbre HOLARCH : chaque nœud (fichier Markdown à en-tête sous arbre/) devient une fiche
 // `node`, avec son type, son statut et ses liens. Dépôts lus : ceux de la configuration, plus tout dépôt connu qui porte
 // un arbre (contrat nœud §1 : `arbre/index.md`, sinon l'`index.md` d'un bundle OKF à la racine ; d'un bundle, seule la
-// racine est lue, ses documents suivent leur propre vocabulaire). Un nœud appartient au projet de son dépôt : son
-// identifiant se fonde sur celui du projet (deux clones de même nom ne se confondent plus) et il porte le lien `project`
+// racine est lue, ses documents suivent leur propre vocabulaire), et le dépôt du profil que désigne le site
+// (`ctx.profil`). Un nœud appartient au projet de son dépôt : son identifiant se fonde sur celui du projet (deux clones
+// de même nom ne se confondent plus) et il porte le lien `project`
 // (décision rattachement-projet). Pour la vue Projets : une spécification d'étape porte les entrées de sa section
 // « Avancement », la racine porte les questions ouvertes de `arbre/questions.md` et les idées de `arbre/idees.md`. Les
 // règles d'un nœud (contrat règle) deviennent des fiches `rule` (décision arbre-des-regles).
@@ -94,7 +95,7 @@ const statutFiche = (s) => (s === 'deprecated' ? 'retired' : s === 'stable' ? 'a
 
 export default function inventaireArbre(options, ctx) {
   const depots = new Set(options.depots || []);
-  for (const d of ctx.depots || []) if (racineArbre(d)) depots.add(d);
+  for (const d of [...(ctx.depots || []), ...(ctx.profil && path.isAbsolute(ctx.profil) ? [ctx.profil] : [])]) if (racineArbre(d)) depots.add(d);
   const out = [];
   for (const depot of depots) {
     const racine = racineArbre(depot);
