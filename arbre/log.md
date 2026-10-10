@@ -2,6 +2,21 @@
 
 ## 2026-10-10
 
+* **Décision `profil-designe`, pas 4 à 7, pose et contre-épreuve** (environ 260 k tokens) : dépôt du profil monté en
+  écriture, écart de `montage-sensible`, avec le dossier de travail monté par défaut (`e9278a2`) ; exceptions de
+  `donnees_personnelles` hors du dépôt contrôlé, termes partout, exceptions écartées dites (`4c85d68`, et `9ba93e7` du
+  profil, `6ca5ac6` d'okf-bundle-template) ; contrats de configuration 0.6.0 et de nœud 0.4.0, C en 0.7.0 (`ff8a6f2`).
+  Chaque test rouge sur son parent et sur 16 mutants ; 153 tests verts. Clé `profil` posée au poste avec l'accord de
+  l'auteur ; audit à blanc identique avant et après, audit réel sans écart nouveau ; copie de service posée (`ff8a6f2`).
+  Contre-épreuve lancée en fond par une instance neuve. Rien poussé (socle, profil, okf-bundle-template). Leçon de
+  clôture : déroulé annoncé en quatre pas (montage, exceptions, textes, geste puis audit, pose et contre-épreuve) ;
+  tous tenus. Ce qui l'a fait dévier : trois vérifications non prévues, chacune avant d'agir (le montage implicite du
+  dossier de travail, lu dans le code du CLI ; okf-hub public, que l'exception déplacée au contexte couvre pour six
+  projets ; le site `hote`, que la clé de `config.yaml` toucherait) ; une exception lue deux fois, une par champ, qui a
+  fait lire la fonction commune avec plusieurs champs ; le seuil de passation franchi avant le retour de la
+  contre-épreuve. La demande qui y aurait mené : « pas 4 à 7 de `profil-designe`, pose comprise, puis contre-épreuve en
+  fond et passation ; corrections dans la session suivante ».
+
 * **Décision `profil-designe`, pas 1 à 3, et passation** (environ 285 k tokens) : clé `profil` du site et sa lecture
   unique (`7caa89c`), déclarants du seul profil et écarts du compte (`c9a623b`), identifiants en double jamais résolus
   (`134418e`) ; un test chacun, rouge sur son parent et sur 20 mutants en tout (un 21e, resté vert, a fait ajouter une

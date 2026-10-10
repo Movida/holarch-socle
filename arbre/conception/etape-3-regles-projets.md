@@ -1105,31 +1105,28 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   catalogue n'en gardait qu'une, la relecture de la garde les deux). Mesuré à blanc sur le poste, profil désigné : un
   seul déclarant (contexte personnel, 6 projets), rien de non lu, aucun doublon, 26 règles au compte. Rien posé, rien
   poussé.
+- **Fait (2026-10-10)** : décision `profil-designe`, pas 4 à 7. Pas 4 (`e9278a2`) : le dépôt du profil monté en
+  écriture par un conteneur est un écart de `montage-sensible` (en lecture, non ; montage, parent ou sous-dossier,
+  configuration ou conteneur construit) ; le dossier de travail que le CLI Dev Containers monte par défaut sans
+  `workspaceMount` (lu dans son code, 0.469.0) se lit désormais aussi, sans quoi le conteneur du profil lui-même
+  échappait. Pas 5 (`4c85d68`) : portée par sous-clé, `donnees_personnelles.exceptions` au profil et au contexte, hors
+  du dépôt contrôlé, `termes` à toutes les couches ; une exception écartée se dit à l'audit, une fois, sous son champ
+  (`terme`, `fichier`, `ecart`) ; exceptions déménagées dans le même pas (profil `9ba93e7`, type `depot-public`,
+  okf-bundle-template `6ca5ac6`). okf-hub est public (GitHub) : l'exception de son nom, au contexte, vaut désormais pour
+  les six projets, sans rien lever. Trois tests adaptés (exception écrite dans le dépôt, désormais sans effet). Pas 6
+  (`ff8a6f2`) : contrats de configuration 0.6.0 et de nœud 0.4.0, C en 0.7.0, renvois dans quatre décisions. Chaque
+  test rouge sur son parent et sur 8 mutants sur 8 (deux mutants d'abord verts ont fait ajouter un cas : une feature
+  locale, le dépôt du profil contrôlé lui-même) ; 153 tests verts. Pas 7, avec l'accord de l'auteur : clé `profil` posée
+  dans la configuration du poste ; audit complet à blanc identique avant et après (23 lignes, aucune différence), puis
+  audit réel : 0 écart apparu, 0 résolu ; copie de service posée (`ff8a6f2`, interface et gardien relancés).
 - **Reste** :
-  0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
-     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport : `holarch rapport aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service posée le 2026-10-10
-     (`ba0a61c`), à reposer après les corrections de (a) et (c).
-     (a) et (c) : décision `profil-designe` approuvée le 2026-10-10 (Fait ci-dessus), code en cours. Elle couvre aussi
-     trois mineurs du rapport (déclaration depuis un autre dépôt, contrat de configuration, exceptions de
-     `donnees_personnelles` lues dans le dépôt contrôlé).
-     Pas 1 à 3 faits le 2026-10-10 (Fait ci-dessus). Suite, session neuve (Opus 5.5 `xhigh`), un commit et un test
-     chacun, éprouvés par `npm run eprouver` (parent ou mutant), dans cet ordre ; les bancs `essaiProfil` (profil,
-     `autre`, `depot`) et `essaiExceptions` de `test/garde-fous.test.js` servent aux pas suivants. **Copie de service à
-     ne poser qu'après la clé du pas 7** : sans elle, le poste n'a plus de profil (mesuré à blanc : compte indéterminé ;
-     par construction, les réglages du profil, dont les termes de sa liste privée, ne sont plus lus par la garde) ; la
-     copie posée (`ba0a61c`) ignore cette clé, qui peut donc être ajoutée avant :
-     4. `montage-sensible` : le dépôt du profil monté en écriture par un conteneur est un écart ;
-     5. exceptions de `donnees_personnelles` au profil et au contexte, hors du dépôt contrôlé (`PORTEE` vaut aujourd'hui
-        pour une clé entière : les `termes` restent lisibles partout) ; dans le même pas, les trois exceptions
-        déménagent : `LICENSE` et `NOTICE` du type `depot-public` à la racine du profil, le nom de dépôt public de la
-        racine d'okf-bundle-template au contexte personnel (commits dans le profil et dans okf-bundle-template, après
-        `git pull`, rien poussé sans demande) ;
-     6. textes : contrat de configuration 0.6.0, C en 0.7.0 (`environnement-d-execution` l. 4, 56, 92, 107 ; cette
-        spécification, ligne de C) ; contrat nœud 0.4.0 ; renvoi à `profil-designe` dans `arbre-des-regles` ;
-     7. geste, avec l'accord de l'auteur : la clé dans la configuration du poste,
-        `printf '\n# Dépôt du profil de ce site (décision profil-designe)\nprofil: ~/holarch-profil\n' >> ~/.claude/holarch/config.yaml` ;
-        puis audit du poste (attendu : aucun écart nouveau), pose (`holarch service poser`) et contre-épreuve par une
-        instance neuve. Site de travail : Q32.
+  0. **Contre-épreuve de la décision `profil-designe`** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
+     `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
+     `xhigh`), scripts dans `/tmp/contre-epreuve-pd/` : [À COMPLÉTER : constats du rapport]. Après elle : les
+     corrections, un commit et un test chacun, éprouvés par `npm run eprouver` ; puis reposer la copie de service.
+     Site de travail : Q32 (sans la clé `profil`, il perd les règles de son profil au compte, et son audit le dit).
+     Contre-épreuve précédente (`exceptions-hors-du-depot`, rapport : `holarch rapport aac2690360a154fe6`) : close par
+     cette décision et les corrections du 2026-10-10.
      Mineurs restants : exception utilisée visible seulement en ligne de commande (ni journal, ni interface, ni MCP).
      Premier lot, réserves : profondeur des agents de workflow bornée à 4 (le
      texte dit « à tout niveau ») ; `etatRoutines` et l'interface disent le gardien activé sans systemd ; trois formats de
