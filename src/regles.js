@@ -113,16 +113,31 @@ function couchesDeclarant(a, declarant) {
 }
 
 // Réglages (`config`) des couches, de la plus générale à la plus spécifique : un objet se fusionne clé à clé, une liste
-// s'allonge (une exception posée par le projet s'ajoute à celles du profil), une valeur simple posée plus bas l'emporte.
-export function fusionnerConfig(...couches) {
-  const objet = (x) => x && typeof x === 'object' && !Array.isArray(x);
-  const fusion = (a, b) => {
+// s'allonge (une exception posée par le projet s'ajoute à celles du profil), une valeur simple posée plus bas l'emporte
+// sur une valeur simple. Elle ne remplace ni un objet ni une liste d'une couche plus haute : celle-ci tient, et c'est dit
+// (`signaux`, avec la provenance de la couche ; décision fusion-et-profil-audite). Lever une règle passe par une
+// dérogation, pas par un réglage vidé. Une clé de l'arbre (`__proto__` compris) reste une clé.
+export function fusionnerCouches(couches, signaux = []) {
+  const objet = (x) => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
+  const forme = (x) => (Array.isArray(x) ? 'une liste' : objet(x) ? 'un objet' : 'une valeur simple');
+  const poser = (r, k, v) => Object.defineProperty(r, k, { value: v, enumerable: true, writable: true, configurable: true });
+  const fusion = (a, b, chemin, de) => {
+    if (b === undefined) return a;
     if (Array.isArray(a) && Array.isArray(b)) return [...a, ...b];
-    if (objet(a) && objet(b)) { const r = { ...a }; for (const [k, v] of Object.entries(b)) r[k] = k in r ? fusion(r[k], v) : v; return r; }
-    return b === undefined ? a : b;
+    if (objet(a) && objet(b)) {
+      const r = {}; for (const [k, v] of Object.entries(a)) poser(r, k, v);
+      for (const [k, v] of Object.entries(b)) poser(r, k, Object.hasOwn(r, k) ? fusion(r[k], v, [...chemin, k], de) : v);
+      return r;
+    }
+    if ((objet(a) || Array.isArray(a)) && forme(a) !== forme(b)) {
+      signaux.push(`${chemin.join('.')} posé par ${de} : ${forme(b)} ne remplace pas ${forme(a)} d’une couche plus haute, qui tient (décision fusion-et-profil-audite)`);
+      return a;
+    }
+    return b;
   };
-  return couches.filter(objet).reduce(fusion, {});
+  return couches.filter((c) => objet(c.config)).reduce((r, c) => fusion(r, c.config, [], c.provenance ? `${c.provenance} (${c.origine})` : 'une couche'), {});
 }
+export const fusionnerConfig = (...configs) => fusionnerCouches(configs.map((config) => ({ config })));
 
 // Portée d'un réglage qui ne se lit pas partout : une clé (`a`) ou une sous-clé (`a.b`), les couches qui peuvent la
 // porter, si elle se lit hors du dépôt contrôlé, et la décision qui le dit. Une exception fait taire un écart : elle ne
@@ -241,7 +256,7 @@ export function regleEffective(fiches, projetId, { profil } = {}) {
   if (racine) couches.push({ origine: 'projet', noeud: racine, regles: a.regles.get(racine.id) || [] });
   const regles = fusionner(couches, signaux);
   const lues = couchesLues(couches, signaux);
-  const config = fusionnerConfig(...lues.map((c) => c.config));
+  const config = fusionnerCouches(lues, signaux);
   for (const d of racine?.attributes?.derogations || []) {
     const e = regles.find((x) => x.id === d?.rule);
     if (!e) { signaux.push(`dérogation à une règle absente : ${d?.rule}`); continue; }
@@ -276,7 +291,7 @@ export function regleDuCompte(fiches, { profil } = {}) {
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profil, regles: a.regles.get(a.profil.id) || [] }];
   const regles = fusionner(couches, signaux);
-  const config = fusionnerConfig(...couchesLues(couches, signaux).map((c) => c.config));
+  const config = fusionnerCouches(couchesLues(couches, signaux), signaux);
   const lisibles = illisibles(a, couches); signaux.push(...lisibles);
   return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, illisibles: lisibles, declarations, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
@@ -300,7 +315,7 @@ export function configAvantProjet(fiches, { contexte = null, types = [], profil 
   if (inconnus.length) throw new Error(`type inconnu : ${inconnus.join(', ')} (${[...a.templates.keys()].join(', ')})`);
   const c = choisis[0];
   const couches = [...couchesDeclarant(a, c), ...types.map((t) => ({ origine: 'type', noeud: a.templates.get(t) }))];
-  return { contexte: { nom: nomDe(c), fichier: c.location }, config: fusionnerConfig(...couchesLues(couches, []).map((x) => x.config)) };
+  return { contexte: { nom: nomDe(c), fichier: c.location }, config: fusionnerCouches(couchesLues(couches, [])) };
 }
 
 /**

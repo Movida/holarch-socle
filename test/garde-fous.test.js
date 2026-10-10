@@ -16,7 +16,7 @@ import { git, gitLu, dedans } from '../src/commun.js';
 import { Socle } from '../src/socle.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
-import { regleEffective, exceptions } from '../src/regles.js';
+import { regleEffective, exceptions, fusionnerConfig } from '../src/regles.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -1193,4 +1193,42 @@ test('Exceptions des données personnelles (décision profil-designe) : au profi
   const lu = executer('donnees-personnelles', { depot: p, couches, termes: ['Zeta Martin'] }, 'audit');
   assert.deepEqual([lu.ecarts.map((e) => e.fichier), lu.exceptions_ignorees.filter((e) => e.fichier)], [['LICENSE'], [{ fichier: 'LICENSE', raison: 'écrite dans le dépôt contrôlé', provenance: 'profil:/arbre/index.md' }]]);
   assert.ok(!listePrivee({ depot: d, couches, config: { donnees_personnelles: { termes: ['Projet Omega'] } } }).includes('Projet Omega'));
+});
+
+test('Contre-épreuve du profil désigné (2) : une valeur posée plus bas ne remplace ni un objet ni une liste ; liste privée et identité tiennent, et c’est dit', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot');
+  const regle = (id, controle) => `- id: ${id}\n  statement: ${id}.\n  level: blocking\n  check: [${controle}]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n`;
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  donnees_personnelles:\n    termes: [Zeta Martin]\n  identite: { nom: Alice Exemple, email: alice@exemple.test }\n---\n');
+  ecrireF(path.join(p, 'arbre', 'rules.yaml'), regle('rien-de-personnel', 'donnees-personnelles') + regle('identite-de-commit', 'identite-de-commit'));
+  ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  fs.mkdirSync(d, { recursive: true });
+  const g = (...a) => { const x = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(x.status, 0, x.stderr); };
+  g('init', '-q'); g('config', 'user.name', 'Bob Autre'); g('config', 'user.email', 'bob@autre.test');
+  ecrireF(path.join(d, 'note.md'), 'note de Zeta Martin\n');
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+  const garder = (config) => {
+    ecrireF(path.join(d, 'arbre', 'index.md'), `---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\nconfig:\n${config}---\n`); g('add', '.');
+    s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d], profil: p, projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+      { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
+    const e = regleEffective(s.fiches(), 'holarch:project:depot', { profil: p });
+    return { refus: s.garde({ depot: d }).refus.map((x) => x.regle).sort(), config: e.config, signaux: e.signaux.filter((x) => x.includes('ne remplace pas')) };
+  };
+  // Vider la liste privée, couper l'identité, ou remplacer une liste par un objet : la couche plus haute tient, et la
+  // garde refuse le commit (terme privé, autre identité) comme sans ces réglages.
+  for (const [config, chemin, forme] of [['  donnees_personnelles: null\n', 'donnees_personnelles', 'une valeur simple ne remplace pas un objet'],
+    ['  donnees_personnelles: { termes: "" }\n', 'donnees_personnelles.termes', 'une valeur simple ne remplace pas une liste'],
+    ['  donnees_personnelles: { termes: { a: 1 } }\n', 'donnees_personnelles.termes', 'un objet ne remplace pas une liste'],
+    ['  identite: null\n', 'identite', 'une valeur simple ne remplace pas un objet']]) {
+    const x = garder(config);
+    assert.deepEqual(x.refus, ['identite-de-commit', 'rien-de-personnel'], config);
+    assert.deepEqual([x.config.donnees_personnelles.termes, x.config.identite.nom], [['Zeta Martin'], 'Alice Exemple'], config);
+    assert.deepEqual(x.signaux, [`${chemin} posé par depot:/arbre/index.md (projet) : ${forme} d’une couche plus haute, qui tient (décision fusion-et-profil-audite)`], config);
+  }
+  // Ce qui reste permis : une liste s'allonge, un objet se fusionne clé à clé, une valeur simple en remplace une autre.
+  const x = garder('  donnees_personnelles: { termes: [Projet Omega] }\n  identite: { email: alice@autre.test }\n');
+  assert.deepEqual([x.config.donnees_personnelles.termes, x.config.identite, x.signaux], [['Zeta Martin', 'Projet Omega'], { nom: 'Alice Exemple', email: 'alice@autre.test' }, []]);
+  // Une clé `__proto__` écrite dans l'arbre reste une clé : elle ne change pas la forme de la configuration fusionnée.
+  const proto = fusionnerConfig({ a: { b: 1 } }, JSON.parse('{"a": {"__proto__": {"c": 2}}}'));
+  assert.deepEqual([Object.getPrototypeOf(proto.a), proto.a.c, Object.hasOwn(proto.a, '__proto__')], [Object.prototype, undefined, true]);
 });

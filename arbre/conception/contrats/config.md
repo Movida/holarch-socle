@@ -3,16 +3,18 @@ type: contract
 title: Contrat — registre de configuration
 description: Les clés de réglage (`config`) qu'un nœud de l'arbre peut porter, qui les lit, et comment elles se fusionnent d'une couche à l'autre.
 status: draft
-version: 0.6.0
+version: 0.7.0
 links:
   derives_from: [/arbre/conception/contrats/noeud.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-identite-par-contexte.md, /arbre/decisions/2026-10-07-creation-de-projet.md, /arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md, /arbre/decisions/2026-10-10-exceptions-hors-du-depot.md, /arbre/decisions/2026-10-10-profil-designe.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-identite-par-contexte.md, /arbre/decisions/2026-10-07-creation-de-projet.md, /arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md, /arbre/decisions/2026-10-10-exceptions-hors-du-depot.md, /arbre/decisions/2026-10-10-profil-designe.md, /arbre/decisions/2026-10-10-fusion-et-profil-audite.md]
 ---
 
 # Contrat — registre de configuration
 
 Un nœud porte ses réglages sous `config` (contrat nœud). Ils se fusionnent du profil vers le projet, dans l'ordre de la
-règle effective : un objet clé à clé, une liste s'allonge, une valeur simple posée plus bas l'emporte. Une clé absente
+règle effective : un objet clé à clé, une liste s'allonge, une valeur simple posée plus bas l'emporte sur une valeur
+simple. Elle ne remplace ni un objet ni une liste d'une couche plus haute : celle-ci tient, et la règle effective le dit
+(décision `fusion-et-profil-audite`) ; lever une règle passe par une dérogation. Une clé absente
 de ce registre n'est lue par personne ; une clé s'y ajoute avec le mécanisme qui la lit. Une clé à portée restreinte
 (`montage_sensible`, et les `exceptions` de `donnees_personnelles`) n'est pas lue quand une autre couche la porte, ni
 dans le dépôt contrôlé, et la règle effective le dit.
