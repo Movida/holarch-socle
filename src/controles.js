@@ -13,6 +13,7 @@ import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
 import { dossierClaude } from './projets.js';
+import { exceptions } from './regles.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
 const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
@@ -22,21 +23,22 @@ const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
 /**
  * Liste privée d'un projet : déduite de la machine (identité git, dossier personnel, comptes Claude Code, noms des
  * projets non publics que déclare un contexte), complétée et amendée par le réglage `donnees_personnelles` de la règle
- * effective (`termes` : chaînes ou `{terme, pourquoi}` ; `exceptions` : `{terme, pourquoi}` retire un terme, `{fichier,
- * pourquoi}` soustrait un fichier du contrôle). Le nom du projet lui-même n'en fait jamais partie.
+ * effective (`termes` : chaînes ou `{terme, pourquoi}`, dans la configuration fusionnée ; `exceptions`, lues couche par
+ * couche par la fonction commune : `{terme, pourquoi}` retire un terme, `{fichier, pourquoi}` soustrait un fichier du
+ * contrôle). Le nom du projet lui-même n'en fait jamais partie.
  */
-export function listePrivee({ depot, config = {}, comptes = [], projetsPrives = [], nomProjet = null }) {
+export function listePrivee({ depot, config = {}, couches = [], comptes = [], projetsPrives = [], nomProjet = null }) {
   const lireGit = (cle) => (gitLu(depot, ['config', '--get', cle]).stdout || '').trim();
   const valeur = (x) => String(typeof x === 'object' && x ? x.terme ?? '' : x ?? '').trim();
   const reglage = config.donnees_personnelles || {};
   const termes = [lireGit('user.name'), lireGit('user.email'), os.userInfo().username, os.homedir(),
     ...comptes.map((c) => c.home).filter(Boolean), ...projetsPrives, ...[].concat(reglage.termes || []).map(valeur)];
-  const exclus = new Set([nomProjet, ...[].concat(reglage.exceptions || []).filter((x) => !x?.fichier).map(valeur)].filter(Boolean).map((t) => t.toLowerCase()));
+  const exclus = new Set([nomProjet, ...exceptions(couches, 'donnees_personnelles', 'terme').map((x) => x.valeur)].filter(Boolean).map((t) => t.toLowerCase()));
   return [...new Set(termes.map((t) => t.trim()).filter((t) => t.length >= 3 && !exclus.has(t.toLowerCase())))];
 }
 
 /** Fichiers soustraits au contrôle des données personnelles (`exceptions: [{fichier, pourquoi}]`), chemins du dépôt. */
-export const fichiersExclus = (config = {}) => [].concat(config.donnees_personnelles?.exceptions || []).filter((x) => x?.fichier).map((x) => String(x.fichier));
+export const fichiersExclus = (couches = []) => exceptions(couches, 'donnees_personnelles', 'fichier').map((x) => x.valeur);
 
 /** Un chercheur de termes en mots entiers, sans casse ; null si la liste est vide. */
 export function chercheur(termes) {
@@ -75,7 +77,7 @@ function parFichier(trouves, message) {
 function donneesPersonnelles(ctx, moment) {
   const trouve = chercheur(ctx.termes || []);
   if (!trouve) return { indisponible: 'liste privée vide' };
-  const trouves = []; const exclu = new Set(fichiersExclus(ctx.config));
+  const trouves = []; const exclu = new Set(fichiersExclus(ctx.couches));
   if (moment === 'avant-commit') {
     for (const f of listeZ(gitLu(ctx.depot, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']))) if (!exclu.has(f) && trouve(f)) trouves.push({ fichier: f, ligne: null });
     for (const l of lignesAjoutees(ctx.depot)) if (!exclu.has(l.fichier) && trouve(l.texte)) trouves.push(l);
@@ -647,9 +649,9 @@ function montageSensible(ctx) {
     }
   }
   if (publiees.size && !construits.length) nonLus.push(`features publiées (${[...publiees].join(', ')}) non lues, et aucun conteneur du dépôt à inspecter`);
-  // Écarts exceptés par l'arbre du projet (`montage_sensible.exceptions` : `{ecart, pourquoi}`, la clé exacte d'un écart
-  // et sa raison), comme les exceptions des données personnelles : le risque reste, l'écart ne se dit plus.
-  const exceptes = new Set([].concat(ctx.config?.montage_sensible?.exceptions || []).filter((x) => x?.ecart && x?.pourquoi).map((x) => String(x.ecart)));
+  // Écarts exceptés (`montage_sensible.exceptions` : `{ecart, pourquoi}`, la clé exacte d'un écart et sa raison), lus
+  // comme les exceptions des données personnelles : le risque reste, l'écart ne se dit plus.
+  const exceptes = new Set(exceptions(ctx.couches, 'montage_sensible', 'ecart').map((x) => x.valeur));
   const gardes = ecarts.filter((e) => !exceptes.has(e.cle));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
   return nonLus.length ? { ecarts: gardes, indisponible: nonLus.join(' ; ') } : { ecarts: gardes };

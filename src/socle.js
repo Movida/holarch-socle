@@ -363,7 +363,8 @@ export class Socle {
   // les projets qui ont des règles. Chaque règle dit où l'adaptateur Claude Code l'écrit, ou pourquoi il ne l'écrit pas.
   regles({ projet = null } = {}) {
     const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
-    const portees = (r, classificationDepot) => ({ ...r, regles: r.regles.map((e) => ({ ...e, claude_code: destination(e, { classificationDepot }) })) });
+    // Les couches lues par les contrôles (`couches`) restent dans le socle : la vue garde la configuration fusionnée.
+    const portees = ({ couches, ...r }, classificationDepot) => ({ ...r, regles: r.regles.map((e) => ({ ...e, claude_code: destination(e, { classificationDepot }) })) });
     const projets = this.fiches({ kind: 'project' });
     const ouverts = this.ecartsOuverts();
     if (projet) {

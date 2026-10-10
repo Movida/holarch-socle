@@ -77,6 +77,21 @@ export function fusionnerConfig(...couches) {
   return couches.filter(objet).reduce(fusion, {});
 }
 
+// Une couche telle que la lisent les contrôles : son origine, son nœud, le fichier qui la porte et ses réglages.
+const coucheLue = (c) => ({ origine: c.origine, arbre: c.noeud.attributes?.arbre ?? null, noeud: c.noeud.node ?? null, fichier: c.noeud.location ?? null, config: c.noeud.attributes?.config ?? null });
+
+/**
+ * Les exceptions d'un réglage (`<cle>.exceptions`), lues d'une seule façon par tous les contrôles : couche par couche,
+ * chacune avec sa raison et sa provenance. Sans sa valeur (`champ` : `terme`, `fichier`, `ecart`) ou sans raison, une
+ * exception ne vaut pas.
+ */
+export function exceptions(couches = [], cle, champ) {
+  const texte = (x) => (x === null || x === undefined || typeof x === 'object' ? '' : String(x).trim());
+  return couches.flatMap((c) => [].concat(c.config?.[cle]?.exceptions || [])
+    .filter((x) => x && typeof x === 'object' && texte(x[champ]) && texte(x.pourquoi))
+    .map((x) => ({ valeur: texte(x[champ]), pourquoi: texte(x.pourquoi), origine: c.origine, arbre: c.arbre, noeud: c.noeud, fichier: c.fichier })));
+}
+
 const applicable = (e) => e.statut === 'stable' && !e.derogee;
 // Sources de règles illisibles (un `rules.yaml` ou un en-tête en cours d'édition, un conflit de fusion) : la règle
 // effective est alors incomplète. Ce qui en décide (garde, matérialisation, audit) ne la dit pas conforme pour autant.
@@ -134,7 +149,7 @@ export function regleEffective(fiches, projetId) {
     .map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_entete}`).filter((x) => !lisibles.includes(x)).map((x) => `${x} (sans effet sur les règles)`));
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
   return { projet: projetId, declare: Boolean(declarants[0]), arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
-    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
+    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, couches: couches.map(coucheLue), signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /**

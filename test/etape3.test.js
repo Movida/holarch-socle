@@ -268,7 +268,7 @@ test('projets : l’inventaire lit l’avancement, les questions, les idées et 
 });
 
 // ---- Tranche 3 : arbre des règles (décision arbre-des-regles). Données fictives.
-import { regleEffective, regleDuCompte, fusionnerConfig, aApprouver } from '../src/regles.js';
+import { regleEffective, regleDuCompte, fusionnerConfig, aApprouver, exceptions } from '../src/regles.js';
 import { planifier, appliquer, MARQUE } from '../src/regles-claude-code.js';
 
 function arbresFictifs() {
@@ -394,7 +394,8 @@ const jourIl = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10
 
 test('contrôles : liste privée déduite et amendée, mots entiers, un écart dit où sans répéter le terme', () => {
   const { d, g } = depotGit();
-  const t = listePrivee({ depot: d, config: { donnees_personnelles: { termes: ['Projet Zeta', { terme: 'zz' }], exceptions: [{ terme: 'alice@exemple.test', pourquoi: 'adresse de test' }] } },
+  const t = listePrivee({ depot: d, config: { donnees_personnelles: { termes: ['Projet Zeta', { terme: 'zz' }] } },
+    couches: [{ origine: 'projet', config: { donnees_personnelles: { exceptions: [{ terme: 'alice@exemple.test', pourquoi: 'adresse de test' }, { terme: 'Alice Exemple' }] } } }],
     comptes: [{ home: '/srv/comptes/.claude-pro' }], projetsPrives: ['carnet-prive', 'demo'], nomProjet: 'demo' });
   assert.ok(['Alice Exemple', 'Projet Zeta', 'carnet-prive', '/srv/comptes/.claude-pro', os.homedir()].every((x) => t.includes(x)), t.join(' | '));
   assert.ok(!t.includes('alice@exemple.test') && !t.includes('demo') && !t.includes('zz'), 'exception, nom du projet, terme trop court');
@@ -408,7 +409,13 @@ test('contrôles : liste privée déduite et amendée, mots entiers, un écart d
   assert.ok(!/zeta/i.test(JSON.stringify(avant)), 'un écart ne cite jamais le terme trouvé');
   g('commit', '-qm', 'b');
   assert.deepEqual(executer('donnees-personnelles', ctx, 'audit').ecarts.map((e) => e.fichier).sort(), ['a.md', 'carnet-prive.txt']);
-  assert.deepEqual(executer('donnees-personnelles', { ...ctx, config: { donnees_personnelles: { exceptions: [{ fichier: 'a.md', pourquoi: 'titulaire du droit d’auteur' }] } } }, 'audit').ecarts.map((e) => e.fichier), ['carnet-prive.txt'], 'un fichier soustrait, avec sa raison');
+  const couche = (...x) => [{ origine: 'type', config: { donnees_personnelles: { exceptions: x } } }];
+  assert.deepEqual(executer('donnees-personnelles', { ...ctx, couches: couche({ fichier: 'a.md', pourquoi: 'titulaire du droit d’auteur' }) }, 'audit').ecarts.map((e) => e.fichier), ['carnet-prive.txt'], 'un fichier soustrait, avec sa raison');
+  // Une seule lecture des exceptions (décision exceptions-hors-du-depot) : sans raison, une exception ne vaut pas, ni pour
+  // un fichier, ni pour un terme (Alice Exemple reste dans la liste privée ci-dessus).
+  assert.deepEqual(executer('donnees-personnelles', { ...ctx, couches: couche({ fichier: 'a.md' }, { fichier: 'carnet-prive.txt', pourquoi: ' ' }) }, 'audit').ecarts.map((e) => e.fichier).sort(), ['a.md', 'carnet-prive.txt'], 'sans raison, rien n’est soustrait');
+  assert.deepEqual(exceptions([{ origine: 'contexte', arbre: 'profil', noeud: '/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: [{ ecart: 'a:b', pourquoi: 'jusqu’à D' }, { ecart: 'c' }, 'd'] } } }], 'montage_sensible', 'ecart'),
+    [{ valeur: 'a:b', pourquoi: 'jusqu’à D', origine: 'contexte', arbre: 'profil', noeud: '/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md' }], 'chaque exception avec sa provenance');
   assert.deepEqual(fusionnerConfig({ donnees_personnelles: { termes: ['a'] }, journal: 'x' }, { donnees_personnelles: { exceptions: [{ fichier: 'L' }] }, journal: 'y' }),
     { donnees_personnelles: { termes: ['a'], exceptions: [{ fichier: 'L' }] }, journal: 'y' }, 'réglages : objets fusionnés, listes allongées, le plus spécifique l’emporte');
   assert.match(executer('donnees-personnelles', { depot: d, termes: [] }, 'audit').indisponible, /vide/);

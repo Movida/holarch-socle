@@ -27,12 +27,12 @@ export function contexteControle(s, projet, r, depot = projet.location) {
   const publique = (id) => noeuds.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public')
     || regleEffective(fiches, id).config?.creation?.visibilite === 'public';
   const projetsPrives = s.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
-  const config = r.config || {}; const reglages = s.config.controles || {};
-  return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),
+  const config = r.config || {}; const couches = r.couches || []; const reglages = s.config.controles || {};
+  return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, couches, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),
     holarch: [s.config.accueil || accueil(), s.config.donnees],
     conteneurs: s.fiches({ kind: 'container' }).filter((k) => k.links?.project?.includes(projet.id)),
     gitleaks: trouverOutil('gitleaks', reglages.gitleaks), osv: trouverOutil('osv-scanner', reglages.osv_scanner),
-    termes: depot ? listePrivee({ depot, config, comptes: comptesDe(s), projetsPrives, nomProjet: projet.name }) : [] };
+    termes: depot ? listePrivee({ depot, config, couches, comptes: comptesDe(s), projetsPrives, nomProjet: projet.name }) : [] };
 }
 
 /** Contrôles d'une règle effective à un moment : par règle applicable de l'un des niveaux, ses écarts ; et l'état de chaque contrôle. */
