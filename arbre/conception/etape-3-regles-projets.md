@@ -1073,12 +1073,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   préfixe sur des chemins normalisés, dans la boucle de l'import (le changer changerait le sens d'un chemin relatif).
   Automatisation acceptée par l'auteur : `npm run eprouver -- parent|mutant …` (`bin/eprouver.js`), qui remplace les
   scripts que chaque session réécrivait dans `/tmp` ; témoin vert d'abord, un échec au seul chargement ne compte pas ;
-  1 test (147 verts), essayé sur le socle (mutant du mineur 6 rouge, mutant de l'outil vu par son test).
+  1 test (147 verts), essayé sur le socle (mutant du mineur 6 rouge, mutant de l'outil vu par son test). Copie de
+  service posée à la demande de l'auteur (`5d1971a`) ; envoi refusé à l'agent par le classifieur du mode `auto`.
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
      2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport dans la transcription `80c50cac`, sous-agent
-     `aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service non posée : après
-     les corrections (choix de l'auteur).
+     `aac2690360a154fe6`). (b), (d) et les mineurs 1, 2, 5, 6 faits (Fait ci-dessus). Copie de service posée le 2026-10-10
+     (`5d1971a`), à reposer après les corrections de (a) et (c).
      Majeurs restants, reproduits :
      - (a) un nœud du dépôt qui porte `projects:` peut devenir le déclarant retenu (le premier par titre, `regles.js`,
        `regleEffective`) : la chaîne repart de la racine du dépôt, `conteneur-isole` disparaît sans dérogation ; en

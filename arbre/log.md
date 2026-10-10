@@ -15,7 +15,9 @@
   rapport ; deux mineurs plus larges que leur énoncé (lecture commune qui rend les exceptions écartées, désignation à
   huit endroits). La demande qui y aurait mené : « (b), (d) et les mineurs des exceptions, puis passation ; décision de
   (a) et (c) dans la session suivante ». Le Reste pointe désormais le rapport. Automatisation proposée et acceptée :
-  `npm run eprouver` (test contre son parent ou un mutant), 1 test, 147 verts.
+  `npm run eprouver` (test contre son parent ou un mutant), 1 test, 147 verts. Copie de service posée à la demande de
+  l'auteur (`5d1971a`, interface et gardien relancés) ; l'envoi, qu'il avait demandé aussi, refusé à l'agent par le
+  classifieur du mode `auto` : laissé à l'auteur.
 
 * **Application de `exceptions-hors-du-depot`, contre-épreuve, et passation** (241 k tokens) : lecture commune des
   exceptions, `montage_sensible` au profil et au contexte hors du dépôt contrôlé, exceptions dites et périmées, un
