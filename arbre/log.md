@@ -2,6 +2,14 @@
 
 ## 2026-10-10
 
+* **Livraison C de la tranche 12 : critère tenu, clé de déploiement remplacée** (environ 150 k tokens) : fichier du
+  socle généré par `projet creer` et commité (`c19c9c8`), rien de personnel ; `devcontainer up` avec les étiquettes de
+  VS Code, puis VS Code (lancé depuis la session, l'auteur absent) dans le même conteneur ; écart à la main vu à l'audit,
+  rétabli par le rejeu. `git rm` et `projet creer` refusés par le mode auto, lancés sur autorisation de l'auteur.
+  Garde-fou Wayland posé dans le VS Code de l'auteur. Défaut trouvé : le volume ssh n'avait pas de clé, l'étape `cle`
+  disait « déjà là » ; clé neuve enregistrée en écriture et l'ancienne retirée, à la demande de l'auteur. Contre-épreuve
+  (temps 7) lancée en instance neuve. Rien poussé.
+
 * **Livraison C de la tranche 12 : clé `conteneur`, génération, écart d'audit, et passation** (environ 260 k tokens) :
   deux choix de l'auteur en un tour, recommandations suivies (gh hors du profil ; l'audit ne compare que les fichiers
   générés). Module de génération, étape `conteneur` de `projet creer`, écart `conteneur-genere`, contrat de

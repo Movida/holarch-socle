@@ -1144,7 +1144,7 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   l'auteur, son serveur s'y installe) et il se relance après la fermeture de la fenêtre ; sans les étiquettes, un second
   conteneur. Cause de I32 : le montage du socket Wayland que VS Code ajoute au conteneur qu'il crée
   (`dev.containers.mountWaylandSocket`, vrai par défaut). Conteneur du socle réparé (`c8111b7`) : volume ssh monté chez
-  `node`, même volume, clé de déploiement gardée ; audit du socle : 0 écart apparu. Choix de l'auteur pour la
+  `node`, même volume (sans clé, constaté au critère de C) ; audit du socle : 0 écart apparu. Choix de l'auteur pour la
   génération, recommandations suivies : ce qui est propre au socle (image Node 24, `node`, port 4280, installation de
   Claude Code et de Chromium) dans la configuration du projet, un type quand un second projet en aura l'usage (mesure :
   8 conteneurs sur le poste, 3 en image Node, à trois versions et commandes différentes) ; `remoteUser` obligatoire
@@ -1179,6 +1179,22 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   service posée (`073a166`) ; audit réel : 0 écart apparu, 0 résolu. Rien poussé. Passation au temps 6 (contexte
   environ 260 k, seuil 150 k : l'alerte de passation ne part qu'à l'envoi d'un message de l'auteur, et cette séance a
   tenu en un seul tour).
+- **Fait (2026-10-10)** : critère de C tenu (Opus 5.5 `xhigh`). `git rm` du fichier écrit à la main et `projet creer
+  holarch-socle` sur autorisation de l'auteur (le mode auto les avait refusés, la création à blanc comprise) ; à blanc,
+  seul le conteneur à faire ; fichier généré et commité (`c19c9c8`), rien de personnel (identité noreply, garde avant
+  commit passée), audit : aucun écart. `devcontainer up` avec les deux étiquettes de VS Code (Q23), conteneur neuf
+  (`3d8992fcefc7`), code 0, sortie dans `/tmp/devcontainer-up-socle.log` : `node`, `/workspaces/holarch-socle`, volume
+  `holarch-socle-claude` créé, Claude Code 2.1.296 (avertissement `allowScripts` de npm sans effet). VS Code ouvert
+  depuis WSL sur `vscode-remote://dev-container+<chemin Windows en hexadécimal>/workspaces/holarch-socle` (format lu
+  dans l'extension 0.469.0 ; `code` hors du PATH réduit de la session, `Code.exe` lancé par `Start-Process`, l'auteur
+  absent) : son serveur (`2a59476c9b`) installé en 10 s environ dans le même conteneur, aucun second. Écart à la main
+  (port 4281, non commité) : `conteneur-genere` à l'audit (1 apparu), rétabli par le rejeu sans commit. Garde-fou posé
+  au choix de l'auteur : `dev.containers.mountWaylandSocket: false` dans ses réglages Utilisateur (portée
+  `application`, lue dans l'extension). Défaut trouvé : le volume `holarch-socle-ssh` (créé le 2026-10-06) n'avait pas
+  de clé (« gardée » le 2026-10-10 était faux) ; `deploy-keys.sh` en a créé une, et l'étape `cle` disait « déjà là »
+  sur la seule présence d'une clé au dépôt. À la demande de l'auteur (« lance les commandes ») : clé neuve enregistrée
+  en écriture (166033947), script relancé dans le conteneur (clé active, `git ls-remote` lu), ancienne retirée
+  (165264113, créée et utilisée une seule fois le 2026-10-03 ; clé publique gardée dans `/tmp/cles-socle/`).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1249,18 +1265,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Pour C, reprise au temps 6** (déroulé annoncé le 2026-10-10 ; temps 1 à 5 faits, Fait ci-dessus) : (6) critère :
-     `git -C ~/holarch-socle rm -q .devcontainer/devcontainer.json` (le geste que l'étape donne, ce que la décision
-     approuve pour le socle), puis `holarch projet creer holarch-socle` (fichier généré, commité, rien de personnel :
-     la garde avant commit le contrôle) ; `devcontainer up` avec les deux étiquettes de VS Code (Q23 : `--id-label
-     devcontainer.local_folder=$(wslpath -w ~/holarch-socle)`, `--id-label devcontainer.config_file=` en chemin
-     Linux), conteneur neuf (aucun conteneur du socle sur le poste le 2026-10-10 ; le volume `holarch-socle-claude`
-     n'existe pas encore, `holarch-socle-ssh` garde la clé), sortie dans un fichier ; VS Code ouvre le même conteneur
-     (geste de l'auteur) ; écart à la main vu à l'audit, puis rétabli par le rejeu. (7) contre-épreuve en instance
-     neuve, `xhigh`, sur `843b961`, `073a166` et `7a9e6db` du profil. Garde-fou à proposer à l'auteur : réglage
-     `dev.containers.mountWaylandSocket: false` de son VS Code (sans lui, un conteneur créé par VS Code ne redémarre pas
-     hors de VS Code ; une reconstruction depuis VS Code n'est pas essayée). Le contrôle `outils-a-jour` ne suit pas
-     `devcontainer` : la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm.
+  0. **Pour C, reprise au temps 7** (déroulé annoncé le 2026-10-10 ; critère tenu, Fait ci-dessus) : contre-épreuve en
+     instance neuve (`xhigh`) sur `843b961`, `073a166` et `7a9e6db` du profil, lancée le 2026-10-10, scripts dans
+     `/tmp/contre-epreuve-c/` ; puis ses corrections, un commit et un test chacune, et l'approbation de C par l'auteur.
+     Défaut à corriger avec un test : l'étape `cle` compare la présence d'une clé au dépôt, pas la clé du conteneur
+     (lisible par `docker exec` quand il tourne, sinon geste). Le contrôle `outils-a-jour` ne suit pas `devcontainer` :
+     la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm. Les autres projets se migrent
+     par `projet creer` rejoué, avec l'accord de l'auteur projet par projet.
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
      constat 6 de `revue-page-blanche` non tranché ; (2) un conteneur par brique (fondation n° 3) : un programme Node et
