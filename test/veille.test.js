@@ -311,7 +311,8 @@ test('veille : un profil non désigné ou introuvable rend la règle indétermin
   assert.equal(sans.indetermine, true); assert.deepEqual(sans.illisibles, []);
   assert.equal(veilleVoulue(sans), null, 'un dépôt de profil absent ou déplacé ne retire pas le gardien');
   const noeud = (arbre, type) => ({ kind: 'node', id: `${arbre}:${type}`, node: type === 'racine' ? '/arbre/index.md' : '/arbre/contextes/c.md',
-    location: `/d/${arbre}/arbre/${type === 'racine' ? 'index.md' : 'contextes/c.md'}`, attributes: { arbre, ...(type === 'racine' ? { racine: true } : { type: 'context' }) } });
+    location: `/d/${arbre}/arbre/${type === 'racine' ? 'index.md' : 'contextes/c.md'}`, attributes: { arbre, ...(type === 'racine' ? { racine: true } : { type: 'context' }) },
+    ...(type !== 'racine' && { links: { derives_from: ['/arbre/index.md'] } }) });
   const deux = ['p1', 'p2'].flatMap((a) => [noeud(a, 'racine'), noeud(a, 'contexte')]);
   const introuvable = regleDuCompte(deux, { profil: '/d/absent' });
   assert.match(introuvable.signaux[0], /profil désigné introuvable : \/d\/absent/); assert.equal(veilleVoulue(introuvable), null);

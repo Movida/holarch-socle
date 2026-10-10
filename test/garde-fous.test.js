@@ -1453,3 +1453,26 @@ test('Contre-épreuve du profil désigné (mineur 2) : un profil désigné par u
   config({ workspaceMount: 'type=bind,source=${localWorkspaceFolder},target=/workspaces/projet', mounts: [`type=bind,source=${vrai},target=/v`, `type=bind,source=${lien},target=/l`] });
   assert.deepEqual(cibles(lire()), ['/v', '/l']);
 });
+
+test('Contre-épreuve du profil désigné (mineur 3) : la chaîne d’un déclarant qui n’atteint pas la racine du profil rend la règle incomplète', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot'); const autre = path.join(r, 'autre');
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+  ecrireF(path.join(p, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Rien.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
+  for (const x of [d, autre]) ecrireF(path.join(x, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${path.basename(x)}\ntitle: x\nstatus: draft\n---\n`);
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+  const lire = (liens) => {
+    ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\n${liens}projects: [holarch:project:depot]\n---\n`);
+    s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d, autre], profil: p, projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+      { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
+    const e = s.regles({ projet: 'holarch:project:depot' });
+    return [e.illisibles, e.regles.map((x) => x.id), s.regles().compte.illisibles.length];
+  };
+  const rompue = 'profil:/arbre/contextes/perso.md : sa chaîne (derives_from) n’atteint pas la racine du profil';
+  // Sans lien, un lien rompu, un lien vers la racine d'un autre arbre : les règles du profil manqueraient, sans signal.
+  for (const liens of ['', 'links: { derives_from: [/arbre/absent.md] }\n', 'links: { derives_from: ["autre:/arbre/index.md"] }\n']) {
+    assert.deepEqual(lire(liens), [[rompue], [], 1], liens);
+  }
+  // Témoin : la chaîne atteint la racine.
+  assert.deepEqual(lire('links: { derives_from: [/arbre/index.md] }\n'), [[], ['rien-de-personnel'], 0]);
+});

@@ -211,13 +211,18 @@ const applicable = (e) => e.statut === 'stable' && !e.derogee;
 // contextes du profil déclarent (décision profil-designe) : un contexte illisible ailleurs ne pouvait déclarer personne.
 // Une décision illisible d'un projet sans rapport ne compte pas. Un profil désigné
 // mais introuvable compte aussi (décision profil-designe) : ses règles manquent toutes ; de même un lien de la chaîne du
-// profil vers un identifiant d'arbre en double, et un champ de forme invalide (`erreur_forme`, inventaire de l'arbre).
+// profil vers un identifiant d'arbre en double, une chaîne de déclarant qui n'atteint pas la racine du profil (lien
+// absent, rompu ou vers un autre arbre : les règles de la racine manqueraient sans signal), et un champ de forme
+// invalide (`erreur_forme`, inventaire de l'arbre).
 function illisibles(a, couches, { types = [] } = {}) {
   const chaine = couches.filter((c) => c.origine === 'profil' || c.origine === 'contexte');
   const profil = new Set(chaine.map((c) => depotDe(c.noeud)));
   const pouvaitEtre = ({ type, id } = {}) => types.length > 0 && (!type || (type === 'template' && (!id || types.includes(id))));
   const enTetes = a.noeuds.filter((n) => n.attributes?.erreur_entete && (profil.has(depotDe(n)) || couches.some((c) => c.noeud === n) || pouvaitEtre(n.attributes.indices_entete)));
-  return [...new Set([...(a.introuvable ? [a.sansProfil] : []), ...chaine.map((c) => a.lienDouble(c.noeud)).filter(Boolean),
+  // Un lien vers un identifiant en double dit déjà pourquoi la chaîne s'arrête.
+  const doubles = chaine.map((c) => a.lienDouble(c.noeud)).filter(Boolean);
+  const rompue = !doubles.length && chaine.length && chaine[0].noeud !== a.profil ? [`${designation(chaine.at(-1).noeud)} : sa chaîne (derives_from) n’atteint pas la racine du profil`] : [];
+  return [...new Set([...(a.introuvable ? [a.sansProfil] : []), ...doubles, ...rompue,
     ...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${designation(n)} : ${n.attributes.erreur_regles}`),
     // Un champ de forme invalide (`erreur_forme`) : dans une couche, ou dans l'arbre du profil, où il pouvait déclarer ce
     // projet (`projects`) ou porter ses réglages.
