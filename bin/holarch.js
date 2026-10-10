@@ -14,6 +14,7 @@ import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
 import { creerProjet } from '../src/creation.js';
 import { creerService, binaireService } from '../src/service.js';
+import { rapportSousAgent } from '../src/transcription.js';
 import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
@@ -73,6 +74,10 @@ const AIDE = `holarch — socle autour des agents d'IA
   holarch contexte alerte --seuil <tokens> | contexte debut
                        appelés par les crochets de Claude Code (entrée JSON du crochet) : avis de passation au-delà du
                        seuil ; résumé du projet au démarrage d'une session
+  holarch rapport <sous-agent>
+                       le rapport final d'un sous-agent (contre-épreuve, relecture), lu dans sa transcription : le
+                       message qu'il a remis, sinon son dernier texte ; identifiant entier ou un début qui n'en désigne
+                       qu'un ; en lecture seule
   holarch pont <url> --cle <fichier>
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier
@@ -94,6 +99,14 @@ switch (cmd) {
   case 'mcp': servirStdio(socle(), JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version); break;
   // Pont stdio → hub : la sortie standard est le canal du protocole, les traces vont sur stderr.
   case 'pont': { const i = args.indexOf('--cle'); await lancerPont({ url: args.find((a) => /^https?:\/\//.test(a)), fichierCle: i >= 0 ? args[i + 1] : null }); break; }
+  case 'rapport': {
+    const c = chargerConfig();
+    try {
+      const r = rapportSousAgent(comptesClaudeCode(c, c.import?.['claude-code-transcriptions'] || {}).map((x) => x.home), args.find((a) => !a.startsWith('-')));
+      if (json) afficher(r);
+      else console.log(`# ${r.id}${r.description ? ` — ${r.description}` : ''}\n${r.transcription}${r.copies.length ? `\n(copie la plus récente ; ${r.copies.length} plus ancienne(s) : ${r.copies.join(', ')})` : ''}\n\n${r.rapport}`);
+    } catch (e) { console.error(`holarch rapport : ${e.message}`); process.exitCode = 1; }
+    break; }
   case 'init': console.log(ecrireConfigExemple() ? `configuration écrite : ${accueil()}/config.yaml` : 'configuration déjà présente'); break;
   case 'inventaire': { const s = socle(); const r = await s.inventaire(); s.indexer(); const a = s.audit({ journaliser: true }); r.audit = { ouverts: a.cibles.reduce((t, c) => t + c.ecarts.length, 0), ...a.journal }; afficher(json ? r : affichage.inventaire(r)); break; }
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : affichage.importer(r)); break; }

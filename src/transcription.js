@@ -58,3 +58,36 @@ export const evenements = function* (lignes, filtre = '') {
     try { yield JSON.parse(l); } catch { /* première ligne coupée */ }
   }
 };
+
+// Un rapport se lit dans la fin de la transcription du sous-agent : sa remise est son dernier geste.
+const FIN_RAPPORT = 4 * 1024 * 1024;
+
+/**
+ * Le rapport final d'un sous-agent (`agent-<id>.jsonl`, dans les transcriptions des comptes `homes`) : le message qu'il
+ * a remis par l'outil `SubagentHandback` (sous-agent de fond ; il n'est pas dans un texte), sinon son dernier texte.
+ * L'identifiant se donne entier ou par un début qui n'en désigne qu'un. Une session reprise sous un autre identifiant
+ * garde une copie de ses sous-agents (mesure du 2026-10-10 : 16 identifiants sur 461 en double) : la copie la plus
+ * récente est lue, les autres sont dites. { id, description, transcription, copies, rapport } ; une erreur dit un
+ * identifiant inconnu, ambigu, ou un sous-agent sans rapport.
+ */
+export function rapportSousAgent(homes, id) {
+  const voulu = String(id ?? '').trim().replace(/^agent-/, '');
+  if (!voulu) throw new Error('identifiant du sous-agent attendu');
+  const nomDe = (f) => path.basename(f, '.jsonl').slice('agent-'.length);
+  const trouves = [...new Set(homes.flatMap((h) => transcriptions(h)))].filter((f) => path.basename(f, '.jsonl').startsWith(`agent-${voulu}`));
+  const noms = [...new Set(trouves.map(nomDe))];
+  if (!noms.length) throw new Error(`aucun sous-agent ${voulu}`);
+  if (noms.length > 1) throw new Error(`identifiant ambigu, ${noms.length} sous-agents : ${noms.join(', ')}`);
+  const date = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
+  const [f, ...copies] = trouves.sort((a, b) => date(b) - date(a)); const nom = noms[0];
+  let description = null;
+  try { description = JSON.parse(fs.readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8')).description ?? null; } catch { /* sans méta */ }
+  for (const e of evenements(finDeTranscription(f, FIN_RAPPORT), '"assistant"')) {
+    if (e.type !== 'assistant' || !Array.isArray(e.message?.content)) continue;
+    const blocs = e.message.content;
+    const remise = blocs.find((b) => b.type === 'tool_use' && b.name === 'SubagentHandback' && typeof b.input?.message === 'string');
+    const texte = blocs.filter((b) => b.type === 'text' && b.text?.trim()).map((b) => b.text).join('\n');
+    if (remise || texte) return { id: nom, description, transcription: f, copies, rapport: remise ? remise.input.message : texte };
+  }
+  throw new Error(`sous-agent ${nom} sans rapport lisible (${f})`);
+}

@@ -1287,3 +1287,35 @@ test('eprouver : un test neuf rouge sur le parent ou sur un mutant ; vert, ou ro
   // La copie temporaire est retirée ; la copie de travail n'a pas bougé.
   assert.match(fs.readFileSync(path.join(r, 'src/a.js'), 'utf8'), /triple/);
 });
+
+test('rapport : le rapport d’un sous-agent se lit dans sa transcription, remise d’abord, sinon dernier texte ; un identifiant se donne par un début qui n’en désigne qu’un', async () => {
+  const { rapportSousAgent } = await import('../src/transcription.js');
+  const home = tmp(); const sa = path.join(home, 'projects', '-dossier', 'session-1', 'subagents'); fs.mkdirSync(sa, { recursive: true });
+  const ligne = (contenu) => JSON.stringify({ type: 'assistant', isSidechain: true, message: { role: 'assistant', content: contenu } });
+  // Sous-agent de fond : le rapport est l'argument de l'outil de remise, après un dernier texte court.
+  fs.writeFileSync(path.join(sa, 'agent-abc123.jsonl'), [ligne([{ type: 'text', text: 'Rapport intermédiaire' }]), ligne([{ type: 'text', text: 'Je rédige.' }]),
+    ligne([{ type: 'thinking', thinking: '' }]), ligne([{ type: 'tool_use', name: 'SubagentHandback', input: { message: '# Contre-épreuve\nTout tient.' } }]),
+    JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', content: 'ok' }] } })].join('\n') + '\n');
+  fs.writeFileSync(path.join(sa, 'agent-abc123.meta.json'), JSON.stringify({ description: 'Contre-épreuve fictive' }));
+  // Sous-agent ordinaire : son dernier texte.
+  fs.writeFileSync(path.join(sa, 'agent-abd456.jsonl'), [ligne([{ type: 'text', text: 'Avant' }]), ligne([{ type: 'text', text: 'Rapport final' }])].join('\n') + '\n');
+  // Une session reprise garde une copie de ses sous-agents : la plus récente se lit, l'autre se dit.
+  const reprise = path.join(home, 'projects', '-dossier', 'session-0', 'subagents'); fs.mkdirSync(reprise, { recursive: true });
+  fs.writeFileSync(path.join(reprise, 'agent-abd456.jsonl'), ligne([{ type: 'text', text: 'Rapport de la copie ancienne' }]) + '\n');
+  fs.utimesSync(path.join(reprise, 'agent-abd456.jsonl'), new Date('2026-01-01'), new Date('2026-01-01'));
+  const r = rapportSousAgent([home], 'abc');
+  assert.deepEqual([r.id, r.description, r.rapport, r.copies], ['abc123', 'Contre-épreuve fictive', '# Contre-épreuve\nTout tient.', []]);
+  const d = rapportSousAgent([home], 'agent-abd456');
+  assert.deepEqual([d.rapport, d.copies], ['Rapport final', [path.join(reprise, 'agent-abd456.jsonl')]]);
+  assert.throws(() => rapportSousAgent([home], 'ab'), /ambigu, 2 sous-agents/);
+  assert.throws(() => rapportSousAgent([home], 'zzz'), /aucun sous-agent zzz/);
+  assert.throws(() => rapportSousAgent([home], ''), /identifiant du sous-agent attendu/);
+  // La commande lit les transcriptions du compte de la configuration, et ne fait rien d'autre.
+  const accueil = tmp(); fs.writeFileSync(path.join(accueil, 'config.yaml'), `import:\n  claude-code-transcriptions: { home: ${JSON.stringify(home)} }\n`);
+  const holarch = (...a) => spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), ...a], { encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil } });
+  const ok = holarch('rapport', 'abc');
+  assert.equal(ok.status, 0, ok.stderr); assert.match(ok.stdout, /^# abc123 — Contre-épreuve fictive\n/); assert.match(ok.stdout, /Tout tient\.\n$/);
+  const ko = holarch('rapport', 'ab');
+  assert.equal(ko.status, 1); assert.match(ko.stderr, /holarch rapport : identifiant ambigu/);
+  assert.deepEqual(fs.readdirSync(accueil), ['config.yaml']);
+});
