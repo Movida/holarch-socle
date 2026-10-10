@@ -140,7 +140,8 @@ const remplacees = (regles, memoires) => regles.filter((e) => e.applicable && e.
  * jusqu'à ce qu'elle serve ou soit retirée. Jugée sur l'audit de tous les projets, et sur ce site. Elle s'applique aux
  * projets que son nœud couvre (`couverts`) ; dans l'un d'eux, elle n'est pas jugée si son contrôle n'a pas pu la lire en
  * entier (lu en partie), ne l'a pas lue du tout (dépôt absent de ce site, projet hors du catalogue, contrôle en échec),
- * ou si la chaîne du projet ne passe plus par son nœud (`chaines`). Non jugée, rien ne se dit ni ne se résout.
+ * ou si la chaîne du projet ne passe plus par son nœud (`chaines`). Non jugée, rien ne se dit ni ne se résout : rend
+ * les clés des écarts qui restent ouverts.
  */
 function perimees(sorties, faits, couverts, chaines) {
   const vues = new Map(); const controles = new Set(); const parProjet = new Map(sorties.filter((x) => x.projet).map((x) => [x.projet, x]));
@@ -160,13 +161,14 @@ function perimees(sorties, faits, couverts, chaines) {
       if (!chaines.get(projet)?.has(v.provenance) || (c && c.etat !== 'fait' && !lue)) v.entiere = false;
     }
   }
-  const nonJuges = new Set([...vues.values()].filter((v) => !v.entiere).map((v) => v.controle));
   const ecarts = [...vues.values()].filter((v) => !v.utilisee && v.entiere).map((v) => ({ regle: v.regle, regle_id: v.regle_id, controle: v.controle,
     cle: `exception-perimee:${v.ecart}`, fichier: v.provenance, message: `exception qui ne fait taire aucun écart sur ce site (${v.pourquoi}) : la retirer` }));
   let compte = sorties.find((x) => !x.projet);
   if (ecarts.length && !compte) sorties.unshift(compte = { projet: null, nom: 'compte', ecarts: [], controles: [] });
   compte?.ecarts.push(...ecarts);
-  for (const c of controles) if (!nonJuges.has(c)) faits.add(`|${c}`);
+  // Une exception non jugée garde son écart ouvert ; les autres, retirées ou jugées, se résolvent.
+  for (const c of controles) faits.add(`|${c}`);
+  return new Set([...vues.values()].filter((v) => !v.entiere).map((v) => cleEcart(null, { regle: v.regle, controle: v.controle, cle: `exception-perimee:${v.ecart}` })));
 }
 
 /**
@@ -229,7 +231,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     }
     sorties.push(rp);
   }
-  if (!projet) perimees(sorties, faits, projetsCouverts(fiches), chaines);
+  const retenus = projet ? new Set() : perimees(sorties, faits, projetsCouverts(fiches), chaines);
 
   let journal = null;
   if (journaliser) {
@@ -238,7 +240,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const at = new Date().toISOString(); const evs = [];
     const ev = (kind, x) => ({ id: ulid(Date.parse(at)), at, kind, actor: 'system:audit', subject: x.projet, data: donneesEcart(x), classification: 'internal' });
     for (const [k, x] of actuels) if (!ouverts.has(k)) evs.push(ev('rule.violated', x));
-    for (const [k, o] of ouverts) if (!actuels.has(k) && faits.has(`${o.projet ?? ''}|${o.controle}`)) evs.push(ev('rule.resolved', o));
+    for (const [k, o] of ouverts) if (!actuels.has(k) && !retenus.has(k) && faits.has(`${o.projet ?? ''}|${o.controle}`)) evs.push(ev('rule.resolved', o));
     const r = s.journal.ajouter(evs);
     if (r.ajoutes) s.index.inserer(evs.map((e) => ({ ...e, site: s.config.site })), s.config.tarifs);
     journal = { apparus: evs.filter((e) => e.kind === 'rule.violated').length, resolus: evs.filter((e) => e.kind === 'rule.resolved').length, refuses: r.refuses.length };

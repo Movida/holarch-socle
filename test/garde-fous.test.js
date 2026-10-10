@@ -871,6 +871,21 @@ test('Contre-épreuve des exceptions (b) : une exception que son contrôle n’a
   assert.deepEqual(perimees(s.audit({ journaliser: true })).map((e) => e.cle), [`exception-perimee:${cle}`]);
 });
 
+test('Contre-épreuve des exceptions (mineur 1) : une exception non jugée ne retient que son propre écart', () => {
+  const { s, d, cle, ecrireF, contexte, relire, ouvertes } = essaiExceptions();
+  const cles = () => ouvertes().map((o) => o[2]);
+  contexte('acces-distant:fantome'); relire(); s.audit({ journaliser: true });
+  assert.deepEqual(cles(), ['exception-perimee:acces-distant:fantome']);
+  // L'autre projet est lu en partie (feature publiée, aucun conteneur construit) : l'exception de montage n'y est pas
+  // jugée. Le fantôme retiré du contexte se résout quand même ; l'exception non jugée n'ouvre rien.
+  ecrireF(path.join(path.dirname(d), 'autre', '.devcontainer', 'devcontainer.json'), JSON.stringify({ image: 'x', features: { 'ghcr.io/devcontainers/features/git:1': {} } }));
+  contexte('acces-distant:fantome', cle); relire(); s.audit({ journaliser: true });
+  assert.deepEqual(cles(), ['exception-perimee:acces-distant:fantome']);
+  contexte(cle); relire();
+  assert.equal(s.audit({ journaliser: true }).journal.resolus, 1);
+  assert.deepEqual(cles(), []);
+});
+
 test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop grande n’arrête pas l’import ; celle d’un conteneur ne se rattache qu’à son projet', () => {
   const r = tmp(); const home = path.join(r, 'compte'); const projet = path.join(r, 'projet'); const autre = path.join(r, 'autre');
   fs.mkdirSync(projet); fs.mkdirSync(autre); fs.writeFileSync(path.join(autre, 'x.md'), '');
