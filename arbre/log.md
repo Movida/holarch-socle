@@ -15,6 +15,13 @@
   187 transcriptions hors du journal) et huit mineurs, au Reste. Corrections dans une session neuve (choix de
   l'auteur) ; l'exception de `montage_sensible` : fermer la voie, par une courte décision (choix de l'auteur).
 
+* **Critères d'une proposition** : proposition retirée à la mesure (`holarch` dans le `PATH` : 5 échecs en 30 jours,
+  aucun propre aux sessions distantes, et dans le socle le même nom lancerait l'ancien code). Sur la question de
+  l'auteur, critères dits (fréquence mesurée, coût, bénéficiaires, effets de bord, existant, coût de tenue, signe de
+  réussite) ; bilan des mécanismes en place retenu (I36), après les corrections de B ; `proposer-automatisations`
+  amendée (la proposition dit sa fréquence mesurée, son coût, ses effets de bord et son signe de réussite), approuvée
+  sur récapitulatif et choix cliquables, écrite au compte (`regles appliquer`).
+
 ## 2026-10-09
 
 * **Approbation, pose et premier temps du critère de B** : décision `veille-et-conteneur-precisions`, règle

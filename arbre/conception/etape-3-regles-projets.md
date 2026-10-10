@@ -1064,7 +1064,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      (avis de l'agent suivi) : courte décision en brouillon, à approuver avant le code (`montage_sensible` lue au profil
      et au contexte seulement, hors du dépôt monté, contrat de configuration changé ; `conteneur-isole` en
      `derogable: false` ; exception du socle déplacée au contexte personnel jusqu'à D) ; exception utilisée dite,
-     périmée signalée, une seule lecture des `exceptions`.
+     périmée signalée, une seule lecture des `exceptions`. Ensuite, dans une session neuve : bilan des mécanismes en
+     place (I36, retenue par l'auteur le 2026-10-10).
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
