@@ -1102,6 +1102,13 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
   const v = g(base);
   assert.ok(v.texte.startsWith(`${MARQUE_CONTENEUR}\n`), 'marqué en première ligne');
   assert.deepEqual(parseJsonc(v.texte), v.conteneur, 'le texte dit l’objet, commentaires compris');
+  // L'en-tête nomme sa source, un commentaire fixe dit chaque part du socle au-dessus de sa clé (choix de l'auteur) :
+  // `parseJsonc` les ignore, le texte les porte (m-7).
+  const lignes = v.texte.split('\n');
+  const commentaire = (k) => { let i = lignes.findIndex((l) => l.startsWith(`  "${k}":`)); while (lignes[i - 1]?.startsWith('  // ')) i--; return lignes[i]; };
+  assert.deepEqual(['initializeCommand', 'mounts', 'containerEnv', 'remoteEnv', 'onCreateCommand'].map((k) => commentaire(k).slice(0, 13)), Array(5).fill('  // Socle : '));
+  assert.match(commentaire('mounts'), /^ {2}\/\/ Socle : Claude Code dans un volume propre au conteneur/);
+  assert.match(lignes[1], /^\/\/ Source : la clé conteneur de la configuration effective du projet/);
   assert.deepEqual(Object.keys(v.conteneur), ['name', 'image', 'remoteUser', 'initializeCommand', 'mounts', 'containerEnv', 'remoteEnv', 'onCreateCommand']);
   assert.deepEqual(v.conteneur.mounts, ['source=neuf_2.x-claude,target=/home/vscode/.claude,type=volume',
     'source=${localEnv:HOME}/.claude/projects/-workspaces-Neuf-2-x,target=/home/vscode/.claude/projects/-workspaces-Neuf-2-x,type=bind',
@@ -1112,12 +1119,15 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
   const c = g({ devcontainer: { ...base.devcontainer, mounts: ['source=cache,target=/cache,type=volume'], containerEnv: { A: '1' }, onCreateCommand: { outil: 'x' } } }).conteneur;
   assert.deepEqual([c.mounts.length, c.mounts[0], c.containerEnv.A, Object.keys(c.onCreateCommand)], [5, 'source=cache,target=/cache,type=volume', '1', ['outil', 'holarch']]);
   assert.deepEqual([g({ ...base, gpu: 'requis' }).conteneur.hostRequirements, g({ ...base, gpu: 'optionnel' }).conteneur.hostRequirements, g({ ...base, gpu: 'non' }).conteneur.hostRequirements], [{ gpu: true }, { gpu: 'optional' }, undefined]);
+  assert.deepEqual(g({ gpu: 'requis', devcontainer: { ...base.devcontainer, hostRequirements: { cpus: 4 } } }).conteneur.hostRequirements, { cpus: 4, gpu: true }, 'le gpu s’ajoute au hostRequirements d’une couche (m-6)');
   const h = g({ ...base, connexion_claude: 'hote' }).conteneur;
   assert.deepEqual([h.mounts, h.initializeCommand, h.onCreateCommand], [['source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind', 'source=neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume'],
     undefined, { holarch: 'sudo chown vscode:vscode /home/vscode/.ssh' }], 'le ~/.claude de l’hôte n’est jamais repris');
   const racine = g({ devcontainer: { image: 'base', remoteUser: 'root' } }).conteneur;
   assert.deepEqual([racine.containerEnv.CLAUDE_CONFIG_DIR, racine.onCreateCommand], ['/root/.claude', undefined]);
   for (const [x, motif] of [[{ devcontainer: { image: 'base' } }, /remoteUser absent : le profil le pose/], [{ ...base, gpu: 'oui' }, /conteneur\.gpu inconnu : oui/],
+    // Un utilisateur qui entrerait dans `sudo chown` et `/home/…` (m-1), un `remoteEnv` qui n'est pas un objet (m-2).
+    [{ devcontainer: { image: 'base', remoteUser: 'x;id' } }, /remoteUser invalide : x;id : /], [{ devcontainer: { ...base.devcontainer, remoteEnv: 'x' } }, /remoteEnv : un objet attendu$/],
     [{ ...base, connexion_claude: 'hôte' }, /connexion_claude inconnu/], [{ devcontainer: { ...base.devcontainer, name: 'x' } }, /posé par le socle, qu’aucune couche ne remplace : name$/],
     [{ devcontainer: { ...base.devcontainer, initializeCommand: 'curl x' } }, /: initializeCommand$/],
     [{ devcontainer: { ...base.devcontainer, containerEnv: { CLAUDE_CONFIG_DIR: '/x' } } }, /: containerEnv\.CLAUDE_CONFIG_DIR$/],
@@ -1128,6 +1138,7 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
     [{ devcontainer: { ...base.devcontainer, onCreateCommand: { holarch: 'x' } } }, /: onCreateCommand\.holarch$/],
     [{ devcontainer: { ...base.devcontainer, mounts: [{ type: 'bind', source: '/x', target: '/home/vscode/.ssh' }] } }, /: mounts \(cible \/home\/vscode\/\.ssh\)$/],
     [{ devcontainer: { ...base.devcontainer, mounts: ['type=volume, src=x, dst=/home/vscode/.claude'] } }, /: mounts \(cible \/home\/vscode\/\.claude\)$/],
+    [{ devcontainer: { ...base.devcontainer, mounts: ['type=bind,source=x,destination=/home/vscode/.claude'] } }, /: mounts \(cible \/home\/vscode\/\.claude\)$/],
     [{ devcontainer: { ...base.devcontainer, onCreateCommand: 'x' } }, /onCreateCommand : un objet attendu/],
     [{ devcontainer: { ...base.devcontainer, containerEnv: ['A=1'] } }, /containerEnv : un objet attendu$/], [{ devcontainer: { ...base.devcontainer, mounts: 'x' } }, /mounts : une liste attendue/],
     [{ devcontainer: [] }, /^conteneur\.devcontainer : un objet attendu/], [[], /^conteneur : un objet attendu/]]) assert.match(g(x).erreur ?? '', motif, JSON.stringify(x));
@@ -1159,15 +1170,23 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
   assert.equal(fs.readFileSync(f, 'utf8'), genere);
   assert.ok(fs.statSync(script).mode & 0o100, 'deploy-key.sh exécutable, que la commande générée appelle');
   assert.deepEqual(ecartsConteneur(p1.projet), []);
+  // Le script de la clé, modifié à la main, n'est jamais réécrit, même appelé par la commande générée (m-3).
+  fs.writeFileSync(script, '#!/bin/sh\necho à la main\n');
+  const pc = await creer();
+  assert.deepEqual([etats(pc).conteneur, fs.readFileSync(script, 'utf8')], ['deja', '#!/bin/sh\necho à la main\n'], JSON.stringify(pc.etapes, null, 1));
+  git(d, 'checkout', '-q', '--', '.devcontainer/deploy-key.sh');
 
   // Modifié à la main : l'audit le dit ; à blanc, rien ne change ; rejouée, la création le réécrit.
   fs.writeFileSync(f, genere.replace('"base"', '"autre"'));
   assert.deepEqual(ecartsConteneur(p1.projet), [['.devcontainer/devcontainer.json', 'diffère de la configuration (clé conteneur)']]);
+  s.audit({ projet: p1.projet, journaliser: true });
   const blanc = await creer(true);
   assert.deepEqual([etats(blanc).conteneur, fs.readFileSync(f, 'utf8').includes('"autre"')], ['a-faire', true]);
   const p2 = await creer();
   assert.deepEqual([etats(p2).conteneur, git(d, 'log', '-1', '--format=%s'), fs.readFileSync(f, 'utf8'), git(d, 'status', '--porcelain')], ['faite', 'Générer la configuration du conteneur', genere, ''],
     'la modification jamais commitée est remplacée sans commit : le fichier commité est déjà le bon');
+  // Corrigé par la création, l'écart se résout au journal (m-8).
+  assert.deepEqual([...s.journal.lire()].filter((e) => e.data?.controle === 'conteneur-genere').map((e) => e.kind), ['rule.violated', 'rule.resolved']);
   fs.writeFileSync(f, genere.replace('"base"', '"autre"')); git(d, 'commit', '-qam', 'à la main');
   const p3 = await creer();
   assert.deepEqual([etats(p3).conteneur, git(d, 'log', '-1', '--format=%s'), fs.readFileSync(f, 'utf8')], ['faite', 'Régénérer la configuration du conteneur', genere]);
