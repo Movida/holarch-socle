@@ -2,13 +2,16 @@
 
 ## 2026-10-10
 
-* **Décision `profil-designe`, pas 4 à 7, pose et contre-épreuve** (environ 260 k tokens) : dépôt du profil monté en
+* **Décision `profil-designe`, pas 4 à 7, pose et contre-épreuve** (environ 270 k tokens) : dépôt du profil monté en
   écriture, écart de `montage-sensible`, avec le dossier de travail monté par défaut (`e9278a2`) ; exceptions de
   `donnees_personnelles` hors du dépôt contrôlé, termes partout, exceptions écartées dites (`4c85d68`, et `9ba93e7` du
   profil, `6ca5ac6` d'okf-bundle-template) ; contrats de configuration 0.6.0 et de nœud 0.4.0, C en 0.7.0 (`ff8a6f2`).
   Chaque test rouge sur son parent et sur 16 mutants ; 153 tests verts. Clé `profil` posée au poste avec l'accord de
   l'auteur ; audit à blanc identique avant et après, audit réel sans écart nouveau ; copie de service posée (`ff8a6f2`).
-  Contre-épreuve lancée en fond par une instance neuve. Rien poussé (socle, profil, okf-bundle-template). Leçon de
+  Contre-épreuve par une instance neuve, en fond : décision tenue sur ses points, 19 mutants tués sur 25, cinq majeurs
+  (collision d'identifiants par `slug`, termes effacés par une valeur nulle du projet, et trois antérieurs : champ brut
+  qui fait échouer la règle effective, dépôt du profil hors audit, identifiant de projet changé par un commit racine) et
+  six mineurs, au Reste. Rien poussé (socle, profil, okf-bundle-template). Leçon de
   clôture : déroulé annoncé en quatre pas (montage, exceptions, textes, geste puis audit, pose et contre-épreuve) ;
   tous tenus. Ce qui l'a fait dévier : trois vérifications non prévues, chacune avant d'agir (le montage implicite du
   dossier de travail, lu dans le code du CLI ; okf-hub public, que l'exception déplacée au contexte couvre pour six

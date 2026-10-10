@@ -1122,8 +1122,48 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
-     `xhigh`), scripts dans `/tmp/contre-epreuve-pd/` : [À COMPLÉTER : constats du rapport]. Après elle : les
-     corrections, un commit et un test chacun, éprouvés par `npm run eprouver` ; puis reposer la copie de service.
+     `xhigh`), scripts dans `/tmp/contre-epreuve-pd/scripts/` (perdus au redémarrage), rapport : `holarch rapport
+     afa38cbdf67d34b25`. Tenus : clé et lecture unique, déclarants, profil non désigné ou introuvable, doublons exacts,
+     montage du profil (montage implicite revérifié dans le CLI), exceptions de `donnees_personnelles`, textes, copie
+     posée. 19 mutants tués sur 25. Constats reproduits par l'instance, non revus par l'agent qui les consigne :
+     **Majeurs.** (1) Collision d'identifiants : l'`id` d'une racine se compare à la lettre, celui d'une règle passe par
+     `slug` (`inventaire/arbre.js:110-113, 141`, `inventaire/outils.js:38`) et le catalogue garde le premier lu
+     (`stockage/catalogue.js:20`) : un dépôt trié avant le profil, racine `id: PROFIL` et règle `Rien-De-Personnel`,
+     efface en silence `conteneur-isole` et `rien-de-personnel` du compte et du projet ; la garde laisse passer un terme
+     privé. Proposé : doublons cherchés sur l'`id` normalisé, identifiants de règle uniques à l'inventaire, doublon dit
+     par `Catalogue.remplacer` ; le contrat nœud 0.4.0 est faux d'ici là. (2) `termes` effacés par la couche du projet :
+     `fusionnerConfig` (`regles.js:117-125`) laisse une valeur simple ou `null` plus bas l'emporter
+     (`donnees_personnelles: null`, `termes: ""`) : liste privée vidée, garde muette ; de même `identite: null` rend
+     `identite-de-commit` non disponible et le commit passe. Proposé : `termes` lus couche par couche (les listes
+     s'additionnent, une non-liste ignorée et dite), ou aucun scalaire ne remplace un objet ou une liste d'une couche
+     supérieure. (3) Antérieur : `derogations: 5` à la racine d'un projet fait lever la règle effective
+     (`regles.js:245`, `inventaire/arbre.js:133`) : garde en échec, donc commit non contrôlé (`bin/holarch.js:245`),
+     audit de tout le site arrêté (`audit.js:225`) ; `replaces` objet, lu dans le code (`audit.js:143`). Proposé :
+     champs normalisés à l'inventaire (forme invalide : erreur de nœud, règle incomplète), échec d'un projet isolé à
+     l'audit, garde qui refuse quand la règle effective ne se calcule pas. (4) Le dépôt du profil n'est jamais audité
+     par défaut (`socle.js:379-380`, cibles : projets déclarés, typés ou à règles) : son propre conteneur, cas du pas 4,
+     ne se dit qu'avec `--projet` ; sur le poste, `holarch-profil` et un autre dépôt non déclaré hors audit (ni l'un ni l'autre n'a
+     de conteneur). Proposé : auditer tout projet du catalogue quand le profil a des règles applicables, au moins son
+     dépôt. (5) Antérieur : un commit racine orphelin plus ancien, fusionné, change l'identifiant du projet
+     (`inventaire/depots-git.js:27-31, 54`) : déclaration orpheline sans signal, projet hors audit ou sans contexte.
+     Proposé : écart du compte pour un identifiant déclaré absent du catalogue (ou suivre `element.moved`).
+     **Mineurs.** (1) En-tête illisible typé `context` hors du dépôt du profil : règle incomplète de projets non déclarés
+     (`regles.js:201-203`, `pouvaitEtre`) ; borner au dépôt du profil. (2) Profil désigné par un lien symbolique : arbre
+     lu deux fois, montage du chemin réel non vu (`config.js:87`, `controles.js:587`, `regles.js:43`) ; `realpath`
+     (aucun effet sur le poste). (3) Chaîne d'un déclarant qui n'atteint pas la racine du profil : règles de la racine
+     perdues sans signal ; règle incomplète si `chaine[0] !== a.profil`. (4) `__proto__` dans `fusionnerConfig`
+     (`regles.js:121`), latent : `Object.hasOwn`. (5) Mutants verts : M10 (lien interne par l'`id` : le test croit lire
+     l'intruse en dernier, le catalogue trie par nom ; un titre « zFaux » le tue), M5 (le profil garde son `id` : aucun
+     type propre au profil ni lien `profil:` d'un autre arbre dans le test), M2 (contextes d'autres arbres au compte :
+     signaux non vérifiés), M1 (profil en bundle OKF), M20 (`n !== a.profil`), M6 (`non_designe` sans arbre lu). (6)
+     Portée des exceptions déplacées : LICENSE et NOTICE soustraits pour 7 projets sur 8 (2 avant), `okf-hub` pour 6
+     (1 avant) ; un conteneur peut écrire une donnée personnelle dans le `LICENSE` d'un projet privé : à soumettre à
+     l'auteur (garder, ou une exception par type que seul le profil porte). Mesure : 4 racines lues, pas 3
+     (un projet privé en bundle OKF sans `id`, nommé par son identifiant) ; sans la clé, holarch-socle passait de 41 à 15 règles.
+     Hors périmètre : la racine d'un projet redéfinit toute règle dérogeable (25 des 26 du profil).
+     Ordre proposé : majeurs 2, 1, 3, puis 4 et 5, chacun avec son test ; le (6) des mineurs avant, s'il change une
+     décision. Les corrections, un commit et un test chacun, éprouvés par `npm run eprouver` ; puis reposer la copie de
+     service.
      Site de travail : Q32 (sans la clé `profil`, il perd les règles de son profil au compte, et son audit le dit).
      Contre-épreuve précédente (`exceptions-hors-du-depot`, rapport : `holarch rapport aac2690360a154fe6`) : close par
      cette décision et les corrections du 2026-10-10.
