@@ -979,12 +979,19 @@ function essaiProfil() {
 test('Profil désigné (décision profil-designe) : la clé profil du site nomme le seul profil ; sans elle, aucun ; chaque lecture des règles la reçoit', async () => {
   const { profilDuSite, chargerConfig } = await import('../src/config.js');
   const { regleDuCompte } = await import('../src/regles.js');
-  const { r, p, socle, ecrireF } = essaiProfil();
+  const { r, p, d, socle, ecrireF } = essaiProfil();
   // Deux arbres portent un contexte : le profil est celui que le site désigne, l'autre n'en fait pas un second.
   const s = socle(p);
   const compte = s.regles().compte;
-  assert.deepEqual([compte.indetermine, compte.regles.map((e) => e.id)], [undefined, ['francais']]);
+  assert.deepEqual([compte.indetermine, compte.regles.map((e) => e.id), compte.signaux], [undefined, ['francais'], []], 'un seul contexte au compte, celui du profil');
   assert.deepEqual(s.regles({ projet: 'depot' }).regles.map((e) => [e.id, e.origine]), [['francais', 'profil']]);
+  // Le dépôt du profil, comme projet : sa racine est la couche du profil, pas une seconde couche de projet.
+  assert.deepEqual(regleEffective(s.arbreFrais(), 'holarch:project:profil', { profil: p }).regles.map((e) => [e.id, e.origine, e.recouvre.length]), [['francais', 'profil', 0]]);
+  // Un profil en bundle OKF : sa racine est l'`index.md` à la racine du dépôt.
+  const okf = path.join(r, 'okf');
+  ecrireF(path.join(okf, 'index.md'), '---\ntype: guideline\nid: okf\ntitle: okf\nstatus: draft\nokf_version: "0.1"\n---\n');
+  ecrireF(path.join(okf, 'rules.yaml'), '- id: du-bundle\n  statement: Règle du bundle.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
+  assert.deepEqual(socle(okf, { depots: [okf, d] }).regles().compte.regles.map((e) => e.id), ['du-bundle']);
   // Sans profil (clé absente, dépôt introuvable, chemin relatif) : le compte est indéterminé, rien n'y est posé.
   for (const [profil, signal] of [[null, /^aucun profil désigné sur ce site/], [path.join(r, 'absent'), /^profil désigné introuvable : .*absent \(aucune racine/],
     ['profil', /^profil désigné introuvable : profil \(chemin absolu attendu\)/]]) {
@@ -1041,6 +1048,8 @@ test('Déclarants (décision profil-designe) : seuls les contextes et activités
   assert.deepEqual(dits(c0)[0], ['profil', 'aucun profil désigné sur ce site : ajouter la clé profil à la configuration du site']);
   assert.ok(dits(c0).some(([cle]) => cle === 'declaration:profil:/arbre/contextes/perso.md'));
   assert.ok(c0.controles.some((c) => c.id === 'regles-a-jour' && c.etat === 'indisponible' && c.raison === 'sans profil'));
+  // Un site qui ne lit aucun arbre n'a pas de profil à désigner : rien n'est dit.
+  assert.deepEqual(dits(compte(socle(null, { depots: [] }))), []);
   // Désigné, il se résout.
   socle(p, { accueil }).audit({ journaliser: true });
   assert.ok(!socle(p, { accueil }).ecartsOuverts().some((o) => o.cle === 'profil'), 'écart résolu une fois le profil désigné');
@@ -1070,7 +1079,10 @@ test('Identifiants en double (décision profil-designe) : le profil garde son id
     ecrireF(path.join(p, 'arbre', 'contextes', `${x}.md`), `---\ntype: context\ntitle: ${x}\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:${x}]\n---\n`);
   }
   for (const x of [p, path.join(r, 'j1')]) ecrireF(path.join(x, 'arbre', 'types', 'double.md'), '---\ntype: template\nid: double\ntitle: Double\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
-  ecrireF(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\ntypes: [double]\n---\n');
+  // Un type propre au profil, dont l'`id` d'arbre est pourtant repris par l'intrus : il se résout.
+  ecrireF(path.join(p, 'arbre', 'types', 'propre.md'), '---\ntype: template\nid: propre\ntitle: Propre\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n'
+    + 'rules:\n  - { id: du-type, statement: Du type., status: stable, approved: { by: human:alice, at: 2026-10-10 } }\n---\n');
+  ecrireF(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\ntypes: [double, propre]\n---\n');
   // Un contexte du profil rattaché par un lien vers l'id en double : non résolu.
   ecrireF(path.join(p, 'arbre', 'contextes', 'lie.md'), '---\ntype: context\ntitle: Lié\nstatus: draft\nlinks: { derives_from: ["jumeau:/arbre/index.md"] }\nprojects: [holarch:project:lie]\n---\n');
   const depots = [p, faux, path.join(r, 'j1'), path.join(r, 'j2'), d];
@@ -1085,10 +1097,14 @@ test('Identifiants en double (décision profil-designe) : le profil garde son id
     assert.deepEqual(e.illisibles, ['arbre du projet non retenu, identifiant d’arbre en double : jumeau (j1 ; j2)'], x);
     assert.ok(!e.regles.some((y) => y.id.startsWith('de-')), 'ni l’une ni l’autre');
   }
-  assert.deepEqual(s.regles({ projet: 'depot' }).regles.map((e) => e.fiche), ['holarch:rule:profil/francais'], 'la chaîne du contexte reste dans le dépôt du profil');
+  const duDepot = ['holarch:rule:profil/francais', 'holarch:rule:profil/propre/du-type'];
+  assert.deepEqual(s.regles({ projet: 'depot' }).regles.map((e) => e.fiche), duDepot, 'la chaîne du contexte reste dans le dépôt du profil ; le type propre au profil se résout');
   assert.deepEqual(s.regles({ projet: 'depot' }).illisibles, ['type en double : double (jumeau:/arbre/types/double.md, profil:/arbre/types/double.md)']);
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles']);
   assert.deepEqual(s.regles({ projet: 'lie' }).illisibles, ['lien vers un identifiant d’arbre en double, non résolu : profil:/arbre/contextes/lie.md → jumeau:/arbre/index.md']);
+  // L'intrus lu après le profil (le catalogue trie par titre) : la chaîne reste dans le dépôt du profil.
+  ecrireF(path.join(faux, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: zFaux\nstatus: draft\n---\n');
+  assert.deepEqual(socle(p, { depots }).regles({ projet: 'depot' }).regles.map((e) => e.fiche), duDepot);
   // Un type seul de son id, dans un arbre non retenu, ne se résout pas non plus.
   fs.rmSync(path.join(p, 'arbre', 'types'), { recursive: true });
   assert.deepEqual(socle(p, { depots }).regles({ projet: 'depot' }).illisibles, ['type d’un arbre non retenu : double (jumeau:/arbre/types/double.md, identifiant d’arbre en double)']);
