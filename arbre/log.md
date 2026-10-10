@@ -10,8 +10,8 @@
   (7) refus sans profil unique éprouvé aussi pour les projets, (8) mentions de C alignées sur la 0.5.0 approuvée (sans
   test : du texte), (9) heure locale d'une seule façon (quatre endroits, pas trois). Un commit chacun, chaque test
   échoue sur son parent sauf (7), qui garde un comportement déjà là ; 141 tests verts. Décision
-  `exceptions-hors-du-depot` en brouillon pour le (6), avec les limites de B des (2), (4) et (7) (texte stable) ;
-  approbation soumise à l'auteur. Rien posé, rien poussé. Un échec isolé du test « un commit fautif est refusé » sur
+  `exceptions-hors-du-depot` pour le (6), avec les limites de B des (2), (4) et (7) (texte stable), approuvée sur
+  récapitulatif et choix cliquables (contrat de configuration 0.5.0, C passe à la 0.6.0) ; son code reste à écrire. Rien posé, rien poussé. Un échec isolé du test « un commit fautif est refusé » sur
   une suite entière, non reproduit en huit passages, cause inconnue (au Reste). Leçon de clôture : déroulé annoncé en
   cinq temps (majeur, mineurs, brouillon du (6), contre-épreuve, tests et journal) ; tenus les trois premiers et le
   dernier. Ce qui l'a fait dévier : le seuil de passation franchi après les huit corrections, qui renvoie la

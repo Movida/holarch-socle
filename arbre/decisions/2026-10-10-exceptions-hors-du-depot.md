@@ -2,7 +2,8 @@
 type: decision
 title: "Exceptions de montage-sensible : lues hors du dépôt contrôlé, dites, et limites de B complétées"
 description: Amendement de veille-et-conteneur-precisions après la contre-épreuve de ses corrections. Une exception de montage-sensible ne se lit plus dans l'arbre du dépôt que le conteneur écrit, mais au profil et au contexte ; conteneur-isole devient non dérogeable ; l'exception du socle passe au contexte personnel jusqu'à D ; une exception utilisée se dit, une exception périmée se signale. Trois limites de B sont complétées.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-10, ref: "échange du 2026-10-10, récapitulatif et recommandation, choix cliquables (contrat de configuration 0.5.0)" }
 links:
   derives_from: [/arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md, /arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md, /arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/conception/contrats/config.md, /arbre/index.md, "profil:/arbre/rules.yaml", "profil:/arbre/contextes/perso.md"]
@@ -32,9 +33,9 @@ de l'auteur (2026-10-10) : fermer la voie plutôt que la montrer (avis de l'agen
 | Limite de B, relance (nouvelle) | « À chaque pose de la copie de service ou des règles, le gardien relancé relâche la demande d'éveil environ 0,68 s (mesure de la contre-épreuve) : `power.released` (`arret`) puis `power.held` au journal ; pendant le trou, `holarch veille` et le contrôle disent le gardien en relance. » |
 | Limite de B, profil unique (amende la limite et le choix 2) | « `holarch regles appliquer` refuse d'écrire le compte, et les projets qu'on lui nomme (leur règle hérite du profil). » |
 
-**Choix de l'auteur à faire.**
+**Choix de l'auteur (2026-10-10, choix cliquables) : la recommandation, 0.5.0.**
 
-1. Version du contrat de configuration. Recommandation de l'agent : 0.5.0 pour ce changement, C passe à la 0.6.0 (la
+1. Version du contrat de configuration. Recommandation de l'agent, suivie : 0.5.0 pour ce changement, C passe à la 0.6.0 (la
    portée se réduit : c'est une rupture, elle prend sa version ; quatre mentions de C à réaligner). Autre voie : amender
    la 0.4.0 en place (contrat encore en brouillon, un seul lecteur, le contrôle changé dans la même livraison), C garde
    la 0.5.0 ; plus court, mais une version publiée change de sens.
