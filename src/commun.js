@@ -8,6 +8,25 @@ import { spawnSync } from 'node:child_process';
 /** `a` est `b` ou se trouve dessous (chemins de même base) ; un dossier dessous nommé `..x` l'est aussi. */
 export const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (r !== '..' && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r)); };
 
+/**
+ * Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique :
+ * un dossier du chemin ou le fichier qui en est un lève une erreur, et rien n'est écrit. Un conteneur écrit son dépôt
+ * monté ; un lien qu'il y pose détournerait vers l'hôte une écriture faite sur l'hôte.
+ */
+export function ecrireSansLien(racine, relatif, contenu, mode) {
+  const p = path.resolve(racine, relatif);
+  if (!dedans(p, racine) || p === path.resolve(racine)) throw new Error(`${relatif} : hors du dépôt`);
+  let q = path.resolve(racine);
+  for (const s of path.relative(q, p).split(path.sep)) {
+    q = path.join(q, s);
+    let l; try { l = fs.lstatSync(q); } catch { break; }
+    if (l.isSymbolicLink()) throw new Error(`${path.relative(racine, q)} est un lien symbolique : rien n’est écrit`);
+  }
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, contenu);
+  if (mode) fs.chmodSync(p, mode);
+}
+
 /** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */
 export const accueil = () => process.env.HOLARCH_HOME || path.join(os.homedir(), '.holarch');
 

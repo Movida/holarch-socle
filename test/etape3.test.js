@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { creerDistant, creerInterface, creerReveil, creerRecolte, declarerConfiance, nomDe } from '../src/distant.js';
-import { binaireClaude } from '../src/commun.js';
+import { binaireClaude, ecrireSansLien } from '../src/commun.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -1208,6 +1208,24 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
   const avant = fs.readFileSync(f, 'utf8'); const p7 = await creer();
   assert.deepEqual([etats(p7).conteneur, etape(p7).detail, fs.readFileSync(f, 'utf8')], ['echec', 'posé par le socle, qu’aucune couche ne remplace : name', avant]);
   assert.deepEqual(ecartsConteneur(p1.projet), [['.devcontainer/devcontainer.json', 'la configuration ne le génère plus']]);
+
+  // Un lien symbolique posé dans le dépôt (le conteneur l'écrit) ne détourne aucune écriture vers l'hôte : le fichier ou
+  // son dossier, l'étape échoue et rien ne s'écrit dehors ; de même pour les fichiers de base.
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('name: autre', 'postCreateCommand: "npm i"')); toucher(index);
+  git(d, 'commit', '-qam', 'npm i');
+  const dehors = path.join(r, 'dehors'); fs.mkdirSync(dehors);
+  fs.rmSync(f); fs.symlinkSync(path.join(dehors, 'cible.json'), f);
+  const l1 = await creer();
+  assert.deepEqual([etats(l1).conteneur, etape(l1).detail, fs.readdirSync(dehors)], ['echec', '.devcontainer/devcontainer.json est un lien symbolique : rien n’est écrit', []], JSON.stringify(l1.etapes, null, 1));
+  fs.rmSync(path.join(d, '.devcontainer'), { recursive: true }); fs.symlinkSync(dehors, path.join(d, '.devcontainer'));
+  const l2 = await creer();
+  assert.deepEqual([etats(l2).conteneur, etape(l2).detail, fs.readdirSync(dehors)], ['echec', '.devcontainer est un lien symbolique : rien n’est écrit', []], JSON.stringify(l2.etapes, null, 1));
+  git(d, 'rm', '-q', '.gitignore'); git(d, 'commit', '-qm', 'sans .gitignore');
+  fs.symlinkSync(path.join(dehors, 'gitignore'), path.join(d, '.gitignore'));
+  const l3 = await creer();
+  assert.deepEqual([etats(l3).fichiers, l3.etapes.find((e) => e.etape === 'fichiers').detail, fs.readdirSync(dehors)], ['echec', '.gitignore est un lien symbolique : rien n’est écrit', []]);
+  // Un chemin réglé qui sort du dépôt (un journal en `../`) n'est pas écrit non plus.
+  assert.throws(() => ecrireSansLien(d, '../dehors/x', 'a'), /hors du dépôt/); assert.deepEqual(fs.readdirSync(dehors), []);
 }));
 
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.

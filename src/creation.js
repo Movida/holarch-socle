@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { git, trouverOutil, porteMarque } from './commun.js';
+import { git, trouverOutil, porteMarque, ecrireSansLien } from './commun.js';
 import { configAvantProjet, fusionnerConfig } from './regles.js';
 import { identiteDeclaree } from './controles.js';
 import { poserIdentite } from './identite-git.js';
@@ -142,12 +142,9 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   if (!aCommiter.length) noter('fichiers', 'deja', fichiers.map(([f]) => f).join(', '));
   else if (aBlanc) noter('fichiers', 'a-faire', aCommiter.map(([f]) => f).join(', '));
   else {
-    for (const [f, contenu, mode] of manquants) {
-      const p = path.join(dossier, f); fs.mkdirSync(path.dirname(p), { recursive: true });
-      fs.writeFileSync(p, contenu()); if (mode) fs.chmodSync(p, mode);
-    }
     const premier = g('rev-parse', '--verify', '-q', 'HEAD').status !== 0;
     try {
+      for (const [f, contenu, mode] of manquants) ecrireSansLien(dossier, f, contenu(), mode);
       const a = g('add', '--', ...aCommiter.map(([f]) => f)); if (a.status !== 0) throw new Error(erreur(a));
       commiter(premier ? 'Créer le projet' : 'Compléter les fichiers de base du projet', aCommiter.map(([f]) => f));
       noter('fichiers', 'faite', aCommiter.map(([f]) => f).join(', '));
@@ -225,8 +222,8 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
       if (!aCommiter.length) noter('conteneur', 'deja', CONTENEUR);
       else if (aBlanc) noter('conteneur', 'a-faire', aCommiter.join(', '));
       else {
-        for (const [f, t, mode] of aEcrire) { const p = path.join(dossier, f); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, t); if (mode) fs.chmodSync(p, mode); }
         try {
+          for (const [f, t, mode] of aEcrire) ecrireSansLien(dossier, f, t, mode);
           const a = g('add', '--', ...aCommiter); if (a.status !== 0) throw new Error(erreur(a));
           // Une modification jamais commitée, remplacée par le texte déjà commité : rien à commiter.
           const changes = aCommiter.filter(statut);
