@@ -11,7 +11,7 @@ import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser
 import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
-import { etatVeille, accesDistants } from './distant.js';
+import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
 import { dossierClaude } from './projets.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
@@ -290,8 +290,10 @@ function commitsPousses(ctx) {
  * remplace la lecture du poste (`mecanisme`, `gardien`, et `besoin` à défaut des notes de l'accueil ; essais).
  */
 function veilleRetardee(ctx) {
-  const v = ctx.veille || { mecanisme: mecanisme(), gardien: etatVeille().gardien };
+  const v = ctx.veille || { mecanisme: mecanisme(), ...etatVeille() };
   if (!v.mecanisme) return { indisponible: 'aucun mécanisme pour retarder la veille sur ce site (Windows, vu de WSL)' };
+  // Systemd utilisateur injoignable : l'état du gardien ne se lit pas, ni « actif » ni « absent ».
+  if (v.gardien === GARDIEN_ILLISIBLE) return { indisponible: `gardien de veille ${v.gardien}${v.systemd ? ` (${v.systemd})` : ''}` };
   const ecarts = [];
   if (v.gardien !== 'actif') ecarts.push({ fichier: null, ligne: null, cle: 'gardien', message: `gardien de veille ${v.gardien} : la veille n'est pas retardée${v.gardien === 'absent' ? ' (holarch regles appliquer le pose)' : ''}` });
   if (ctx.accueil) ecarts.push(...etatGardien({ accueil: ctx.accueil, gardien: v.gardien, besoin: v.besoin }).constats.map((c) => ({ fichier: null, ligne: null, ...c })));

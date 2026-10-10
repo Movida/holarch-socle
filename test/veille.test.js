@@ -265,14 +265,16 @@ test('veille : sans systemd utilisateur, le gardien voulu n’est pas posé : ri
   const fauxDevcontainer = () => ({ status: 0, stdout: '\n"systemd" is not running in this container due to its overhead.\n', stderr: '' });
   const absent = () => ({ status: null, stdout: undefined, stderr: undefined, error: new Error('spawnSync systemctl ENOENT') });
   const horsLigne = () => ({ status: 1, stdout: 'offline\n', stderr: 'System has not been booted with systemd as init system (PID 1). Can\'t operate.' });
+  // Le système n'a pas démarré sous systemd (`/run/systemd/system` manque, comme le teste sd_booted).
+  const sousSystemd = () => false;
   for (const systemctl of [fauxDevcontainer, absent, horsLigne]) {
     const unites = tmp(); const appels = [];
-    const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, systemctl: (a) => { appels.push(a.join(' ')); return systemctl(a); }, node: '/opt/node/bin/node' });
+    const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, systemctl: (a) => { appels.push(a.join(' ')); return systemctl(a); }, sousSystemd, node: '/opt/node/bin/node' });
     assert.deepEqual(reveil.gardien({ veille: true, relancer: false }), { unite: 'holarch-veille.service', etat: 'sans systemd utilisateur : non posé' });
     assert.deepEqual(reveil.gardien({ veille: true }), { unite: 'holarch-veille.service', etat: 'sans systemd utilisateur : non posé' }, 'la copie de service non plus');
     assert.ok(!fs.existsSync(g(unites)), 'aucune unité écrite'); assert.deepEqual([...new Set(appels)], ['is-system-running']);
     // `holarch veille` et le contrôle ne renvoient pas à `regles appliquer`, qui ne peut rien y poser.
-    assert.equal(etatVeille({ unites, systemctl }).gardien, 'impossible sans systemd utilisateur');
+    assert.equal(etatVeille({ unites, systemctl, sousSystemd }).gardien, 'impossible sans systemd utilisateur');
     // Une unité déjà là (posée quand systemd tournait) : laissée, pas plus retirée que posée.
     ecrire(g(unites), uniteVeille({ holarch: '/opt/holarch.js', accueil: '/a' }));
     assert.equal(reveil.gardien({ veille: true }).etat, 'sans systemd utilisateur : laissé');
@@ -281,6 +283,25 @@ test('veille : sans systemd utilisateur, le gardien voulu n’est pas posé : ri
   // systemd qui répond mais un appel qui échoue sans sortie : l'erreur du lancement se dit, pas « code null ».
   const r = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites: tmp(), systemctl: (a) => (a[0] === 'is-system-running' ? { status: 0, stdout: 'running\n' } : { status: null, error: new Error('spawnSync systemctl EACCES') }), node: '/opt/node/bin/node' }).gardien({ veille: true });
   assert.deepEqual([r.etat, r.message], ['erreur', 'systemctl --user daemon-reload : spawnSync systemctl EACCES']);
+});
+
+test('veille : un systemd utilisateur injoignable n’est pas une absence : erreur dite, rien d’écrit, gardien illisible', () => {
+  // systemd tourne (`/run/systemd/system` existe), mais sans `XDG_RUNTIME_DIR` ni bus (`sudo -u`, `env -i`), son instance
+  // utilisateur ne répond pas : mesuré sur le poste le 2026-10-10 (`env -i systemctl --user is-system-running`, code 1).
+  const systemctl = () => ({ status: 1, stdout: '', stderr: 'Failed to connect to bus: No medium found\n' });
+  const o = { systemctl, sousSystemd: () => true, node: '/opt/node/bin/node' };
+  const unites = tmp(); const g = path.join(unites, 'holarch-veille.service');
+  const reveil = creerReveil({ holarch: '/opt/holarch.js', accueil: '/a' }, { unites, ...o });
+  const message = 'systemd utilisateur injoignable : Failed to connect to bus: No medium found';
+  assert.deepEqual(reveil.gardien({ veille: true }), { unite: 'holarch-veille.service', etat: 'erreur', message });
+  assert.ok(!fs.existsSync(g), 'aucune unité écrite');
+  assert.deepEqual(etatVeille({ unites, ...o }), { unite: 'holarch-veille.service', gardien: 'illisible, systemd utilisateur injoignable', systemd: 'Failed to connect to bus: No medium found' });
+  ecrire(g, uniteVeille({ holarch: '/opt/holarch.js', accueil: '/a' }));
+  assert.deepEqual(reveil.gardien({ veille: false }), { unite: 'holarch-veille.service', etat: 'erreur', message }, 'ni retiré ni « laissé, sans systemd »');
+  assert.ok(fs.existsSync(g));
+  // Le contrôle ne dit ni « actif » ni « absent » : il ne voit pas le gardien.
+  const r = executer('veille-retardee', { veille: { mecanisme: 'windows', ...etatVeille({ unites: tmp(), ...o }) } }, 'audit');
+  assert.equal(r.indisponible, 'gardien de veille illisible, systemd utilisateur injoignable (Failed to connect to bus: No medium found)');
 });
 
 test('veille : un profil absent ou en double rend la règle indéterminée, pas retirée', () => {
