@@ -26,8 +26,10 @@ export function trouverDepots({ racines = [], profondeur = 3, ignorer = [] }) {
 // Identité d'un dépôt : son premier commit (le plus ancien s'il y a plusieurs racines), qui ne change ni avec le
 // chemin ni avec le remote. Sans commit, le chemin. Deux clones du même dépôt sur un site se départagent par leur chemin.
 export function racine(d) {
-  const r = (gitInventaire(d, ['log', '--max-parents=0', '--format=%ct %H', 'HEAD']) || '').split('\n').filter(Boolean).sort();
-  return r.length ? r[0].split(' ')[1].slice(0, 12) : null;
+  // Dates comparées en nombres : en texte, une date d'avant le 2001-09-09 (9 chiffres) passerait après les autres.
+  const r = (gitInventaire(d, ['log', '--max-parents=0', '--format=%ct %H', 'HEAD']) || '').split('\n').filter(Boolean)
+    .map((l) => l.split(' ')).sort(([t, h], [u, k]) => Number(t) - Number(u) || h.localeCompare(k));
+  return r.length ? r[0][1].slice(0, 12) : null;
 }
 
 // État de travail d'un dépôt : fichiers modifiés ou non suivis, écart à la branche amont (« retard avance » ; sans

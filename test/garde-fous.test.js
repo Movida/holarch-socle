@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { etatDepot } from '../src/inventaire/depots-git.js';
+import { etatDepot, racine } from '../src/inventaire/depots-git.js';
 import { Journal } from '../src/stockage/journal.js';
 import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
@@ -1393,7 +1393,7 @@ test('Contre-épreuve du profil désigné (5) : un projet déclaré, vu sur ce s
   const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
   const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot');
   const g = (x, ...a) => spawnSync('git', ['-C', x, '-c', 'user.name=Alice', '-c', 'user.email=alice@exemple.test', ...a], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z' } });
-  const idDe = (x) => `holarch:project:${g(x, 'log', '--max-parents=0', '--format=%ct %H').stdout.trim().split('\n').sort()[0].split(' ')[1].slice(0, 12)}`;
+  const idDe = (x) => `holarch:project:${racine(x)}`;
   ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
   ecrireF(path.join(p, 'arbre', 'rules.yaml'), '- id: note\n  statement: Note.\n  level: reminder\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
   const declarer = (...ids) => ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [${ids.join(', ')}]\n---\n`);
@@ -1427,6 +1427,21 @@ test('Contre-épreuve du profil désigné (5) : un projet déclaré, vu sur ce s
   // Vu sur ce site, sorti du catalogue sans retrait journalisé : de même.
   vu('local');
   assert.deepEqual(absents(await auditer()).map((e) => [e.cle, e.message.match(/\((\S+)/)[1]]), [[`projet-absent:${apres}`, 'retiré'], ['projet-absent:holarch:project:jamais', 'vu']]);
+});
+
+test('Identifiant d’un dépôt : le plus ancien de ses commits racines, dates comparées en nombres', () => {
+  const d = tmp();
+  const git = (date, ...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 'Alice', GIT_AUTHOR_EMAIL: 'alice@exemple.test',
+    GIT_COMMITTER_NAME: 'Alice', GIT_COMMITTER_EMAIL: 'alice@exemple.test', GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } }).stdout.trim();
+  git('2020-01-01T00:00:00Z', 'init', '-q'); git('2020-01-01T00:00:00Z', 'commit', '-q', '--allow-empty', '-m', 'recent');
+  const vieille = (m, jour) => { const h = git('1999-01-01T00:00:00Z', 'commit-tree', '4b825dc642cb6eb9a060e54bf8d69288fbee4904', '-m', m);
+    git(`2020-01-0${jour}T00:00:00Z`, 'merge', '-q', '--allow-unrelated-histories', '-m', 'fusion', h); return h; };
+  // Avant le 2001-09-09, une date compte 9 chiffres : en texte, elle passerait après celles de 10.
+  const a = vieille('jumeau', 2);
+  assert.equal(racine(d), a.slice(0, 12));
+  // Deux racines de même date : la plus petite empreinte, même quand git liste l'autre d'abord (la dernière fusionnée).
+  const b = vieille('vieux', 3);
+  assert.deepEqual([b > a, racine(d)], [true, a.slice(0, 12)]);
 });
 
 test('Contre-épreuve du profil désigné (mineur 1) : un contexte illisible hors du dépôt du profil ne rend incomplète la règle d’aucun projet', () => {
