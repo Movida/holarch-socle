@@ -771,6 +771,11 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
   assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: maison }).length, 0, 'un dépôt qui contient le profil');
   assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: d }).length, 1);
   assert.equal(exceptions([{ origine: 'projet', fichier: path.join(d, 'arbre', 'index.md'), config: { donnees_personnelles: { exceptions: [{ fichier: 'LICENSE', pourquoi: 'titulaire' }] } } }], 'donnees_personnelles', 'fichier', { depot: d }).length, 1);
+  // Une clé de réglage au nom d'une propriété d'objet, écrite par le conteneur, ne met pas la règle effective en panne
+  // (sans quoi la garde laissait passer le commit sans contrôle).
+  r = arbres({ contexte: exception(), projet: 'config:\n  constructor: 1\n  toString: x\n  __proto__: { a: 1 }\n  hasOwnProperty: 2\n' });
+  assert.deepEqual(r.config.montage_sensible, { exceptions: [{ ecart: 'acces-distant:projet', pourquoi: 'jusqu’à D' }] });
+  assert.equal(exceptions(r.couches, 'constructor', 'ecart', { depot: d }).length, 0);
 });
 
 test('Exceptions hors du dépôt : une exception qui sert se dit, une exception qui ne sert plus est un écart du compte', async () => {

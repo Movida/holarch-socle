@@ -83,14 +83,15 @@ export function fusionnerConfig(...couches) {
 // et s'il se lit hors du dépôt contrôlé. `montage_sensible` fait taire un écart du conteneur : il ne se lit pas dans
 // les fichiers que ce conteneur écrit (types et racine du projet), ni dans le dépôt contrôlé s'il est celui du profil.
 // Une clé absente de cette table se lit à toutes les couches.
-const PORTEE = { montage_sensible: { couches: ['profil', 'contexte'], horsDepot: true } };
+// Une `Map` : une clé écrite dans l'arbre (`constructor`, `toString`…) ne se confond pas avec une propriété d'objet.
+const PORTEE = new Map([['montage_sensible', { couches: ['profil', 'contexte'], horsDepot: true }]]);
 
 // Les réglages d'une couche dans leur portée ; une clé posée hors de sa portée n'est pas lue, et se dit.
 function dansPortee(c, signaux) {
   const config = c.noeud.attributes?.config;
   if (!config || typeof config !== 'object' || Array.isArray(config)) return config ?? null;
-  const hors = Object.keys(config).filter((k) => PORTEE[k] && !PORTEE[k].couches.includes(c.origine));
-  for (const k of hors) signaux.push(`${k} porté par ${c.noeud.attributes?.arbre}:${c.noeud.node} (${c.origine}) : non lu, il se lit au ${PORTEE[k].couches.join(' et au ')} (décision exceptions-hors-du-depot)`);
+  const hors = Object.keys(config).filter((k) => PORTEE.has(k) && !PORTEE.get(k).couches.includes(c.origine));
+  for (const k of hors) signaux.push(`${k} porté par ${c.noeud.attributes?.arbre}:${c.noeud.node} (${c.origine}) : non lu, il se lit au ${PORTEE.get(k).couches.join(' et au ')} (décision exceptions-hors-du-depot)`);
   return hors.length ? Object.fromEntries(Object.entries(config).filter(([k]) => !hors.includes(k))) : config;
 }
 
@@ -107,7 +108,7 @@ const couchesLues = (couches, signaux) => couches.map((c) => ({ origine: c.origi
  */
 export function exceptions(couches = [], cle, champ, { depot = null } = {}) {
   const texte = (x) => (x === null || x === undefined || typeof x === 'object' ? '' : String(x).trim());
-  const dansDepot = (f) => Boolean(PORTEE[cle]?.horsDepot && depot && f) && !path.relative(path.resolve(depot), path.resolve(f)).startsWith('..');
+  const dansDepot = (f) => Boolean(PORTEE.get(cle)?.horsDepot && depot && f) && !path.relative(path.resolve(depot), path.resolve(f)).startsWith('..');
   return couches.filter((c) => !dansDepot(c.fichier)).flatMap((c) => [].concat(c.config?.[cle]?.exceptions || [])
     .filter((x) => x && typeof x === 'object' && texte(x[champ]) && texte(x.pourquoi))
     .map((x) => ({ valeur: texte(x[champ]), pourquoi: texte(x.pourquoi), origine: c.origine, arbre: c.arbre, noeud: c.noeud, fichier: c.fichier })));
