@@ -2,6 +2,16 @@
 
 ## 2026-10-10
 
+* **Livraison C : garde étendue, mineurs de la contre-épreuve, défaut C04** (environ 25 k tokens pour l'agent, 325 k
+  pour l'instance neuve) : sur « Lance », la suite confiée à une instance neuve, le contexte de l'agent étant au seuil.
+  Garde contre les liens symboliques aux cinq autres écritures dans un dépôt (`786cd6e`), assertions des mineurs
+  (`afd57ee`) ; l'instance s'est arrêtée sur C04, un défaut réel (script de la clé indexé par un commit refusé, jamais
+  commité au rejeu), corrigé par l'agent (`bd765de`). 165 tests verts, chaque test rouge sur son parent et ses mutants ;
+  copie de service posée, audit réel : 0 apparu, 0 résolu. Rien poussé. Leçon : déroulé annoncé (instance pour (a) et
+  (b), relecture, pose, journal) tenu. Ce qui l'a fait dévier : le défaut de C04, que l'assertion demandée a révélé ;
+  la partie « réglages » visait un fichier de projet que HOLARCH n'écrit pas (seul le compte en a), relevé par
+  l'instance. La demande qui y aurait mené : « Lance », tel quel.
+
 * **Livraison C : contre-épreuve lue, M-1 et M-2 (création) corrigés, et passation** (environ 150 k tokens) :
   variables du socle réservées dans les deux sections d'environnement (`a288b39`) ; garde commune contre l'écriture à
   travers un lien symbolique, au choix de l'auteur (recommandation suivie), posée aux étapes 2 et 5 de la création

@@ -1207,6 +1207,22 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   dans la question), cinq au Reste. Mesuré avant chaque commit : 6 projets déclarés, aucune couche ne pose ces variables,
   aucun lien aux chemins écrits. Tests rouges sur leur parent et sur leurs mutants (2 et 2) ; 164 verts. Copie de
   service posée (`428b85d`, gardien relancé), audit réel : 0 apparu, 0 résolu. Rien poussé.
+- **Fait (2026-10-10)** : contre-épreuve de C, garde étendue et mineurs, par une instance neuve (Opus 5.5) relue par
+  l'agent. (a) `786cd6e` : `cheminSansLien` (`src/commun.js`), vérification seule, sous `ecrireSansLien` et des cinq
+  autres écritures : contexte du profil (étape 3, écriture et remise en l'état ; `declaration` en échec), règles
+  (`appliquer(racine, dossier, plan)`, dossier vérifié avant toute lecture, fichiers avant lecture, écriture ou retrait ;
+  `r.erreur`, jamais une exception : étape `regles` en échec, `holarch regles appliquer` en code 1, audit qui dit
+  `regles-a-jour` non disponible au projet comme au compte), réglages JSON (`ecrireJson(…, { racine })` : HOLARCH
+  n'écrit aucun `.claude/settings*.json` de projet, seulement `settings.json` du compte et ses deux manifestes, gardés
+  depuis le dossier du compte), crochet (quand il est dans le dépôt ; état `erreur`, `crochet-pose` non disponible),
+  récolte (`ajouterRegles(racine, …)`, `arbre/index.md` de `proposerRegles` ; la règle va dans `sans_noeud` avec la
+  raison). Test neuf rouge sur son parent et sur 18 mutants. (b) `afd57ee` : assertions de M04, M05, M15, M17, M19,
+  M20, C03, A02, chacune rouge sur son mutant. C04 a montré un défaut : un `deploy-key.sh` écrit par un passage dont le
+  commit est refusé est déjà indexé (`A `), la branche `??` ne le voyait pas, le rejeu disait `deja` et le script
+  partait au commit suivant de l'auteur ; corrigé (`bd765de`, absent de HEAD comme à l'étape 2), test rouge sur son
+  parent et son mutant. Mesuré : aucun lien aux chemins gardés (6 projets, profil, compte), aucun script indexé sans
+  commit. 165 tests verts. Racine du profil vérifiée sur le poste (le contexte `perso.md` y est). Copie de service posée
+  (`bd765de`), audit réel : 0 apparu, 0 résolu. Rien poussé.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1277,24 +1293,20 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Pour C, reprise après M-1 et M-2** (contre-épreuve rendue : rapport dans `/tmp/contre-epreuve-c/rapport.md`,
-     perdu au redémarrage ; sinon la transcription du sous-agent, `ls -t
-     ~/.claude/projects/*holarch-socle/*/subagents/agent-*.jsonl`, le plus long message qui commence par « # Contre-épreuve
-     de la livraison C ») : faits M-1 (`a288b39`) et M-2 pour la création (`428b85d`), Fait ci-dessus. Reste, dans
-     l'ordre : (a) `ecrireSansLien` aux cinq autres écritures dans un dépôt, un commit : fichier de contexte du profil
-     (étape 3 de `creation.js`) ; règles et leur dossier (`appliquer` de `regles-claude-code.js`, retrait des fichiers
-     marqués compris) ; `.claude/settings*.json` et manifeste (`ecrireJson` : le renommage remplace un lien final, un
-     dossier lien reste à garder) ; crochet git quand il est dans le dépôt (`garde-git.js`) ; `rules.yaml` de la récolte
-     (`ajouterRegles`, `proposerRegles`). Lecture de l'audit (`ecartsConteneur`) laissée : aucun contenu n'en sort.
-     (b) Mineurs m-1 à m-8 (mutants M04, M05, M15, M17, M19, M20, C03, C04, A02), assertions données par le rapport, un
-     commit. (c) `holarch rapport` ne lit que le dernier message : lire le dernier qui porte le titre, avec un test.
-     (d) Étape `cle` : elle compare la présence d'une clé au dépôt, pas la clé du conteneur (lisible par `docker exec`
-     quand il tourne, sinon geste), avec un test. (e) Suppositions du rapport, à soumettre à l'auteur :
-     `runArgs: ['--network=host']` non dit par `montage-sensible` ; casse du nom (`nom.toLowerCase()` : deux projets qui
-     ne diffèrent que par la casse partageraient volumes de connexion et clé) ; marque retirée à la main (le fichier passe
-     pour écrit à la main). Puis l'approbation de C par l'auteur. Le contrôle `outils-a-jour` ne suit pas
-     `devcontainer` : la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm. Les autres
-     projets se migrent par `projet creer` rejoué, avec l'accord de l'auteur projet par projet.
+  0. **Pour C, reprise au temps 4** (contre-épreuve : M-1, M-2 et les mineurs faits, Faits ci-dessus ; rapport dans
+     `/tmp/contre-epreuve-c/rapport.md`, perdu au redémarrage, sinon dans la transcription du sous-agent, le plus long
+     message qui commence par « # Contre-épreuve de la livraison C »). Reste, dans l'ordre : (c) `holarch rapport` ne lit
+     que le dernier message : lire le dernier qui porte le titre, avec un test. (d) Étape `cle` : elle compare la présence
+     d'une clé au dépôt, pas la clé du conteneur (lisible par `docker exec` quand il tourne, sinon geste), avec un test.
+     (e) Suppositions du rapport, à soumettre à l'auteur : `runArgs: ['--network=host']` non dit par `montage-sensible` ;
+     casse du nom (`nom.toLowerCase()` : deux projets qui ne diffèrent que par la casse partageraient volumes de
+     connexion et clé) ; marque retirée à la main (le fichier passe pour écrit à la main). Puis l'approbation de C par
+     l'auteur. Limites laissées par la garde, à dire à l'auteur : lectures non gardées (`ecartsConteneur` et `lire()` de
+     l'étape 5, `lireJson` des réglages), écritures de git lui-même (identité, `add`, `commit`), course entre la
+     vérification et l'écriture. Défaut mineur vu en route : un manifeste refusé après l'écriture de `settings.json` laisse
+     une entrée posée par HOLARCH jamais retirée (vrai avant pour toute panne entre les deux écritures). Le contrôle
+     `outils-a-jour` ne suit pas `devcontainer` : la CLI ne publie pas de version sur GitHub (404), il lui faudrait une
+     source npm. Les autres projets se migrent par `projet creer` rejoué, avec l'accord de l'auteur projet par projet.
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
      constat 6 de `revue-page-blanche` non tranché ; (2) un conteneur par brique (fondation n° 3) : un programme Node et
