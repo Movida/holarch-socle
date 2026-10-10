@@ -278,6 +278,7 @@ test('veille : sans systemd utilisateur, le gardien voulu n’est pas posé : ri
     // Une unité déjà là (posée quand systemd tournait) : laissée, pas plus retirée que posée.
     ecrire(g(unites), uniteVeille({ holarch: '/opt/holarch.js', accueil: '/a' }));
     assert.equal(reveil.gardien({ veille: true }).etat, 'sans systemd utilisateur : laissé');
+    assert.equal(etatVeille({ unites, systemctl, sousSystemd }).gardien, 'impossible sans systemd utilisateur', 'ni « arrêté » : l’unité ne peut pas tourner');
     assert.equal(reveil.gardien({ veille: false }).etat, 'règle veille-retardee non appliquée, sans systemd utilisateur : laissé'); assert.ok(fs.existsSync(g(unites)));
   }
   // systemd qui répond mais un appel qui échoue sans sortie : l'erreur du lancement se dit, pas « code null ».
@@ -297,6 +298,7 @@ test('veille : un systemd utilisateur injoignable n’est pas une absence : erre
   assert.ok(!fs.existsSync(g), 'aucune unité écrite');
   assert.deepEqual(etatVeille({ unites, ...o }), { unite: 'holarch-veille.service', gardien: 'illisible, systemd utilisateur injoignable', systemd: 'Failed to connect to bus: No medium found' });
   ecrire(g, uniteVeille({ holarch: '/opt/holarch.js', accueil: '/a' }));
+  assert.equal(etatVeille({ unites, ...o }).gardien, 'illisible, systemd utilisateur injoignable', 'une unité posée non plus : ni « arrêté »');
   assert.deepEqual(reveil.gardien({ veille: false }), { unite: 'holarch-veille.service', etat: 'erreur', message }, 'ni retiré ni « laissé, sans systemd »');
   assert.ok(fs.existsSync(g));
   // Le contrôle ne dit ni « actif » ni « absent » : il ne voit pas le gardien.

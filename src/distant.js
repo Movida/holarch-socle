@@ -243,12 +243,11 @@ export const GARDIEN_ILLISIBLE = 'illisible, systemd utilisateur injoignable';
  */
 export function etatVeille({ unites = UNITES, systemctl = SYSTEMCTL, sousSystemd = SOUS_SYSTEMD } = {}) {
   const sv = services({ unites, systemctl, sousSystemd }); const g = path.join(unites, UNITE_VEILLE);
-  if (!fs.existsSync(g)) {
-    const s = sv.systemd();
-    return { unite: UNITE_VEILLE, gardien: { disponible: 'absent', absent: 'impossible sans systemd utilisateur', injoignable: GARDIEN_ILLISIBLE }[s.etat], ...(s.message && { systemd: s.message }) };
-  }
-  const gardien = !sv.geree(g) ? 'écrit à la main' : sv.actif(g) ? 'actif' : sv.coupee(g) ? 'coupé' : 'arrêté';
-  return { unite: UNITE_VEILLE, gardien };
+  // systemd d'abord : sans lui, une unité posée avant ne tourne pas (« arrêtée » renverrait à la relancer).
+  const s = sv.systemd();
+  const gardien = s.etat === 'injoignable' ? GARDIEN_ILLISIBLE : s.etat === 'absent' ? 'impossible sans systemd utilisateur'
+    : !fs.existsSync(g) ? 'absent' : !sv.geree(g) ? 'écrit à la main' : sv.actif(g) ? 'actif' : sv.coupee(g) ? 'coupé' : 'arrêté';
+  return { unite: UNITE_VEILLE, gardien, ...(s.message && { systemd: s.message }) };
 }
 
 /** Les accès distants posés par HOLARCH (unités marquées) et leur dossier de travail, lus sans systemctl. */
