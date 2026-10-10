@@ -831,9 +831,9 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
   assert.equal(ouvertes().length, 1, 'toujours ouverte');
   // L'accès distant et les crochets du dépôt se lisent toujours en entier : une exception sur eux se juge même là où le
   // contrôle a lu le reste en partie (sur le poste, un projet aux features publiées non lues).
-  contexte(cle, 'acces-distant:fantome'); relire();
-  assert.deepEqual(perimees(s.audit({ journaliser: true })).map((e) => e.cle), ['exception-perimee:acces-distant:fantome']);
-  assert.equal(ouvertes().length, 2);
+  contexte(cle, 'acces-distant:fantome', 'crochets:.claude/fantome.json'); relire();
+  assert.deepEqual(perimees(s.audit({ journaliser: true })).map((e) => e.cle), ['exception-perimee:acces-distant:fantome', 'exception-perimee:crochets:.claude/fantome.json']);
+  assert.equal(ouvertes().length, 3);
   // Retirées du contexte : les écarts se résolvent.
   devcontainer({}); contexte(); relire();
   a = s.audit({ journaliser: true });
