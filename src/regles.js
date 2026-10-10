@@ -216,4 +216,19 @@ export function configAvantProjet(fiches, { contexte = null, types = [] } = {}) 
 }
 
 /** Les projets qu'un contexte (ou une activité) déclare. */
+/**
+ * Les projets que couvre chaque nœud d'un profil (`<arbre>:<chemin>`) : ceux que déclarent les nœuds de cet arbre dont la
+ * chaîne passe par lui. C'est ce que vise une exception qu'il porte, que son contrôle l'ait lue ou non.
+ */
+export function projetsCouverts(fiches) {
+  const a = arbresDe(fiches); const r = new Map(); const profils = new Set(a.profils.map((p) => p.attributes.arbre));
+  for (const n of a.noeuds.filter((x) => profils.has(x.attributes?.arbre) && Array.isArray(x.attributes?.projects))) {
+    for (const c of chaine(a, n)) {
+      const k = `${c.attributes?.arbre}:${c.node}`; if (!r.has(k)) r.set(k, new Set());
+      for (const p of n.attributes.projects) r.get(k).add(p);
+    }
+  }
+  return r;
+}
+
 export const projetsDeclares = (fiches) => new Set(fiches.filter((f) => f.kind === 'node').flatMap((n) => n.attributes?.projects || []));

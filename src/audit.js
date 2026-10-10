@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { comptesClaudeCode, accueil } from './config.js';
 import { projetsDe, localiserProjet } from './projets.js';
-import { regleEffective, regleDuCompte, projetsDeclares } from './regles.js';
+import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts } from './regles.js';
 import { listePrivee, executer, CONTROLES } from './controles.js';
 import { trouverOutil } from './commun.js';
 import { racineArbre } from './inventaire/arbre.js';
@@ -137,20 +137,30 @@ const remplacees = (regles, memoires) => regles.filter((e) => e.applicable && e.
 /**
  * Exceptions périmées (décision exceptions-hors-du-depot) : une exception jugée par son contrôle dans chaque projet où
  * elle s'applique, sans y faire taire aucun écart, est un écart du compte (elle vit au profil ou dans un contexte),
- * jusqu'à ce qu'elle serve ou soit retirée. Jugée sur l'audit de tous les projets, et sur ce site : une exception qui
- * sert ailleurs y est périmée. Là où son contrôle n'a pas pu la juger (lu en partie), rien ne se juge ni ne se résout.
+ * jusqu'à ce qu'elle serve ou soit retirée. Jugée sur l'audit de tous les projets, et sur ce site. Elle s'applique aux
+ * projets que son nœud couvre (`couverts`) ; dans l'un d'eux, elle n'est pas jugée si son contrôle n'a pas pu la lire en
+ * entier (lu en partie), ne l'a pas lue du tout (dépôt absent de ce site, projet hors du catalogue, contrôle en échec),
+ * ou si la chaîne du projet ne passe plus par son nœud (`chaines`). Non jugée, rien ne se dit ni ne se résout.
  */
-function perimees(sorties, faits) {
-  const vues = new Map(); const nonJuges = new Set(); const controles = new Set();
-  for (const c of sorties.filter((x) => x.projet).flatMap((x) => x.controles)) {
+function perimees(sorties, faits, couverts, chaines) {
+  const vues = new Map(); const controles = new Set(); const parProjet = new Map(sorties.filter((x) => x.projet).map((x) => [x.projet, x]));
+  for (const c of [...parProjet.values()].flatMap((x) => x.controles)) {
     if (c.etat === 'fait' || c.exceptions?.length) controles.add(c.id);
     for (const x of c.exceptions || []) {
       const k = `${c.id}|${x.provenance}|${x.ecart}`; const jugee = x.jugee ?? c.etat === 'fait';
       const v = vues.get(k) || { ...x, controle: c.id, utilisee: false, entiere: true };
       v.utilisee ||= x.utilisee; v.entiere &&= jugee; vues.set(k, v);
-      if (!jugee) nonJuges.add(c.id);
     }
   }
+  for (const v of vues.values()) {
+    for (const projet of couverts.get(v.provenance) || []) {
+      const rp = parProjet.get(projet); const c = rp?.controles.find((y) => y.id === v.controle);
+      const lue = c?.exceptions?.some((y) => y.provenance === v.provenance && y.ecart === v.ecart);
+      // Fait sans la lire : le contrôle l'a écartée (dans le dépôt contrôlé) ; non lancé, aucune règle ne le demande ici.
+      if (!chaines.get(projet)?.has(v.provenance) || (c && c.etat !== 'fait' && !lue)) v.entiere = false;
+    }
+  }
+  const nonJuges = new Set([...vues.values()].filter((v) => !v.entiere).map((v) => v.controle));
   const ecarts = [...vues.values()].filter((v) => !v.utilisee && v.entiere).map((v) => ({ regle: v.regle, regle_id: v.regle_id, controle: v.controle,
     cle: `exception-perimee:${v.ecart}`, fichier: v.provenance, message: `exception qui ne fait taire aucun écart sur ce site (${v.pourquoi}) : la retirer` }));
   let compte = sorties.find((x) => !x.projet);
@@ -195,9 +205,12 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
 
   // Projets.
   const cibles = projet ? [s.projetDe(projet)] : s.regles().projets.map((p) => p.id);
+  const chaines = new Map();
   for (const id of cibles) {
     const p = projets.find((x) => x.id === id); if (!p) continue;
     const r = regleEffective(fiches, id);
+    // Un dépôt absent de ce site : ses types, donc ses règles, sont inconnus ; rien ne s'y juge.
+    if (p.location && fs.existsSync(p.location)) chaines.set(id, new Set(r.couches.map((c) => `${c.arbre}:${c.noeud}`)));
     const { ecarts, controles } = controler(r, contexteControle(s, p, r), 'audit', ['blocking', 'verified']);
     for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
     // Une source illisible du profil est déjà un écart du compte : le projet ne la compte pas une seconde fois.
@@ -216,7 +229,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     }
     sorties.push(rp);
   }
-  if (!projet) perimees(sorties, faits);
+  if (!projet) perimees(sorties, faits, projetsCouverts(fiches), chaines);
 
   let journal = null;
   if (journaliser) {

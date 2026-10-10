@@ -785,9 +785,9 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
   assert.equal(exceptions(r.couches, 'constructor', 'ecart', { depot: d }).length, 0);
 });
 
-test('Exceptions hors du dépôt : une exception qui sert se dit, une exception qui ne sert plus est un écart du compte', async () => {
-  const { Socle } = await import('../src/socle.js');
-  const affichage = await import('../bin/affichage.js');
+// Un profil (contexte qui déclare `depot` et `autre`), le type `conteneur` qui demande montage-sensible, deux projets de
+// ce type ; `relire` refait le catalogue (`sans` : projets absents du catalogue de ce site).
+function essaiExceptions() {
   const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
   const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot'); const autre = path.join(r, 'autre');
   const cle = 'montage:.devcontainer/devcontainer.json:/home/node/.ssh';
@@ -798,10 +798,16 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
   for (const x of [d, autre]) ecrireF(path.join(x, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${path.basename(x)}\ntitle: ${path.basename(x)}\nstatus: draft\ntypes: [conteneur]\n---\n`);
   const devcontainer = (c) => ecrireF(path.join(d, '.devcontainer', 'devcontainer.json'), JSON.stringify(c));
   const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [p] } } });
-  const relire = () => { s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d, autre], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
-    ...[d, autre].map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }))]); s.indexer(); };
+  const relire = ({ sans = [] } = {}) => { s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d, autre].filter((x) => fs.existsSync(x)), projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+    ...[d, autre].filter((x) => !sans.includes(path.basename(x))).map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }))]); s.indexer(); };
   const perimees = (a) => (a.cibles.find((c) => !c.projet)?.ecarts || []).filter((e) => e.cle.startsWith('exception-perimee:'));
   const ouvertes = () => s.ecartsOuverts().filter((o) => o.cle.startsWith('exception-perimee:')).map((o) => [o.projet, o.regle, o.cle, o.fichier]);
+  return { s, d, cle, ecrireF, contexte, devcontainer, relire, perimees, ouvertes };
+}
+
+test('Exceptions hors du dépôt : une exception qui sert se dit, une exception qui ne sert plus est un écart du compte', async () => {
+  const affichage = await import('../bin/affichage.js');
+  const { s, cle, contexte, devcontainer, relire, perimees, ouvertes } = essaiExceptions();
   // L'exception du contexte fait taire l'écart du dépôt, et le dit (clé, raison, provenance) ; dans l'autre projet, elle
   // ne sert pas, mais elle sert quelque part : rien de périmé.
   contexte(cle); devcontainer({ mounts: ['source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind'] }); relire();
@@ -833,6 +839,36 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
   a = s.audit({ journaliser: true });
   assert.deepEqual(perimees(a), []);
   assert.deepEqual(ouvertes(), []);
+});
+
+test('Contre-épreuve des exceptions (b) : une exception que son contrôle n’a pas lue là où elle s’applique n’est pas dite périmée', () => {
+  const { s, d, cle, ecrireF, contexte, devcontainer, relire, perimees, ouvertes } = essaiExceptions();
+  contexte(cle); devcontainer({ mounts: ['source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind'] }); relire();
+  assert.deepEqual(perimees(s.audit({ journaliser: true })), []);
+  // Le dépôt qui l'utilise est absent de ce site : déplacé (le contrôle dit « dépôt absent »), ou jamais inventorié ici.
+  // Jugée sur l'autre projet seul, elle y paraîtrait périmée.
+  fs.renameSync(d, `${d}.ailleurs`); relire();
+  assert.deepEqual(perimees(s.audit({ journaliser: true })), []);
+  relire({ sans: ['depot'] });
+  assert.deepEqual(perimees(s.audit({ journaliser: true })), []);
+  fs.renameSync(`${d}.ailleurs`, d);
+  // La chaîne du projet ne passe plus par le contexte (un nœud du dépôt déclare son projet) : le contrôle y tourne par
+  // le type, sans l'exception.
+  ecrireF(path.join(d, 'arbre', 'aaa.md'), '---\ntype: activite\ntitle: Aaa\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  relire();
+  const a = s.audit({ journaliser: true });
+  assert.ok(a.cibles.find((c) => c.projet === 'holarch:project:depot').controles.some((c) => c.id === 'montage-sensible' && c.etat === 'fait' && !c.exceptions));
+  assert.deepEqual(perimees(a), []);
+  assert.deepEqual(ouvertes(), [], 'rien au journal');
+  // Le contrôle lève avant de la lire (un `.devcontainer` qui n'est pas un dossier) : non disponible, rien ne se juge.
+  fs.rmSync(path.join(d, 'arbre', 'aaa.md')); fs.rmSync(path.join(d, '.devcontainer'), { recursive: true }); ecrireF(path.join(d, '.devcontainer'), 'x');
+  relire();
+  const b = s.audit({ journaliser: true });
+  assert.equal(b.cibles.find((c) => c.projet === 'holarch:project:depot').controles.find((c) => c.id === 'montage-sensible').etat, 'indisponible');
+  assert.deepEqual(perimees(b), []);
+  // Témoin : lue partout, sans rien faire taire, elle est périmée.
+  fs.rmSync(path.join(d, '.devcontainer')); devcontainer({}); relire();
+  assert.deepEqual(perimees(s.audit({ journaliser: true })).map((e) => e.cle), [`exception-perimee:${cle}`]);
 });
 
 test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop grande n’arrête pas l’import ; celle d’un conteneur ne se rattache qu’à son projet', () => {
