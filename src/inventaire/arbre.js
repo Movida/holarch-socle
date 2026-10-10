@@ -93,6 +93,26 @@ function reglesDe(f, h) {
 
 const statutFiche = (s) => (s === 'deprecated' ? 'retired' : s === 'stable' ? 'active' : 'proposed');
 
+// Forme des champs que lit la règle effective (contrat nœud, contrat règle). Une valeur seule vaut une liste d'un
+// élément ; une forme qui ne se lit pas n'est pas retenue, et se dit (`erreur_forme` du nœud, `erreur_regles` pour une
+// règle) : la règle effective qui la lit est incomplète, au lieu d'arrêter la garde ou l'audit.
+const objet = (x) => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
+const simple = (x) => typeof x === 'string' || typeof x === 'number';
+const textes = (x) => { const l = [].concat(x); return l.every(simple) ? l.map(String) : null; };
+function formes(h) {
+  const lu = {}; const erreurs = [];
+  for (const [cle, f] of [['types', slug], ['projects', String]]) {
+    if (h[cle] == null) continue;
+    const l = textes(h[cle]); if (l) lu[cle] = l.map(f); else erreurs.push(`${cle} : une liste d’identifiants attendue`);
+  }
+  if (h.derogations != null) {
+    if ([].concat(h.derogations).every((d) => objet(d) && simple(d.rule))) lu.derogations = [].concat(h.derogations);
+    else erreurs.push('derogations : une liste de {rule, why} attendue');
+  }
+  if (h.config != null) { if (objet(h.config)) lu.config = h.config; else erreurs.push('config : un objet attendu'); }
+  return { lu, erreur: erreurs.join(' ; ') || null };
+}
+
 export default function inventaireArbre(options, ctx) {
   const depots = new Set(options.depots || []);
   for (const d of [...(ctx.depots || []), ...(ctx.profil && path.isAbsolute(ctx.profil) ? [ctx.profil] : [])]) if (racineArbre(d)) depots.add(d);
@@ -128,14 +148,14 @@ export default function inventaireArbre(options, ctx) {
         : rel === '/arbre/index.md' ? { questions_ouvertes: questionsOuvertes(lire(path.join(racine.dossier, 'questions.md'))),
           idees: idees(lire(path.join(racine.dossier, 'idees.md'))) } : {};
       const { regles, erreur } = reglesDe(f, h);
+      const forme = formes(h);
       const noeud = {
         id: `holarch:node:${slug(cle + rel)}`, kind: 'node', name: h.title || path.basename(f, '.md'),
         description: h.description || null, version: h.version || null, node: rel,
         status: statutFiche(h.status), provenance: { source: 'inventaire:arbre' }, classification: h.classification || 'internal', location: f,
         links: { ...(h.links || {}), ...(projet && { project: [projet.id] }) },
         attributes: { type: h.type || null, statut: h.status || null, approuve: h.approved || null, revue: h.review || null, arbre, ...(estRacine && { racine: true }),
-          ...(h.id && { id: slug(h.id) }), ...(h.types && { types: [].concat(h.types).map(slug) }), ...(h.projects && { projects: [].concat(h.projects).map(String) }),
-          ...(h.derogations && { derogations: h.derogations }), ...(h.config && typeof h.config === 'object' && { config: h.config }), ...(regles.length && { regles: regles.length }), ...(erreur && { erreur_regles: erreur }), ...(erreurEntete && { erreur_entete: erreurEntete, indices_entete: indices }), ...suivi },
+          ...(h.id && { id: slug(h.id) }), ...forme.lu, ...(forme.erreur && { erreur_forme: forme.erreur }), ...(regles.length && { regles: regles.length }), ...(erreur && { erreur_regles: erreur }), ...(erreurEntete && { erreur_entete: erreurEntete, indices_entete: indices }), ...suivi },
       };
       out.push(noeud);
       // Une règle se désigne par son arbre, son nœud (rien pour la racine, l'`id` du nœud s'il en a un) et son `id`.
@@ -149,13 +169,15 @@ export default function inventaireArbre(options, ctx) {
           continue;
         }
         fichesRegles.set(id, noeud);
+        const remplace = r.replaces == null ? null : textes(r.replaces);
+        if (r.replaces != null && !remplace) noeud.attributes.erreur_regles = [noeud.attributes.erreur_regles, `replaces de la règle ${slug(r.id)} : une liste de noms de mémoire attendue`].filter(Boolean).join(' ; ');
         out.push({
           id, kind: 'rule', name: slug(r.id), description: premiereLigne(r.statement, 300),
           node: rel, status: statutFiche(r.status), provenance: { source: 'inventaire:arbre' }, classification: noeud.classification, location: fichier,
           links: { ...(projet && { project: [projet.id] }) },
           attributes: { arbre, noeud_id: noeud.id, porteur: h.type || null, enonce: String(r.statement).trim(), pourquoi: r.why ? String(r.why).trim() : null,
             niveau: r.level || 'reminder', declencheur: r.trigger || null, match: r.match || null, derogeable: r.derogable !== false, applique_a: r.applies_to || null,
-            statut: r.status || 'draft', approuve: r.approved || null, source: r.source || null, revue_le: r.review_after || null, remplace: r.replaces || null,
+            statut: r.status || 'draft', approuve: r.approved || null, source: r.source || null, revue_le: r.review_after || null, remplace,
             controles: r.check ? [].concat(r.check).map(String) : null, ...(r.harvest && { recolte: r.harvest }), ...(r.deprecated && { retrait: r.deprecated }) },
         });
       }

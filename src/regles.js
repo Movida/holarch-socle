@@ -210,7 +210,7 @@ const applicable = (e) => e.statut === 'stable' && !e.derogee;
 // être lui : d'après ce qui s'en lit ligne à ligne (`indices_entete`), un `template` de cet `id`, un `context`, ou un
 // nœud dont le type ne se lit pas. Une décision illisible d'un projet sans rapport ne compte pas. Un profil désigné
 // mais introuvable compte aussi (décision profil-designe) : ses règles manquent toutes ; de même un lien de la chaîne du
-// profil vers un identifiant d'arbre en double.
+// profil vers un identifiant d'arbre en double, et un champ de forme invalide (`erreur_forme`, inventaire de l'arbre).
 function illisibles(a, couches, { types = [], contexte = false } = {}) {
   const chaine = couches.filter((c) => c.origine === 'profil' || c.origine === 'contexte');
   const profil = new Set(chaine.map((c) => depotDe(c.noeud)));
@@ -219,6 +219,9 @@ function illisibles(a, couches, { types = [], contexte = false } = {}) {
     || ((types.length || contexte) && pouvaitEtre(n.attributes.indices_entete))));
   return [...new Set([...(a.introuvable ? [a.sansProfil] : []), ...chaine.map((c) => a.lienDouble(c.noeud)).filter(Boolean),
     ...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${designation(n)} : ${n.attributes.erreur_regles}`),
+    // Un champ de forme invalide (`erreur_forme`) : dans une couche, ou dans l'arbre du profil, où il pouvait déclarer ce
+    // projet (`projects`) ou porter ses réglages.
+    ...a.noeuds.filter((n) => n.attributes?.erreur_forme && (profil.has(depotDe(n)) || couches.some((c) => c.noeud === n))).map((n) => `${designation(n)} : ${n.attributes.erreur_forme}`),
     ...enTetes.map((n) => `${designation(n)} : ${n.attributes.erreur_entete}`)])];
 }
 /** Ce qui attend une approbation : une règle en brouillon, ou le brouillon posé sur une règle approuvée de même id. */

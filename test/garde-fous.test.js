@@ -1278,3 +1278,49 @@ test('Contre-épreuve du profil désigné (1) : un identifiant se compare dans s
   const f = (location) => ({ id: 'holarch:node:x', kind: 'node', name: 'x', status: 'active', location, provenance: { source: 't' } });
   assert.deepEqual(s.catalogue.remplacer([f('/a'), f('/a'), f('/b')]).doublons, [{ id: 'holarch:node:x', garde: '/a', ecarte: '/b' }]);
 });
+
+test('Contre-épreuve du profil désigné (3) : un champ de forme invalide rend la règle effective incomplète, sans arrêter la garde ni l’audit', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot'); const e = path.join(r, 'ecart');
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  donnees_personnelles:\n    termes: [Zeta Martin]\n---\n');
+  ecrireF(path.join(p, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Rien.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
+  const contexte = (projects) => ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: ${projects}\n---\n`);
+  contexte('[holarch:project:depot, holarch:project:ecart]');
+  for (const x of [d, e]) {
+    fs.mkdirSync(x, { recursive: true });
+    for (const a of [['init', '-q'], ['config', 'user.name', 'Alice Exemple'], ['config', 'user.email', 'alice@exemple.test']]) spawnSync('git', ['-C', x, ...a]);
+    ecrireF(path.join(x, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${path.basename(x)}\ntitle: x\nstatus: draft\n---\n`);
+  }
+  ecrireF(path.join(d, 'note.md'), 'note de Zeta Martin\n'); spawnSync('git', ['-C', d, 'add', '.']);
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+  const lire = (racine, regles = null) => {
+    ecrireF(path.join(e, 'arbre', 'index.md'), `---\ntype: guideline\nid: ecart\ntitle: x\nstatus: draft\n${racine}---\n`);
+    if (regles) ecrireF(path.join(e, 'arbre', 'rules.yaml'), regles); else fs.rmSync(path.join(e, 'arbre', 'rules.yaml'), { force: true });
+    spawnSync('git', ['-C', e, 'add', '.']);
+    s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d, e], profil: p, projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+      ...[d, e].map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }))]); s.indexer();
+    const a = s.audit({});
+    const de = (id) => a.cibles.find((x) => x.projet === `holarch:project:${id}`);
+    return { compte: a.cibles.find((x) => x.projet === null)?.ecarts.filter((x) => x.controle === 'regles-lisibles').map((x) => x.message),
+      garde: s.garde({ depot: e }).refus.map((x) => x.regle), lisibles: de('ecart')?.ecarts.filter((x) => x.controle === 'regles-lisibles').map((x) => x.message) ?? null,
+      depot: de('depot')?.ecarts.map((x) => x.controle).filter((c) => c === 'donnees-personnelles') ?? null, regle: regleEffective(s.fiches(), 'holarch:project:ecart', { profil: p }) };
+  };
+  // Racine d'un projet : chaque forme invalide se dit, la garde de ce projet refuse, l'audit va au bout (l'autre projet
+  // garde son écart).
+  for (const [racine, message] of [['derogations: 5\n', 'derogations : une liste de {rule, why} attendue'], ['derogations: [5]\n', 'derogations : une liste de {rule, why} attendue'],
+    ['types: { a: 1 }\n', 'types : une liste d’identifiants attendue'], ['config: 5\n', 'config : un objet attendu'], ['config: [a]\n', 'config : un objet attendu']]) {
+    const x = lire(racine);
+    assert.deepEqual([x.garde, x.lisibles, x.depot], [['regles-lisibles'], [`ecart:/arbre/index.md : ${message}`], ['donnees-personnelles']], racine);
+  }
+  // Une règle de forme invalide : de même ; `replaces` écrit seul se lit comme une liste.
+  let x = lire('', '- id: note\n  statement: Note.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n  replaces: { a: 1 }\n');
+  assert.deepEqual([x.garde, x.lisibles], [['regles-lisibles'], ['ecart:/arbre/index.md : replaces de la règle note : une liste de noms de mémoire attendue']]);
+  x = lire('', '- id: note\n  statement: Note.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n  replaces: memoire-x\n');
+  assert.deepEqual([x.garde, x.lisibles, x.regle.regles.find((y) => y.id === 'note').remplace], [[], [], ['memoire-x']]);
+  // Un contexte du profil dont les projets ne se lisent pas pouvait déclarer chacun : tous sont incomplets, et l'écart est
+  // celui du compte.
+  contexte('{ a: 1 }');
+  x = lire('');
+  assert.deepEqual([x.garde, x.compte, x.regle.declare, x.regle.illisibles], [['regles-lisibles'], ['profil:/arbre/contextes/perso.md : projects : une liste d’identifiants attendue'], false,
+    ['profil:/arbre/contextes/perso.md : projects : une liste d’identifiants attendue']]);
+});
