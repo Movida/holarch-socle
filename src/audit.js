@@ -14,6 +14,10 @@ import { crochetVoulu } from './regles-claude-code.js';
 
 // Un écart se reconnaît d'un audit à l'autre par son projet, sa règle, son contrôle et sa clé (jamais par son contenu).
 const cleEcart = (projet, d) => [projet ?? '', d.regle, d.controle, d.cle].join('|');
+// Ce qui doit avoir été fait pour qu'un écart disparu se résolve : son contrôle, dans son projet. Au compte, une exception
+// périmée se juge sur l'audit de tous les projets (`perimees`), le reste sur les contrôles du compte : deux faits
+// distincts pour un même contrôle (le dépôt du profil passe par montage-sensible, comme les exceptions de ce contrôle).
+const faitDe = (projet, d) => `${projet ?? ''}|${d.controle}${!projet && String(d.cle).startsWith('exception-perimee:') ? '|exceptions' : ''}`;
 const donneesEcart = (x) => ({ regle: x.regle, controle: x.controle, cle: x.cle, ...(x.fichier && { fichier: x.fichier }), ...(x.ligne && { ligne: x.ligne }), ...(x.n && { n: x.n }), ...(x.message && { message: x.message }) });
 const comptesDe = (s) => comptesClaudeCode(s.config, s.config.inventaire?.['claude-code'] || {});
 
@@ -35,12 +39,15 @@ export function contexteControle(s, projet, r, depot = projet.location) {
     termes: depot ? listePrivee({ depot, config, couches, comptes: comptesDe(s), projetsPrives, nomProjet: projet.name }) : [] };
 }
 
-/** Contrôles d'une règle effective à un moment : par règle applicable de l'un des niveaux, ses écarts ; et l'état de chaque contrôle. */
-function controler(r, ctx, moment, niveaux, portee = 'projet') {
+/**
+ * Contrôles d'une règle effective à un moment : par règle applicable de l'un des niveaux, ses écarts ; et l'état de chaque
+ * contrôle. `seuls` : les seuls contrôles à lancer.
+ */
+function controler(r, ctx, moment, niveaux, portee = 'projet', seuls = null) {
   const memo = new Map(); const ecarts = []; const etats = new Map();
   for (const e of r.regles.filter((x) => x.applicable && niveaux.includes(x.niveau))) {
     for (const c of e.controles || []) {
-      if ((CONTROLES[c]?.portee === 'site') !== (portee === 'site')) continue;
+      if ((CONTROLES[c]?.portee === 'site') !== (portee === 'site') || (seuls && !seuls.includes(c))) continue;
       if (!memo.has(c)) memo.set(c, executer(c, ctx, moment));
       const res = memo.get(c);
       if (res.hors_moment) continue;
@@ -176,7 +183,7 @@ function perimees(sorties, faits, couverts, chaines) {
   if (ecarts.length && !compte) sorties.unshift(compte = { projet: null, nom: 'compte', ecarts: [], controles: [] });
   compte?.ecarts.push(...ecarts);
   // Une exception non jugée garde son écart ouvert ; les autres, retirées ou jugées, se résolvent.
-  for (const c of controles) faits.add(`|${c}`);
+  for (const c of controles) faits.add(`|${c}|exceptions`);
   return new Set([...vues.values()].filter((v) => !v.entiere).map((v) => cleEcart(null, { regle: v.regle, controle: v.controle, cle: `exception-perimee:${v.ecart}` })));
 }
 
@@ -214,6 +221,20 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache'), accueil: s.config.accueil || accueil() }, 'audit', ['blocking', 'verified'], 'site');
     rc.ecarts.push(...site.ecarts); rc.controles.push(...site.controles);
     for (const c of site.controles) if (c.etat === 'fait') faits.add(`|${c.id}`);
+    // Le dépôt du profil (décision fusion-et-profil-audite) : ses configurations de conteneur, par le seul contrôle
+    // montage-sensible, ses fichiers désignés dans l'arbre du profil. Il n'est pas audité comme un projet (il porte la
+    // liste privée par construction) ; aucune exception n'y vaut : toutes vivent dans ce dépôt, que le conteneur écrirait.
+    const profil = s.profil();
+    if (profil) {
+      const p = localiserProjet(projetsDe(projets))(profil);
+      const fiche = (p?.location === profil && projets.find((x) => x.id === p.id)) || { id: null, name: path.basename(profil), location: profil };
+      const racine = racineArbre(profil)?.fichier;
+      const arbre = fiches.find((n) => n.kind === 'node' && n.location === racine)?.attributes?.arbre ?? path.basename(profil);
+      const depot = controler(compte, contexteControle(s, fiche, compte, profil), 'audit', ['blocking', 'verified'], 'projet', ['montage-sensible']);
+      rc.ecarts.push(...depot.ecarts.map((x) => ({ ...x, ...(x.fichier && { fichier: `${arbre}:/${x.fichier}` }) })));
+      rc.controles.push(...depot.controles);
+      for (const c of depot.controles) if (c.etat === 'fait') faits.add(`|${c.id}`);
+    }
     sorties.push(rc);
   }
 
@@ -252,7 +273,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const at = new Date().toISOString(); const evs = [];
     const ev = (kind, x) => ({ id: ulid(Date.parse(at)), at, kind, actor: 'system:audit', subject: x.projet, data: donneesEcart(x), classification: 'internal' });
     for (const [k, x] of actuels) if (!ouverts.has(k)) evs.push(ev('rule.violated', x));
-    for (const [k, o] of ouverts) if (!actuels.has(k) && !retenus.has(k) && faits.has(`${o.projet ?? ''}|${o.controle}`)) evs.push(ev('rule.resolved', o));
+    for (const [k, o] of ouverts) if (!actuels.has(k) && !retenus.has(k) && faits.has(faitDe(o.projet, o))) evs.push(ev('rule.resolved', o));
     const r = s.journal.ajouter(evs);
     if (r.ajoutes) s.index.inserer(evs.map((e) => ({ ...e, site: s.config.site })), s.config.tarifs);
     journal = { apparus: evs.filter((e) => e.kind === 'rule.violated').length, resolus: evs.filter((e) => e.kind === 'rule.resolved').length, refuses: r.refuses.length };

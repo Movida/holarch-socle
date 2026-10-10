@@ -1324,3 +1324,51 @@ test('Contre-épreuve du profil désigné (3) : un champ de forme invalide rend 
   assert.deepEqual([x.garde, x.compte, x.regle.declare, x.regle.illisibles], [['regles-lisibles'], ['profil:/arbre/contextes/perso.md : projects : une liste d’identifiants attendue'], false,
     ['profil:/arbre/contextes/perso.md : projects : une liste d’identifiants attendue']]);
 });
+
+test('Contre-épreuve du profil désigné (4) : l’audit du compte lit les conteneurs du dépôt du profil, par montage-sensible seul', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot');
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  donnees_personnelles:\n    termes: [Zeta Martin]\n---\n');
+  ecrireF(path.join(p, 'arbre', 'rules.yaml'), ['- id: conteneur-isole\n  statement: Rien de l’hôte dans le conteneur.\n  level: verified\n  check: [montage-sensible]\n',
+    '- id: rien-de-personnel\n  statement: Rien.\n  level: blocking\n  check: [donnees-personnelles]\n'].map((x) => `${x}  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n`).join(''));
+  ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\nconfig:\n  montage_sensible:\n    exceptions: [{ ecart: "acces-distant:fantome", pourquoi: essai }]\n---\n');
+  ecrireF(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\n---\n');
+  // Le profil porte la liste privée : audité comme un projet, il serait en écart sur ses propres termes.
+  spawnSync('git', ['init', '-q', p]); spawnSync('git', ['-C', p, 'add', '.']);
+  ecrireF(path.join(p, '.devcontainer', 'devcontainer.json'), '{}');
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+  const projet = (x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } });
+  const construit = { id: 'holarch:container:kp', kind: 'container', name: 'kp', status: 'active', links: { project: ['holarch:project:profil'] }, provenance: { source: 't' },
+    attributes: { isolement: { montages: [{ source: p, cible: '/w', lecture: false }], privilegie: false, capacites: [], peripheriques: [], espaces: [], protections: [], volumes_de: [] } } };
+  const relire = (autres = [], { avecProfil = true } = {}) => { s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d], profil: p, projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+    ...(avecProfil ? [projet(p)] : []), projet(d), ...autres]); s.indexer(); };
+  const compte = (a) => a.cibles.find((x) => x.projet === null);
+  const ouverts = () => s.ecartsOuverts().filter((o) => !o.projet && o.controle === 'montage-sensible').map((o) => o.cle).sort();
+  // Le conteneur du profil, décrit et construit : des écarts du compte, ses fichiers désignés dans l'arbre du profil ; rien
+  // d'autre n'est contrôlé dans ce dépôt.
+  relire([construit]);
+  let a = s.audit({ journaliser: true });
+  assert.deepEqual(compte(a).ecarts.filter((x) => x.controle !== 'regles-a-jour').map((x) => [x.regle_id, x.controle, x.cle, x.fichier ?? null]), [
+    ['conteneur-isole', 'montage-sensible', 'montage:.devcontainer/devcontainer.json:/workspaces/profil', 'profil:/.devcontainer/devcontainer.json'],
+    ['conteneur-isole', 'montage-sensible', 'conteneur:kp:/w', null],
+    ['conteneur-isole', 'montage-sensible', 'exception-perimee:acces-distant:fantome', 'profil:/arbre/contextes/perso.md']]);
+  assert.match(compte(a).ecarts[0].message, /^monte .*profil \(dépôt du profil\) dans le conteneur, en écriture \(dossier de travail/);
+  assert.deepEqual(compte(a).controles.filter((x) => x.id === 'montage-sensible'), [{ id: 'montage-sensible', etat: 'fait' }]);
+  assert.equal(a.cibles.find((x) => x.projet === 'holarch:project:depot').controles.find((x) => x.id === 'montage-sensible').etat, 'fait');
+  // Non disponible dans le dépôt du profil, le contrôle n'y résout rien, même fait dans un projet.
+  fs.rmSync(path.join(p, '.devcontainer'), { recursive: true }); ecrireF(path.join(p, '.devcontainer'), 'x'); relire();
+  a = s.audit({ journaliser: true });
+  assert.equal(compte(a).controles.find((x) => x.id === 'montage-sensible').etat, 'indisponible');
+  assert.deepEqual(ouverts(), ['conteneur:kp:/w', 'exception-perimee:acces-distant:fantome', 'montage:.devcontainer/devcontainer.json:/workspaces/profil']);
+  // Fait dans le dépôt du profil, il résout ses écarts, pas l'exception que le projet n'a pas pu juger.
+  fs.rmSync(path.join(p, '.devcontainer')); ecrireF(path.join(d, '.devcontainer'), 'x'); relire();
+  a = s.audit({ journaliser: true });
+  assert.deepEqual([compte(a).controles.find((x) => x.id === 'montage-sensible').etat, a.journal.resolus], ['fait', 2]);
+  assert.deepEqual(ouverts(), ['exception-perimee:acces-distant:fantome']);
+  // Le profil hors du catalogue : un autre dépôt du même nom n'est pas le sien, ses conteneurs ne se disent pas au compte.
+  const ailleurs = path.join(r, 'ailleurs', 'profil'); fs.mkdirSync(ailleurs, { recursive: true });
+  relire([{ ...projet(ailleurs), id: 'holarch:project:ailleurs' }, { ...construit, links: { project: ['holarch:project:ailleurs'] } }], { avecProfil: false });
+  assert.deepEqual(compte(s.audit({})).ecarts.filter((x) => x.cle.startsWith('conteneur:')), []);
+  relire([construit]);
+  assert.deepEqual(compte(s.audit({})).ecarts.filter((x) => x.cle.startsWith('conteneur:')).map((x) => x.cle), ['conteneur:kp:/w'], 'témoin');
+});
