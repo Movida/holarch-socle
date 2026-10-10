@@ -206,17 +206,17 @@ const applicable = (e) => e.statut === 'stable' && !e.derogee;
 // Sources de règles illisibles (un `rules.yaml` ou un en-tête en cours d'édition, un conflit de fusion) : la règle
 // effective est alors incomplète. Ce qui en décide (garde, matérialisation, audit) ne la dit pas conforme pour autant.
 // Comptent les couches elles-mêmes, tout en-tête illisible de l'arbre du profil (ce pouvait être un contexte ou un nœud
-// de sa chaîne) et, quand un type déclaré ou le contexte déclarant est introuvable, tout en-tête illisible qui pouvait
-// être lui : d'après ce qui s'en lit ligne à ligne (`indices_entete`), un `template` de cet `id`, un `context`, ou un
-// nœud dont le type ne se lit pas. Une décision illisible d'un projet sans rapport ne compte pas. Un profil désigné
+// de sa chaîne) et, quand un type déclaré est introuvable, tout en-tête illisible qui pouvait être lui : d'après ce qui
+// s'en lit ligne à ligne (`indices_entete`), un `template` de cet `id`, ou un nœud dont le type ne se lit pas. Seuls les
+// contextes du profil déclarent (décision profil-designe) : un contexte illisible ailleurs ne pouvait déclarer personne.
+// Une décision illisible d'un projet sans rapport ne compte pas. Un profil désigné
 // mais introuvable compte aussi (décision profil-designe) : ses règles manquent toutes ; de même un lien de la chaîne du
 // profil vers un identifiant d'arbre en double, et un champ de forme invalide (`erreur_forme`, inventaire de l'arbre).
-function illisibles(a, couches, { types = [], contexte = false } = {}) {
+function illisibles(a, couches, { types = [] } = {}) {
   const chaine = couches.filter((c) => c.origine === 'profil' || c.origine === 'contexte');
   const profil = new Set(chaine.map((c) => depotDe(c.noeud)));
-  const pouvaitEtre = ({ type, id } = {}) => !type || (type === 'template' && types.length > 0 && (!id || types.includes(id))) || (type === 'context' && contexte);
-  const enTetes = a.noeuds.filter((n) => n.attributes?.erreur_entete && (profil.has(depotDe(n)) || couches.some((c) => c.noeud === n)
-    || ((types.length || contexte) && pouvaitEtre(n.attributes.indices_entete))));
+  const pouvaitEtre = ({ type, id } = {}) => types.length > 0 && (!type || (type === 'template' && (!id || types.includes(id))));
+  const enTetes = a.noeuds.filter((n) => n.attributes?.erreur_entete && (profil.has(depotDe(n)) || couches.some((c) => c.noeud === n) || pouvaitEtre(n.attributes.indices_entete)));
   return [...new Set([...(a.introuvable ? [a.sansProfil] : []), ...chaine.map((c) => a.lienDouble(c.noeud)).filter(Boolean),
     ...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${designation(n)} : ${n.attributes.erreur_regles}`),
     // Un champ de forme invalide (`erreur_forme`) : dans une couche, ou dans l'arbre du profil, où il pouvait déclarer ce
@@ -267,7 +267,7 @@ export function regleEffective(fiches, projetId, { profil } = {}) {
     if (e.derogeable === false) { signaux.push(`dérogation refusée : ${e.id} n’est pas dérogeable`); continue; }
     e.derogee = { pourquoi: d.why ?? null, par: d.by ?? null, le: d.at ?? null };
   }
-  const lisibles = [...deuxFois, ...ambigus, ...illisibles(a, couches, { types: typesInconnus, contexte: declarants.length !== 1 })]; signaux.push(...lisibles);
+  const lisibles = [...deuxFois, ...ambigus, ...illisibles(a, couches, { types: typesInconnus })]; signaux.push(...lisibles);
   // Les autres en-têtes illisibles de l'arbre du projet (une décision, une observation) ne changent pas ses règles : dits.
   if (racine) signaux.push(...a.noeuds.filter((n) => depotDe(n) === depotDe(racine) && n.attributes?.erreur_entete)
     .map((n) => `${designation(n)} : ${n.attributes.erreur_entete}`).filter((x) => !lisibles.includes(x)).map((x) => `${x} (sans effet sur les règles)`));
@@ -287,7 +287,7 @@ export function regleDuCompte(fiches, { profil } = {}) {
   // déclaration non lue, avec le nœud qui la porte.
   const declarations = { non_designe: !profil && a.racines.length > 0, non_lues: a.nonLus.map((x) => ({ noeud: designation(x.noeud), raison: x.raison })).sort((x, y) => x.noeud.localeCompare(y.noeud)) };
   if (!a.profil) {
-    const lisibles = illisibles(a, [], { contexte: true });
+    const lisibles = illisibles(a, []);
     return { regles: [], indetermine: true, signaux: [...new Set([a.sansProfil, ...lisibles, ...a.enDouble])], illisibles: lisibles, declarations, rappels: 0, rappels_proposes: 0 };
   }
   signaux.push(...a.enDouble);

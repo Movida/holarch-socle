@@ -1412,3 +1412,24 @@ test('Contre-épreuve du profil désigné (5) : un projet déclaré, vu sur ce s
   vu('local');
   assert.deepEqual(absents(await auditer()).map((e) => [e.cle, e.message.match(/\((\S+)/)[1]]), [[`projet-absent:${apres}`, 'retiré'], ['projet-absent:holarch:project:jamais', 'vu']]);
 });
+
+test('Contre-épreuve du profil désigné (mineur 1) : un contexte illisible hors du dépôt du profil ne rend incomplète la règle d’aucun projet', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot'); const autre = path.join(r, 'autre');
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+  for (const x of [d, autre]) ecrireF(path.join(x, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${path.basename(x)}\ntitle: x\nstatus: draft\n---\n`);
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+  const illisibles = (ou, enTete = 'type: context\ntitle: [ouvert\nprojects: [holarch:project:depot]') => {
+    for (const x of [p, autre]) fs.rmSync(path.join(x, 'arbre', 'contextes'), { recursive: true, force: true });
+    ecrireF(path.join(ou, 'arbre', 'contextes', 'casse.md'), `---\n${enTete}\n---\n`);
+    s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d, autre], profil: p, projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+      ...[d, autre].map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }))]); s.indexer();
+    return [s.regles({ projet: 'holarch:project:depot' }).illisibles, s.regles().compte.illisibles];
+  };
+  // Dans un autre dépôt, il ne pouvait déclarer personne ; un en-tête dont le type ne se lit pas non plus (aucun type
+  // déclaré n'est introuvable).
+  assert.deepEqual(illisibles(autre), [[], []]);
+  assert.deepEqual(illisibles(autre, 'title: [ouvert'), [[], []]);
+  // Témoin : dans le dépôt du profil, il pouvait déclarer ce projet.
+  assert.deepEqual(illisibles(p).map((l) => l.map((x) => x.replace(/ : .*/, ''))), [['profil:/arbre/contextes/casse.md'], ['profil:/arbre/contextes/casse.md']]);
+});
