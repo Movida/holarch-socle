@@ -5,12 +5,6 @@ id: holarch
 types: [methode-holarch, depot-public]
 config:
   journal: arbre/log.md
-  # L'accès distant du socle fait tourner des sessions de l'hôte dans le dépôt que son conteneur écrit : risque accepté
-  # jusqu'à la livraison D de environnement-d-execution, qui retire cette exception (choix de l'auteur, 2026-10-09,
-  # décision veille-et-conteneur-precisions ; la recommandation de l'agent était de garder l'écart visible).
-  montage_sensible:
-    exceptions:
-      - { ecart: "acces-distant:holarch-socle", pourquoi: "risque accepté jusqu'à la livraison D (décision veille-et-conteneur-precisions)" }
 title: HOLARCH — ligne directrice
 description: Un socle autour des runtimes d'agents d'IA, qui embarque les règles, rend tout visible, conserve et vérifie le savoir, et se régule.
 status: draft
