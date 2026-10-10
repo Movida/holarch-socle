@@ -14,7 +14,8 @@
   passation, franchi après les mineurs ; le détail des constats, absent du Reste, relu dans la transcription du
   rapport ; deux mineurs plus larges que leur énoncé (lecture commune qui rend les exceptions écartées, désignation à
   huit endroits). La demande qui y aurait mené : « (b), (d) et les mineurs des exceptions, puis passation ; décision de
-  (a) et (c) dans la session suivante ». Le Reste pointe désormais le rapport.
+  (a) et (c) dans la session suivante ». Le Reste pointe désormais le rapport. Automatisation proposée et acceptée :
+  `npm run eprouver` (test contre son parent ou un mutant), 1 test, 147 verts.
 
 * **Application de `exceptions-hors-du-depot`, contre-épreuve, et passation** (241 k tokens) : lecture commune des
   exceptions, `montage_sensible` au profil et au contexte hors du dépôt contrôlé, exceptions dites et périmées, un

@@ -1071,7 +1071,9 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   Laissés, avec leur raison : `provenance` objet pour une règle, chaîne pour une exception (la chaîne est la forme d'un
   lien du contrat nœud §3, celle que portent l'écart au journal et l'affichage) ; `projets.js:24` teste « dedans » par un
   préfixe sur des chemins normalisés, dans la boucle de l'import (le changer changerait le sens d'un chemin relatif).
-  Copie de service non posée, rien poussé.
+  Automatisation acceptée par l'auteur : `npm run eprouver -- parent|mutant …` (`bin/eprouver.js`), qui remplace les
+  scripts que chaque session réécrivait dans `/tmp` ; témoin vert d'abord, un échec au seul chargement ne compte pas ;
+  1 test (147 verts), essayé sur le socle (mutant du mineur 6 rouge, mutant de l'outil vu par son test).
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
      2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport dans la transcription `80c50cac`, sous-agent
@@ -1100,8 +1102,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      message systemd (`affichage.js`), de l'effacement de la marque de relance (`veille.js`).
      Suite proposée, session neuve (Opus 5.5 `xhigh`) : (a) et (c) en une décision brouillon, avec le contrat de
      configuration et les exceptions de `donnees_personnelles`, à approuver avant le code ; puis les mineurs restants, un
-     commit et un test chacun ; puis pose et contre-épreuve. Outils : `/tmp/mutants-s/muter.sh` (mutation d'une copie de
-     travail) et `parent.sh` (test neuf sur le code de HEAD). Test « un commit fautif est refusé
+     commit et un test chacun ; puis pose et contre-épreuve. Chaque test s'éprouve par `npm run eprouver` (parent ou
+     mutant, sur une copie de la copie de travail). Test « un commit fautif est refusé
      par le crochet » : 0 rouge sur 25 suites entières le 2026-10-10, 1 sur 42 en tout, cause inconnue.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
