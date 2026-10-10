@@ -13,7 +13,7 @@
 * **Contre-épreuve des corrections de B** (`ab3ee9e` à `520a1df`, instance neuve en lecture seule) : sept corrections
   tenues, quatre avec réserve ; un majeur antérieur, vérifié (l'import ne lit pas les sous-agents de workflow :
   187 transcriptions hors du journal) et huit mineurs, au Reste. Corrections dans une session neuve (choix de
-  l'auteur) ; l'exception de `montage_sensible` attend son choix.
+  l'auteur) ; l'exception de `montage_sensible` : fermer la voie, par une courte décision (choix de l'auteur).
 
 ## 2026-10-09
 
