@@ -29,7 +29,7 @@ export function contexteControle(s, projet, r, depot = projet.location) {
   const projetsPrives = s.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
   const config = r.config || {}; const couches = r.couches || []; const reglages = s.config.controles || {};
   return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, couches, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),
-    holarch: [s.config.accueil || accueil(), s.config.donnees],
+    holarch: [s.config.accueil || accueil(), s.config.donnees], profil: s.profil(),
     conteneurs: s.fiches({ kind: 'container' }).filter((k) => k.links?.project?.includes(projet.id)),
     gitleaks: trouverOutil('gitleaks', reglages.gitleaks), osv: trouverOutil('osv-scanner', reglages.osv_scanner),
     termes: depot ? listePrivee({ depot, config, couches, comptes: comptesDe(s), projetsPrives, nomProjet: projet.name }) : [] };

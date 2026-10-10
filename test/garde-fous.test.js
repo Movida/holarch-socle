@@ -779,7 +779,8 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
   for (const depot of [p, maison]) {
     ecrireF(path.join(depot, '.devcontainer', 'devcontainer.json'), '{}');
     const lu = executer('montage-sensible', { ...ctx, depot, distants: [{ nom: 'projet', chemin: p }] }, 'audit');
-    assert.deepEqual(lu.ecarts.map((e) => e.cle), ['acces-distant:projet'], depot);
+    // Le dossier personnel, monté par défaut comme dossier de travail, expose aussi ses identifiants.
+    assert.deepEqual(lu.ecarts.map((e) => e.cle), [...(depot === maison ? [`montage:.devcontainer/devcontainer.json:/workspaces/${path.basename(maison)}`] : []), 'acces-distant:projet'], depot);
     assert.equal(lu.exceptions, undefined, depot);
     assert.deepEqual(lu.exceptions_ignorees, [{ ecart: 'acces-distant:projet', raison: 'écrite dans le dépôt contrôlé', provenance: 'profil:/arbre/contextes/perso.md' }], depot);
   }
@@ -1090,4 +1091,45 @@ test('Identifiants en double (décision profil-designe) : le profil garde son id
   // Un type seul de son id, dans un arbre non retenu, ne se résout pas non plus.
   fs.rmSync(path.join(p, 'arbre', 'types'), { recursive: true });
   assert.deepEqual(socle(p, { depots }).regles({ projet: 'depot' }).illisibles, ['type d’un arbre non retenu : double (jumeau:/arbre/types/double.md, identifiant d’arbre en double)']);
+});
+
+test('Profil désigné (décision profil-designe) : le dépôt du profil monté en écriture par un conteneur est un écart ; en lecture, non', () => {
+  const { maison, d, ctx, config, lire, cibles } = conteneurEssai();
+  const p = path.join(maison, 'depots', 'profil'); fs.mkdirSync(path.join(p, 'arbre'), { recursive: true });
+  config({ workspaceMount: 'type=bind,source=${localWorkspaceFolder},target=/workspaces/projet', mounts: [
+    'type=bind,source=${localEnv:HOME}/depots/profil,target=/p', 'type=bind,source=${localEnv:HOME}/depots/profil,target=/l,readonly',
+    'type=bind,source=${localEnv:HOME}/depots/profil/arbre,target=/a', 'type=bind,source=${localEnv:HOME}/depots,target=/d'] });
+  // Sans profil désigné, ces montages n'exposent rien que le contrôle connaisse.
+  assert.deepEqual(cibles(lire()), []);
+  ctx.profil = p;
+  let r = lire();
+  assert.deepEqual(cibles(r), ['/p', '/a', '/d']);
+  assert.match(r.ecarts[0].message, /^monte ~\/depots\/profil \(dépôt du profil\) dans le conteneur, en écriture$/);
+  assert.match(r.ecarts[1].message, /^monte ~\/depots\/profil\/arbre, dans ~\/depots\/profil \(dépôt du profil\)/);
+  assert.match(r.ecarts[2].message, /^monte ~\/depots, qui contient ~\/depots\/profil \(dépôt du profil\)/);
+  // Désigné mais pas en chemin absolu (introuvable), il ne désigne rien à protéger ici : la règle effective le dit.
+  ctx.profil = path.relative(process.cwd(), p); assert.deepEqual(cibles(lire()), []); ctx.profil = p;
+  // Le conteneur du profil lui-même : sans workspaceMount, le CLI monte son dossier en écriture ; en lecture seule, non.
+  ctx.depot = p; fs.mkdirSync(path.join(p, '.devcontainer'));
+  const ecrire = (c) => fs.writeFileSync(path.join(p, '.devcontainer', 'devcontainer.json'), JSON.stringify(c));
+  ecrire({});
+  r = lire();
+  assert.deepEqual(r.ecarts.map((e) => [e.fichier, e.ligne, e.cle]), [['.devcontainer/devcontainer.json', null, 'montage:.devcontainer/devcontainer.json:/workspaces/profil']]);
+  assert.match(r.ecarts[0].message, /^monte ~\/depots\/profil \(dépôt du profil\) dans le conteneur, en écriture \(dossier de travail, monté par défaut sans workspaceMount\)$/);
+  // Une feature locale ne monte pas de dossier de travail.
+  fs.mkdirSync(path.join(p, '.devcontainer', 'f')); fs.writeFileSync(path.join(p, '.devcontainer', 'f', 'devcontainer-feature.json'), '{}');
+  ecrire({ workspaceMount: 'type=bind,source=${localWorkspaceFolder},target=/workspaces/profil,readonly', features: { './f': {} } });
+  assert.deepEqual(lire().ecarts, []);
+  ecrire({ workspaceMount: '' });
+  assert.deepEqual(lire().ecarts, [], 'un workspaceMount vide : le CLI ne monte rien');
+  // Un conteneur déjà construit qui l'écrit, d'un autre dépôt.
+  ctx.depot = d; config({ workspaceMount: 'type=bind,source=${localWorkspaceFolder},target=/workspaces/projet' });
+  const iso = (montages) => ({ name: 'k', attributes: { isolement: { montages, privilegie: false, capacites: [], peripheriques: [], espaces: [], protections: [], volumes_de: [] } } });
+  ctx.conteneurs = [iso([{ source: p, cible: '/x', lecture: false }, { source: p, cible: '/y', lecture: true }])];
+  assert.deepEqual(cibles(lire()), ['/x']);
+  // Par l'audit : le contexte d'un contrôle porte le profil que le site désigne.
+  const e = essaiExceptions();
+  e.devcontainer({ mounts: [`source=${e.p},target=/p,type=bind`] }); e.relire();
+  const ecarts = e.s.audit({}).cibles.find((c) => c.projet === 'holarch:project:depot').ecarts.filter((x) => x.controle === 'montage-sensible');
+  assert.deepEqual(ecarts.map((x) => [x.regle_id, x.cle]), [['conteneur-isole', 'montage:.devcontainer/devcontainer.json:/p']]);
 });

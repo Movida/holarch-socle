@@ -570,10 +570,11 @@ function sourceHote(source, depot, maison, env) {
 
 /**
  * Ce qui expose l'hôte dans les configurations Dev Containers du dépôt : un montage d'un identifiant, du Docker de
- * l'hôte ou des données de HOLARCH en écriture (`mounts`, `workspaceMount`, `-v` et `--mount` de `runArgs`, features
- * locales), une variable de l'hôte passée au conteneur, et un privilège qui défait l'isolement. Puis les conteneurs déjà
- * construits du dépôt (`ctx.conteneurs`, fiches de l'inventaire Docker) : ce que Docker a vraiment monté, features
- * publiées comprises ; un conteneur ancien est relancé tel quel par `devcontainer up`. Compose : non disponible.
+ * l'hôte, des données de HOLARCH ou du dépôt du profil (`ctx.profil`, décision profil-designe) en écriture (`mounts`,
+ * `workspaceMount` ou, sans lui, le dossier de travail que le CLI monte par défaut, `-v` et `--mount` de `runArgs`,
+ * features locales), une variable de l'hôte passée au conteneur, et un privilège qui défait l'isolement. Puis les
+ * conteneurs déjà construits du dépôt (`ctx.conteneurs`, fiches de l'inventaire Docker) : ce que Docker a vraiment monté,
+ * features publiées comprises ; un conteneur ancien est relancé tel quel par `devcontainer up`. Compose : non disponible.
  * `ctx.maison`, `ctx.env`, `ctx.holarch` et `ctx.maisonsWindows` remplacent ceux du poste (essais).
  */
 function montageSensible(ctx) {
@@ -581,7 +582,9 @@ function montageSensible(ctx) {
   const affiche = (p) => (dedans(p, maison) ? `~/${path.relative(maison, p)}`.replace(/\/$/, '') : p);
   const sensibles = [...[maison, ...(ctx.maisonsWindows || maisonsWindows())].flatMap((m) => IDENTIFIANTS.map((r) => ({ chemin: path.join(m, r), quoi: 'identifiants de l’hôte' }))),
     ...DOCKER_HOTE.map((c) => ({ chemin: c, quoi: 'Docker de l’hôte' })),
-    ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true }))];
+    ...(ctx.holarch || []).filter(Boolean).map((c) => ({ chemin: path.resolve(c), quoi: 'données de HOLARCH', ecriture: true })),
+    // Le profil fait foi : un conteneur qui l'écrit lèverait toutes ses règles. En lecture, il relève de la confidentialité.
+    ...(ctx.profil && path.isAbsolute(ctx.profil) ? [{ chemin: path.resolve(ctx.profil), quoi: 'dépôt du profil', ecriture: true }] : [])];
   const claude = path.join(maison, '.claude');
   // Un montage de l'hôte : ce qu'il expose, ou null. Admis par son chemin, sans lien en route sous `~/.claude` (un lien
   // posé au chemin admis viserait n'importe quoi) ; admis en lecture seule mais monté en écriture, il compte pour lui-même.
@@ -607,12 +610,14 @@ function montageSensible(ctx) {
       if (lu.erreur) { nonLus.push(lu.erreur); continue; }
       const opts = lu === config ? optionsDocker(Array.isArray(lu.c.runArgs) ? lu.c.runArgs.map(String) : []) : [];
       const montages = montagesDe(lu.c, opts);
+      // Sans `workspaceMount`, le CLI monte le dossier ouvert en écriture sous /workspaces/ (`type=bind,source=…,target=…`).
+      if (lu === config && !('workspaceMount' in lu.c)) montages.push({ ou: ['workspaceMount'], type: 'bind', source: ctx.depot, cible: path.posix.join('/workspaces', path.basename(ctx.depot)), lecture: false, defaut: true });
       for (const m of montages.filter((x) => x.illisible)) nonLus.push(`${lu.f} : montage que Docker refuserait (${m.ou.join('.')})`);
       for (const m of montages.filter((x) => x.type === 'bind' && x.source && !x.illisible)) {
         const src = sourceHote(m.source, ctx.depot, maison, env);
         if (!src) { nonLus.push(`${lu.f} : source de montage non résolue (${m.source})`); continue; }
         const message = exposer(src, m.lecture, admis);
-        if (message) ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, m.ou), cle: `montage:${lu.f}:${m.cible}`, message });
+        if (message) ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, m.ou), cle: `montage:${lu.f}:${m.cible}`, message: m.defaut ? `${message} (dossier de travail, monté par défaut sans workspaceMount)` : message });
       }
       for (const x of variablesDe(lu.c, opts)) {
         ecarts.push({ fichier: lu.f, ligne: ligneDe(lu, x.ou), cle: `environnement:${lu.f}:${x.ou_lu}`,
