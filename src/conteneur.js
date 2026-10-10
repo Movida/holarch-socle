@@ -83,9 +83,12 @@ export function genererConteneur({ nom, config = {} }) {
     ...(proprietaire.length && { onCreateCommand: { holarch: `sudo chown ${u}:${u} ${proprietaire.join(' ')}` } }),
   };
 
-  // Ce que pose le socle, aucune couche ne le remplace : une couche qui le pose ne se génère pas.
+  // Ce que pose le socle, aucune couche ne le remplace : une couche qui le pose ne se génère pas. Ses variables
+  // d'environnement le sont dans les deux sections : `remoteEnv` l'emporte sur `containerEnv` pour les sessions.
+  const variables = [...Object.keys(socle.containerEnv), ...Object.keys(socle.remoteEnv)];
   const poses = [...['name', 'initializeCommand'].filter((k) => d[k] !== undefined),
-    ...['containerEnv', 'remoteEnv', 'onCreateCommand'].flatMap((k) => Object.keys(socle[k] || {}).filter((x) => Object.hasOwn(d[k] || {}, x)).map((x) => `${k}.${x}`)),
+    ...['containerEnv', 'remoteEnv'].flatMap((k) => variables.filter((x) => Object.hasOwn(d[k] || {}, x)).map((x) => `${k}.${x}`)),
+    ...Object.keys(socle.onCreateCommand || {}).filter((x) => Object.hasOwn(d.onCreateCommand || {}, x)).map((x) => `onCreateCommand.${x}`),
     ...(d.mounts || []).map(cible).filter((t) => socle.mounts.some((m) => cible(m) === t)).map((t) => `mounts (cible ${t})`)];
   if (poses.length) return { erreur: `posé par le socle, qu’aucune couche ne remplace : ${poses.join(', ')}` };
 

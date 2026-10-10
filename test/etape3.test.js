@@ -1122,6 +1122,10 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
     [{ devcontainer: { ...base.devcontainer, initializeCommand: 'curl x' } }, /: initializeCommand$/],
     [{ devcontainer: { ...base.devcontainer, containerEnv: { CLAUDE_CONFIG_DIR: '/x' } } }, /: containerEnv\.CLAUDE_CONFIG_DIR$/],
     [{ devcontainer: { ...base.devcontainer, remoteEnv: { ANTHROPIC_API_KEY: 'k' } } }, /: remoteEnv\.ANTHROPIC_API_KEY$/],
+    // Dans l'autre section aussi : `remoteEnv` l'emporte pour les sessions, `containerEnv` se commite en clair.
+    [{ devcontainer: { ...base.devcontainer, remoteEnv: { CLAUDE_CONFIG_DIR: '/x', CLAUDE_CODE_PROJECT_DIR_NAME: 'y' } } }, /: remoteEnv\.CLAUDE_CONFIG_DIR, remoteEnv\.CLAUDE_CODE_PROJECT_DIR_NAME$/],
+    [{ devcontainer: { ...base.devcontainer, containerEnv: { ANTHROPIC_API_KEY: 'k' } } }, /: containerEnv\.ANTHROPIC_API_KEY$/],
+    [{ devcontainer: { ...base.devcontainer, onCreateCommand: { holarch: 'x' } } }, /: onCreateCommand\.holarch$/],
     [{ devcontainer: { ...base.devcontainer, mounts: [{ type: 'bind', source: '/x', target: '/home/vscode/.ssh' }] } }, /: mounts \(cible \/home\/vscode\/\.ssh\)$/],
     [{ devcontainer: { ...base.devcontainer, mounts: ['type=volume, src=x, dst=/home/vscode/.claude'] } }, /: mounts \(cible \/home\/vscode\/\.claude\)$/],
     [{ devcontainer: { ...base.devcontainer, onCreateCommand: 'x' } }, /onCreateCommand : un objet attendu/],
