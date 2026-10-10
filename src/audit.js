@@ -44,7 +44,9 @@ function controler(r, ctx, moment, niveaux, portee = 'projet') {
       if (!memo.has(c)) memo.set(c, executer(c, ctx, moment));
       const res = memo.get(c);
       if (res.hors_moment) continue;
-      etats.set(c, res.indisponible ? { id: c, etat: 'indisponible', raison: res.indisponible } : { id: c, etat: 'fait' });
+      // Les exceptions qu'il a lues se disent avec son état (décision exceptions-hors-du-depot), et la règle qui l'a demandé.
+      const exc = res.exceptions?.length ? { exceptions: res.exceptions.map((x) => ({ ...x, regle: e.fiche, regle_id: e.id })) } : {};
+      etats.set(c, res.indisponible ? { id: c, etat: 'indisponible', raison: res.indisponible, ...exc } : { id: c, etat: 'fait', ...exc });
       // Un contrôle lu en partie dit ce qu'il a trouvé ; non disponible, il ne résout rien de ce qu'il n'a pas vu.
       ecarts.push(...(res.ecarts || []).map((x) => ({ regle: e.fiche, regle_id: e.id, enonce: e.enonce, controle: c, ...x })));
     }
@@ -133,6 +135,32 @@ const remplacees = (regles, memoires) => regles.filter((e) => e.applicable && e.
   .map((m) => ({ regle: e.fiche, regle_id: e.id, controle: 'memoire-remplacee', cle: m.id, fichier: m.name, message: 'mémoire encore présente, remplacée par la règle' })));
 
 /**
+ * Exceptions périmées (décision exceptions-hors-du-depot) : une exception lue entièrement par son contrôle dans chaque
+ * projet où elle s'applique, sans y faire taire aucun écart, est un écart du compte (elle vit au profil ou dans un
+ * contexte), jusqu'à ce qu'elle serve ou soit retirée. Jugée sur l'audit de tous les projets, et sur ce site : une
+ * exception qui sert ailleurs y est périmée. Un contrôle non disponible là où l'exception s'applique ne juge rien, et ne
+ * résout rien.
+ */
+function perimees(sorties, faits) {
+  const vues = new Map(); const nonJuges = new Set(); const controles = new Set();
+  for (const c of sorties.filter((x) => x.projet).flatMap((x) => x.controles)) {
+    if (c.etat === 'fait') controles.add(c.id);
+    for (const x of c.exceptions || []) {
+      const k = `${c.id}|${x.provenance}|${x.ecart}`;
+      const v = vues.get(k) || { ...x, controle: c.id, utilisee: false, entiere: true };
+      v.utilisee ||= x.utilisee; v.entiere &&= c.etat === 'fait'; vues.set(k, v);
+      if (c.etat !== 'fait') nonJuges.add(c.id);
+    }
+  }
+  const ecarts = [...vues.values()].filter((v) => !v.utilisee && v.entiere).map((v) => ({ regle: v.regle, regle_id: v.regle_id, controle: v.controle,
+    cle: `exception-perimee:${v.ecart}`, fichier: v.provenance, message: `exception qui ne fait taire aucun écart sur ce site (${v.pourquoi}) : la retirer` }));
+  let compte = sorties.find((x) => !x.projet);
+  if (ecarts.length && !compte) sorties.unshift(compte = { projet: null, nom: 'compte', ecarts: [], controles: [] });
+  compte?.ecarts.push(...ecarts);
+  for (const c of controles) if (!nonJuges.has(c)) faits.add(`|${c}`);
+}
+
+/**
  * Audit de conformité : pour le compte et chaque projet qui a des règles (ou celui demandé), les contrôles de ses règles
  * `blocking` et `verified`, et la matérialisation (fichiers générés, crochet, permissions, mémoires remplacées).
  * `journaliser` : un écart apparu s'écrit `rule.violated`, un écart disparu `rule.resolved` (si son contrôle a pu
@@ -189,6 +217,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     }
     sorties.push(rp);
   }
+  if (!projet) perimees(sorties, faits);
 
   let journal = null;
   if (journaliser) {

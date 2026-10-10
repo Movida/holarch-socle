@@ -773,6 +773,51 @@ test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_
   assert.equal(exceptions([{ origine: 'projet', fichier: path.join(d, 'arbre', 'index.md'), config: { donnees_personnelles: { exceptions: [{ fichier: 'LICENSE', pourquoi: 'titulaire' }] } } }], 'donnees_personnelles', 'fichier', { depot: d }).length, 1);
 });
 
+test('Exceptions hors du dépôt : une exception qui sert se dit, une exception qui ne sert plus est un écart du compte', async () => {
+  const { Socle } = await import('../src/socle.js');
+  const affichage = await import('../bin/affichage.js');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot'); const autre = path.join(r, 'autre');
+  const cle = 'montage:.devcontainer/devcontainer.json:/home/node/.ssh';
+  const contexte = (exc) => ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot, holarch:project:autre]\n${exc ? `config:\n  montage_sensible:\n    exceptions: [{ ecart: "${cle}", pourquoi: essai }]\n` : ''}---\n`);
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+  ecrireF(path.join(p, 'arbre', 'types', 'conteneur', 'index.md'), '---\ntype: template\nid: conteneur\ntitle: Conteneur\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
+  ecrireF(path.join(p, 'arbre', 'types', 'conteneur', 'rules.yaml'), '- id: conteneur-isole\n  statement: Rien de l’hôte dans le conteneur.\n  level: verified\n  check: [montage-sensible]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n');
+  for (const x of [d, autre]) ecrireF(path.join(x, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${path.basename(x)}\ntitle: ${path.basename(x)}\nstatus: draft\ntypes: [conteneur]\n---\n`);
+  const devcontainer = (c) => ecrireF(path.join(d, '.devcontainer', 'devcontainer.json'), JSON.stringify(c));
+  const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [p] } } });
+  const relire = () => { s.catalogue.remplacer([...inventaireArbre({}, { depots: [p, d, autre], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+    ...[d, autre].map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }))]); s.indexer(); };
+  const perimees = (a) => (a.cibles.find((c) => !c.projet)?.ecarts || []).filter((e) => e.cle.startsWith('exception-perimee:'));
+  const ouvertes = () => s.ecartsOuverts().filter((o) => o.cle.startsWith('exception-perimee:')).map((o) => [o.projet, o.regle, o.cle, o.fichier]);
+  // L'exception du contexte fait taire l'écart du dépôt, et le dit (clé, raison, provenance) ; dans l'autre projet, elle
+  // ne sert pas, mais elle sert quelque part : rien de périmé.
+  contexte(true); devcontainer({ mounts: ['source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind'] }); relire();
+  let a = s.audit({ journaliser: true });
+  const rd = a.cibles.find((c) => c.projet === 'holarch:project:depot');
+  assert.deepEqual(rd.ecarts.filter((e) => e.controle === 'montage-sensible'), []);
+  const regle = s.fiches({ kind: 'rule' }).find((f) => f.name === 'conteneur-isole').id;
+  assert.deepEqual(rd.controles.find((c) => c.id === 'montage-sensible').exceptions, [{ ecart: cle, pourquoi: 'essai', provenance: 'profil:/arbre/contextes/perso.md', utilisee: true, regle, regle_id: 'conteneur-isole' }]);
+  assert.match(affichage.audit(a), new RegExp(`exception montage-sensible : ${cle.replace(/[.]/g, '\\.')} — essai \\(profil:/arbre/contextes/perso\\.md\\)`));
+  assert.deepEqual(perimees(a), []);
+  // Le montage retiré, l'exception ne fait plus rien taire nulle part : un écart du compte, au journal.
+  devcontainer({});
+  a = s.audit({ journaliser: true });
+  assert.deepEqual(perimees(a).map((e) => [e.regle_id, e.controle, e.cle, e.fichier]), [['conteneur-isole', 'montage-sensible', `exception-perimee:${cle}`, 'profil:/arbre/contextes/perso.md']]);
+  assert.match(perimees(a)[0].message, /ne fait taire aucun écart sur ce site \(essai\) : la retirer/);
+  assert.deepEqual(ouvertes(), [[null, regle, `exception-perimee:${cle}`, 'profil:/arbre/contextes/perso.md']]);
+  // Un audit d'un seul projet, ou un contrôle non disponible là où elle s'applique, ne juge rien et ne résout rien.
+  assert.deepEqual(perimees(s.audit({ projet: 'depot', journaliser: true })), []);
+  devcontainer({ dockerComposeFile: 'compose.yml' });
+  assert.deepEqual(perimees(s.audit({ journaliser: true })), []);
+  assert.equal(ouvertes().length, 1, 'toujours ouverte');
+  // Retirée du contexte : l'écart se résout.
+  devcontainer({}); contexte(false); relire();
+  a = s.audit({ journaliser: true });
+  assert.deepEqual(perimees(a), []);
+  assert.deepEqual(ouvertes(), []);
+});
+
 test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop grande n’arrête pas l’import ; celle d’un conteneur ne se rattache qu’à son projet', () => {
   const r = tmp(); const home = path.join(r, 'compte'); const projet = path.join(r, 'projet'); const autre = path.join(r, 'autre');
   fs.mkdirSync(projet); fs.mkdirSync(autre); fs.writeFileSync(path.join(autre, 'x.md'), '');

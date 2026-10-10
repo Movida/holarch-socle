@@ -17,7 +17,8 @@ export const reglesCompte = (r) => [`compte — ${r.compte.regles.length} règle
           ...(r.projets.length ? r.projets.map((p) => `${p.nom} : ${p.declare ? 'déclaré' : 'non déclaré par un contexte'}, types ${p.types.join(', ') || 'aucun'}, ${p.appliquees} appliquée(s), ${p.proposees} proposée(s)${p.signaux ? `, ${p.signaux} signal(aux)` : ''}`) : ['aucun projet n’a de règles']) ].join('\n');
 
 export const audit = (a) => [...a.cibles.map((c) => [`${c.nom} : ${c.ecarts.length ? `${c.ecarts.length} écart(s)` : 'conforme'}${c.controles.length ? ` ; contrôles : ${c.controles.map((x) => x.etat === 'fait' ? x.id : `${x.id} (non disponible : ${x.raison})`).join(', ')}` : ''}`,
-        ...c.ecarts.map((e) => `  [${e.regle_id}] ${e.controle} : ${e.fichier || ''}${e.ligne ? `:${e.ligne}` : ''}${e.n > 1 ? ` (${e.n})` : ''} — ${e.message}`)].join('\n')),
+        ...c.ecarts.map((e) => `  [${e.regle_id}] ${e.controle} : ${e.fichier || ''}${e.ligne ? `:${e.ligne}` : ''}${e.n > 1 ? ` (${e.n})` : ''} — ${e.message}`),
+        ...c.controles.flatMap((x) => (x.exceptions || []).filter((e) => e.utilisee).map((e) => `  exception ${x.id} : ${e.ecart} — ${e.pourquoi} (${e.provenance})`))].join('\n')),
         a.cibles.length ? '' : 'aucun projet n’a de règles', `journal : ${a.journal.apparus} apparu(s), ${a.journal.resolus} résolu(s)`].filter((x) => x !== '').join('\n');
 
 /** Ce que `holarch regles appliquer` a écrit (module materialisation). */
