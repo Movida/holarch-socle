@@ -16,7 +16,7 @@ import { git, gitLu, dedans } from '../src/commun.js';
 import { Socle } from '../src/socle.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
-import { regleEffective, exceptions, fusionnerConfig } from '../src/regles.js';
+import { regleEffective, regleDuCompte, exceptions, fusionnerConfig } from '../src/regles.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -1231,4 +1231,50 @@ test('Contre-épreuve du profil désigné (2) : une valeur posée plus bas ne re
   // Une clé `__proto__` écrite dans l'arbre reste une clé : elle ne change pas la forme de la configuration fusionnée.
   const proto = fusionnerConfig({ a: { b: 1 } }, JSON.parse('{"a": {"__proto__": {"c": 2}}}'));
   assert.deepEqual([Object.getPrototypeOf(proto.a), proto.a.c, Object.hasOwn(proto.a, '__proto__')], [Object.prototype, undefined, true]);
+});
+
+test('Contre-épreuve du profil désigné (1) : un identifiant se compare dans sa forme normalisée ; une règle en double ne s’efface pas en silence', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const p = path.join(r, 'profil'); const d = path.join(r, 'depot'); const intrus = path.join(r, 'a-intrus');
+  const regle = (id, extra = '') => `- id: ${id}\n  statement: ${id}.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-10 }\n${extra}`;
+  ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  donnees_personnelles:\n    termes: [Zeta Martin]\n---\n');
+  ecrireF(path.join(p, 'arbre', 'rules.yaml'), regle('rien-de-personnel'));
+  ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  // Un dépôt lu avant le profil reprend son identifiant et celui de sa règle, à la casse près.
+  ecrireF(path.join(intrus, 'arbre', 'index.md'), '---\ntype: guideline\nid: PROFIL\ntitle: Intrus\nstatus: draft\n---\n');
+  ecrireF(path.join(intrus, 'arbre', 'rules.yaml'), '- id: Rien-De-Personnel\n  statement: Rien.\n  level: reminder\n  status: draft\n');
+  fs.mkdirSync(d, { recursive: true });
+  const g = (...a) => { const x = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(x.status, 0, x.stderr); };
+  g('init', '-q'); g('config', 'user.name', 'Alice Exemple'); g('config', 'user.email', 'alice@exemple.test');
+  ecrireF(path.join(d, 'note.md'), 'note de Zeta Martin\n');
+  const s = new Socle({ site: 'local', profil: p, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+  const lire = (racine) => {
+    ecrireF(path.join(d, 'arbre', 'index.md'), `---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\n${racine}---\n`); g('add', '.');
+    const fiches = inventaireArbre({}, { depots: [intrus, p, d], profil: p, projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+    const c = s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
+    const e = regleEffective(s.fiches(), 'holarch:project:depot', { profil: p });
+    return { c, e, refus: s.garde({ depot: d }).refus.map((x) => x.regle), compte: regleDuCompte(s.fiches(), { profil: p }) };
+  };
+  let x = lire('');
+  // L'intrus est un doublon de l'identifiant du profil : non retenu, dit ; ses règles gardent leur propre identifiant.
+  const rdp = (l) => l.regles.filter((y) => y.id === 'rien-de-personnel').map((y) => [y.provenance.arbre, y.applicable]);
+  assert.deepEqual([rdp(x.compte), rdp(x.e)], [[['profil', true]], [['profil', true]]]);
+  assert.deepEqual(x.c.doublons, []);
+  assert.ok(x.compte.signaux.some((y) => /^identifiant d’arbre en double : profil \(a-intrus ; profil, profil désigné, retenu\)$/.test(y)), x.compte.signaux.join('\n'));
+  assert.deepEqual(x.refus, ['rien-de-personnel']);
+  // Deux règles d'un même nœud dont les identifiants se confondent : la règle effective est incomplète, et c'est dit.
+  ecrireF(path.join(d, 'arbre', 'rules.yaml'), '- id: Note\n  statement: Une.\n  status: draft\n- id: note\n  statement: Deux.\n  status: draft\n');
+  x = lire('');
+  assert.ok(x.e.illisibles.some((y) => /identifiant de règle en double : note/.test(y)), x.e.illisibles.join('\n'));
+  assert.deepEqual(x.refus, ['regles-lisibles']);
+  // Une règle, une dérogation et un type se désignent eux aussi dans leur forme normalisée : la règle du projet est celle
+  // du profil, en brouillon sur l'approuvée.
+  ecrireF(path.join(d, 'arbre', 'rules.yaml'), '- id: Rien-De-Personnel\n  statement: Autre.\n  status: draft\n');
+  x = lire('types: [Inconnu]\nderogations: [{ rule: Rien-De-Personnel, why: essai }]\n');
+  assert.ok(x.e.signaux.some((y) => y.startsWith('brouillon sur une règle approuvée : rien-de-personnel ')), x.e.signaux.join('\n'));
+  assert.deepEqual([x.e.regles.find((y) => y.id === 'rien-de-personnel').derogee?.pourquoi, x.e.signaux.filter((y) => /dérogation|type inconnu/.test(y))],
+    ['essai', ['type inconnu : inconnu (aucun nœud template ne porte cet id)']]);
+  // Le catalogue dit une fiche en double qu'il écarte, quand elle ne vient pas du même endroit.
+  const f = (location) => ({ id: 'holarch:node:x', kind: 'node', name: 'x', status: 'active', location, provenance: { source: 't' } });
+  assert.deepEqual(s.catalogue.remplacer([f('/a'), f('/a'), f('/b')]).doublons, [{ id: 'holarch:node:x', garde: '/a', ecarte: '/b' }]);
 });

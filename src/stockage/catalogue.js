@@ -12,13 +12,15 @@ export class Catalogue {
   }
 
   remplacer(fiches) {
-    const valides = []; const refusees = [];
-    const vus = new Set();
+    const valides = []; const refusees = []; const doublons = [];
+    // Une fiche de même identifiant n'est gardée qu'une fois ; venue d'ailleurs, elle se dit (`doublons`) : deux éléments
+    // qui prennent le même identifiant ne s'effacent pas l'un l'autre en silence.
+    const vus = new Map();
     for (const f of fiches) {
       const erreur = valider('fiche', f);
       if (erreur) { refusees.push({ fiche: f, erreur }); continue; }
-      if (vus.has(f.id)) continue;
-      vus.add(f.id); valides.push(f);
+      if (vus.has(f.id)) { if (vus.get(f.id).location !== f.location) doublons.push({ id: f.id, garde: vus.get(f.id).location ?? null, ecarte: f.location ?? null }); continue; }
+      vus.set(f.id, f); valides.push(f);
     }
     // Écrit d'un coup (temporaire puis renommage) : le crochet de démarrage et l'inventaire horaire le lisent à tout moment.
     // Un instantané précédent illisible ne sert pas de référence : rien n'apparaît ni ne disparaît contre lui.
@@ -50,7 +52,7 @@ export class Catalogue {
     }
     const reidentifies = new Set(deplacees.filter((d) => d.de.id !== d.id).flatMap((d) => [d.id, d.de.id]));
     apparues = apparues.filter((i) => !reidentifies.has(i)); disparues = disparues.filter((i) => !reidentifies.has(i));
-    return { fiches: valides.length, refusees, apparues, disparues, deplacees, ...(illisible && { precedent_illisible: true }) };
+    return { fiches: valides.length, refusees, doublons, apparues, disparues, deplacees, ...(illisible && { precedent_illisible: true }) };
   }
 
   /** Date de l'instantané du site (ms), null s'il n'y en a pas encore. */

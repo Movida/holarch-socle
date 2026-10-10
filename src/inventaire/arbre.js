@@ -101,14 +101,19 @@ export default function inventaireArbre(options, ctx) {
     // Dépôt configuré hors des racines inventoriées : pas de projet connu, l'identifiant garde le nom du dossier.
     const projet = ctx.projetDe?.(x.depot);
     const cle = projet ? projet.id.slice('holarch:project:'.length) : path.basename(x.depot);
-    // Identité de l'arbre (liens entre arbres, identifiants des règles) : l'`id` de sa racine, sinon celle du projet.
-    return { ...x, projet, cle, arbre: String(enTete(x.racine.fichier).id || cle) };
+    // Identité de l'arbre (liens entre arbres, identifiants des règles) : l'`id` de sa racine, sinon celle du projet ;
+    // comme tout identifiant de l'arbre (type, règle), dans sa forme normalisée, celle des identifiants du catalogue :
+    // deux identifiants qui feraient la même fiche sont le même (`PROFIL` et `profil`).
+    return { ...x, projet, cle, arbre: slug(enTete(x.racine.fichier).id || cle) };
   });
   // Deux dépôts de même `id` (décision profil-designe) : leurs règles prennent un identifiant qui les distingue
   // (`<id>@<projet>`), sans quoi le catalogue n'en garderait qu'une ; un arbre unique, ou le profil que le site désigne,
   // garde le sien, que portent les écarts au journal.
   const parId = new Map(); for (const x of lus) parId.set(x.arbre, (parId.get(x.arbre) || 0) + 1);
   const profil = ctx.profil && path.isAbsolute(ctx.profil) ? path.resolve(ctx.profil) : null;
+  // Une règle dont l'identifiant en recouvre un autre n'est pas retenue : son nœud le dit (`erreur_regles`), et la règle
+  // effective qui le lit est incomplète, au lieu que le catalogue garde la première lue.
+  const fichesRegles = new Map();
   for (const { depot, racine, projet, cle, arbre } of lus) {
     const ref = parId.get(arbre) > 1 && path.resolve(depot) !== profil ? `${arbre}@${cle}` : arbre;
     for (const f of racine.okf ? [racine.fichier] : noeuds(racine.dossier, racine.dossier, [])) {
@@ -129,7 +134,7 @@ export default function inventaireArbre(options, ctx) {
         status: statutFiche(h.status), provenance: { source: 'inventaire:arbre' }, classification: h.classification || 'internal', location: f,
         links: { ...(h.links || {}), ...(projet && { project: [projet.id] }) },
         attributes: { type: h.type || null, statut: h.status || null, approuve: h.approved || null, revue: h.review || null, arbre, ...(estRacine && { racine: true }),
-          ...(h.id && { id: String(h.id) }), ...(h.types && { types: [].concat(h.types).map(String) }), ...(h.projects && { projects: [].concat(h.projects).map(String) }),
+          ...(h.id && { id: slug(h.id) }), ...(h.types && { types: [].concat(h.types).map(slug) }), ...(h.projects && { projects: [].concat(h.projects).map(String) }),
           ...(h.derogations && { derogations: h.derogations }), ...(h.config && typeof h.config === 'object' && { config: h.config }), ...(regles.length && { regles: regles.length }), ...(erreur && { erreur_regles: erreur }), ...(erreurEntete && { erreur_entete: erreurEntete, indices_entete: indices }), ...suivi },
       };
       out.push(noeud);
@@ -137,8 +142,15 @@ export default function inventaireArbre(options, ctx) {
       const place = estRacine ? '' : `${h.id || rel.replace(/^\/arbre\//, '').replace(/(\/index)?\.md$/, '')}/`;
       for (const { x: r, fichier } of regles) {
         if (!r || !r.id || !r.statement) continue;
+        const id = `holarch:rule:${slug(`${ref}/${place}${r.id}`)}`;
+        if (fichesRegles.has(id)) {
+          const message = `identifiant de règle en double : ${slug(r.id)} (${path.relative(depot, fichier)})`;
+          for (const n of new Set([fichesRegles.get(id), noeud])) n.attributes.erreur_regles = [n.attributes.erreur_regles, message].filter(Boolean).join(' ; ');
+          continue;
+        }
+        fichesRegles.set(id, noeud);
         out.push({
-          id: `holarch:rule:${slug(`${ref}/${place}${r.id}`)}`, kind: 'rule', name: String(r.id), description: premiereLigne(r.statement, 300),
+          id, kind: 'rule', name: slug(r.id), description: premiereLigne(r.statement, 300),
           node: rel, status: statutFiche(r.status), provenance: { source: 'inventaire:arbre' }, classification: noeud.classification, location: fichier,
           links: { ...(projet && { project: [projet.id] }) },
           attributes: { arbre, noeud_id: noeud.id, porteur: h.type || null, enonce: String(r.statement).trim(), pourquoi: r.why ? String(r.why).trim() : null,

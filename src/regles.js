@@ -5,6 +5,7 @@
 // projet. Lecture pure, sur les fiches du catalogue et le profil désigné (`profilDuSite`), que chaque appelant passe.
 import path from 'node:path';
 import { dedans } from './commun.js';
+import { slug } from './inventaire/outils.js';
 
 const ORDRE = ['profil', 'contexte', 'type', 'projet'];
 // Les nœuds du profil qui déclarent des projets (décision profil-designe).
@@ -58,10 +59,10 @@ export function arbresDe(fiches, { profil } = {}) {
   const parent = (n) => {
     const l = lien(n); if (!l) return null;
     const m = versArbre(l);
-    if (m) { const r = racineDe.get(m[1]); return (r && parChemin.get(`${depotDe(r)}|${m[2]}`)) || null; }
+    if (m) { const r = racineDe.get(slug(m[1])); return (r && parChemin.get(`${depotDe(r)}|${m[2]}`)) || null; }
     return parId.get(l) || parChemin.get(`${depotDe(n)}|${l}`) || null;
   };
-  const lienDouble = (n) => { const m = versArbre(lien(n)); return m && !racineDe.has(m[1]) && parArbre.get(m[1])?.length > 1 ? `lien vers un identifiant d’arbre en double, non résolu : ${designation(n)} → ${lien(n)}` : null; };
+  const lienDouble = (n) => { const m = versArbre(lien(n)); return m && !racineDe.has(slug(m[1])) && parArbre.get(slug(m[1]))?.length > 1 ? `lien vers un identifiant d’arbre en double, non résolu : ${designation(n)} → ${lien(n)}` : null; };
   // Un type ne se résout que s'il est seul de son `id` sur le site, dans un arbre retenu.
   const templates = new Map(); const typesAmbigus = new Map();
   for (const [id, l] of grouper(noeuds.filter((n) => n.attributes?.type === 'template' && n.attributes?.id), (n) => n.attributes.id)) {
@@ -258,7 +259,7 @@ export function regleEffective(fiches, projetId, { profil } = {}) {
   const lues = couchesLues(couches, signaux);
   const config = fusionnerCouches(lues, signaux);
   for (const d of racine?.attributes?.derogations || []) {
-    const e = regles.find((x) => x.id === d?.rule);
+    const e = d?.rule == null ? null : regles.find((x) => x.id === slug(d.rule));
     if (!e) { signaux.push(`dérogation à une règle absente : ${d?.rule}`); continue; }
     if (e.derogeable === false) { signaux.push(`dérogation refusée : ${e.id} n’est pas dérogeable`); continue; }
     e.derogee = { pourquoi: d.why ?? null, par: d.by ?? null, le: d.at ?? null };
@@ -301,8 +302,8 @@ export function regleDuCompte(fiches, { profil } = {}) {
  * facultatif quand le profil n'en a qu'un) et la configuration fusionnée de ses couches, profil, contexte puis types
  * dans l'ordre donné, comme la règle effective la calculera une fois le projet déclaré.
  */
-export function configAvantProjet(fiches, { contexte = null, types = [], profil } = {}) {
-  const a = arbresDe(fiches, { profil });
+export function configAvantProjet(fiches, { contexte = null, types: demandes = [], profil } = {}) {
+  const a = arbresDe(fiches, { profil }); const types = demandes.map(slug);
   if (!a.profil) throw new Error(a.sansProfil);
   const nomDe = (n) => n.node.split('/').pop().replace(/\.md$/, '');
   const tous = a.contextes;

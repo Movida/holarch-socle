@@ -33,6 +33,7 @@ export async function inventorier(config, { catalogue, journal }) {
     try { fiches.push(...await adaptateur(opts, ctx)); } catch (e) { (e instanceof SourceAbsente ? absentes : erreurs).push(`${nom} : ${e.message}`); }
   }
   const r = catalogue.remplacer(fiches);
+  erreurs.push(...r.doublons.map((x) => `catalogue : fiche en double écartée, ${x.id} (gardée : ${x.garde ?? 'sans emplacement'} ; écartée : ${x.ecarte ?? 'sans emplacement'})`));
   const maintenant = Date.now(); const at = new Date(maintenant).toISOString();
   const ev = (kind, subject) => ({ id: ulid(maintenant), at, kind, actor: 'system:inventaire', subject, data: {}, classification: 'internal' });
   journal.ajouter([
