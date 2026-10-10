@@ -2,6 +2,23 @@
 
 ## 2026-10-10
 
+* **Contre-épreuve de `profil-designe` : majeurs 4 et 5, mineurs 1 à 3, et passation** (environ 235 k tokens) :
+  conteneurs du dépôt du profil audités au compte par `montage-sensible` seul, sans exception, et deux faits distincts
+  au compte pour qu'un écart de ce dépôt et une exception périmée ne se résolvent pas l'un par l'autre (`074b20e`) ;
+  projet déclaré, vu sur ce site et absent du catalogue, écart du compte qui dit le nouvel identifiant (`dae57a9`) ;
+  contexte illisible compté dans le seul dépôt du profil (`14b9b22`) ; profil désigné par son chemin réel (`bea9937`) ;
+  chaîne d'un déclarant qui n'atteint pas la racine du profil, règle incomplète (`2dab815`). Un test chacun, rouge sur
+  son parent et sur 15 mutants ; 161 tests verts ; poste mesuré à blanc avant chaque commit : seul changement, le
+  compte lance `montage-sensible` sur le dépôt du profil (aucun conteneur, aucun écart). Copie de service posée
+  (`2dab815`), audit réel : 0 apparu, 0 résolu. Rien poussé. Leçon de clôture : déroulé annoncé en quatre temps ((4),
+  (5), mineurs 1, 2, 3 et 5 si le contexte le permet, mesure, pose et journal) ; tenus, sauf le mineur (5), au Reste
+  comme annoncé. Ce qui l'a fait dévier : le contexte, mesuré seulement après cinq commits (232 k, seuil 150 k) ; deux
+  défauts du banc de (5) (deux commits racines identiques ; un tri des horodatages en texte, que `racine()` de
+  l'inventaire partage, au Reste) ; deux branches nouvelles laissées vertes par un mutant, prouvées après coup
+  (mineurs 1 et 2) ; un banc de la veille dont le contexte ne remontait à rien, lié à sa racine (mineur 3). La demande
+  qui y aurait mené : « majeurs 4 et 5 et mineurs 1 à 3 de la contre-épreuve de `profil-designe`, pose et passation ;
+  mineur 5 dans la session suivante ».
+
 * **Contre-épreuve de `profil-designe` : majeurs 2, 1 et 3, et passation** (environ 230 k tokens) : décision
   `fusion-et-profil-audite` sur quatre choix de l'auteur, en un seul tour (`0b156df`) ; fusion qui garde un objet ou
   une liste, contrat de configuration 0.7.0 (`6ac2679`) ; identifiants normalisés à l'inventaire, règle en double et

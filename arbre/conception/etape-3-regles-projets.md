@@ -1178,12 +1178,14 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      l'auteur (garder, ou une exception par type que seul le profil porte). Mesure : 4 racines lues, pas 3
      (un projet privé en bundle OKF sans `id`, nommé par son identifiant) ; sans la clé, holarch-socle passait de 41 à 15 règles.
      Hors périmètre : la racine d'un projet redéfinit toute règle dérogeable (25 des 26 du profil).
-     Faits le 2026-10-10 : majeurs (2), (1), (3), mineur (4) ; (6) tranché (gardé, limite écrite dans `profil-designe`).
-     **Restent (4) et (5)**, tels que les tranche la décision `fusion-et-profil-audite` : l'audit du compte lit les
-     configurations de conteneur du dépôt du profil (`montage-sensible` seul) ; un projet déclaré, vu sur ce site
-     (journal : `element.created`, `element.moved`), et absent du catalogue est un écart du compte. Puis les mineurs
-     (1), (2), (3), (5). Chacun un commit et un test, éprouvés par `npm run eprouver` ; puis reposer la copie de
-     service.
+     Faits le 2026-10-10 : majeurs (2), (1), (3), mineur (4) ; (6) tranché (gardé, limite écrite dans `profil-designe`) ;
+     puis majeurs (4) (`074b20e`) et (5) (`dae57a9`), tels que les tranche la décision `fusion-et-profil-audite`, et
+     mineurs (1) (`14b9b22`), (2) (`bea9937`), (3) (`2dab815`) ; copie de service posée (`2dab815`).
+     **Reste le mineur (5)** : les six mutants verts, à relire dans le rapport (`holarch rapport afa38cbdf67d34b25`,
+     scripts perdus), un test ou une assertion chacun, éprouvés par `npm run eprouver`. Relevé en écrivant le test de
+     (5) : `racine()` (`inventaire/depots-git.js`) trie les commits racines par leur horodatage en texte ; un commit
+     antérieur au 2001-09-09 (9 chiffres) se classe après les autres, et l'identifiant du projet n'est pas son plus
+     ancien commit (aucun dépôt du poste concerné ; changer le tri change l'identifiant de tels projets).
      Site de travail : Q32 (sans la clé `profil`, il perd les règles de son profil au compte, et son audit le dit).
      Contre-épreuve précédente (`exceptions-hors-du-depot`, rapport : `holarch rapport aac2690360a154fe6`) : close par
      cette décision et les corrections du 2026-10-10.
