@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+* **Contre-épreuve de `profil-designe` : majeurs 2, 1 et 3, et passation** (environ 230 k tokens) : décision
+  `fusion-et-profil-audite` sur quatre choix de l'auteur, en un seul tour (`0b156df`) ; fusion qui garde un objet ou
+  une liste, contrat de configuration 0.7.0 (`6ac2679`) ; identifiants normalisés à l'inventaire, règle en double et
+  fiche en double dites (`84aa0ec`) ; forme des champs lue à l'inventaire, règle incomplète au lieu d'une garde en échec
+  et d'un audit arrêté (`5fdd774`). Un test chacun, rouge sur son parent et sur 15 mutants ; 156 tests verts ; poste
+  mesuré avant chaque commit, rien n'y change. Copie de service posée (`5fdd774`), audit réel : 0 apparu, 0 résolu.
+  Rien poussé. Leçon de clôture : déroulé annoncé en quatre temps (relire les constats, choix en un tour, corrections
+  2, 1, 3, 4, 5, pose et journal), passation annoncée après deux ou trois corrections ; tenus, (4) et (5) au Reste. Ce
+  qui l'a fait dévier : deux assertions du test (3) corrigées (un écart voisin, `crochet-pose` ; l'écart d'un contexte
+  illisible tombe au compte, pas au projet) ; un mutant mal écrit (saut de ligne dans le remplacement), relancé ; une
+  part de la proposition (3) non faite, faute d'un cas à reproduire. La demande qui y aurait mené : « majeurs 2, 1 et 3
+  de la contre-épreuve de `profil-designe`, avec les choix de 2, 4, 5 et du mineur 6 en un tour, puis pose et
+  passation ; 4 et 5 dans la session suivante ».
+
 * **Décision `profil-designe`, pas 4 à 7, pose et contre-épreuve** (environ 270 k tokens) : dépôt du profil monté en
   écriture, écart de `montage-sensible`, avec le dossier de travail monté par défaut (`e9278a2`) ; exceptions de
   `donnees_personnelles` hors du dépôt contrôlé, termes partout, exceptions écartées dites (`4c85d68`, et `9ba93e7` du

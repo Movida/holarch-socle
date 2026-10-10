@@ -1119,6 +1119,23 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   locale, le dépôt du profil contrôlé lui-même) ; 153 tests verts. Pas 7, avec l'accord de l'auteur : clé `profil` posée
   dans la configuration du poste ; audit complet à blanc identique avant et après (23 lignes, aucune différence), puis
   audit réel : 0 écart apparu, 0 résolu ; copie de service posée (`ff8a6f2`, interface et gardien relancés).
+- **Fait (2026-10-10)** : contre-épreuve de `profil-designe`, majeurs (2), (1) et (3). Décision `fusion-et-profil-audite`
+  (`0b156df`) sur quatre choix de l'auteur en un seul tour, recommandations suivies : forme gardée à la fusion,
+  conteneurs du dépôt du profil audités au compte, projet déclaré disparu dit, portée des exceptions `LICENSE` et
+  `NOTICE` gardée comme limite (mineur 6) ; la livraison C passe au contrat de configuration 0.8.0. Un commit et un test
+  chacun, 156 tests verts ; chaque test rouge sur son parent et sur ses mutants (3, 6 et 6). (2) (`6ac2679`) : une
+  valeur posée plus bas ne remplace ni un objet ni une liste, la couche plus haute tient et la règle effective le dit ;
+  une clé `__proto__` reste une clé (mineur 4) ; contrat de configuration 0.7.0. (1) (`84aa0ec`) : identifiants
+  d'arbre, de type et de règle normalisés à l'inventaire, dans la forme du catalogue ; liens vers un autre arbre,
+  dérogations et types demandés de même ; deux règles de même identifiant rendent la règle effective incomplète ; le
+  catalogue dit une fiche en double qu'il écarte (erreurs de l'inventaire). (3) (`5fdd774`) : forme des champs lue à
+  l'inventaire (`derogations`, `types`, `projects`, `config`, `replaces`) ; invalide, elle n'est pas retenue et se dit
+  (`erreur_forme`), la règle effective est incomplète (la garde refuse, l'audit va au bout) ; un contexte du profil aux
+  projets illisibles rend chaque projet incomplet. Non fait de la proposition (3) : isoler à l'audit un projet en échec
+  (plus aucune levée connue à reproduire) ; la garde refusait déjà une règle incomplète. Mesuré sur le poste avant
+  chaque commit : aucune couche touchée par (2), aucun identifiant hors de sa forme normalisée (41 règles), aucun
+  doublon de fiche (254), aucune forme invalide (59 nœuds), 26 règles au compte comme avant. Copie de service posée
+  (`5fdd774`, interface et gardien relancés) ; audit réel : 0 écart apparu, 0 résolu.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1161,8 +1178,11 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      l'auteur (garder, ou une exception par type que seul le profil porte). Mesure : 4 racines lues, pas 3
      (un projet privé en bundle OKF sans `id`, nommé par son identifiant) ; sans la clé, holarch-socle passait de 41 à 15 règles.
      Hors périmètre : la racine d'un projet redéfinit toute règle dérogeable (25 des 26 du profil).
-     Ordre proposé : majeurs 2, 1, 3, puis 4 et 5, chacun avec son test ; le (6) des mineurs avant, s'il change une
-     décision. Les corrections, un commit et un test chacun, éprouvés par `npm run eprouver` ; puis reposer la copie de
+     Faits le 2026-10-10 : majeurs (2), (1), (3), mineur (4) ; (6) tranché (gardé, limite écrite dans `profil-designe`).
+     **Restent (4) et (5)**, tels que les tranche la décision `fusion-et-profil-audite` : l'audit du compte lit les
+     configurations de conteneur du dépôt du profil (`montage-sensible` seul) ; un projet déclaré, vu sur ce site
+     (journal : `element.created`, `element.moved`), et absent du catalogue est un écart du compte. Puis les mineurs
+     (1), (2), (3), (5). Chacun un commit et un test, éprouvés par `npm run eprouver` ; puis reposer la copie de
      service.
      Site de travail : Q32 (sans la clé `profil`, il perd les règles de son profil au compte, et son audit le dit).
      Contre-épreuve précédente (`exceptions-hors-du-depot`, rapport : `holarch rapport aac2690360a154fe6`) : close par
