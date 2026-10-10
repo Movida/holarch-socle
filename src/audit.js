@@ -243,7 +243,9 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const incomplet = compte.illisibles.length ? 'règles illisibles' : compte.indetermine ? 'sans profil' : null;
     if (incomplet) rc.controles.push(...['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee'].map((id) => ({ id, etat: 'indisponible', raison: incomplet })));
     else for (const m of materialiserCompte(compte, comptesDe(s), { accueil: s.config.accueil || accueil(), ecrire: false })) {
-      rc.ecarts.push(...ecartsFichiers(compte.regles, m, 'rules/holarch'));
+      // Un lien symbolique sur le chemin des règles : rien n'y est lu, le contrôle n'a pas pu se faire.
+      if (m.fichiers.erreur) rc.controles.push({ id: 'regles-a-jour', etat: 'indisponible', raison: m.fichiers.erreur });
+      else rc.ecarts.push(...ecartsFichiers(compte.regles, m, 'rules/holarch'));
       if (m.permissions.erreur) rc.controles.push({ id: 'permissions-posees', etat: 'indisponible', raison: m.permissions.erreur });
       else rc.ecarts.push(...ecartsPermissions(m));
       if (m.reglages.erreur) rc.controles.push({ id: 'reglages-poses', etat: 'indisponible', raison: m.reglages.erreur });
@@ -289,8 +291,14 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'conteneur-genere', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
     else if (p.location && fs.existsSync(p.location)) {
       const m = materialiserProjet(r, p.location, { accueil: s.config.accueil || accueil(), ecrire: false });
-      rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch'), ...ecartsCrochet(m.crochet), ...ecartsConteneur(r, p.location));
-      faits.add(`${id}|regles-a-jour`); faits.add(`${id}|crochet-pose`); faits.add(`${id}|conteneur-genere`);
+      // Un lien symbolique dans le dépôt, sur le chemin des règles ou du crochet : rien n'y est lu, le contrôle n'a pas pu
+      // se faire, et ce qu'il n'a pas vu ne se résout pas.
+      if (m.fichiers.erreur) rp.controles.push({ id: 'regles-a-jour', etat: 'indisponible', raison: m.fichiers.erreur });
+      else { rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch')); faits.add(`${id}|regles-a-jour`); }
+      if (m.crochet.etat === 'erreur') rp.controles.push({ id: 'crochet-pose', etat: 'indisponible', raison: m.crochet.raison });
+      else { rp.ecarts.push(...ecartsCrochet(m.crochet)); faits.add(`${id}|crochet-pose`); }
+      rp.ecarts.push(...ecartsConteneur(r, p.location));
+      faits.add(`${id}|conteneur-genere`);
     }
     if (!r.illisibles.length) {
       rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));

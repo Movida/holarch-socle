@@ -169,8 +169,9 @@ switch (cmd) {
         const gardien = creerReveil({ holarch: binaireService(s.config.accueil), accueil: s.config.accueil }).gardien({ veille: () => veilleDuCompte(s), relancer: false });
         const texte = `${affichage.appliquer({ comptes, projets })}\ngardien de veille : ${gardien.etat}${gardien.message ? ` — ${gardien.message}` : ''}`;
         afficher(json ? texte.split('\n') : texte);
-        // Un settings.json illisible n'est jamais réécrit, et la commande échoue (comme avant la consolidation).
-        if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur) || gardien.etat === 'erreur') process.exit(1);
+        // Un settings.json illisible n'est jamais réécrit, et la commande échoue (comme avant la consolidation) ; de même
+        // pour des règles arrêtées par un lien symbolique.
+        if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur || m.fichiers.erreur) || projets.some(({ m }) => m.fichiers.erreur) || gardien.etat === 'erreur') process.exit(1);
       } else if (action) {
         const r = s.regles({ projet: action });
         afficher(json ? r : affichage.reglesProjet(r));

@@ -4,7 +4,7 @@
 // HOLARCH injoignable, le crochet laisse passer et le dit : l'audit rattrape ce qui serait passé.
 import fs from 'node:fs';
 import path from 'node:path';
-import { shell as sh, porteMarque, git } from './commun.js';
+import { shell as sh, porteMarque, git, dedans, cheminSansLien } from './commun.js';
 
 export const MARQUE = '# Généré par HOLARCH (holarch regles appliquer) : garde avant commit.';
 
@@ -30,11 +30,15 @@ export function fichierCrochet(depot) {
 /**
  * Pose, met à jour ou retire le crochet selon `voulu` (son texte, ou null) : { etat, fichier } avec `etat` parmi
  * pose · modifie · inchange · retire · absent · ignore (crochet non marqué) · hors-git · erreur (emplacement non inscriptible,
- * par exemple un `core.hooksPath` qui vise un chemin d'un autre montage : `raison` le dit). `ecrire: false` : dit seulement.
+ * par exemple un `core.hooksPath` qui vise un chemin d'un autre montage, ou un lien symbolique dans le dépôt sur son
+ * chemin : `raison` le dit). `ecrire: false` : dit seulement.
  */
 export function poserCrochet(depot, voulu, { ecrire = true } = {}) {
   const fichier = fichierCrochet(depot);
   if (!fichier) return { etat: 'hors-git', fichier: null };
+  // Dans le dépôt, que le conteneur écrit, rien ne se lit, ne s'écrit ni ne se retire à travers un lien symbolique ; un
+  // `core.hooksPath` qui en sort relève du risque accepté jusqu'à D (décision veille-et-conteneur-precisions).
+  if (dedans(fichier, depot)) { try { cheminSansLien(depot, path.relative(depot, fichier)); } catch (e) { return { etat: 'erreur', fichier, raison: e.message }; } }
   const present = fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : null;
   if (present != null && !porteMarque(present, MARQUE)) return { etat: 'ignore', fichier };
   if (!voulu) {

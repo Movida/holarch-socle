@@ -1,6 +1,5 @@
 // Le socle d'un site : configuration, journal, catalogue, index, et les opérations de l'étape 1. Les fonctions de
 // lecture sont celles que l'interface web et, à l'étape 2, le hub MCP exposent.
-import fs from 'node:fs';
 import path from 'node:path';
 import { chargerConfig, comptesClaudeCode, profilDuSite } from './config.js';
 import { Journal } from './stockage/journal.js';
@@ -18,7 +17,7 @@ import { ulid } from './ulid.js';
 import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
 import { racineIndex } from './creation.js';
 import inventaireArbre, { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
-import { trouverOutil, binaireClaude } from './commun.js';
+import { trouverOutil, binaireClaude, ecrireSansLien } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
 function parts(projets) {
@@ -408,35 +407,34 @@ export class Socle {
   }
 
   // Écrit les règles brouillon d'une récolte dans le `rules.yaml` de leur nœud : la racine du profil, ou celle de l'arbre
-  // du projet, posée s'il n'en a pas (comme à la création). Rien n'est commité : l'auteur approuve, puis on commite.
+  // du projet, posée s'il n'en a pas (comme à la création). Rien n'est commité : l'auteur approuve, puis on commite. Rien
+  // ne s'écrit à travers un lien symbolique dans le dépôt : la règle est dite non écrite, avec la raison.
   proposerRegles(redites, { at = new Date().toISOString().slice(0, 10) } = {}) {
     const t = trier(redites);
     const a = arbresDe(this.fiches(), { profil: this.profil() });
     const projets = new Map(this.fiches({ kind: 'project' }).map((p) => [p.id, p]));
     const parFichier = new Map(); const sans = [];
     for (const g of t.proposees) {
-      let fichier = null;
-      if (g.noeud.profil) fichier = a.profil ? path.join(path.dirname(a.profil.location), 'rules.yaml') : null;
+      let fichier = null; let depot = null;
+      if (g.noeud.profil) { depot = this.profil(); fichier = a.profil ? path.join(path.dirname(a.profil.location), 'rules.yaml') : null; }
       else {
         const p = projets.get(g.noeud.projet);
         if (p?.location) {
-          let racine = racineArbre(p.location);
+          depot = p.location; let racine = racineArbre(p.location);
           if (!racine) {
-            const index = path.join(p.location, 'arbre', 'index.md');
-            fs.mkdirSync(path.dirname(index), { recursive: true });
-            fs.writeFileSync(index, racineIndex({ nom: p.name, description: p.description || p.name, types: [], journal: null }));
+            try { ecrireSansLien(p.location, path.join('arbre', 'index.md'), racineIndex({ nom: p.name, description: p.description || p.name, types: [], journal: null })); } catch (e) { sans.push({ id: g.id, raison: e.message }); continue; }
             racine = racineArbre(p.location);
           }
           fichier = path.join(racine.dossier, 'rules.yaml');
         }
       }
       if (!fichier) { sans.push({ id: g.id, raison: g.noeud.profil ? a.sansProfil : `projet sans dépôt connu : ${g.noeud.nom}` }); continue; }
-      if (!parFichier.has(fichier)) parFichier.set(fichier, []);
-      parFichier.get(fichier).push(regleProposee(g, at));
+      if (!parFichier.has(fichier)) parFichier.set(fichier, { depot, regles: [] });
+      parFichier.get(fichier).regles.push(regleProposee(g, at));
     }
     const ecrites = []; const deja = [];
-    for (const [fichier, regles] of parFichier) {
-      const e = ajouterRegles(fichier, regles);
+    for (const [fichier, { depot, regles }] of parFichier) {
+      let e; try { e = ajouterRegles(depot, fichier, regles); } catch (err) { sans.push(...regles.map((x) => ({ id: x.id, raison: err.message }))); continue; }
       ecrites.push(...e.ecrites.map((id) => ({ id, fichier }))); deja.push(...e.deja.map((id) => ({ id, fichier })));
     }
     return { ecrites, deja, sans_noeud: sans, a_trancher: t.a_trancher.map((g) => ({ id: g.id, consigne: g.consigne, contredit: g.contredit })), couvertes: t.couvertes.length };

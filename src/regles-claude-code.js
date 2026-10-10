@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
 import { CONTROLES } from './controles.js';
-import { lireJson, ecrireJson, fichierMarque, shell } from './commun.js';
+import { lireJson, ecrireJson, fichierMarque, shell, cheminSansLien } from './commun.js';
 import { EVENEMENTS as EVENEMENTS_VEILLE, DISTANTE_SHELL, fichierErreur } from './veille.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
@@ -55,6 +55,7 @@ export const avantCommit = (e) => e.niveau === 'blocking' && (e.controles || [])
  * Permissions de lecture refusées à la portée du compte (`<home>/settings.json`, `permissions.deny`) : ajoute les
  * entrées voulues, retire celles que HOLARCH avait posées et qui ne le sont plus (manifeste à côté des règles générées) ;
  * une entrée posée par quelqu'un d'autre n'est jamais retirée. `ecrire: false` : dit seulement ce qui changerait.
+ * Rien ne s'écrit à travers un lien symbolique sous `home` (`ecrireJson`) : l'erreur le dit.
  */
 export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
   const settings = path.join(home, 'settings.json'); const manifeste = path.join(dossierCompte(home), 'permissions.json');
@@ -66,10 +67,10 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
   if (!ecrire) return r;
   if (ajoutees.length || retirees.length) {
     c.permissions = { ...(c.permissions || {}), deny: [...deny.filter((x) => !retirees.includes(x)), ...ajoutees] };
-    ecrireJson(settings, c);
+    ecrireJson(settings, c, { racine: home });
   }
   const notees = entrees.filter((x) => nos.has(x) || ajoutees.includes(x));
-  if (notees.length || fs.existsSync(manifeste)) ecrireJson(manifeste, { deny: notees });
+  if (notees.length || fs.existsSync(manifeste)) ecrireJson(manifeste, { deny: notees }, { racine: home });
   return r;
 }
 
@@ -116,6 +117,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
  * Écrit les réglages voulus dans `<home>/settings.json` : une clé n'est posée que si elle est absente ou posée par HOLARCH
  * (une valeur mise à la main est laissée, et dite) ; une clé ou un crochet que HOLARCH avait posé et qui n'est plus voulu
  * se retire (une clé seulement si personne ne l'a changée depuis). Manifeste : `<home>/rules/holarch/reglages.json`.
+ * Rien ne s'écrit à travers un lien symbolique sous `home` (`ecrireJson`) : l'erreur le dit.
  */
 export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
   const settings = path.join(home, 'settings.json'); const manifeste = path.join(dossierCompte(home), 'reglages.json');
@@ -146,8 +148,8 @@ export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
   }
   if (!Object.keys(hooks).length) delete c.hooks;
   const change = r.cles.posees.length || r.cles.retirees.length || r.crochets.poses.length || r.crochets.retires.length;
-  if (ecrire && change) ecrireJson(settings, c);
-  if (ecrire && (Object.keys(notees.cles).length || notees.crochets.length || fs.existsSync(manifeste))) ecrireJson(manifeste, notees);
+  if (ecrire && change) ecrireJson(settings, c, { racine: home });
+  if (ecrire && (Object.keys(notees.cles).length || notees.crochets.length || fs.existsSync(manifeste))) ecrireJson(manifeste, notees, { racine: home });
   return r;
 }
 
@@ -180,23 +182,32 @@ export function planifier(regles, { portee, classificationDepot } = {}) {
 const marque = (f) => fichierMarque(f, MARQUE);
 
 /**
- * Écrit un plan dans un dossier de règles : crée ou met à jour les fichiers prévus, retire les fichiers marqués que le
- * plan ne prévoit plus ; un fichier non marqué n'est jamais touché. `ecrire: false` : dit seulement ce qui changerait.
+ * Écrit un plan dans un dossier de règles, sous `racine` (le dépôt du projet, ou le dossier du compte) : crée ou met à
+ * jour les fichiers prévus, retire les fichiers marqués que le plan ne prévoit plus ; un fichier non marqué n'est jamais
+ * touché. `ecrire: false` : dit seulement ce qui changerait. Un lien symbolique entre la racine et un fichier (`.claude`,
+ * `.claude/rules`, le dossier lui-même, un fichier) : rien n'est lu, écrit ni retiré à travers lui, et `erreur` le dit,
+ * comme une écriture refusée (ce qui précède reste fait).
  */
-export function appliquer(dossier, plan, { ecrire = true } = {}) {
+export function appliquer(racine, dossier, plan, { ecrire = true } = {}) {
   const r = { dossier, crees: [], modifies: [], retires: [], inchanges: [], ignores: [] };
-  const prevus = new Set(plan.fichiers.map((x) => x.fichier));
-  for (const { fichier, contenu: c } of plan.fichiers) {
-    const f = path.join(dossier, fichier);
-    if (!fs.existsSync(f)) { r.crees.push(fichier); if (ecrire) { fs.mkdirSync(dossier, { recursive: true }); fs.writeFileSync(f, c); } continue; }
-    if (!marque(f)) { r.ignores.push(fichier); continue; }
-    if (fs.readFileSync(f, 'utf8') === c) { r.inchanges.push(fichier); continue; }
-    r.modifies.push(fichier); if (ecrire) fs.writeFileSync(f, c);
-  }
-  let presents = []; try { presents = fs.readdirSync(dossier).filter((x) => x.endsWith('.md')); } catch { /* dossier absent */ }
-  for (const x of presents) {
-    if (prevus.has(x) || !marque(path.join(dossier, x))) continue;
-    r.retires.push(x); if (ecrire) fs.unlinkSync(path.join(dossier, x));
-  }
+  const relatif = path.relative(racine, dossier); const chemin = (x) => cheminSansLien(racine, path.join(relatif, x));
+  try {
+    cheminSansLien(racine, relatif);
+    const prevus = new Set(plan.fichiers.map((x) => x.fichier));
+    for (const { fichier, contenu: c } of plan.fichiers) {
+      const f = chemin(fichier);
+      if (!fs.existsSync(f)) { r.crees.push(fichier); if (ecrire) { fs.mkdirSync(dossier, { recursive: true }); fs.writeFileSync(f, c); } continue; }
+      if (!marque(f)) { r.ignores.push(fichier); continue; }
+      if (fs.readFileSync(f, 'utf8') === c) { r.inchanges.push(fichier); continue; }
+      r.modifies.push(fichier); if (ecrire) fs.writeFileSync(f, c);
+    }
+    let presents = []; try { presents = fs.readdirSync(dossier).filter((x) => x.endsWith('.md')); } catch { /* dossier absent */ }
+    for (const x of presents) {
+      if (prevus.has(x)) continue;
+      const f = chemin(x);
+      if (!marque(f)) continue;
+      r.retires.push(x); if (ecrire) fs.unlinkSync(f);
+    }
+  } catch (e) { r.erreur = e.message; }
   return r;
 }

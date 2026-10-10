@@ -38,7 +38,7 @@ export function appliquerRegles(s, refs, comptes) {
  * Compte : pour chaque compte Claude Code du site, les fichiers de règles (`<compte>/rules/holarch/`), les lectures
  * refusées et les réglages de Claude Code (section `claude_code` de la configuration du compte), dans
  * `<compte>/settings.json`. Un `settings.json` illisible n'est jamais réécrit : `permissions.erreur` et `reglages.erreur`
- * le disent. `compte` : la règle effective du compte (module regles : `regles`, `config`).
+ * le disent ; un lien symbolique sous le compte aussi, et `fichiers.erreur` pour les règles. `compte` : la règle effective du compte (module regles : `regles`, `config`).
  */
 /**
  * La veille retardée est voulue au compte : une règle applicable désigne son contrôle (crochets et gardien la suivent) ;
@@ -58,19 +58,21 @@ export function materialiserCompte(compte, comptes, { accueil, holarch = binaire
     let permissions; let reglages;
     try { permissions = appliquerPermissions(c.home, lectures.map((x) => x.entree), { ecrire }); } catch (e) { permissions = { erreur: e.message }; }
     try { reglages = appliquerReglages(c.home, voulus, { ecrire }); } catch (e) { reglages = { erreur: e.message }; }
-    return { compte: c.nom, home: c.home, plan, fichiers: appliquer(dossierCompte(c.home), plan, { ecrire }), lectures, permissions, reglages };
+    return { compte: c.nom, home: c.home, plan, fichiers: appliquer(c.home, dossierCompte(c.home), plan, { ecrire }), lectures, permissions, reglages };
   });
 }
 
 /**
  * Projet : les fichiers de règles (`.claude/rules/holarch/`), le crochet de git si une règle bloquante le demande, et
  * l'identité de commit que déclare sa configuration, s'il est déclaré par un contexte (décision identite-par-contexte).
+ * Un lien symbolique dans le dépôt, sur le chemin des règles ou du crochet : rien ne s'écrit à travers, `fichiers.erreur`
+ * et le crochet en `erreur` le disent.
  */
 export function materialiserProjet(r, chemin, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
   if (ecrire) lisible(r);
   const plan = planifier(r.regles, { portee: 'projet', classificationDepot: r.arbre?.classification });
   const demande = r.regles.find((e) => e.applicable && avantCommit(e)) || null;
-  return { plan, fichiers: appliquer(dossierProjet(chemin), plan, { ecrire }),
+  return { plan, fichiers: appliquer(chemin, dossierProjet(chemin), plan, { ecrire }),
     crochet: { demande, ...poserCrochet(chemin, demande ? crochetDe({ holarch, accueil }) : null, { ecrire }) },
     identite: poserIdentite(chemin, r.declare ? identiteDeclaree(r.config) : null, { ecrire }) };
 }

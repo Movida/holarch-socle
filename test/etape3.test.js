@@ -352,18 +352,18 @@ test('règles : l’adaptateur Claude Code écrit un fichier marqué par règle,
   const public_ = planifier(e.regles, { portee: 'projet', classificationDepot: 'public' });
   assert.equal(public_.fichiers.length, 0, 'une règle interne ne s’écrit pas dans un dépôt public');
   assert.match(public_.non.find((x) => x.regle === 'tests-verts').raison, /classification internal plus fermée que le dépôt \(public\)/);
-  const dossier = path.join(tmp(), '.claude', 'rules', 'holarch');
+  const depot = tmp(); const dossier = path.join(depot, '.claude', 'rules', 'holarch');
   ecrire(path.join(dossier, 'a-la-main.md'), 'règle écrite à la main\n');
   ecrire(path.join(dossier, 'tests-verts.md'), 'écrite à la main, même nom\n');
   ecrire(path.join(dossier, 'ancienne.md'), `${MARQUE}\nrègle retirée de l'arbre\n`);
-  const essai = appliquer(dossier, plan, { ecrire: false });
+  const essai = appliquer(depot, dossier, plan, { ecrire: false });
   assert.deepEqual([essai.crees.length, essai.retires, essai.ignores], [3, ['ancienne.md'], ['tests-verts.md']]);
   assert.ok(fs.existsSync(path.join(dossier, 'ancienne.md')), 'un essai n’écrit rien');
-  const r = appliquer(dossier, plan);
+  const r = appliquer(depot, dossier, plan);
   assert.deepEqual([r.crees.sort(), r.retires], [['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md'], ['ancienne.md']]);
   assert.equal(fs.readFileSync(path.join(dossier, 'tests-verts.md'), 'utf8'), 'écrite à la main, même nom\n', 'un fichier non marqué n’est jamais touché');
   assert.ok(fs.existsSync(path.join(dossier, 'a-la-main.md')));
-  assert.deepEqual(appliquer(dossier, plan).inchanges.sort(), ['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md'], 'idempotent');
+  assert.deepEqual(appliquer(depot, dossier, plan).inchanges.sort(), ['avis-argumente.md', 'doc-courte.md', 'jamais-inventer.md'], 'idempotent');
   const compte = planifier(regleDuCompte(fiches, profil).regles, { portee: 'compte' });
   assert.deepEqual(compte.fichiers.map((x) => x.fichier).sort(), ['avis-argumente.md', 'commit-sur-main.md', 'francais.md', 'secret-du-profil.md']);
 });
@@ -709,9 +709,9 @@ test('consolidation : les réglages de l’audit agissent, et les briques commun
   assert.ok(porteMarque('---\npaths: [x]\n---\n# MARQUE ici\n', '# MARQUE') && !porteMarque('texte\n# MARQUE plus loin'.padStart(2000, '\n'), '# MARQUE'));
   // Un fichier de règle limité à beaucoup de chemins garde sa marque reconnue (en-tête long).
   const regle = { id: 'large', fiche: 'f', enonce: 'Une règle.', niveau: 'guided', statut: 'stable', applicable: true, origine: 'projet', applique_a: { paths: Array.from({ length: 15 }, (_, i) => `d${i}/**`) }, provenance: { arbre: 'a', noeud: '/' }, recouvre: [] };
-  const dossier = tmp(); const plan = planifier([regle], { portee: 'projet', classificationDepot: 'internal' });
-  appliquer(dossier, plan);
-  assert.deepEqual(appliquer(dossier, planifier([{ ...regle, enonce: 'Une règle modifiée.' }], { portee: 'projet', classificationDepot: 'internal' })).modifies, ['large.md']);
+  const depot = tmp(); const dossier = path.join(depot, 'regles'); const plan = planifier([regle], { portee: 'projet', classificationDepot: 'internal' });
+  appliquer(depot, dossier, plan);
+  assert.deepEqual(appliquer(depot, dossier, planifier([{ ...regle, enonce: 'Une règle modifiée.' }], { portee: 'projet', classificationDepot: 'internal' })).modifies, ['large.md']);
   assert.equal(trouverOutil('sh'), trouverOutil('sh') && path.isAbsolute(trouverOutil('sh')) ? trouverOutil('sh') : null, 'chemin absolu seulement');
   assert.equal(trouverOutil('a b'), null); assert.equal(trouverOutil('../sh'), null); assert.ok(trouverOutil('sh'));
   assert.equal(shell("l'outil"), `'l'\\''outil'`);
@@ -1228,6 +1228,109 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
   assert.throws(() => ecrireSansLien(d, '../dehors/x', 'a'), /hors du dépôt/); assert.deepEqual(fs.readdirSync(dehors), []);
 }));
 
+// M-2 étendu (contre-épreuve de C) : toute écriture de HOLARCH dans un dépôt, que le conteneur écrit, passe par la même
+// vérification (`cheminSansLien`). Un lien symbolique par endroit, vers un dossier de l'hôte (`dehors`) : rien n'y est
+// écrit ni retiré, et c'est dit.
+import { dossierProjet, dossierCompte } from '../src/regles-claude-code.js';
+import * as affichage from '../bin/affichage.js';
+test('Écritures dans un dépôt (M-2) : un lien symbolique n’y détourne vers l’hôte ni les règles, ni les réglages, ni le crochet, ni la déclaration, ni la récolte', () => gitIsole(async () => {
+  const lien = (cible, l) => { fs.rmSync(l, { recursive: true, force: true }); fs.mkdirSync(path.dirname(l), { recursive: true }); fs.symlinkSync(cible, l); };
+  const LIEN = (x) => `${x} est un lien symbolique : rien n’est écrit`;
+  const liste = (d) => fs.readdirSync(d, { recursive: true }).sort();
+
+  // Règles (`appliquer`), au projet et au compte : un dossier du chemin depuis la racine qui est un lien ; rien n'y est
+  // lu, créé ni retiré (un fichier marqué dehors reste), à blanc non plus.
+  const regle = { id: 'r', fiche: 'f', enonce: 'Une règle.', niveau: 'reminder', statut: 'stable', applicable: true, origine: 'projet', provenance: { arbre: 'a', noeud: '/' }, recouvre: [] };
+  const plan = planifier([regle], { portee: 'projet', classificationDepot: 'internal' }); const vide = { fichiers: [], non: [], signaux: [] };
+  for (const [seg, dossier] of [['.claude', dossierProjet], ['.claude/rules', dossierProjet], ['.claude/rules/holarch', dossierProjet], ['rules', dossierCompte], ['rules/holarch', dossierCompte]]) {
+    const racine = tmp(); const d = dossier(racine); const dehors = tmp();
+    ecrire(path.join(dehors, path.relative(path.join(racine, seg), d), 'ancienne.md'), `${MARQUE}\nrègle retirée de l'arbre\n`);
+    lien(dehors, path.join(racine, seg)); const avant = liste(dehors);
+    for (const [p, o] of [[plan, {}], [vide, {}], [plan, { ecrire: false }]]) assert.deepEqual([appliquer(racine, d, p, o).erreur, liste(dehors)], [LIEN(seg), avant], `${seg} ${p.fichiers.length} ${JSON.stringify(o)}`);
+  }
+  // Le dossier lien sans fichier de règle : dit quand même, son contenu n'est pas lu ; un fichier de règle qui est un
+  // lien : rien n'est écrit à travers, et `regles appliquer` le dit.
+  const r0 = tmp(); lien(tmp(), dossierProjet(r0)); assert.equal(appliquer(r0, dossierProjet(r0), vide).erreur, LIEN('.claude/rules/holarch'));
+  const r1 = tmp(); const dehors1 = tmp(); lien(path.join(dehors1, 'r.md'), path.join(dossierProjet(r1), 'r.md'));
+  const e1 = appliquer(r1, dossierProjet(r1), plan);
+  assert.deepEqual([e1.erreur, liste(dehors1)], [LIEN('.claude/rules/holarch/r.md'), []]);
+  assert.match(affichage.bilan('projet', e1), /\n {2}ATTENTION règles arrêtées : \.claude\/rules\/holarch\/r\.md est un lien symbolique/);
+
+  // Réglages et lectures refusées du compte (`ecrireJson`) : le dossier du manifeste ou le temporaire qui est un lien.
+  const voulu = reglagesVoulus({ claude_code: { reglages: { effortLevel: 'high' } } }, { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv' });
+  for (const [nom, poser] of [['permissions', (h) => appliquerPermissions(h, ['Read(//**/.env)'])], ['reglages', (h) => appliquerReglages(h, voulu)]]) {
+    for (const seg of ['rules', `settings.json.${process.pid}.holarch`]) {
+      const home = tmp(); const dehors = tmp(); lien(seg === 'rules' ? dehors : path.join(dehors, 'tmp'), path.join(home, seg));
+      assert.throws(() => poser(home), (e) => e.message === LIEN(seg), `${nom} ${seg}`); assert.deepEqual(liste(dehors), [], `${nom} ${seg}`);
+    }
+  }
+
+  // Crochet de git (`poserCrochet`) : `.git/hooks` ou le crochet qui est un lien, état erreur, rien n'est écrit ni retiré
+  // dehors, à blanc non plus ; un `core.hooksPath` hors du dépôt n'est pas gardé (risque accepté jusqu'à D).
+  const texte = crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant' });
+  const autre = crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/ailleurs' });
+  for (const seg of ['.git/hooks', '.git/hooks/pre-commit']) {
+    const { d } = depotGit(); const dehors = tmp(); ecrire(path.join(dehors, 'pre-commit'), texte);
+    lien(seg === '.git/hooks' ? dehors : path.join(dehors, 'pre-commit'), path.join(d, seg));
+    for (const [v, o] of [[autre, {}], [null, {}], [autre, { ecrire: false }]]) {
+      const c = poserCrochet(d, v, o);
+      assert.deepEqual([c.etat, c.raison, liste(dehors), fs.readFileSync(path.join(dehors, 'pre-commit'), 'utf8')], ['erreur', LIEN(seg), ['pre-commit'], texte], `${seg} ${v ? 'pose' : 'retrait'} ${JSON.stringify(o)}`);
+    }
+  }
+  const { d: dh, g: gh } = depotGit(); const crochets = tmp(); gh('config', 'core.hooksPath', crochets);
+  assert.deepEqual([poserCrochet(dh, texte).etat, fs.existsSync(path.join(crochets, 'pre-commit'))], ['pose', true]);
+
+  // Récolte proposée (`proposerRegles`, `ajouterRegles`) : le rules.yaml du profil, ou l'arbre d'un projet qui n'en a
+  // pas, qui est un lien ; la règle est dite non écrite, rien n'est écrit dehors.
+  {
+    const g = (id, x = {}) => ({ id, consigne: `Consigne ${id}.`, pourquoi: `Raison ${id}.`, couverte_par: null, contredit: [], elements: 2, sessions: 2, sources: ['s1', 's2'],
+      projets: [], projets_ids: [], hors_projet: 0, memoires: 0, premiere: '2026-10-01T00:00:00Z', derniere: '2026-10-03T00:00:00Z', ...x });
+    const profil = tmp(); const demo = tmp(); const dehors = tmp(); const dehors2 = tmp();
+    ecrire(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\ntitle: Profil\nstatus: draft\n---\n');
+    lien(path.join(dehors, 'rules.yaml'), path.join(profil, 'arbre', 'rules.yaml')); lien(dehors2, path.join(demo, 'arbre'));
+    const s = new Socle({ site: 'local', profil, donnees: tmp(), web: {}, inventaire: {}, import: {} });
+    s.catalogue.remplacer([{ id: 'holarch:node:profil', kind: 'node', name: 'profil', status: 'proposed', provenance: { source: 't' }, location: path.join(profil, 'arbre', 'index.md'), node: '/arbre/index.md', attributes: { type: 'guideline', arbre: 'profil', racine: true } },
+      { id: 'holarch:project:demo', kind: 'project', name: 'demo', status: 'active', provenance: { source: 't' }, location: demo, attributes: {} }]);
+    s.indexer();
+    const p = s.proposerRegles([g('commune'), g('du-projet', { projets: ['demo'], projets_ids: ['holarch:project:demo'] })], { at: '2026-10-07' });
+    assert.deepEqual([p.ecrites, p.sans_noeud, liste(dehors), liste(dehors2)], [[], [{ id: 'du-projet', raison: LIEN('arbre') }, { id: 'commune', raison: LIEN('arbre/rules.yaml') }], [], []]);
+  }
+
+  // Déclaration dans le contexte (création, étape 3) : le contexte du profil qui est un lien, l'étape échoue sans rien
+  // écrire dehors ; un lien posé pendant le commit refusé (par un crochet du profil), la remise en l'état non plus.
+  const { r, s, etats, git } = await bancCreation();
+  const profil = path.join(r, 'profil'); const ctx = path.join(profil, 'arbre', 'contextes', 'perso.md'); const texteCtx = fs.readFileSync(ctx, 'utf8');
+  const etape = (x, e) => x.etapes.find((y) => y.etape === e); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  const dehors = path.join(r, 'dehors'); ecrire(path.join(dehors, 'perso.md'), texteCtx);
+  lien(path.join(dehors, 'perso.md'), ctx); git(profil, 'add', '-A'); git(profil, 'commit', '-qm', 'contexte en lien');
+  const p1 = await creer();
+  assert.deepEqual([etats(p1).declaration, etape(p1, 'declaration').detail, liste(dehors), fs.readFileSync(path.join(dehors, 'perso.md'), 'utf8')],
+    ['echec', LIEN('arbre/contextes/perso.md'), ['perso.md'], texteCtx], JSON.stringify(p1.etapes, null, 1));
+  fs.rmSync(ctx); fs.writeFileSync(ctx, texteCtx); git(profil, 'add', '-A'); git(profil, 'commit', '-qm', 'contexte en fichier');
+  const dehors2 = path.join(r, 'dehors2'); fs.mkdirSync(dehors2); const crochet = path.join(profil, '.git', 'hooks', 'pre-commit');
+  ecrire(crochet, `#!/bin/sh\nrm arbre/contextes/perso.md && ln -s '${path.join(dehors2, 'perso.md')}' arbre/contextes/perso.md\nexit 1\n`); fs.chmodSync(crochet, 0o755);
+  const p2 = await creer();
+  assert.deepEqual([etats(p2).declaration, etape(p2, 'declaration').detail, liste(dehors2)], ['echec', LIEN('arbre/contextes/perso.md'), []], JSON.stringify(p2.etapes, null, 1));
+
+  // Règles du projet (étape 4) : son `.claude` qui est un lien, l'étape échoue sans rien écrire dehors ; l'audit dit le
+  // contrôle non disponible, comme celui du crochet quand `.git/hooks` est un lien (ce qu'il n'a pas vu ne se résout pas).
+  fs.rmSync(crochet); fs.rmSync(ctx); fs.writeFileSync(ctx, texteCtx);
+  const d = path.join(r, 'neuf'); const dehors3 = path.join(r, 'dehors3'); fs.mkdirSync(dehors3); lien(dehors3, path.join(d, '.claude'));
+  const p3 = await creer();
+  assert.deepEqual([etats(p3).declaration, etats(p3).regles, etape(p3, 'regles').detail, liste(dehors3)], ['faite', 'echec', LIEN('.claude'), []], JSON.stringify(p3.etapes, null, 1));
+  const controle = (c) => s.audit({ projet: p3.projet }).cibles.find((x) => x.projet === p3.projet).controles.find((x) => x.id === c);
+  assert.deepEqual(controle('regles-a-jour'), { id: 'regles-a-jour', etat: 'indisponible', raison: LIEN('.claude') });
+  lien(path.join(r, 'dehors4'), path.join(d, '.git', 'hooks'));
+  assert.deepEqual(controle('crochet-pose'), { id: 'crochet-pose', etat: 'indisponible', raison: LIEN('.git/hooks') });
+  assert.deepEqual([liste(dehors3), fs.existsSync(path.join(r, 'dehors4'))], [[], false]);
+  // Au compte de même : son `rules` qui est un lien, une règle du profil à y écrire.
+  const compte = tmp(); lien(path.join(r, 'dehors5'), path.join(compte, 'rules')); s.config.inventaire['claude-code'] = { home: compte };
+  ecrire(path.join(profil, 'arbre', 'rules.yaml'), '- id: francais\n  statement: Répondre en français.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  await s.inventaire(); s.indexer();
+  assert.deepEqual(s.audit({ projet: p3.projet }).cibles.find((x) => x.projet === null).controles.find((x) => x.id === 'regles-a-jour'), { id: 'regles-a-jour', etat: 'indisponible', raison: LIEN('rules') });
+  assert.equal(fs.existsSync(path.join(r, 'dehors5')), false);
+}));
+
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
 import { creerService, binaireService, copieEnService } from '../src/service.js';
 
@@ -1395,7 +1498,7 @@ test('récolte : une redite nouvelle devient une règle brouillon au nœud commu
     harvest: { at: '2026-10-07', sessions: 2, projects: ['demo', 'b'], first: '2026-10-01', last: '2026-10-03', refs: ['s1', 's2'] } });
   assert.match(fs.readFileSync(path.join(demo, 'arbre', 'index.md'), 'utf8'), /^---\ntype: guideline\nid: demo\n/, 'arbre du projet posé comme à la création');
   assert.equal(YAML.parse(fs.readFileSync(fd, 'utf8'))[0].id, 'du-projet');
-  assert.equal(ajouterRegles(fd, [{ id: 'du-projet', statement: 'x' }]).ecrites.length, 0, 'rejouer n’ajoute rien');
+  assert.equal(ajouterRegles(demo, fd, [{ id: 'du-projet', statement: 'x' }]).ecrites.length, 0, 'rejouer n’ajoute rien');
   assert.throws(() => s.recolte({ jusqua: '2026-10-06T00:00:00Z', proposer: true }), /rejeu/);
 });
 

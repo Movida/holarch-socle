@@ -9,11 +9,12 @@ import { spawnSync } from 'node:child_process';
 export const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (r !== '..' && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r)); };
 
 /**
- * Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique :
- * un dossier du chemin ou le fichier qui en est un lève une erreur, et rien n'est écrit. Un conteneur écrit son dépôt
- * monté ; un lien qu'il y pose détournerait vers l'hôte une écriture faite sur l'hôte.
+ * Le chemin absolu de `relatif` sous `racine` (un dépôt), vérifié sans rien écrire : un dossier du chemin (la racine
+ * exclue) ou le fichier qui est un lien symbolique, ou un chemin qui sort de la racine, lève une erreur. Un conteneur
+ * écrit son dépôt monté ; un lien qu'il y pose détournerait vers l'hôte une écriture faite sur l'hôte. Toute écriture
+ * de HOLARCH dans un dépôt passe par là : `ecrireSansLien`, et ce qui renomme, lit un dossier ou retire un fichier.
  */
-export function ecrireSansLien(racine, relatif, contenu, mode) {
+export function cheminSansLien(racine, relatif) {
   const p = path.resolve(racine, relatif);
   if (!dedans(p, racine) || p === path.resolve(racine)) throw new Error(`${relatif} : hors du dépôt`);
   let q = path.resolve(racine);
@@ -22,6 +23,12 @@ export function ecrireSansLien(racine, relatif, contenu, mode) {
     let l; try { l = fs.lstatSync(q); } catch { break; }
     if (l.isSymbolicLink()) throw new Error(`${path.relative(racine, q)} est un lien symbolique : rien n’est écrit`);
   }
+  return p;
+}
+
+/** Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique (`cheminSansLien`). */
+export function ecrireSansLien(racine, relatif, contenu, mode) {
+  const p = cheminSansLien(racine, relatif);
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, contenu);
   if (mode) fs.chmodSync(p, mode);
@@ -60,10 +67,14 @@ export function lireJson(f, defaut = null, { strict = false } = {}) {
 /**
  * Écriture atomique (fichier temporaire puis renommage) : une panne ne laisse jamais un JSON à moitié écrit. Le temporaire
  * porte le numéro du processus : deux écrivains simultanés (crochet et inventaire horaire) n'écrivent pas le même.
+ * `racine` (un dépôt, un compte Claude Code) : ni le fichier, ni son temporaire, ni un dossier du chemin depuis elle ne
+ * sont des liens symboliques (`cheminSansLien`) ; le renommage remplacerait un lien final sans écrire à travers, mais un
+ * dossier qui en est un enverrait le temporaire et le fichier dehors.
  */
-export function ecrireJson(f, o, { indent = 2 } = {}) {
-  fs.mkdirSync(path.dirname(f), { recursive: true });
+export function ecrireJson(f, o, { indent = 2, racine = null } = {}) {
   const tmp = `${f}.${process.pid}.holarch`;
+  if (racine) for (const x of [f, tmp]) cheminSansLien(racine, path.relative(racine, x));
+  fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(tmp, `${JSON.stringify(o, null, indent || undefined)}\n`);
   fs.renameSync(tmp, f);
 }

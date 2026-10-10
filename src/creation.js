@@ -166,9 +166,13 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   else {
     const profil = path.dirname(fichierContexte); const relatif = path.basename(fichierContexte);
     if ((git(profil, ['status', '--porcelain', '--', relatif]).stdout || '').trim()) { noter('declaration', 'echec', `${fichierContexte} a des modifications en cours : rien n'est touché`); return r; }
-    fs.writeFileSync(fichierContexte, declarer(texte, projet.id, nom));
-    const c = git(profil, ['commit', '-q', '-m', `Déclarer le projet ${nom}`, '--', relatif]);
-    if (c.status !== 0) { fs.writeFileSync(fichierContexte, texte); noter('declaration', 'echec', `commit dans le profil refusé : ${erreur(c)}`); return r; }
+    // Le contexte s'écrit, et se remet en l'état, dans le dépôt du profil sans suivre de lien symbolique.
+    const dansProfil = path.relative(socle.profil(), fichierContexte);
+    try {
+      ecrireSansLien(socle.profil(), dansProfil, declarer(texte, projet.id, nom));
+      const c = git(profil, ['commit', '-q', '-m', `Déclarer le projet ${nom}`, '--', relatif]);
+      if (c.status !== 0) { ecrireSansLien(socle.profil(), dansProfil, texte); throw new Error(`commit dans le profil refusé : ${erreur(c)}`); }
+    } catch (e) { noter('declaration', 'echec', e.message); return r; }
     noter('declaration', 'faite', `contexte ${avant.contexte.nom}, commit dans le profil`);
     await socle.inventaire(); socle.indexer();
   }
@@ -182,9 +186,11 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   else if (re.illisibles.length) { noter('regles', 'echec', `règles illisibles, rien n'est écrit : ${re.illisibles.join(' ; ')}`); return r; }
   else {
     const m = materialiserProjet(re, dossier, { accueil: socle.config.accueil, ecrire: !aBlanc });
+    // Un lien symbolique sur le chemin des règles : rien n'est écrit à travers, l'étape le dit et la suite attend un rejeu.
+    if (m.fichiers.erreur) { noter('regles', 'echec', m.fichiers.erreur); return r; }
     const changes = m.fichiers.crees.length + m.fichiers.modifies.length + m.fichiers.retires.length;
     const detail = `${m.fichiers.crees.length} créé(s), ${m.fichiers.modifies.length} modifié(s), ${m.fichiers.retires.length} retiré(s) ; crochet ${m.crochet.etat}`;
-    if (m.crochet.etat === 'erreur' || (m.crochet.etat === 'ignore' && m.crochet.demande)) noter('crochet', 'geste', `crochet de git non posé (${m.crochet.fichier})`, { quoi: 'retirer ou fusionner le crochet pre-commit existant, puis relancer' });
+    if (m.crochet.etat === 'erreur' || (m.crochet.etat === 'ignore' && m.crochet.demande)) noter('crochet', 'geste', `crochet de git non posé (${m.crochet.fichier}${m.crochet.raison ? ` : ${m.crochet.raison}` : ''})`, { quoi: 'retirer ou fusionner le crochet pre-commit existant, puis relancer' });
     // Des règles écrites mais pas commitées (commit refusé à un passage précédent) restent à commiter.
     const dossierRegles = path.join('.claude', 'rules', 'holarch');
     const enAttente = (g('status', '--porcelain', '--', dossierRegles).stdout || '').trim() !== '';

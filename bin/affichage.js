@@ -7,7 +7,7 @@ export const importer = (r) => Object.entries(r).map(([k, v]) => `${k} : ${v.fic
 
 const ligne = (e) => `  [${e.origine}] ${e.id}${e.applicable ? '' : e.derogee ? ' (dérogée)' : ` (${e.statut})`} → ${e.claude_code.non ? `non écrite : ${e.claude_code.non}` : e.claude_code.par ? `${e.niveau} : ${e.claude_code.par.join(', ')}` : `${e.claude_code.portee} : ${e.claude_code.fichier}`}`;
 
-export const bilan = (nom, r) => `${nom} (${r.dossier}) : ${r.crees.length} créé(s), ${r.modifies.length} modifié(s), ${r.retires.length} retiré(s), ${r.inchanges.length} inchangé(s)${r.ignores.length ? ` ; non marqués, laissés : ${r.ignores.join(', ')}` : ''}`;
+export const bilan = (nom, r) => `${nom} (${r.dossier}) : ${r.crees.length} créé(s), ${r.modifies.length} modifié(s), ${r.retires.length} retiré(s), ${r.inchanges.length} inchangé(s)${r.ignores.length ? ` ; non marqués, laissés : ${r.ignores.join(', ')}` : ''}${r.erreur ? `\n  ATTENTION règles arrêtées : ${r.erreur}` : ''}`;
 
 export const reglesProjet = (r) => [`${r.nom} — types : ${r.arbre?.types.join(', ') || 'aucun'} ; ${r.regles.length} règle(s), ${r.regles.filter((e) => e.applicable).length} appliquée(s) ; rappels : ${r.rappels} caractères à chaque tour${r.rappels_proposes ? ` (+${r.rappels_proposes} si les proposées sont approuvées)` : ''}`,
           ...r.regles.map(ligne), ...r.signaux.map((x) => `ATTENTION ${x}`)].join('\n');

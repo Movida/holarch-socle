@@ -12,7 +12,7 @@ import YAML from 'yaml';
 import { transcriptions } from './transcription.js';
 import { localiserProjet } from './projets.js';
 import { gitleaks } from './controles.js';
-import { claudeIntrouvable } from './commun.js';
+import { claudeIntrouvable, ecrireSansLien } from './commun.js';
 
 // Un message de l'auteur trop court est un acquiescement ou une relance (« oui », « reprends ») ; trop long, un collage.
 const MIN = 25; const MAX = 2000;
@@ -163,15 +163,18 @@ export function regleProposee(g, at) {
     harvest: { at, sessions: g.sessions, ...(g.projets.length && { projects: g.projets }), first: g.premiere?.slice(0, 10) ?? null, last: g.derniere?.slice(0, 10) ?? null, refs: g.sources } };
 }
 
-/** Ajoute des règles à la fin d'un `rules.yaml` sans réécrire ce qui y est (commentaires compris) ; un `id` déjà présent n'est pas repris. */
-export function ajouterRegles(fichier, regles) {
+/**
+ * Ajoute des règles à la fin d'un `rules.yaml` sans réécrire ce qui y est (commentaires compris) ; un `id` déjà présent
+ * n'est pas repris. `racine` : le dépôt du fichier, où rien ne s'écrit à travers un lien symbolique (`ecrireSansLien`).
+ */
+export function ajouterRegles(racine, fichier, regles) {
   const avant = fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : '';
   const pris = new Set([].concat(YAML.parse(avant) || []).map((x) => x?.id));
   const neuves = regles.filter((x) => !pris.has(x.id));
   // La provenance d'une règle tient sur une ligne, comme `approved` : elle se lit sans masquer la règle.
   const doc = new YAML.Document(neuves);
   for (const r of doc.contents?.items || []) { const h = r.get('harvest', true); if (h) h.flow = true; }
-  if (neuves.length) fs.writeFileSync(fichier, `${avant}${avant && !avant.endsWith('\n') ? '\n' : ''}${doc.toString({ lineWidth: 0 })}`);
+  if (neuves.length) ecrireSansLien(racine, path.relative(racine, fichier), `${avant}${avant && !avant.endsWith('\n') ? '\n' : ''}${doc.toString({ lineWidth: 0 })}`);
   return { ecrites: neuves.map((x) => x.id), deja: regles.filter((x) => pris.has(x.id)).map((x) => x.id) };
 }
 
