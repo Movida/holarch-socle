@@ -2,6 +2,8 @@
 // avec sa provenance. Couches, de la plus générale à la plus spécifique : le profil (racine de l'arbre qui déclare le
 // projet dans un contexte), les nœuds qui mènent de cette racine au contexte, les types du projet dans l'ordre déclaré
 // (un type cité plus loin l'emporte), puis la racine de l'arbre du projet. Lecture pure, sur les fiches du catalogue.
+import path from 'node:path';
+
 const ORDRE = ['profil', 'contexte', 'type', 'projet'];
 export const CLASSIFICATIONS = ['public', 'internal', 'confidential', 'sensitive'];
 
@@ -77,17 +79,36 @@ export function fusionnerConfig(...couches) {
   return couches.filter(objet).reduce(fusion, {});
 }
 
-// Une couche telle que la lisent les contrôles : son origine, son nœud, le fichier qui la porte et ses réglages.
-const coucheLue = (c) => ({ origine: c.origine, arbre: c.noeud.attributes?.arbre ?? null, noeud: c.noeud.node ?? null, fichier: c.noeud.location ?? null, config: c.noeud.attributes?.config ?? null });
+// Portée d'un réglage qui ne se lit pas partout (décision exceptions-hors-du-depot) : les couches qui peuvent le porter,
+// et s'il se lit hors du dépôt contrôlé. `montage_sensible` fait taire un écart du conteneur : il ne se lit pas dans
+// les fichiers que ce conteneur écrit (types et racine du projet), ni dans le dépôt contrôlé s'il est celui du profil.
+// Une clé absente de cette table se lit à toutes les couches.
+const PORTEE = { montage_sensible: { couches: ['profil', 'contexte'], horsDepot: true } };
+
+// Les réglages d'une couche dans leur portée ; une clé posée hors de sa portée n'est pas lue, et se dit.
+function dansPortee(c, signaux) {
+  const config = c.noeud.attributes?.config;
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return config ?? null;
+  const hors = Object.keys(config).filter((k) => PORTEE[k] && !PORTEE[k].couches.includes(c.origine));
+  for (const k of hors) signaux.push(`${k} porté par ${c.noeud.attributes?.arbre}:${c.noeud.node} (${c.origine}) : non lu, il se lit au ${PORTEE[k].couches.join(' et au ')} (décision exceptions-hors-du-depot)`);
+  return hors.length ? Object.fromEntries(Object.entries(config).filter(([k]) => !hors.includes(k))) : config;
+}
+
+// Les couches telles que les lisent la configuration fusionnée et les contrôles : origine, nœud, fichier qui la porte,
+// et ses réglages dans leur portée.
+const couchesLues = (couches, signaux) => couches.map((c) => ({ origine: c.origine, arbre: c.noeud.attributes?.arbre ?? null, noeud: c.noeud.node ?? null,
+  fichier: c.noeud.location ?? null, config: dansPortee(c, signaux) }));
 
 /**
  * Les exceptions d'un réglage (`<cle>.exceptions`), lues d'une seule façon par tous les contrôles : couche par couche,
  * chacune avec sa raison et sa provenance. Sans sa valeur (`champ` : `terme`, `fichier`, `ecart`) ou sans raison, une
- * exception ne vaut pas.
+ * exception ne vaut pas. Une clé qui se lit hors du dépôt contrôlé (`PORTEE`) ignore les couches dont le fichier est
+ * dans `depot`.
  */
-export function exceptions(couches = [], cle, champ) {
+export function exceptions(couches = [], cle, champ, { depot = null } = {}) {
   const texte = (x) => (x === null || x === undefined || typeof x === 'object' ? '' : String(x).trim());
-  return couches.flatMap((c) => [].concat(c.config?.[cle]?.exceptions || [])
+  const dansDepot = (f) => Boolean(PORTEE[cle]?.horsDepot && depot && f) && !path.relative(path.resolve(depot), path.resolve(f)).startsWith('..');
+  return couches.filter((c) => !dansDepot(c.fichier)).flatMap((c) => [].concat(c.config?.[cle]?.exceptions || [])
     .filter((x) => x && typeof x === 'object' && texte(x[champ]) && texte(x.pourquoi))
     .map((x) => ({ valeur: texte(x[champ]), pourquoi: texte(x.pourquoi), origine: c.origine, arbre: c.arbre, noeud: c.noeud, fichier: c.fichier })));
 }
@@ -136,7 +157,8 @@ export function regleEffective(fiches, projetId) {
   }
   if (racine) couches.push({ origine: 'projet', noeud: racine, regles: a.regles.get(racine.id) || [] });
   const regles = fusionner(couches, signaux);
-  const config = fusionnerConfig(...couches.map((c) => c.noeud.attributes?.config));
+  const lues = couchesLues(couches, signaux);
+  const config = fusionnerConfig(...lues.map((c) => c.config));
   for (const d of racine?.attributes?.derogations || []) {
     const e = regles.find((x) => x.id === d?.rule);
     if (!e) { signaux.push(`dérogation à une règle absente : ${d?.rule}`); continue; }
@@ -149,7 +171,7 @@ export function regleEffective(fiches, projetId) {
     .map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_entete}`).filter((x) => !lisibles.includes(x)).map((x) => `${x} (sans effet sur les règles)`));
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
   return { projet: projetId, declare: Boolean(declarants[0]), arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
-    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, couches: couches.map(coucheLue), signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
+    regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, couches: lues, signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /**
@@ -168,7 +190,7 @@ export function regleDuCompte(fiches) {
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profils[0], regles: a.regles.get(a.profils[0].id) || [] }];
   const regles = fusionner(couches, signaux);
-  const config = fusionnerConfig(...couches.map((c) => c.noeud.attributes?.config));
+  const config = fusionnerConfig(...couchesLues(couches, signaux).map((c) => c.config));
   const lisibles = illisibles(a, couches); signaux.push(...lisibles);
   return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
@@ -188,8 +210,8 @@ export function configAvantProjet(fiches, { contexte = null, types = [] } = {}) 
   const inconnus = types.filter((t) => !a.templates.has(t));
   if (inconnus.length) throw new Error(`type inconnu : ${inconnus.join(', ')} (${[...a.templates.keys()].join(', ')})`);
   const c = choisis[0];
-  const couches = [...couchesDeclarant(a, c).map((x) => x.noeud), ...types.map((t) => a.templates.get(t))];
-  return { contexte: { nom: nomDe(c), fichier: c.location }, config: fusionnerConfig(...couches.map((n) => n.attributes?.config)) };
+  const couches = [...couchesDeclarant(a, c), ...types.map((t) => ({ origine: 'type', noeud: a.templates.get(t) }))];
+  return { contexte: { nom: nomDe(c), fichier: c.location }, config: fusionnerConfig(...couchesLues(couches, []).map((x) => x.config)) };
 }
 
 /** Les projets qu'un contexte (ou une activité) déclare. */

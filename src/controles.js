@@ -650,8 +650,10 @@ function montageSensible(ctx) {
   }
   if (publiees.size && !construits.length) nonLus.push(`features publiées (${[...publiees].join(', ')}) non lues, et aucun conteneur du dépôt à inspecter`);
   // Écarts exceptés (`montage_sensible.exceptions` : `{ecart, pourquoi}`, la clé exacte d'un écart et sa raison), lus
-  // comme les exceptions des données personnelles : le risque reste, l'écart ne se dit plus.
-  const exceptes = new Set(exceptions(ctx.couches, 'montage_sensible', 'ecart').map((x) => x.valeur));
+  // comme les exceptions des données personnelles, mais au profil et au contexte seulement, hors du dépôt contrôlé
+  // (décision exceptions-hors-du-depot) : le conteneur n'écrit pas ce qui le fait taire. Le risque reste, l'écart ne se
+  // dit plus.
+  const exceptes = new Set(exceptions(ctx.couches, 'montage_sensible', 'ecart', { depot: ctx.depot }).map((x) => x.valeur));
   const gardes = ecarts.filter((e) => !exceptes.has(e.cle));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
   return nonLus.length ? { ecarts: gardes, indisponible: nonLus.join(' ; ') } : { ecarts: gardes };

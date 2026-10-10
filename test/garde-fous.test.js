@@ -16,6 +16,7 @@ import { git, gitLu } from '../src/commun.js';
 import { Socle } from '../src/socle.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
+import { regleEffective, exceptions } from '../src/regles.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
 
@@ -737,6 +738,39 @@ test('Contre-épreuve du conteneur (6) : ce qui, dans le dépôt que le conteneu
   // Sans conteneur, rien de tout cela n'est un écart.
   fs.rmSync(path.join(d, '.devcontainer'), { recursive: true });
   assert.deepEqual(lire().ecarts, []);
+});
+
+test('Exceptions hors du dépôt (décision exceptions-hors-du-depot) : montage_sensible se lit au profil et au contexte, jamais dans ce que le conteneur écrit', () => {
+  const { maison, d, config, lire, ctx } = conteneurEssai();
+  const p = path.join(maison, 'profil');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const exception = (cle = 'acces-distant:projet') => `config:\n  montage_sensible:\n    exceptions: [{ ecart: "${cle}", pourquoi: "jusqu’à D" }]\n`;
+  const arbres = ({ contexte = '', type = '', projet = '' }) => {
+    ecrireF(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+    ecrireF(path.join(p, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:projet]\n${contexte}---\n`);
+    ecrireF(path.join(p, 'arbre', 'types', 'conteneur.md'), `---\ntype: template\nid: conteneur\ntitle: Conteneur\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n${type}---\n`);
+    ecrireF(path.join(d, 'arbre', 'index.md'), `---\ntype: guideline\nid: projet\ntitle: Projet\nstatus: draft\ntypes: [conteneur]\n${projet}---\n`);
+    return regleEffective(inventaireArbre({}, { depots: [p, d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }), 'holarch:project:projet');
+  };
+  config({}); ctx.distants = [{ nom: 'projet', chemin: d }];
+  // Une session du conteneur écrit l'exception dans la racine de l'arbre du projet, ou dans un type : rien n'est lu, et
+  // la règle effective le dit.
+  let r = arbres({ type: exception(), projet: exception() });
+  ctx.couches = r.couches;
+  assert.deepEqual(lire().ecarts.map((e) => e.cle), ['acces-distant:projet'], 'l’exception écrite dans le dépôt ne fait rien taire');
+  assert.equal(r.config.montage_sensible, undefined);
+  assert.deepEqual(r.signaux.filter((x) => x.startsWith('montage_sensible')).map((x) => x.split(' : ')[0]), ['montage_sensible porté par profil:/arbre/types/conteneur.md (type)', 'montage_sensible porté par projet:/arbre/index.md (projet)']);
+  // Portée par le contexte du profil, hors du dépôt : elle vaut.
+  r = arbres({ contexte: exception() });
+  ctx.couches = r.couches;
+  assert.deepEqual(lire().ecarts, []);
+  assert.deepEqual(r.config.montage_sensible, { exceptions: [{ ecart: 'acces-distant:projet', pourquoi: 'jusqu’à D' }] });
+  assert.ok(!r.signaux.some((x) => x.startsWith('montage_sensible')));
+  // Le dépôt du profil, s'il est le dépôt contrôlé, ne s'excepte pas lui-même ; une autre clé se lit dans le dépôt.
+  assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: p }).length, 0);
+  assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: maison }).length, 0, 'un dépôt qui contient le profil');
+  assert.equal(exceptions(r.couches, 'montage_sensible', 'ecart', { depot: d }).length, 1);
+  assert.equal(exceptions([{ origine: 'projet', fichier: path.join(d, 'arbre', 'index.md'), config: { donnees_personnelles: { exceptions: [{ fichier: 'LICENSE', pourquoi: 'titulaire' }] } } }], 'donnees_personnelles', 'fichier', { depot: d }).length, 1);
 });
 
 test('Contre-épreuve du conteneur (7) : une transcription illisible ou trop grande n’arrête pas l’import ; celle d’un conteneur ne se rattache qu’à son projet', () => {
