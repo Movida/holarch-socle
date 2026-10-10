@@ -12,8 +12,8 @@ import { binaireService } from './service.js';
 
 // Une règle effective incomplète (source de règles illisible) ne s'écrit pas : elle retirerait les fichiers, le crochet
 // et les lectures refusées des règles qu'elle ne voit plus. De même pour un compte sans profil unique (aucun, ou
-// plusieurs) : sa règle est indéterminée (choix de l'auteur, 2026-10-09). Ce qui est posé reste tel quel jusqu'à la
-// correction.
+// plusieurs) : sa règle est indéterminée (choix de l'auteur, 2026-10-09), et `appliquerRegles` n'écrit pas non plus les
+// projets qu'on lui nomme (leur règle hérite du profil). Ce qui est posé reste tel quel jusqu'à la correction.
 function lisible(r) {
   if (r.illisibles?.length) throw new Error(`règles illisibles, rien n'est écrit : ${r.illisibles.join(' ; ')}`);
   if (r.indetermine) throw new Error(`règles du compte indéterminées, rien n'est écrit : ${r.signaux?.[0] || 'aucun profil ou plusieurs'}`);
@@ -21,8 +21,8 @@ function lisible(r) {
 
 /**
  * `holarch regles appliquer` : tout est lu et vérifié d'abord (références des projets, lisibilité du compte et de chaque
- * projet), puis le compte, puis les projets. Rien ne s'écrit si l'un d'eux est faux ou illisible : sans quoi le compte
- * serait déjà réécrit quand l'erreur d'un projet arrête la commande.
+ * projet, profil unique), puis le compte, puis les projets. Rien ne s'écrit si l'un d'eux est faux ou illisible : sans
+ * quoi le compte serait déjà réécrit quand l'erreur d'un projet arrête la commande.
  */
 export function appliquerRegles(s, refs, comptes) {
   const effectives = refs.map((ref) => { const r = s.regles({ projet: ref }); if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`); return r; });

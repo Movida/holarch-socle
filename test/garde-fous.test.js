@@ -365,7 +365,7 @@ test('Contre-épreuve (4) : regles appliquer n’écrit pas le compte quand un p
   assert.deepEqual(ok.comptes[0].fichiers.crees, ['francais.md']);
 });
 
-test('regles appliquer n’écrit rien sans profil unique (aucun, ou plusieurs), comme des règles illisibles', async () => {
+test('regles appliquer n’écrit rien sans profil unique (aucun, ou plusieurs), ni au compte ni aux projets, comme des règles illisibles', async () => {
   const { Socle } = await import('../src/socle.js');
   const { default: inventaireArbre } = await import('../src/inventaire/arbre.js');
   const { appliquerRegles } = await import('../src/materialisation.js');
@@ -377,15 +377,20 @@ test('regles appliquer n’écrit rien sans profil unique (aucun, ou plusieurs),
     if (profil) ecrire(path.join(r, nom, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n---\n');
     return path.join(r, nom);
   };
-  const appliquer = (...depots) => {
+  // Un projet du catalogue, nommé à la commande : refusé de même (sa règle hérite du profil).
+  const projet = tmp(); ecrire(path.join(projet, 'README.md'), 'x\n');
+  const appliquer = (...depots) => appliquerA([], ...depots);
+  const appliquerA = (refs, ...depots) => {
     const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots } } });
-    s.catalogue.remplacer(inventaireArbre({}, { depots, projetDe: () => null })); s.indexer();
-    return appliquerRegles(s, [], [{ nom: 'essai', home }]);
+    s.catalogue.remplacer([...inventaireArbre({}, { depots, projetDe: () => null }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: projet, provenance: { source: 't' } }]); s.indexer();
+    return appliquerRegles(s, refs, [{ nom: 'essai', home }]);
   };
   // Aucun profil (un arbre sans contexte n'en est pas un) : la règle du compte retirerait tout ce qui est posé.
   assert.throws(() => appliquer(arbre('seul', false)), /^Error: règles du compte indéterminées, rien n'est écrit : aucun profil connu sur ce site/);
   assert.throws(() => appliquer(arbre('p1'), arbre('p2')), /règles du compte indéterminées, rien n'est écrit : plusieurs profils sur ce site/);
   assert.deepEqual(fs.readdirSync(home), [], 'le compte n’est pas écrit');
+  assert.throws(() => appliquerA(['depot'], path.join(r, 'p1'), path.join(r, 'p2')), /règles du compte indéterminées, rien n'est écrit : plusieurs profils/);
+  assert.deepEqual(fs.readdirSync(projet), ['README.md'], 'le projet nommé n’est pas écrit non plus');
   assert.deepEqual(appliquer(path.join(r, 'p1')).comptes[0].fichiers.crees, ['francais.md'], 'un profil unique : écrit');
 });
 
