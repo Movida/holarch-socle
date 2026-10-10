@@ -1136,6 +1136,27 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   chaque commit : aucune couche touchée par (2), aucun identifiant hors de sa forme normalisée (41 règles), aucun
   doublon de fiche (254), aucune forme invalide (59 nœuds), 26 règles au compte comme avant. Copie de service posée
   (`5fdd774`, interface et gardien relancés) ; audit réel : 0 écart apparu, 0 résolu.
+- **Fait (2026-10-10)** : livraison C de la tranche 12, temps 1 et 2 et choix du temps 3 (Opus 5.5 `xhigh`). Outil
+  `devcontainer` installé en global, sans sudo (`@devcontainers/cli` 0.89.0, accord de l'auteur, empreinte vérifiée par
+  npm). Q23 résolue (`1cbcaa1`), essai sur un dossier jetable, retiré ensuite : créé par `devcontainer up` avec les deux
+  étiquettes de VS Code (`devcontainer.local_folder` en chemin Windows, `wslpath -w` ; `devcontainer.config_file` en
+  chemin Linux ; `--id-label` deux fois), le conteneur redémarre hors de VS Code, VS Code le reprend (geste de
+  l'auteur, son serveur s'y installe) et il se relance après la fermeture de la fenêtre ; sans les étiquettes, un second
+  conteneur. Cause de I32 : le montage du socket Wayland que VS Code ajoute au conteneur qu'il crée
+  (`dev.containers.mountWaylandSocket`, vrai par défaut). Conteneur du socle réparé (`c8111b7`) : volume ssh monté chez
+  `node`, même volume, clé de déploiement gardée ; audit du socle : 0 écart apparu. Choix de l'auteur pour la
+  génération, recommandations suivies : ce qui est propre au socle (image Node 24, `node`, port 4280, installation de
+  Claude Code et de Chromium) dans la configuration du projet, un type quand un second projet en aura l'usage (mesure :
+  8 conteneurs sur le poste, 3 en image Node, à trois versions et commandes différentes) ; `remoteUser` obligatoire
+  dans la configuration effective, le profil posant l'image de base avec `vscode` (absent : la création s'arrête et le
+  dit ; limite : une image changée sans utilisateur garde `vscode`, l'audit ne le voit pas) ; fichier généré avec la
+  marque, un en-tête qui nomme sa source (clé `conteneur` de l'arbre) et des commentaires fixes sur les parts du socle,
+  les raisons des réglages de l'arbre restant en commentaires YAML. Forme retenue : après la fusion, le socle pose ses
+  clés, qu'aucune couche ne retire (nom, montages selon `connexion_claude`, transcriptions du projet, règles du compte
+  en lecture, volume ssh, `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_PROJECT_DIR_NAME`, clé d'API vidée, reprise de propriété en
+  `onCreateCommand` objet nommé) ; les couches apportent `conteneur.devcontainer` (outils partagés en `features`,
+  commande de démarrage en chaîne, posée par une seule couche) ; `gpu` : `requis` donne `hostRequirements.gpu: true`,
+  `optionnel` donne `"optional"` (lu dans le code de la CLI). Passation au seuil (165 k), avant le code.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1206,8 +1227,15 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Pour C** : dans le conteneur du socle, le volume `~/.ssh` vise encore `/home/vscode` alors que l'image tourne sous `node`
-     (réparation en C) ; C reprend les deux montages de l'hôte dans la génération (clé `conteneur.connexion_claude`).
+  0. **Pour C, reprise au temps 3** (déroulé annoncé le 2026-10-10 ; temps 1 et 2 faits, choix du temps 3 faits, Fait
+     ci-dessus) : (3) clé `conteneur` au registre de configuration, contrat config 0.8.0, dans la forme retenue ; (4)
+     génération par l'étape `conteneur` de `projet creer`, fichier marqué, `modeles/projet/devcontainer.json` retiré ;
+     (5) écart d'audit quand le fichier diffère de la configuration ; (6) critère : rejeu sur `holarch-socle`, VS Code
+     (geste de l'auteur) et `devcontainer up` avec les deux étiquettes de VS Code (Q23) dans le même conteneur, écart à
+     la main vu ; (7) contre-épreuve en instance neuve, `xhigh`. Garde-fou à proposer à l'auteur : réglage
+     `dev.containers.mountWaylandSocket: false` de son VS Code (sans lui, un conteneur créé par VS Code ne redémarre pas
+     hors de VS Code ; une reconstruction depuis VS Code n'est pas essayée). Le contrôle `outils-a-jour` ne suit pas
+     `devcontainer` : la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm.
   0. **Relecture du fil des commits (2026-10-09), à proposer à l'auteur un par un** (rétablir, ou retirer par une
      décision). Changés sans décision : (1) interface web, cliente du hub sans canal privé (§4) : serveur HTTP direct,
      constat 6 de `revue-page-blanche` non tranché ; (2) un conteneur par brique (fondation n° 3) : un programme Node et

@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+* **Livraison C de la tranche 12 : Q23, conteneur du socle réparé, choix de la génération, et passation** (environ
+  165 k tokens) : outil `devcontainer` installé (0.89.0, accord de l'auteur) ; Q23 résolue sur un dossier jetable
+  (`1cbcaa1`) : un conteneur créé par `devcontainer up` avec les deux étiquettes de VS Code redémarre hors de VS Code et
+  VS Code le reprend, sans elles un second conteneur ; cause de I32, le montage Wayland que VS Code ajoute au conteneur
+  qu'il crée. Volume ssh du socle monté chez `node` (`c8111b7`), audit : 0 apparu. Trois choix de l'auteur en un tour,
+  recommandations suivies : propre du socle dans son projet, `remoteUser` obligatoire, fichier généré commenté sur les
+  parts du socle. Aucun code écrit pour C ; rien posé, rien poussé. Leçon de passation : déroulé annoncé en sept temps
+  (Q23, réparation, clé `conteneur`, génération, audit, critère, contre-épreuve), passation prévue entre 3 et 4 ; tenue
+  au même point, choix du temps 3 faits. Ce qui l'a fait dévier : la lecture de l'avancement, longue, à l'ouverture ;
+  une promesse faite dans un choix (`devcontainer` aux outils suivis) que le contrôle ne peut pas tenir (aucune version
+  sur GitHub), laissée au Reste ; `grep` du shell cassé par une mise à jour de l'extension en cours de session. La
+  demande qui y aurait mené : « livraison C, temps 1 et 2 (Q23 sur un dossier jetable, réparation du conteneur du
+  socle) et choix de forme de la génération, puis passation avant le code ».
+
 * **Contre-épreuve de `profil-designe` close : mineur (5) et tri des commits racines** (environ 150 k tokens) : les
   six mutants verts, reconstruits d'après le rapport et le code (scripts perdus), tués chacun par une assertion directe
   (`66c785b`) : profil en bundle OKF (M1), un seul contexte au compte (M2), type propre au profil quand son `id`
