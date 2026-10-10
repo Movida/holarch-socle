@@ -495,7 +495,7 @@ préalables menés sans toucher au service du projet en cours (leçon du 2026-10
   du site `acces_distant.session_au_demarrage` (`aucune` par défaut, `reprendre`).
 - **B. Veille retardée** (Q25) : règle du profil et son adaptateur (crochets d'état des sessions, demande d'éveil côté
   Windows, états au journal).
-- **C. Conteneur généré** (I32, Q23) : conteneur du socle réparé, clé `conteneur` (contrat config 0.4.0), génération
+- **C. Conteneur généré** (I32, Q23) : conteneur du socle réparé, clé `conteneur` (contrat config 0.5.0), génération
   du `devcontainer.json` par `holarch projet creer` ; l'audit compare ; `modeles/projet/devcontainer.json` retiré.
 - **D. Accès distant dans le conteneur** (C, Q24) : `devcontainer up` sur le conteneur existant, `claude
   remote-control` par `devcontainer exec`, connexion Claude dans un volume du conteneur ; `reveil` inchangé.
