@@ -2,18 +2,13 @@
 
 ## 2026-10-10
 
-* **Critère de B tenu, livraison close** : dans une session distante (Opus 5.5 `xhigh`), délai de veille baissé à
-  10 min de 09:28 à 09:44 ; le poste, sans saisie depuis 31,7 min, est resté éveillé sous la demande (`power.held`,
-  aucune veille vue par le réveil) ; délai remis à 300 min et relu ; demande relâchée 30,2 min après le dernier tour
-  (`power.released`). Leçon de clôture : déroulé annoncé en six points (état, délai baissé, réveil, temps 2 et délai
-  remis, temps 3, consignation), tenu. Ce qui l'a fait dévier : une mesure ajoutée en route, le temps sans saisie de
-  Windows, pour montrer que le poste se serait endormi sans la demande ; `holarch` absent du `PATH` de la session
-  (lancé par `node bin/holarch.js`). La demande qui y aurait mené : « On continue », le Reste portait le protocole.
-
-* **Contre-épreuve des corrections de B** (`ab3ee9e` à `520a1df`, instance neuve en lecture seule) : sept corrections
-  tenues, quatre avec réserve ; un majeur antérieur, vérifié (l'import ne lit pas les sous-agents de workflow :
-  187 transcriptions hors du journal) et huit mineurs, au Reste. Corrections dans une session neuve (choix de
-  l'auteur) ; l'exception de `montage_sensible` : fermer la voie, par une courte décision (choix de l'auteur).
+* **Passation** (161 k tokens) : critère de B, contre-épreuve et ses choix, critères d'une proposition, I36. Leçon de
+  clôture : le déroulé annoncé (six points du critère) a été tenu ; la contre-épreuve suivait, prévue au Reste. Ce qui
+  a fait dévier : une proposition faite sans mesure (`holarch` dans le `PATH`), qui a ouvert trois sujets (critères,
+  règle amendée, bilan) et mené au seuil de passation ; le changement d'avis sur (6), venu de la question de l'auteur.
+  La demande qui y aurait mené : « critère de B et contre-épreuve, puis passation » ; « une proposition se mesure
+  avant d'être faite » est désormais dans `proposer-automatisations`. Suite : session neuve (Opus 5.5 `xhigh`),
+  corrections de la contre-épreuve de B, majeur d'abord, décision (6) en brouillon à approuver avant son code.
 
 * **Critères d'une proposition** : proposition retirée à la mesure (`holarch` dans le `PATH` : 5 échecs en 30 jours,
   aucun propre aux sessions distantes, et dans le socle le même nom lancerait l'ancien code). Sur la question de
@@ -24,13 +19,18 @@
   chaque mécanisme, jugé sur ses occasions d'agir (le socle a 7 jours ; « 30 jours » ne voulait rien dire), parce que
   l'auteur veut un HOLARCH réactif quand il se lance à fond sur un projet.
 
-* **Passation** (161 k tokens) : critère de B, contre-épreuve et ses choix, critères d'une proposition, I36. Leçon de
-  clôture : le déroulé annoncé (six points du critère) a été tenu ; la contre-épreuve suivait, prévue au Reste. Ce qui
-  a fait dévier : une proposition faite sans mesure (`holarch` dans le `PATH`), qui a ouvert trois sujets (critères,
-  règle amendée, bilan) et mené au seuil de passation ; le changement d'avis sur (6), venu de la question de l'auteur.
-  La demande qui y aurait mené : « critère de B et contre-épreuve, puis passation » ; « une proposition se mesure
-  avant d'être faite » est désormais dans `proposer-automatisations`. Suite : session neuve (Opus 5.5 `xhigh`),
-  corrections de la contre-épreuve de B, majeur d'abord, décision (6) en brouillon à approuver avant son code.
+* **Contre-épreuve des corrections de B** (`ab3ee9e` à `520a1df`, instance neuve en lecture seule) : sept corrections
+  tenues, quatre avec réserve ; un majeur antérieur, vérifié (l'import ne lit pas les sous-agents de workflow :
+  187 transcriptions hors du journal) et huit mineurs, au Reste. Corrections dans une session neuve (choix de
+  l'auteur) ; l'exception de `montage_sensible` : fermer la voie, par une courte décision (choix de l'auteur).
+
+* **Critère de B tenu, livraison close** : dans une session distante (Opus 5.5 `xhigh`), délai de veille baissé à
+  10 min de 09:28 à 09:44 ; le poste, sans saisie depuis 31,7 min, est resté éveillé sous la demande (`power.held`,
+  aucune veille vue par le réveil) ; délai remis à 300 min et relu ; demande relâchée 30,2 min après le dernier tour
+  (`power.released`). Leçon de clôture : déroulé annoncé en six points (état, délai baissé, réveil, temps 2 et délai
+  remis, temps 3, consignation), tenu. Ce qui l'a fait dévier : une mesure ajoutée en route, le temps sans saisie de
+  Windows, pour montrer que le poste se serait endormi sans la demande ; `holarch` absent du `PATH` de la session
+  (lancé par `node bin/holarch.js`). La demande qui y aurait mené : « On continue », le Reste portait le protocole.
 
 ## 2026-10-09
 
