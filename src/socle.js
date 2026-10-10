@@ -65,7 +65,7 @@ export class Socle {
   arbreFrais() {
     const a = this.#arbreChange();
     if (!a?.change) return [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
-    return inventaireArbre(a.options, { depots: [...a.depots], projetDe: localiserProjet(projetsDe(a.fiches.filter((f) => f.kind === 'project'))) });
+    return inventaireArbre(a.options, { depots: [...a.depots], profil: this.profil(), projetDe: localiserProjet(projetsDe(a.fiches.filter((f) => f.kind === 'project'))) });
   }
 
   importer() {

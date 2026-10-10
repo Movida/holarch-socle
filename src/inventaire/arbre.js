@@ -97,14 +97,20 @@ export default function inventaireArbre(options, ctx) {
   const depots = new Set(options.depots || []);
   for (const d of [...(ctx.depots || []), ...(ctx.profil && path.isAbsolute(ctx.profil) ? [ctx.profil] : [])]) if (racineArbre(d)) depots.add(d);
   const out = [];
-  for (const depot of depots) {
-    const racine = racineArbre(depot);
-    if (!racine) continue;
+  const lus = [...depots].map((depot) => ({ depot, racine: racineArbre(depot) })).filter((x) => x.racine).map((x) => {
     // Dépôt configuré hors des racines inventoriées : pas de projet connu, l'identifiant garde le nom du dossier.
-    const projet = ctx.projetDe?.(depot);
-    const cle = projet ? projet.id.slice('holarch:project:'.length) : path.basename(depot);
+    const projet = ctx.projetDe?.(x.depot);
+    const cle = projet ? projet.id.slice('holarch:project:'.length) : path.basename(x.depot);
     // Identité de l'arbre (liens entre arbres, identifiants des règles) : l'`id` de sa racine, sinon celle du projet.
-    const arbre = String(enTete(racine.fichier).id || cle);
+    return { ...x, projet, cle, arbre: String(enTete(x.racine.fichier).id || cle) };
+  });
+  // Deux dépôts de même `id` (décision profil-designe) : leurs règles prennent un identifiant qui les distingue
+  // (`<id>@<projet>`), sans quoi le catalogue n'en garderait qu'une ; un arbre unique, ou le profil que le site désigne,
+  // garde le sien, que portent les écarts au journal.
+  const parId = new Map(); for (const x of lus) parId.set(x.arbre, (parId.get(x.arbre) || 0) + 1);
+  const profil = ctx.profil && path.isAbsolute(ctx.profil) ? path.resolve(ctx.profil) : null;
+  for (const { depot, racine, projet, cle, arbre } of lus) {
+    const ref = parId.get(arbre) > 1 && path.resolve(depot) !== profil ? `${arbre}@${cle}` : arbre;
     for (const f of racine.okf ? [racine.fichier] : noeuds(racine.dossier, racine.dossier, [])) {
       const { entete: h, erreur: erreurEntete, indices } = lireEnTete(f);
       const estRacine = f === racine.fichier;
@@ -132,7 +138,7 @@ export default function inventaireArbre(options, ctx) {
       for (const { x: r, fichier } of regles) {
         if (!r || !r.id || !r.statement) continue;
         out.push({
-          id: `holarch:rule:${slug(`${arbre}/${place}${r.id}`)}`, kind: 'rule', name: String(r.id), description: premiereLigne(r.statement, 300),
+          id: `holarch:rule:${slug(`${ref}/${place}${r.id}`)}`, kind: 'rule', name: String(r.id), description: premiereLigne(r.statement, 300),
           node: rel, status: statutFiche(r.status), provenance: { source: 'inventaire:arbre' }, classification: noeud.classification, location: fichier,
           links: { ...(projet && { project: [projet.id] }) },
           attributes: { arbre, noeud_id: noeud.id, porteur: h.type || null, enonce: String(r.statement).trim(), pourquoi: r.why ? String(r.why).trim() : null,
