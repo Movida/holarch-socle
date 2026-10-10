@@ -2,6 +2,23 @@
 
 ## 2026-10-10
 
+* **Corrections de la contre-épreuve de B, et passation** (237 k tokens) : majeur (1) corrigé, un seul parcours des
+  transcriptions pour l'import, la veille et la récolte (`src/transcription.js`) : 581 transcriptions avant, 768 après,
+  dont les 187 agents de workflow, aucun journal de workflow, rien de perdu ; il corrige aussi le (5). Mineurs (2)
+  systemd injoignable dit en erreur (absent reconnu à `/run/systemd/system`, comme `sd_booted`, vérifié dans son
+  manuel), (3) systemd lu avant l'unité, (4) gardien dit « en relance » pendant le trou d'une pose (journal inchangé),
+  (7) refus sans profil unique éprouvé aussi pour les projets, (8) mentions de C alignées sur la 0.5.0 approuvée (sans
+  test : du texte), (9) heure locale d'une seule façon (quatre endroits, pas trois). Un commit chacun, chaque test
+  échoue sur son parent sauf (7), qui garde un comportement déjà là ; 141 tests verts. Décision
+  `exceptions-hors-du-depot` en brouillon pour le (6), avec les limites de B des (2), (4) et (7) (texte stable) ;
+  approbation soumise à l'auteur. Rien posé, rien poussé. Un échec isolé du test « un commit fautif est refusé » sur
+  une suite entière, non reproduit en huit passages, cause inconnue (au Reste). Leçon de clôture : déroulé annoncé en
+  cinq temps (majeur, mineurs, brouillon du (6), contre-épreuve, tests et journal) ; tenus les trois premiers et le
+  dernier. Ce qui l'a fait dévier : le seuil de passation franchi après les huit corrections, qui renvoie la
+  contre-épreuve ; trois textes à corriger dans une décision stable, portés par le brouillon plutôt que changés en
+  silence. La demande qui y aurait mené : « corrections de B et brouillon du (6), puis passation ; approbation, code du
+  (6) et contre-épreuve dans la session suivante ».
+
 * **Passation** (161 k tokens) : critère de B, contre-épreuve et ses choix, critères d'une proposition, I36. Leçon de
   clôture : le déroulé annoncé (six points du critère) a été tenu ; la contre-épreuve suivait, prévue au Reste. Ce qui
   a fait dévier : une proposition faite sans mesure (`holarch` dans le `PATH`), qui a ouvert trois sujets (critères,

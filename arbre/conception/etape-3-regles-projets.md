@@ -1067,6 +1067,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      `derogable: false` ; exception du socle déplacée au contexte personnel jusqu'à D) ; exception utilisée dite,
      périmée signalée, une seule lecture des `exceptions`. Ensuite, dans une session neuve : bilan des mécanismes en
      place (I36, retenue par l'auteur le 2026-10-10).
+     - **État (2026-10-10, session des corrections)** : (1) à (5) et (7) à (9) corrigés, un commit chacun (`8776398` à
+       `f7aad0d`), 141 tests verts ; (5) corrigé avec (1). Décision `exceptions-hors-du-depot` en brouillon : le (6), et
+       les limites de B des (2), (4) et (7) ; un choix de l'auteur (version du contrat de configuration). Suite, dans
+       une session neuve (Opus 5.5 `xhigh`) : approbation, code du (6) avec ses tests, contre-épreuve de `8776398` à la
+       fin, puis pose (`holarch service poser`) ; envoi à la demande de l'auteur. Test « un commit fautif est refusé par
+       le crochet » rouge une fois sur neuf suites entières, jamais seul : détail non capturé, cause à chercher (le
+       relancer en boucle en gardant la sortie).
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
