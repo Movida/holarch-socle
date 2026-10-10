@@ -2,6 +2,20 @@
 
 ## 2026-10-10
 
+* **Application de `exceptions-hors-du-depot`, contre-épreuve, et passation** (241 k tokens) : lecture commune des
+  exceptions, `montage_sensible` au profil et au contexte hors du dépôt contrôlé, exceptions dites et périmées, un
+  défaut trouvé à l'usage (un projet lu en partie taisait tout signal de périmée) ; profil (`conteneur-isole` non
+  dérogeable, exception du socle au contexte personnel) ; contrat de configuration 0.5.0, C en 0.6.0, limites de B ;
+  un commit et un test chacun, 143 tests verts, chaque test rouge sur son parent. Contre-épreuve (instance neuve,
+  `xhigh`) : (1) à (9) et la décision tenus, quatre majeurs nouveaux, dont une régression (clé de réglage
+  `constructor` : garde en panne, commit non contrôlé) corrigée aussitôt ; les trois autres et les mineurs au Reste.
+  Test « un commit fautif est refusé » : 0 rouge sur 25 suites. Rien posé, rien poussé. Leçon de clôture : déroulé
+  annoncé en cinq temps (code, profil, textes, tests et contre-épreuve, pose et journal) ; tenus sauf la pose. Ce qui
+  l'a fait dévier : un défaut vu en lisant le poste (un commit de plus), une régression trouvée par la contre-épreuve,
+  puis le seuil de passation franchi avec trois majeurs ouverts, qui rendent la pose à l'auteur ; la boucle du test
+  intermittent, ajoutée en route. La demande qui y aurait mené : « appliquer la décision et la contre-épreuve, puis
+  passation ; corrections et pose dans la session suivante ».
+
 * **Corrections de la contre-épreuve de B, et passation** (237 k tokens) : majeur (1) corrigé, un seul parcours des
   transcriptions pour l'import, la veille et la récolte (`src/transcription.js`) : 581 transcriptions avant, 768 après,
   dont les 187 agents de workflow, aucun journal de workflow, rien de perdu ; il corrige aussi le (5). Mineurs (2)

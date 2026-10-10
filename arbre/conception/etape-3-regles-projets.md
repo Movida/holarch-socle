@@ -1044,39 +1044,51 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   à 09:44 et relu (`0x4650`). Temps 3 : `power.released` (`aucune-session`) à 10:15:17, 30,2 min après la dernière
   entrée de la transcription (09:45:08) ; le réveil suivant renote la session (`power.held` à 10:23). La veille
   effective après la levée n'est pas observée (elle couperait la session) ; elle est attestée par la levée.
+- **Fait (2026-10-10)** : décision `exceptions-hors-du-depot` appliquée, un commit et un test chacun (143 tests verts,
+  chaque test éprouvé contre son parent). Lecture commune des exceptions (`exceptions`, `regles.js`) : couche par
+  couche, avec leur provenance ; sans raison, une exception ne vaut plus, `donnees_personnelles` compris (toutes celles
+  du poste en ont une). `montage_sensible` lu au profil et au contexte seulement, hors du dépôt contrôlé ; porté par un
+  type ou un projet, il n'est pas lu et la règle effective le dit. Exception dite dans le résultat du contrôle et par
+  `holarch audit` ; périmée, elle devient un écart du compte (audit de tous les projets, sur ce site). Défaut trouvé à
+  l'usage : un projet lu en partie (features publiées non lues, deux sur le poste) empêchait tout signal d'exception
+  périmée ; l'accès distant et les crochets d'un dépôt, toujours lus en entier, se jugent donc partout. Profil :
+  `conteneur-isole` en `derogable: false`, exception du socle déplacée au contexte personnel. Contrat de configuration
+  0.5.0, C en 0.6.0, trois limites de B écrites dans `veille-et-conteneur-precisions`. Lu sur le poste : socle sans
+  écart, exception utilisée, rien de périmé. Contre-épreuve (instance neuve en lecture seule, `xhigh`, scripts dans
+  `/tmp/contre-epreuve-b3/`) : constats (1) à (9) tenus, sept avec réserve ; décision tenue à la lettre ; quatre
+  majeurs nouveaux, dont une régression de `b7590da` (une clé de réglage `constructor` ou `toString` mettait garde et
+  audit en panne, commit laissé passer), corrigée aussitôt (`f161457`). Copie de service non posée.
 - **Reste** :
-  0. **Contre-épreuve des corrections du 2026-10-09 au soir** (`ab3ee9e` à `520a1df`, 2026-10-10, instance neuve en
-     lecture seule, `xhigh`, scripts dans `/tmp/contre-epreuve-b2/`) : les sept corrections tenues, quatre avec réserve ;
-     chaque test qui éprouve du code échoue sur le commit parent. Un majeur, antérieur au périmètre, vérifié : (1)
-     l'import ne lit pas `subagents/workflows/wf_<id>/` (`src/import/claude-code-transcriptions.js:96`, `profondeur < 3`) :
-     187 transcriptions d'agents de workflow (deux projets en conteneur) absentes du journal et de la consommation, alors
-     que la veille les lit ; un seul parcours partagé. Mineurs : (2) un systemd utilisateur injoignable (sans
-     `XDG_RUNTIME_DIR` ni bus : `sudo -u`, `env -i`) pris pour une absence (`src/distant.js:36`), le test qui gardait
-     l'erreur réécrit ; (3) `etatVeille` ne lit `disponible()` que si l'unité manque (`src/distant.js:224`) ; (4) relance
-     du gardien : demande relâchée 0,68 s à chaque `service poser`, dite « non tenue », absente des limites connues ;
-     (5) `workflows/wf_<id>/journal.jsonl` lu comme une transcription (`src/veille.js:139`), « 195 » vaut 187 agents et
-     8 journaux ; (6) `montage_sensible.exceptions` lue aussi dans l'arbre du dépôt que le conteneur écrit, muette une fois
-     périmée, lecture des `exceptions` sans fonction commune (`src/controles.js:650`) ; (7) le refus sans profil unique
-     vaut aussi pour les projets, le texte ne dit que le compte ; (8) trois mentions du contrat de configuration 0.4.0
-     pour C au lieu de 0.5.0 (`environnement-d-execution` l. 4 et 56, cette spécification) ; (9) heure locale formatée
-     en trois endroits. Choix de l'auteur (2026-10-10) : toutes les corrections dans une session neuve (Opus 5.5
-     `xhigh`), le majeur d'abord, un commit et un test chacune, puis une contre-épreuve ; (4) dire la relance (« gardien
-     en relance » pendant le trou) et écrire le trou dans les limites connues ; (6) fermer la voie plutôt que la montrer
-     (avis de l'agent suivi) : courte décision en brouillon, à approuver avant le code (`montage_sensible` lue au profil
-     et au contexte seulement, hors du dépôt monté, contrat de configuration changé ; `conteneur-isole` en
-     `derogable: false` ; exception du socle déplacée au contexte personnel jusqu'à D) ; exception utilisée dite,
-     périmée signalée, une seule lecture des `exceptions`. Ensuite, dans une session neuve : bilan des mécanismes en
-     place (I36, retenue par l'auteur le 2026-10-10).
-     - **État (2026-10-10, session des corrections)** : (1) à (5) et (7) à (9) corrigés, un commit chacun (`8776398` à
-       `f7aad0d`), 141 tests verts ; (5) corrigé avec (1). Décision `exceptions-hors-du-depot` approuvée le 2026-10-10 :
-       le (6), et les limites de B des (2), (4) et (7) ; contrat de configuration 0.5.0, C passe à la 0.6.0. Suite,
-       dans une session neuve (Opus 5.5 `xhigh`) : appliquer la décision (code du contrôle et fonction commune des
-       `exceptions`, chacun avec son test ; `conteneur-isole` en `derogable: false` au profil ; exception déplacée au
-       contexte personnel ; contrat 0.5.0 ; quatre mentions de C en 0.6.0 ; les trois limites dans
-       `veille-et-conteneur-precisions`), contre-épreuve de `8776398` à la fin, puis pose (`holarch service poser`) ;
-       envoi à la demande de l'auteur. Test « un commit fautif est refusé par
-       le crochet » rouge une fois sur neuf suites entières, jamais seul : détail non capturé, cause à chercher (le
-       relancer en boucle en gardant la sortie).
+  0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
+     2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`). Copie de service non posée : la poser maintenant (sur le poste,
+     tous les projets déclarés sont présents, (b) ne s'y produit pas) ou après les corrections, choix de l'auteur.
+     Majeurs, reproduits :
+     - (a) un nœud du dépôt qui porte `projects:` peut devenir le déclarant retenu (le premier par titre, `regles.js:147`) :
+       la chaîne repart de la racine du dépôt, `conteneur-isole` disparaît sans dérogation ; en `type: context`, le dépôt
+       devient un second profil, le compte indéterminé, l'audit dit « conforme » ; seul signal, dans la vue des règles.
+       Défaut antérieur (famille X1) ; le corriger change qui peut déclarer un projet : décision.
+     - (b) une exception dite périmée à tort quand le contrôle ne la lit pas là où elle sert (dépôt absent du site,
+       contrôle qui lève, règle retirée) : faux `rule.violated`, puis résolu ; piste : compter « non jugé ».
+     - (c) collision d'identifiant d'arbre (`id: profil` à la racine du socle) : le lien du contexte se résout vers elle,
+       ses règles prises pour celles du profil, sans signal. Défaut antérieur ; piste : refuser deux racines de même `id`.
+     - (d) le filtre « hors du dépôt » n'est éprouvé qu'en appelant `exceptions` : un mutant qui le retire du contrôle
+       passe les 143 tests ; assertion à faire par `executer('montage-sensible', …)`.
+     Mineurs : résolution des périmées bloquée par contrôle plutôt que par exception ; exception ignorée sans le dire
+     (dans le dépôt, sans raison) ; exception utilisée visible seulement en ligne de commande (ni journal, ni interface,
+     ni MCP) ; un nœud d'un autre dépôt peut déclarer un projet avec ses exceptions ; branche `crochets` de `jugee` non
+     testée ; une notion écrite deux fois (test « dedans » en `controles.js` et `regles.js`, `provenance` objet ou chaîne,
+     deux formes de `couches`) ; contrat de configuration : `donnees_personnelles` dit « profil, projet », posé au type,
+     et la périmée « sur ce site » non dite ; hors décision, les exceptions de `donnees_personnelles` se lisent dans le
+     dépôt contrôlé (même menace). Premier lot, réserves : profondeur des agents de workflow bornée à 4 (le texte dit « à
+     tout niveau ») ; `etatRoutines` et l'interface disent le gardien activé sans systemd ; trois formats de date dans
+     l'interface web ; le contrôle `veille-retardee` ne dit pas « en relance » alors que la limite écrite le dit ;
+     `holarch veille` dit « non tenue » sur un systemd injoignable ; marque de relance laissée si `restart` échoue,
+     « en relance » affiché jusqu'à 2 min ; aucune assertion sur l'affichage ; dates en UTC (`creation.js:131`,
+     `socle.js:409`) ; commentaire de `cleServeur` déplacé ; des tests écrivent `/a`. Tests qui ne prouvent rien :
+     l'ajout de `f7aad0d` dans `veille`, et les mutants verts du rapport.
+     Suite proposée, session neuve (Opus 5.5 `xhigh`) : (b), (d) et les mineurs, un commit et un test chacun ; (a) et (c)
+     en décision brouillon, à approuver avant le code ; puis pose et contre-épreuve. Test « un commit fautif est refusé
+     par le crochet » : 0 rouge sur 25 suites entières le 2026-10-10, 1 sur 42 en tout, cause inconnue.
      - Déploiement du relais, fait le 2026-10-09 à la demande de l'auteur : le jeton exporté par le `~/.bashrc` de
        l'hôte était déjà limité à l'app (il lit son état, pas la liste des apps ; il ne peut pas créer de jeton) ; posé
        tel quel en secret GitHub `FLY_API_TOKEN` (par l'image officielle de flyctl, valeur jamais affichée), puis sa
