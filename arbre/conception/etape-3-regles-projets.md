@@ -1137,7 +1137,7 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   doublon de fiche (254), aucune forme invalide (59 nœuds), 26 règles au compte comme avant. Copie de service posée
   (`5fdd774`, interface et gardien relancés) ; audit réel : 0 écart apparu, 0 résolu.
 - **Reste** :
-  0. **Contre-épreuve de la décision `profil-designe`** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
+  0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
      `xhigh`), scripts dans `/tmp/contre-epreuve-pd/scripts/` (perdus au redémarrage), rapport : `holarch rapport
      afa38cbdf67d34b25`. Tenus : clé et lecture unique, déclarants, profil non désigné ou introuvable, doublons exacts,
@@ -1180,12 +1180,11 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      Hors périmètre : la racine d'un projet redéfinit toute règle dérogeable (25 des 26 du profil).
      Faits le 2026-10-10 : majeurs (2), (1), (3), mineur (4) ; (6) tranché (gardé, limite écrite dans `profil-designe`) ;
      puis majeurs (4) (`074b20e`) et (5) (`dae57a9`), tels que les tranche la décision `fusion-et-profil-audite`, et
-     mineurs (1) (`14b9b22`), (2) (`bea9937`), (3) (`2dab815`) ; copie de service posée (`2dab815`).
-     **Reste le mineur (5)** : les six mutants verts, à relire dans le rapport (`holarch rapport afa38cbdf67d34b25`,
-     scripts perdus), un test ou une assertion chacun, éprouvés par `npm run eprouver`. Relevé en écrivant le test de
-     (5) : `racine()` (`inventaire/depots-git.js`) trie les commits racines par leur horodatage en texte ; un commit
-     antérieur au 2001-09-09 (9 chiffres) se classe après les autres, et l'identifiant du projet n'est pas son plus
-     ancien commit (aucun dépôt du poste concerné ; changer le tri change l'identifiant de tels projets).
+     mineurs (1) (`14b9b22`), (2) (`bea9937`), (3) (`2dab815`) ; puis mineur (5) (`66c785b`) : les six mutants,
+     reconstruits d'après le rapport (scripts perdus), tués chacun par une assertion directe (M20 l'était déjà, de
+     biais, par le test (4)) ; et `racine()` (`inventaire/depots-git.js`), relevé en écrivant le test de (5), qui
+     comparait les dates des commits racines en texte : en nombres, au choix de l'auteur (`ef362da` ; aucun dépôt du
+     poste concerné, une seule racine chacun). Copie de service posée (`ef362da`). **Contre-épreuve close.**
      Site de travail : Q32 (sans la clé `profil`, il perd les règles de son profil au compte, et son audit le dit).
      Contre-épreuve précédente (`exceptions-hors-du-depot`, rapport : `holarch rapport aac2690360a154fe6`) : close par
      cette décision et les corrections du 2026-10-10.

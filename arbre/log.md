@@ -2,6 +2,23 @@
 
 ## 2026-10-10
 
+* **Contre-épreuve de `profil-designe` close : mineur (5) et tri des commits racines** (environ 150 k tokens) : les
+  six mutants verts, reconstruits d'après le rapport et le code (scripts perdus), tués chacun par une assertion directe
+  (`66c785b`) : profil en bundle OKF (M1), un seul contexte au compte (M2), type propre au profil quand son `id`
+  d'arbre est repris (M5), aucun écart sans arbre lu (M6), intrus lu après le profil (M10), dépôt du profil comme
+  projet (M20, tué jusque-là de biais par le test (4)). `racine()` compare les dates des commits racines en nombres, à
+  dates égales la plus petite empreinte, au choix de l'auteur (`ef362da`) ; mesuré avant : 11 dépôts sur le poste, une
+  seule racine chacun, aucun identifiant changé ; le banc du majeur (5) lit l'identifiant par `racine()` au lieu d'en
+  recopier le tri. Chaque assertion rouge sur son mutant, le test du tri rouge sur son parent ; 162 tests verts. Copie
+  de service posée (`ef362da`), audit réel : 0 apparu, 0 résolu. Rien poussé. Leçon de clôture : déroulé annoncé en
+  quatre temps (relire le rapport, une assertion par mutant éprouvée, suite, pose et journal, choix du tri) ; tous
+  tenus. Ce qui l'a fait dévier : le rapport ne donnait que l'effet des mutants, reconstruits depuis le code et le
+  texte de la décision (M6) ; le départage à dates égales, laissé vert par son mutant (git listait déjà les racines
+  dans l'ordre des empreintes), prouvé par un banc inversé ; la question du tri, posée deux fois de plus (un clic
+  manqué, puis une formulation trop technique, reprise en mots simples). La demande qui y aurait mené : « mineur (5)
+  de la contre-épreuve de `profil-designe`, mutants reconstruits du code, puis le tri de `racine()` à mon choix, pose
+  et journal ».
+
 * **Contre-épreuve de `profil-designe` : majeurs 4 et 5, mineurs 1 à 3, et passation** (environ 235 k tokens) :
   conteneurs du dépôt du profil audités au compte par `montage-sensible` seul, sans exception, et deux faits distincts
   au compte pour qu'un écart de ce dépôt et une exception périmée ne se résolvent pas l'un par l'autre (`074b20e`) ;
