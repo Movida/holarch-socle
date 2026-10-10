@@ -8,7 +8,13 @@
   rétabli par le rejeu. `git rm` et `projet creer` refusés par le mode auto, lancés sur autorisation de l'auteur.
   Garde-fou Wayland posé dans le VS Code de l'auteur. Défaut trouvé : le volume ssh n'avait pas de clé, l'étape `cle`
   disait « déjà là » ; clé neuve enregistrée en écriture et l'ancienne retirée, à la demande de l'auteur. Contre-épreuve
-  (temps 7) lancée en instance neuve. Rien poussé.
+  (temps 7) lancée en instance neuve, rapport non rendu au seuil. Rien poussé. Leçon de passation : déroulé annoncé en
+  six temps (mesure avant, génération, `devcontainer up`, geste VS Code de l'auteur, écart à la main, contre-épreuve en
+  parallèle) ; tenus, sauf le rapport, au Reste. Ce qui l'a fait dévier : deux refus du mode auto (`git rm`, puis la
+  création même à blanc), un aller-retour ; l'auteur absent, ses gestes faits par l'agent ; la clé absente du volume,
+  vue au démarrage ; `code` hors du PATH réduit de la session et un `timeout` qui a coupé VS Code. La demande qui y
+  aurait mené : « livraison C, temps 6, `git rm` et `projet creer` du socle autorisés, mes gestes faits par toi ;
+  contre-épreuve en parallèle, puis passation ».
 
 * **Livraison C de la tranche 12 : clé `conteneur`, génération, écart d'audit, et passation** (environ 260 k tokens) :
   deux choix de l'auteur en un tour, recommandations suivies (gh hors du profil ; l'audit ne compare que les fichiers

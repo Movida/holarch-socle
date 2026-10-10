@@ -1267,7 +1267,10 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        prochaine ouverture.
   0. **Pour C, reprise au temps 7** (déroulé annoncé le 2026-10-10 ; critère tenu, Fait ci-dessus) : contre-épreuve en
      instance neuve (`xhigh`) sur `843b961`, `073a166` et `7a9e6db` du profil, lancée le 2026-10-10, scripts dans
-     `/tmp/contre-epreuve-c/` ; puis ses corrections, un commit et un test chacune, et l'approbation de C par l'auteur.
+     `/tmp/contre-epreuve-c/`, rapport non rendu à la passation : le retrouver par `ls -t
+     ~/.claude/projects/*holarch-socle/*/subagents/agent-*.jsonl | head -3` (titre « Contre-épreuve de la
+     livraison C »), puis `holarch rapport <identifiant>` ; s'il manque ou s'arrête en route, relancer l'épreuve ; puis
+     ses corrections, un commit et un test chacune, et l'approbation de C par l'auteur.
      Défaut à corriger avec un test : l'étape `cle` compare la présence d'une clé au dépôt, pas la clé du conteneur
      (lisible par `docker exec` quand il tourne, sinon geste). Le contrôle `outils-a-jour` ne suit pas `devcontainer` :
      la CLI ne publie pas de version sur GitHub (404), il lui faudrait une source npm. Les autres projets se migrent
