@@ -7,6 +7,8 @@ import path from 'node:path';
 import { dedans } from './commun.js';
 
 const ORDRE = ['profil', 'contexte', 'type', 'projet'];
+// Les nœuds du profil qui déclarent des projets (décision profil-designe).
+const DECLARANTS = ['context', 'activity'];
 export const CLASSIFICATIONS = ['public', 'internal', 'confidential', 'sensitive'];
 // Un nœud désigné comme le fait un lien vers un autre arbre (contrat nœud §3) : `<id de l'arbre>:<chemin>`.
 export const designation = (n) => `${n?.attributes?.arbre}:${n?.node}`;
@@ -14,7 +16,9 @@ export const designation = (n) => `${n?.attributes?.arbre}:${n?.node}`;
 /**
  * Structure des arbres connus, tirée des fiches `node` et `rule`, et le profil : la racine de l'arbre du dépôt désigné
  * (`profil`, rendu par `profilDuSite` ; null : aucun profil sur ce site). Un autre arbre qui porte des contextes n'en
- * fait pas un second. `sansProfil` dit pourquoi il n'y a pas de profil.
+ * fait pas un second. `sansProfil` dit pourquoi il n'y a pas de profil, `introuvable` s'il est désigné sans être lu.
+ * Seuls les nœuds `context` ou `activity` du profil déclarent des projets (`declarants`) ; ailleurs, un `projects:` ou
+ * un nœud `context` n'est pas lu (`nonLus`, avec sa raison).
  */
 export function arbresDe(fiches, { profil } = {}) {
   // Un appelant qui oublierait le profil le perdrait sans le moindre signal : il le passe, null compris.
@@ -42,7 +46,11 @@ export function arbresDe(fiches, { profil } = {}) {
   const p = racines.find((r) => r.location && fichiers.includes(path.resolve(r.location))) || null;
   const sansProfil = !profil ? 'aucun profil désigné sur ce site (clé profil de la configuration)'
     : p ? null : `profil désigné introuvable : ${profil} (${path.isAbsolute(profil) ? 'aucune racine d’arbre lue dans ce dépôt' : 'chemin absolu attendu'})`;
-  return { noeuds, regles, racines, parent, templates, contextes, profil: p, sansProfil };
+  const duProfil = (n) => Boolean(p) && n.attributes?.arbre === p.attributes.arbre;
+  const declarants = noeuds.filter((n) => duProfil(n) && DECLARANTS.includes(n.attributes?.type) && Array.isArray(n.attributes?.projects));
+  const nonLus = noeuds.filter((n) => !declarants.includes(n) && (n.attributes?.projects || (n.attributes?.type === 'context' && !duProfil(n))))
+    .map((n) => ({ noeud: n, raison: !duProfil(n) ? `${n.attributes?.type === 'context' ? 'contexte' : 'projets déclarés'} hors du profil désigné` : 'projets déclarés hors d’un contexte ou d’une activité du profil' }));
+  return { noeuds, regles, racines, parent, templates, contextes: contextes.filter(duProfil), profil: p, sansProfil, introuvable: Boolean(profil) && !p, declarants, nonLus };
 }
 
 // Les nœuds d'un nœud jusqu'à sa racine, racine d'abord.
@@ -146,13 +154,15 @@ const applicable = (e) => e.statut === 'stable' && !e.derogee;
 // Comptent les couches elles-mêmes, tout en-tête illisible de l'arbre du profil (ce pouvait être un contexte ou un nœud
 // de sa chaîne) et, quand un type déclaré ou le contexte déclarant est introuvable, tout en-tête illisible qui pouvait
 // être lui : d'après ce qui s'en lit ligne à ligne (`indices_entete`), un `template` de cet `id`, un `context`, ou un
-// nœud dont le type ne se lit pas. Une décision illisible d'un projet sans rapport ne compte pas.
+// nœud dont le type ne se lit pas. Une décision illisible d'un projet sans rapport ne compte pas. Un profil désigné
+// mais introuvable compte aussi (décision profil-designe) : ses règles manquent toutes.
 function illisibles(a, couches, { types = [], contexte = false } = {}) {
   const profil = new Set(couches.filter((c) => c.origine === 'profil' || c.origine === 'contexte').map((c) => c.noeud.attributes?.arbre));
   const pouvaitEtre = ({ type, id } = {}) => !type || (type === 'template' && types.length > 0 && (!id || types.includes(id))) || (type === 'context' && contexte);
   const enTetes = a.noeuds.filter((n) => n.attributes?.erreur_entete && (profil.has(n.attributes.arbre) || couches.some((c) => c.noeud === n)
     || ((types.length || contexte) && pouvaitEtre(n.attributes.indices_entete))));
-  return [...new Set([...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${designation(n)} : ${n.attributes.erreur_regles}`),
+  return [...new Set([...(a.introuvable ? [a.sansProfil] : []),
+    ...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${designation(n)} : ${n.attributes.erreur_regles}`),
     ...enTetes.map((n) => `${designation(n)} : ${n.attributes.erreur_entete}`)])];
 }
 /** Ce qui attend une approbation : une règle en brouillon, ou le brouillon posé sur une règle approuvée de même id. */
@@ -171,11 +181,13 @@ const tailleProposes = (l) => taille(l.filter((e) => e.statut === 'draft' && !e.
 export function regleEffective(fiches, projetId, { profil } = {}) {
   const a = arbresDe(fiches, { profil }); const signaux = [];
   const racine = a.racines.find((n) => n.links?.project?.includes(projetId) && n !== a.profil);
-  const declarants = a.noeuds.filter((n) => n.attributes?.projects?.includes(projetId));
-  if (declarants.length > 1) signaux.push(`projet déclaré par plusieurs contextes : ${declarants.map((n) => `${designation(n)}`).join(', ')} ; le premier compte`);
+  const declarants = a.declarants.filter((n) => n.attributes.projects.includes(projetId));
+  // Deux déclarants : aucun n'est choisi, la règle effective est incomplète (`deuxFois`, avec les illisibles).
+  const deuxFois = declarants.length > 1 ? [`projet déclaré par plusieurs nœuds du profil : ${declarants.map(designation).join(', ')}`] : [];
+  for (const x of a.nonLus.filter((x) => x.noeud.attributes?.projects?.includes(projetId))) signaux.push(`déclaration non lue : ${designation(x.noeud)} (${x.raison})`);
   if (!declarants.length) signaux.push(a.profil ? 'aucun contexte ne déclare ce projet : seules les règles du profil s’appliquent' : a.sansProfil);
   const couches = []; const typesInconnus = [];
-  if (declarants[0]) couches.push(...couchesDeclarant(a, declarants[0]));
+  if (declarants.length === 1) couches.push(...couchesDeclarant(a, declarants[0]));
   else if (a.profil) couches.push({ origine: 'profil', noeud: a.profil, regles: a.regles.get(a.profil.id) || [] });
   for (const t of racine?.attributes?.types || []) {
     const n = a.templates.get(t);
@@ -192,12 +204,12 @@ export function regleEffective(fiches, projetId, { profil } = {}) {
     if (e.derogeable === false) { signaux.push(`dérogation refusée : ${e.id} n’est pas dérogeable`); continue; }
     e.derogee = { pourquoi: d.why ?? null, par: d.by ?? null, le: d.at ?? null };
   }
-  const lisibles = illisibles(a, couches, { types: typesInconnus, contexte: !declarants.length }); signaux.push(...lisibles);
+  const lisibles = [...deuxFois, ...illisibles(a, couches, { types: typesInconnus, contexte: declarants.length !== 1 })]; signaux.push(...lisibles);
   // Les autres en-têtes illisibles de l'arbre du projet (une décision, une observation) ne changent pas ses règles : dits.
   if (racine) signaux.push(...a.noeuds.filter((n) => n.attributes?.arbre === racine.attributes.arbre && n.attributes?.erreur_entete)
     .map((n) => `${designation(n)} : ${n.attributes.erreur_entete}`).filter((x) => !lisibles.includes(x)).map((x) => `${x} (sans effet sur les règles)`));
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
-  return { projet: projetId, declare: Boolean(declarants[0]), arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
+  return { projet: projetId, declare: declarants.length > 0, arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
     regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, couches: lues, signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
@@ -208,17 +220,20 @@ export function regleEffective(fiches, projetId, { profil } = {}) {
  */
 export function regleDuCompte(fiches, { profil } = {}) {
   const a = arbresDe(fiches, { profil }); const signaux = [];
+  // Ce que l'audit dit au compte (décision profil-designe) : un site qui lit des arbres sans profil désigné, et chaque
+  // déclaration non lue, avec le nœud qui la porte.
+  const declarations = { non_designe: !profil && a.racines.length > 0, non_lues: a.nonLus.map((x) => ({ noeud: designation(x.noeud), raison: x.raison })).sort((x, y) => x.noeud.localeCompare(y.noeud)) };
   if (!a.profil) {
     const lisibles = illisibles(a, [], { contexte: true });
-    return { regles: [], indetermine: true, signaux: [a.sansProfil, ...lisibles], illisibles: lisibles, rappels: 0, rappels_proposes: 0 };
+    return { regles: [], indetermine: true, signaux: [...new Set([a.sansProfil, ...lisibles])], illisibles: lisibles, declarations, rappels: 0, rappels_proposes: 0 };
   }
-  const ctx = a.contextes.filter((n) => n.attributes.arbre === a.profil.attributes.arbre);
+  const ctx = a.contextes;
   if (ctx.length > 1) signaux.push(`plusieurs contextes dans le profil : leurs règles propres ne vont pas au compte (portée locale par projet : à venir)`);
   const couches = ctx.length === 1 ? couchesDeclarant(a, ctx[0]) : [{ origine: 'profil', noeud: a.profil, regles: a.regles.get(a.profil.id) || [] }];
   const regles = fusionner(couches, signaux);
   const config = fusionnerConfig(...couchesLues(couches, signaux).map((c) => c.config));
   const lisibles = illisibles(a, couches); signaux.push(...lisibles);
-  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
+  return { regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, signaux, illisibles: lisibles, declarations, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
 }
 
 /**
@@ -230,7 +245,7 @@ export function configAvantProjet(fiches, { contexte = null, types = [], profil 
   const a = arbresDe(fiches, { profil });
   if (!a.profil) throw new Error(a.sansProfil);
   const nomDe = (n) => n.node.split('/').pop().replace(/\.md$/, '');
-  const tous = a.contextes.filter((n) => n.attributes.arbre === a.profil.attributes.arbre);
+  const tous = a.contextes;
   const choisis = contexte ? tous.filter((n) => nomDe(n) === contexte || n.name === contexte) : tous;
   const connus = tous.map(nomDe).join(', ') || 'aucun contexte dans le profil';
   if (choisis.length !== 1) throw new Error(contexte ? `contexte ${choisis.length ? 'ambigu' : 'inconnu'} : ${contexte} (${connus})` : `contexte à préciser (--contexte) : ${connus}`);
@@ -241,14 +256,13 @@ export function configAvantProjet(fiches, { contexte = null, types = [], profil 
   return { contexte: { nom: nomDe(c), fichier: c.location }, config: fusionnerConfig(...couchesLues(couches, []).map((x) => x.config)) };
 }
 
-/** Les projets qu'un contexte (ou une activité) déclare. */
 /**
  * Les projets que couvre chaque nœud d'un profil (`<arbre>:<chemin>`) : ceux que déclarent les nœuds de cet arbre dont la
  * chaîne passe par lui. C'est ce que vise une exception qu'il porte, que son contrôle l'ait lue ou non.
  */
 export function projetsCouverts(fiches, { profil } = {}) {
   const a = arbresDe(fiches, { profil }); const r = new Map();
-  for (const n of a.noeuds.filter((x) => a.profil && x.attributes?.arbre === a.profil.attributes.arbre && Array.isArray(x.attributes?.projects))) {
+  for (const n of a.declarants) {
     for (const c of chaine(a, n)) {
       const k = `${designation(c)}`; if (!r.has(k)) r.set(k, new Set());
       for (const p of n.attributes.projects) r.get(k).add(p);
@@ -257,4 +271,5 @@ export function projetsCouverts(fiches, { profil } = {}) {
   return r;
 }
 
-export const projetsDeclares = (fiches) => new Set(fiches.filter((f) => f.kind === 'node').flatMap((n) => n.attributes?.projects || []));
+/** Les projets que déclarent les nœuds du profil (décision profil-designe). */
+export const projetsDeclares = (fiches, { profil } = {}) => new Set(arbresDe(fiches, { profil }).declarants.flatMap((n) => n.attributes.projects));

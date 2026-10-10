@@ -20,7 +20,7 @@ const comptesDe = (s) => comptesClaudeCode(s.config, s.config.inventaire?.['clau
 /** Ce qu'un contrôle reçoit pour un projet : son dépôt, la racine de son arbre, ses réglages, la liste privée, les outils. */
 export function contexteControle(s, projet, r, depot = projet.location) {
   const noeuds = s.fiches({ kind: 'node' });
-  const declares = projetsDeclares(noeuds);
+  const declares = projetsDeclares(noeuds, { profil: s.profil() });
   // Public : la racine de son arbre se classe `public`, ou ses couches le déclarent public (`creation.visibilite`, que
   // porte le type depot-public) ; une seule notion avec la commande de création.
   const fiches = [...noeuds, ...s.fiches({ kind: 'rule' })];
@@ -106,6 +106,14 @@ const regleNommee = (regles, nom) => regles.find((e) => e.id === nom)?.fiche || 
 // blanc sur une règle incomplète, donnerait de faux retraits : elle n'est pas comparée tant que dure l'écart.
 const ecartsIllisibles = (r) => r.illisibles.map((message) => ({ regle: 'regles-lisibles', regle_id: 'regles-lisibles', controle: 'regles-lisibles', cle: message.split(' : ')[0], message }));
 
+// Le profil et ses déclarants (décision profil-designe), au compte : un site qui lit des arbres sans profil désigné, et
+// chaque `projects:` ou nœud `context` non lu, avec le nœud qui le porte.
+const ecartsDeclarations = ({ declarations: d }) => {
+  const e = (cle, fichier, message) => ({ regle: 'profil-designe', regle_id: 'profil-designe', controle: 'profil-designe', cle, ...(fichier && { fichier }), message });
+  return [...(d?.non_designe ? [e('profil', null, 'aucun profil désigné sur ce site : ajouter la clé profil à la configuration du site')] : []),
+    ...(d?.non_lues || []).map((x) => e(`declaration:${x.noeud}`, x.noeud, `${x.raison} : non lu`))];
+};
+
 function ecartsFichiers(regles, m, prefixe) {
   const regleDe = new Map(m.plan.fichiers.map((x) => [x.fichier, x.regle]));
   const e = (f, message) => { const id = regleDe.get(f) || f.replace(/\.md$/, ''); return { regle: regleNommee(regles, id), regle_id: id, controle: 'regles-a-jour', cle: f, fichier: `${prefixe}/${f}`, message }; };
@@ -185,11 +193,14 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
 
   // Compte : ce qui vaut pour tous les projets du site.
   const compte = regleDuCompte(fiches, { profil: s.profil() });
-  if (compte.regles.length || compte.illisibles.length) {
-    const rc = { projet: null, nom: 'compte', ecarts: ecartsIllisibles(compte), controles: [] };
+  const declarations = ecartsDeclarations(compte); faits.add('|profil-designe');
+  if (compte.regles.length || compte.illisibles.length || declarations.length) {
+    const rc = { projet: null, nom: 'compte', ecarts: [...ecartsIllisibles(compte), ...declarations], controles: [] };
     faits.add('|regles-lisibles');
-    // Règles illisibles : une règle qui remplace une mémoire peut manquer ; ni ses écarts ni leur résolution ne se disent.
-    if (compte.illisibles.length) rc.controles.push(...['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee'].map((id) => ({ id, etat: 'indisponible', raison: 'règles illisibles' })));
+    // Règles illisibles, ou sans profil : une règle qui remplace une mémoire peut manquer ; ni ses écarts ni leur
+    // résolution ne se disent (une règle du compte indéterminée ne retire rien de ce qui est posé).
+    const incomplet = compte.illisibles.length ? 'règles illisibles' : compte.indetermine ? 'sans profil' : null;
+    if (incomplet) rc.controles.push(...['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee'].map((id) => ({ id, etat: 'indisponible', raison: incomplet })));
     else for (const m of materialiserCompte(compte, comptesDe(s), { accueil: s.config.accueil || accueil(), ecrire: false })) {
       rc.ecarts.push(...ecartsFichiers(compte.regles, m, 'rules/holarch'));
       if (m.permissions.erreur) rc.controles.push({ id: 'permissions-posees', etat: 'indisponible', raison: m.permissions.erreur });
@@ -197,7 +208,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
       if (m.reglages.erreur) rc.controles.push({ id: 'reglages-poses', etat: 'indisponible', raison: m.reglages.erreur });
       else rc.ecarts.push(...ecartsReglages(compte.regles, m));
     }
-    if (!compte.illisibles.length) rc.ecarts.push(...remplacees(compte.regles, memoires));
+    if (!incomplet) rc.ecarts.push(...remplacees(compte.regles, memoires));
     for (const c of ['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
     // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
     const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache'), accueil: s.config.accueil || accueil() }, 'audit', ['blocking', 'verified'], 'site');

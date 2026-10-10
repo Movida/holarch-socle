@@ -387,9 +387,9 @@ test('regles appliquer n’écrit rien sans profil (non désigné ou introuvable
     return appliquerRegles(s, refs, [{ nom: 'essai', home }]);
   };
   // Aucun profil désigné (un arbre qui porte un contexte n'en fait pas un) : la règle du compte retirerait tout ce qui
-  // est posé. Désigné mais introuvable (dépôt absent de ce site) : de même.
+  // est posé. Désigné mais introuvable (dépôt absent de ce site) : la règle est incomplète, comme une règle illisible.
   assert.throws(() => appliquer(null, arbre('p1')), /^Error: règles du compte indéterminées, rien n'est écrit : aucun profil désigné sur ce site/);
-  assert.throws(() => appliquer(path.join(r, 'absent'), arbre('p1')), /règles du compte indéterminées, rien n'est écrit : profil désigné introuvable : .*absent/);
+  assert.throws(() => appliquer(path.join(r, 'absent'), arbre('p1')), /règles illisibles, rien n'est écrit : profil désigné introuvable : .*absent/);
   assert.deepEqual(fs.readdirSync(home), [], 'le compte n’est pas écrit');
   assert.throws(() => appliquerA(['depot'], null, path.join(r, 'p1')), /règles du compte indéterminées, rien n'est écrit : aucun profil désigné/);
   assert.deepEqual(fs.readdirSync(projet), ['README.md'], 'le projet nommé n’est pas écrit non plus');
@@ -808,7 +808,7 @@ function essaiExceptions() {
     ...[d, autre].filter((x) => !sans.includes(path.basename(x))).map((x) => ({ id: `holarch:project:${path.basename(x)}`, kind: 'project', name: path.basename(x), status: 'active', location: x, provenance: { source: 't' } }))]); s.indexer(); };
   const perimees = (a) => (a.cibles.find((c) => !c.projet)?.ecarts || []).filter((e) => e.cle.startsWith('exception-perimee:'));
   const ouvertes = () => s.ecartsOuverts().filter((o) => o.cle.startsWith('exception-perimee:')).map((o) => [o.projet, o.regle, o.cle, o.fichier]);
-  return { s, d, cle, ecrireF, contexte, devcontainer, relire, perimees, ouvertes };
+  return { s, p, d, cle, ecrireF, contexte, devcontainer, relire, perimees, ouvertes };
 }
 
 test('Exceptions hors du dépôt : une exception qui sert se dit, une exception qui ne sert plus est un écart du compte', async () => {
@@ -853,7 +853,7 @@ test('Exceptions hors du dépôt : une exception qui sert se dit, une exception 
 });
 
 test('Contre-épreuve des exceptions (b) : une exception que son contrôle n’a pas lue là où elle s’applique n’est pas dite périmée', () => {
-  const { s, d, cle, ecrireF, contexte, devcontainer, relire, perimees, ouvertes } = essaiExceptions();
+  const { s, p, d, cle, ecrireF, contexte, devcontainer, relire, perimees, ouvertes } = essaiExceptions();
   contexte(cle); devcontainer({ mounts: ['source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind'] }); relire();
   assert.deepEqual(perimees(s.audit({ journaliser: true })), []);
   // Le dépôt qui l'utilise est absent de ce site : déplacé (le contrôle dit « dépôt absent »), ou jamais inventorié ici.
@@ -863,16 +863,17 @@ test('Contre-épreuve des exceptions (b) : une exception que son contrôle n’a
   relire({ sans: ['depot'] });
   assert.deepEqual(perimees(s.audit({ journaliser: true })), []);
   fs.renameSync(`${d}.ailleurs`, d);
-  // La chaîne du projet ne passe plus par le contexte (un nœud du dépôt déclare son projet) : le contrôle y tourne par
-  // le type, sans l'exception.
-  ecrireF(path.join(d, 'arbre', 'aaa.md'), '---\ntype: activite\ntitle: Aaa\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  // La chaîne du projet ne passe plus par le contexte (un second nœud du profil déclare son projet : aucun n'est choisi,
+  // décision profil-designe) : le contrôle y tourne par le type, sans l'exception.
+  const second = path.join(p, 'arbre', 'contextes', 'aaa.md');
+  ecrireF(second, '---\ntype: activity\ntitle: Aaa\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
   relire();
   const a = s.audit({ journaliser: true });
   assert.ok(a.cibles.find((c) => c.projet === 'holarch:project:depot').controles.some((c) => c.id === 'montage-sensible' && c.etat === 'fait' && !c.exceptions));
   assert.deepEqual(perimees(a), []);
   assert.deepEqual(ouvertes(), [], 'rien au journal');
   // Le contrôle lève avant de la lire (un `.devcontainer` qui n'est pas un dossier) : non disponible, rien ne se juge.
-  fs.rmSync(path.join(d, 'arbre', 'aaa.md')); fs.rmSync(path.join(d, '.devcontainer'), { recursive: true }); ecrireF(path.join(d, '.devcontainer'), 'x');
+  fs.rmSync(second); fs.rmSync(path.join(d, '.devcontainer'), { recursive: true }); ecrireF(path.join(d, '.devcontainer'), 'x');
   relire();
   const b = s.audit({ journaliser: true });
   assert.equal(b.cibles.find((c) => c.projet === 'holarch:project:depot').controles.find((c) => c.id === 'montage-sensible').etat, 'indisponible');
@@ -965,8 +966,7 @@ function essaiProfil() {
   }
   ecrireF(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\n---\n');
   const projet = { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } };
-  const socle = (profil, { depots = [p, autre, d] } = {}) => {
-    const accueil = tmp();
+  const socle = (profil, { depots = [p, autre, d], accueil = tmp() } = {}) => {
     const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
     s.catalogue.remplacer([...inventaireArbre({}, { depots, profil: s.profil(), projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }), projet]); s.indexer();
     return s;
@@ -1007,4 +1007,50 @@ test('Profil désigné (décision profil-designe) : la clé profil du site nomme
   assert.equal(profilDuSite(chargerConfig(fichier, 'local')), path.join(os.homedir(), 'holarch-profil-essai'));
   fs.writeFileSync(fichier, 'profil: ~\n');
   assert.equal(profilDuSite(chargerConfig(fichier, 'local')), null);
+});
+
+test('Déclarants (décision profil-designe) : seuls les contextes et activités du profil déclarent ; ailleurs, non lu et dit au compte ; profil manquant ou projet déclaré deux fois : règle incomplète', async () => {
+  const { projetsDeclares } = await import('../src/regles.js');
+  const { r, p, d, socle, ecrireF } = essaiProfil();
+  const compte = (s, o) => s.audit(o).cibles.find((c) => !c.projet);
+  const dits = (c) => (c?.ecarts || []).filter((e) => e.controle === 'profil-designe').map((e) => [e.cle, e.message]);
+  // Défaut (a) : un nœud du dépôt d'un projet, que son conteneur écrit, déclare ce projet (et un autre). Il n'est pas lu :
+  // la chaîne reste celle du profil, et le compte le dit, avec le nœud qui le porte. Un `projects:` du profil hors d'un
+  // contexte ou d'une activité non plus ; une activité du profil déclare.
+  ecrireF(path.join(d, 'arbre', 'contextes', 'intrus.md'), '---\ntype: context\ntitle: Intrus\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\n'
+    + 'projects: [holarch:project:depot, holarch:project:seul]\nrules:\n  - { id: francais, statement: Redéfinie., status: stable }\n---\n');
+  ecrireF(path.join(p, 'arbre', 'decisions', 'une.md'), '---\ntype: decision\ntitle: Une\nstatus: draft\nprojects: [holarch:project:seul]\n---\n');
+  ecrireF(path.join(p, 'arbre', 'activites', 'veille.md'), '---\ntype: activity\ntitle: Veille\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:act]\n---\n');
+  const s = socle(p);
+  const e = s.regles({ projet: 'depot' });
+  assert.deepEqual(e.regles.map((x) => [x.id, x.origine, x.provenance.arbre]), [['francais', 'profil', 'profil']]);
+  assert.ok(e.signaux.includes('déclaration non lue : depot:/arbre/contextes/intrus.md (contexte hors du profil désigné)'), e.signaux.join(' | '));
+  assert.deepEqual(dits(compte(s)), [
+    ['declaration:autre:/arbre/contextes/perso.md', 'contexte hors du profil désigné : non lu'],
+    ['declaration:depot:/arbre/contextes/intrus.md', 'contexte hors du profil désigné : non lu'],
+    ['declaration:profil:/arbre/decisions/une.md', 'projets déclarés hors d’un contexte ou d’une activité du profil : non lu']]);
+  const fiches = s.arbreFrais();
+  assert.deepEqual([...projetsDeclares(fiches, { profil: p })].sort(), ['holarch:project:act', 'holarch:project:depot']);
+  assert.equal(regleEffective(fiches, 'holarch:project:act', { profil: p }).declare, true, 'une activité du profil déclare');
+  // Profil non désigné : ses contextes ne déclarent plus rien ; le compte le dit, sans rien juger de ce qui est posé.
+  const accueil = tmp(); const sans = socle(null, { accueil });
+  assert.deepEqual(sans.regles({ projet: 'depot' }).regles, []);
+  const c0 = compte(sans, { journaliser: true });
+  assert.deepEqual(dits(c0)[0], ['profil', 'aucun profil désigné sur ce site : ajouter la clé profil à la configuration du site']);
+  assert.ok(dits(c0).some(([cle]) => cle === 'declaration:profil:/arbre/contextes/perso.md'));
+  assert.ok(c0.controles.some((c) => c.id === 'regles-a-jour' && c.etat === 'indisponible' && c.raison === 'sans profil'));
+  // Désigné, il se résout.
+  socle(p, { accueil }).audit({ journaliser: true });
+  assert.ok(!socle(p, { accueil }).ecartsOuverts().some((o) => o.cle === 'profil'), 'écart résolu une fois le profil désigné');
+  // Désigné mais introuvable : la règle effective est incomplète ; la garde refuse, l'audit le dit une fois, au compte.
+  const absent = socle(path.join(r, 'absent'));
+  assert.match(absent.regles({ projet: 'depot' }).illisibles[0], /^profil désigné introuvable : .*absent/);
+  assert.deepEqual(absent.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles']);
+  const a = absent.audit().cibles;
+  assert.deepEqual(a.map((c) => [c.projet, c.ecarts.filter((x) => x.controle === 'regles-lisibles').map((x) => x.cle)]), [[null, ['profil désigné introuvable']]]);
+  // Projet déclaré par deux nœuds du profil : aucun n'est choisi (plus de « le premier compte »).
+  ecrireF(path.join(p, 'arbre', 'contextes', 'second.md'), '---\ntype: context\ntitle: Second\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  const deux = socle(p);
+  assert.deepEqual(deux.regles({ projet: 'depot' }).illisibles, ['projet déclaré par plusieurs nœuds du profil : profil:/arbre/contextes/perso.md, profil:/arbre/contextes/second.md']);
+  assert.deepEqual(deux.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles']);
 });

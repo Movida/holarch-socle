@@ -529,7 +529,7 @@ test('audit : un commit fautif est refusé par le crochet ; forcé, il apparaît
   ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
   ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
   const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
-  ecrire(path.join(accueil, 'config.yaml'), 'site: local\ninventaire: { claude-code: { actif: false }, depots-git: { actif: false }, arbre: { actif: false }, docker: { actif: false }, claude-desktop: { actif: false } }\n');
+  ecrire(path.join(accueil, 'config.yaml'), `site: local\nprofil: ${JSON.stringify(path.join(r, 'profil'))}\ninventaire: { claude-code: { actif: false }, depots-git: { actif: false }, arbre: { actif: false }, docker: { actif: false }, claude-desktop: { actif: false } }\n`);
   const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
   s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
   s.indexer();
@@ -866,6 +866,7 @@ test('identité de commit : posée en réglage local, réglage à la main laiss�
     fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));  // réglage local posé à la main
     ecrire(path.join(d, 'note.md'), 'un\n'); g('add', '.'); g('commit', '-qm', 'départ');
     const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+    ecrire(path.join(accueil, 'config.yaml'), `profil: ${JSON.stringify(path.join(r, 'profil'))}\n`);  // relu par le crochet
     const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
     s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
     s.indexer();

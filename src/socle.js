@@ -375,7 +375,7 @@ export class Socle {
       return { nom: projets.find((p) => p.id === id)?.name ?? null, chemin: projets.find((p) => p.id === id)?.location ?? null, ...portees(r, r.arbre?.classification),
         ecarts: ouverts.filter((o) => o.projet === id) };
     }
-    const declares = projetsDeclares(fiches);
+    const declares = projetsDeclares(fiches, { profil: this.profil() });
     const resume = projets.map((p) => ({ p, r: regleEffective(fiches, p.id, { profil: this.profil() }) }))
       .filter(({ p, r }) => declares.has(p.id) || r.arbre?.types.length || r.regles.some((e) => e.origine === 'projet'))
       .map(({ p, r }) => ({ id: p.id, nom: p.name, declare: declares.has(p.id), types: r.arbre?.types || [], appliquees: r.regles.filter((e) => e.applicable).length,
