@@ -5,6 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+/** `a` est `b` ou se trouve dessous (chemins de même base) ; un dossier dessous nommé `..x` l'est aussi. */
+export const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (r !== '..' && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r)); };
+
 /** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */
 export const accueil = () => process.env.HOLARCH_HOME || path.join(os.homedir(), '.holarch');
 

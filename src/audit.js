@@ -213,7 +213,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     const p = projets.find((x) => x.id === id); if (!p) continue;
     const r = regleEffective(fiches, id);
     // Un dépôt absent de ce site : ses types, donc ses règles, sont inconnus ; rien ne s'y juge.
-    if (p.location && fs.existsSync(p.location)) chaines.set(id, new Set(r.couches.map((c) => `${c.arbre}:${c.noeud}`)));
+    if (p.location && fs.existsSync(p.location)) chaines.set(id, new Set(r.couches.map((c) => c.provenance)));
     const { ecarts, controles } = controler(r, contexteControle(s, p, r), 'audit', ['blocking', 'verified']);
     for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
     // Une source illisible du profil est déjà un écart du compte : le projet ne la compte pas une seconde fois.

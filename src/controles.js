@@ -8,7 +8,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
-import { gitLu, trouverOutil, lireJson, ecrireJson } from './commun.js';
+import { gitLu, trouverOutil, lireJson, ecrireJson, dedans } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
@@ -319,7 +319,6 @@ export function maisonsWindows(mnt = '/mnt') {
   return lecteurs.flatMap((l) => { const u = path.join(mnt, l, 'Users');
     try { return fs.readdirSync(u, { withFileTypes: true }).filter((e) => e.isDirectory() && !COMMUNS_WINDOWS.has(e.name)).map((e) => path.join(u, e.name)); } catch { return []; } });
 }
-const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
 // Chemin réel, liens résolus jusqu'au plus profond parent qui existe (un dossier pas encore créé garde la suite).
 const reel = (p) => { try { return fs.realpathSync(p); } catch { const d = path.dirname(p); return d === p ? p : path.join(reel(d), path.basename(p)); } };
 
@@ -660,10 +659,10 @@ function montageSensible(ctx) {
   const { lues, ignorees } = lireExceptions(ctx.couches, 'montage_sensible', 'ecart', { depot: ctx.depot });
   const exceptes = new Set(lues.map((x) => x.valeur));
   const gardes = ecarts.filter((e) => !exceptes.has(e.cle));
-  const dites = lues.map((x) => ({ ecart: x.valeur, pourquoi: x.pourquoi, provenance: `${x.arbre}:${x.noeud}`, utilisee: ecarts.some((e) => e.cle === x.valeur),
+  const dites = lues.map((x) => ({ ecart: x.valeur, pourquoi: x.pourquoi, provenance: x.provenance, utilisee: ecarts.some((e) => e.cle === x.valeur),
     jugee: !nonLus.length || ['acces-distant', 'crochets'].includes(x.valeur.split(':')[0]) }));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
-  const ecartees = ignorees.map((x) => ({ ecart: x.valeur || null, raison: x.raison, provenance: `${x.arbre}:${x.noeud}` }));
+  const ecartees = ignorees.map((x) => ({ ecart: x.valeur || null, raison: x.raison, provenance: x.provenance }));
   return { ecarts: gardes, ...(dites.length && { exceptions: dites }), ...(ecartees.length && { exceptions_ignorees: ecartees }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };
 }
 

@@ -3,9 +3,12 @@
 // projet dans un contexte), les nœuds qui mènent de cette racine au contexte, les types du projet dans l'ordre déclaré
 // (un type cité plus loin l'emporte), puis la racine de l'arbre du projet. Lecture pure, sur les fiches du catalogue.
 import path from 'node:path';
+import { dedans } from './commun.js';
 
 const ORDRE = ['profil', 'contexte', 'type', 'projet'];
 export const CLASSIFICATIONS = ['public', 'internal', 'confidential', 'sensitive'];
+// Un nœud désigné comme le fait un lien vers un autre arbre (contrat nœud §3) : `<id de l'arbre>:<chemin>`.
+export const designation = (n) => `${n?.attributes?.arbre}:${n?.node}`;
 
 /** Structure des arbres connus, tirée des fiches `node` et `rule`. */
 export function arbresDe(fiches) {
@@ -14,7 +17,7 @@ export function arbresDe(fiches) {
   for (const r of fiches.filter((f) => f.kind === 'rule')) {
     const k = r.attributes?.noeud_id; if (!regles.has(k)) regles.set(k, []); regles.get(k).push(r);
   }
-  const parChemin = new Map(noeuds.map((n) => [`${n.attributes?.arbre}:${n.node}`, n]));
+  const parChemin = new Map(noeuds.map((n) => [`${designation(n)}`, n]));
   const parId = new Map(noeuds.map((n) => [n.id, n]));
   const racines = noeuds.filter((n) => n.attributes?.racine);
   // Un lien `derives_from` (contrat nœud §3) : chemin dans le même arbre, `<id de l'arbre>:<chemin>` vers un autre, ou
@@ -92,16 +95,16 @@ function dansPortee(c, signaux) {
   const config = c.noeud.attributes?.config;
   if (!config || typeof config !== 'object' || Array.isArray(config)) return { config: config ?? null, ecartee: null };
   const hors = Object.keys(config).filter((k) => PORTEE.has(k) && !PORTEE.get(k).couches.includes(c.origine));
-  for (const k of hors) signaux.push(`${k} porté par ${c.noeud.attributes?.arbre}:${c.noeud.node} (${c.origine}) : non lu, il se lit au ${PORTEE.get(k).couches.join(' et au ')} (décision exceptions-hors-du-depot)`);
+  for (const k of hors) signaux.push(`${k} porté par ${designation(c.noeud)} (${c.origine}) : non lu, il se lit au ${PORTEE.get(k).couches.join(' et au ')} (décision exceptions-hors-du-depot)`);
   if (!hors.length) return { config, ecartee: null };
   const garde = (oui) => Object.fromEntries(Object.entries(config).filter(([k]) => hors.includes(k) === oui));
   return { config: garde(false), ecartee: garde(true) };
 }
 
-// Les couches telles que les lisent la configuration fusionnée et les contrôles : origine, nœud, fichier qui la porte,
-// ses réglages dans leur portée, et ceux qui en sont écartés.
-const couchesLues = (couches, signaux) => couches.map((c) => ({ origine: c.origine, arbre: c.noeud.attributes?.arbre ?? null, noeud: c.noeud.node ?? null,
-  fichier: c.noeud.location ?? null, ...dansPortee(c, signaux) }));
+// Les couches telles que les lisent la configuration fusionnée et les contrôles : origine, nœud qui la porte
+// (`provenance`, sa désignation) et son fichier, ses réglages dans leur portée, et ceux qui en sont écartés.
+const couchesLues = (couches, signaux) => couches.map((c) => ({ origine: c.origine, provenance: designation(c.noeud), fichier: c.noeud.location ?? null,
+  ...dansPortee(c, signaux) }));
 
 /**
  * Les exceptions d'un réglage (`<cle>.exceptions`), lues d'une seule façon par tous les contrôles : couche par couche,
@@ -111,10 +114,10 @@ const couchesLues = (couches, signaux) => couches.map((c) => ({ origine: c.origi
  */
 export function lireExceptions(couches = [], cle, champ, { depot = null } = {}) {
   const texte = (x) => (x === null || x === undefined || typeof x === 'object' ? '' : String(x).trim());
-  const dansDepot = (f) => Boolean(PORTEE.get(cle)?.horsDepot && depot && f) && !path.relative(path.resolve(depot), path.resolve(f)).startsWith('..');
+  const dansDepot = (f) => Boolean(PORTEE.get(cle)?.horsDepot && depot && f) && dedans(path.resolve(f), path.resolve(depot));
   const lues = []; const ignorees = [];
   for (const c of couches) {
-    const de = { origine: c.origine, arbre: c.arbre, noeud: c.noeud, fichier: c.fichier };
+    const de = { origine: c.origine, provenance: c.provenance, fichier: c.fichier };
     const ecartee = [].concat(c.ecartee?.[cle]?.exceptions || []);
     for (const x of [].concat(c.config?.[cle]?.exceptions || []).concat(ecartee)) {
       const valeur = x && typeof x === 'object' ? texte(x[champ]) : ''; const pourquoi = x && typeof x === 'object' ? texte(x.pourquoi) : '';
@@ -139,8 +142,8 @@ function illisibles(a, couches, { types = [], contexte = false } = {}) {
   const pouvaitEtre = ({ type, id } = {}) => !type || (type === 'template' && types.length > 0 && (!id || types.includes(id))) || (type === 'context' && contexte);
   const enTetes = a.noeuds.filter((n) => n.attributes?.erreur_entete && (profil.has(n.attributes.arbre) || couches.some((c) => c.noeud === n)
     || ((types.length || contexte) && pouvaitEtre(n.attributes.indices_entete))));
-  return [...new Set([...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_regles}`),
-    ...enTetes.map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_entete}`)])];
+  return [...new Set([...couches.map((c) => c.noeud).filter((n) => n?.attributes?.erreur_regles).map((n) => `${designation(n)} : ${n.attributes.erreur_regles}`),
+    ...enTetes.map((n) => `${designation(n)} : ${n.attributes.erreur_entete}`)])];
 }
 /** Ce qui attend une approbation : une règle en brouillon, ou le brouillon posé sur une règle approuvée de même id. */
 export const aApprouver = (e) => (e.statut === 'draft' || Boolean(e.proposee)) && !e.derogee;
@@ -159,7 +162,7 @@ export function regleEffective(fiches, projetId) {
   const a = arbresDe(fiches); const signaux = [];
   const racine = a.racines.find((n) => n.links?.project?.includes(projetId) && !a.profils.includes(n));
   const declarants = a.noeuds.filter((n) => n.attributes?.projects?.includes(projetId));
-  if (declarants.length > 1) signaux.push(`projet déclaré par plusieurs contextes : ${declarants.map((n) => `${n.attributes.arbre}:${n.node}`).join(', ')} ; le premier compte`);
+  if (declarants.length > 1) signaux.push(`projet déclaré par plusieurs contextes : ${declarants.map((n) => `${designation(n)}`).join(', ')} ; le premier compte`);
   if (!declarants.length) signaux.push(a.profils.length ? 'aucun contexte ne déclare ce projet : seules les règles du profil s’appliquent' : 'aucun profil connu sur ce site');
   const couches = []; const typesInconnus = [];
   if (declarants[0]) couches.push(...couchesDeclarant(a, declarants[0]));
@@ -182,7 +185,7 @@ export function regleEffective(fiches, projetId) {
   const lisibles = illisibles(a, couches, { types: typesInconnus, contexte: !declarants.length }); signaux.push(...lisibles);
   // Les autres en-têtes illisibles de l'arbre du projet (une décision, une observation) ne changent pas ses règles : dits.
   if (racine) signaux.push(...a.noeuds.filter((n) => n.attributes?.arbre === racine.attributes.arbre && n.attributes?.erreur_entete)
-    .map((n) => `${n.attributes.arbre}:${n.node} : ${n.attributes.erreur_entete}`).filter((x) => !lisibles.includes(x)).map((x) => `${x} (sans effet sur les règles)`));
+    .map((n) => `${designation(n)} : ${n.attributes.erreur_entete}`).filter((x) => !lisibles.includes(x)).map((x) => `${x} (sans effet sur les règles)`));
   regles.sort((x, y) => ORDRE.indexOf(x.origine) - ORDRE.indexOf(y.origine) || x.id.localeCompare(y.id));
   return { projet: projetId, declare: Boolean(declarants[0]), arbre: racine ? { id: racine.attributes.arbre, racine: racine.id, types: racine.attributes.types || [], classification: racine.classification } : null,
     regles: regles.map((e) => ({ ...e, applicable: applicable(e) })), config, couches: lues, signaux: [...new Set(signaux)], illisibles: lisibles, rappels: tailleRappels(regles), rappels_proposes: tailleProposes(regles) };
@@ -237,7 +240,7 @@ export function projetsCouverts(fiches) {
   const a = arbresDe(fiches); const r = new Map(); const profils = new Set(a.profils.map((p) => p.attributes.arbre));
   for (const n of a.noeuds.filter((x) => profils.has(x.attributes?.arbre) && Array.isArray(x.attributes?.projects))) {
     for (const c of chaine(a, n)) {
-      const k = `${c.attributes?.arbre}:${c.node}`; if (!r.has(k)) r.set(k, new Set());
+      const k = `${designation(c)}`; if (!r.has(k)) r.set(k, new Set());
       for (const p of n.attributes.projects) r.get(k).add(p);
     }
   }

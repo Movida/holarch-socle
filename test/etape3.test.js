@@ -414,8 +414,8 @@ test('contrôles : liste privée déduite et amendée, mots entiers, un écart d
   // Une seule lecture des exceptions (décision exceptions-hors-du-depot) : sans raison, une exception ne vaut pas, ni pour
   // un fichier, ni pour un terme (Alice Exemple reste dans la liste privée ci-dessus).
   assert.deepEqual(executer('donnees-personnelles', { ...ctx, couches: couche({ fichier: 'a.md' }, { fichier: 'carnet-prive.txt', pourquoi: ' ' }) }, 'audit').ecarts.map((e) => e.fichier).sort(), ['a.md', 'carnet-prive.txt'], 'sans raison, rien n’est soustrait');
-  assert.deepEqual(exceptions([{ origine: 'contexte', arbre: 'profil', noeud: '/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: [{ ecart: 'a:b', pourquoi: 'jusqu’à D' }, { ecart: 'c' }, 'd'] } } }], 'montage_sensible', 'ecart'),
-    [{ valeur: 'a:b', pourquoi: 'jusqu’à D', origine: 'contexte', arbre: 'profil', noeud: '/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md' }], 'chaque exception avec sa provenance');
+  assert.deepEqual(exceptions([{ origine: 'contexte', provenance: 'profil:/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: [{ ecart: 'a:b', pourquoi: 'jusqu’à D' }, { ecart: 'c' }, 'd'] } } }], 'montage_sensible', 'ecart'),
+    [{ valeur: 'a:b', pourquoi: 'jusqu’à D', origine: 'contexte', provenance: 'profil:/arbre/contextes/perso.md', fichier: '/p/arbre/contextes/perso.md' }], 'chaque exception avec sa provenance');
   assert.deepEqual(fusionnerConfig({ donnees_personnelles: { termes: ['a'] }, journal: 'x' }, { donnees_personnelles: { exceptions: [{ fichier: 'L' }] }, journal: 'y' }),
     { donnees_personnelles: { termes: ['a'], exceptions: [{ fichier: 'L' }] }, journal: 'y' }, 'réglages : objets fusionnés, listes allongées, le plus spécifique l’emporte');
   assert.match(executer('donnees-personnelles', { depot: d, termes: [] }, 'audit').indisponible, /vide/);

@@ -12,7 +12,7 @@ import { Journal } from '../src/stockage/journal.js';
 import { Index } from '../src/stockage/index.js';
 import { ulid } from '../src/ulid.js';
 import { executer, dossierClaude, maisonsWindows } from '../src/controles.js';
-import { git, gitLu } from '../src/commun.js';
+import { git, gitLu, dedans } from '../src/commun.js';
 import { Socle } from '../src/socle.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
@@ -729,7 +729,7 @@ test('Contre-épreuve du conteneur (6) : ce qui, dans le dépôt que le conteneu
   assert.match(r.ecarts[0].message, /crochets SessionStart dans un dépôt que le conteneur écrit/);
   // L'arbre du projet excepte un écart par sa clé exacte, avec sa raison (le socle, jusqu'à la livraison D) ; sans
   // raison, l'exception ne vaut pas.
-  const excepter = (...x) => { ctx.couches = [{ origine: 'contexte', arbre: 'profil', noeud: '/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: x } } }]; };
+  const excepter = (...x) => { ctx.couches = [{ origine: 'contexte', provenance: 'profil:/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: x } } }]; };
   excepter({ ecart: 'acces-distant:projet' }, { ecart: 'crochets', pourquoi: 'x' });
   assert.deepEqual(lire().ecarts.map((e) => e.cle), ['crochets:.claude/settings.local.json', 'acces-distant:projet']);
   assert.deepEqual(lire().exceptions_ignorees, [{ ecart: 'acces-distant:projet', raison: 'sans raison', provenance: 'profil:/arbre/contextes/perso.md' }]);
@@ -879,6 +879,14 @@ test('Contre-épreuve des exceptions (b) : une exception que son contrôle n’a
   // Témoin : lue partout, sans rien faire taire, elle est périmée.
   fs.rmSync(path.join(d, '.devcontainer')); devcontainer({}); relire();
   assert.deepEqual(perimees(s.audit({ journaliser: true })).map((e) => e.cle), [`exception-perimee:${cle}`]);
+});
+
+test('Contre-épreuve des exceptions (mineur 6) : un seul test « dedans », pour le contrôle du conteneur et la lecture des exceptions', () => {
+  assert.deepEqual([['/a', '/a'], ['/a/b', '/a'], ['/a/..x', '/a'], ['/ab', '/a'], ['/', '/a'], ['/a/../b', '/a']].map(([x, y]) => dedans(x, y)), [true, true, true, false, false, false]);
+  // Une couche du profil dans un dossier `..x` du dépôt contrôlé est dans le dépôt.
+  const couche = (fichier) => [{ origine: 'contexte', provenance: 'p:/c.md', fichier, config: { montage_sensible: { exceptions: [{ ecart: 'e', pourquoi: 'p' }] } } }];
+  assert.equal(exceptions(couche('/d/..x/arbre/c.md'), 'montage_sensible', 'ecart', { depot: '/d' }).length, 0);
+  assert.equal(exceptions(couche('/d2/arbre/c.md'), 'montage_sensible', 'ecart', { depot: '/d' }).length, 1);
 });
 
 test('Contre-épreuve des exceptions (mineur 1) : une exception non jugée ne retient que son propre écart', () => {
