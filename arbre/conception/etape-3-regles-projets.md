@@ -1074,7 +1074,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   Automatisation acceptée par l'auteur : `npm run eprouver -- parent|mutant …` (`bin/eprouver.js`), qui remplace les
   scripts que chaque session réécrivait dans `/tmp` ; témoin vert d'abord, un échec au seul chargement ne compte pas ;
   1 test (147 verts), essayé sur le socle (mutant du mineur 6 rouge, mutant de l'outil vu par son test). Copie de
-  service posée à la demande de l'auteur (`5d1971a`) ; envoi refusé à l'agent par le classifieur du mode `auto`.
+  service posée à la demande de l'auteur (`5d1971a`) ; envoi refusé à l'agent par le classifieur du mode `auto`, puis
+  fait en mode manuel sur approbation de l'auteur (`54fa3ed`).
 - **Reste** :
   0. **Contre-épreuve de l'application de `exceptions-hors-du-depot`** (`8776398` à `0eebabc` et `bfc352f` du profil,
      2026-10-10, scripts dans `/tmp/contre-epreuve-b3/`, rapport dans la transcription `80c50cac`, sous-agent

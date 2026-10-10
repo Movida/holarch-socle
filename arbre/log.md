@@ -17,7 +17,8 @@
   (a) et (c) dans la session suivante ». Le Reste pointe désormais le rapport. Automatisation proposée et acceptée :
   `npm run eprouver` (test contre son parent ou un mutant), 1 test, 147 verts. Copie de service posée à la demande de
   l'auteur (`5d1971a`, interface et gardien relancés) ; l'envoi, qu'il avait demandé aussi, refusé à l'agent par le
-  classifieur du mode `auto` : laissé à l'auteur.
+  classifieur du mode `auto`, puis fait en mode manuel sur approbation de l'auteur (`54fa3ed`, aucune intégration
+  continue).
 
 * **Application de `exceptions-hors-du-depot`, contre-épreuve, et passation** (241 k tokens) : lecture commune des
   exceptions, `montage_sensible` au profil et au contexte hors du dépôt contrôlé, exceptions dites et périmées, un
