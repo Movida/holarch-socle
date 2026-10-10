@@ -70,6 +70,11 @@ de ces trois exceptions.
 par plusieurs personnes (plusieurs profils) ; un besoin d'exception propre à un projet que ni le profil ni un contexte
 ne peuvent porter.
 
+**Limite connue (décision `fusion-et-profil-audite`, 2026-10-10).** Portées par le contexte, les exceptions `LICENSE` et
+`NOTICE` valent pour 7 projets sur 8 (2 avant) : un fichier de ce nom écrit par un conteneur dans un projet privé
+échappe au contrôle des données personnelles. Gardée par l'auteur : un seul projet privé a ces fichiers, et son
+`NOTICE` porte légitimement le titulaire du droit d'auteur.
+
 **Conséquences.** À l'approbation : le code (désignation lue dans la configuration du site, déclarants, identifiants en
 double, règle effective incomplète, écarts du compte, montage du profil, lecture des exceptions de
 `donnees_personnelles`), un commit et un test chacun ; les trois exceptions déplacées dans le même pas que le code, pour

@@ -1,7 +1,7 @@
 ---
 type: decision
 title: L'environnement des sessions, en cinq livraisons utiles seules
-description: "Tranche 12 de l'étape 3, partie mise en œuvre de la décision `partage-et-bac-a-sable`. Cinq livraisons, chacune avec son critère : A démarrage sans session, B veille retardée, C conteneur généré depuis l'arbre (clé `conteneur`, contrat config 0.7.0), D accès distant dans le conteneur, E type `calcul-gpu`."
+description: "Tranche 12 de l'étape 3, partie mise en œuvre de la décision `partage-et-bac-a-sable`. Cinq livraisons, chacune avec son critère : A démarrage sans session, B veille retardée, C conteneur généré depuis l'arbre (clé `conteneur`, contrat config 0.8.0), D accès distant dans le conteneur, E type `calcul-gpu`."
 status: stable
 approved: { by: human:auteur, at: 2026-10-09, ref: "échange du 2026-10-09 : « Approuver les décisions » (choix parmi les actions proposées)" }
 links:
@@ -53,7 +53,7 @@ Livrer d'un bloc attendrait que tout tienne ; découpé, chaque livraison sert s
 |---|---|
 | Session au démarrage | aucune : le serveur démarre sans session ouverte (`--no-create-session-in-dir`), l'auteur en ouvre une depuis l'application ; une session archivée le reste. Réglage du site `acces_distant.session_au_demarrage` (`aucune` par défaut, `reprendre` : la conduite d'avant, `--continue`) |
 | Veille | règle du profil : le poste ne se met pas en veille d'inactivité tant qu'une session distante travaille, ou attend une réponse depuis moins de 30 min (98 % des réponses mesurées arrivent sous 15 min ; marge du double). Adaptateur : crochets Claude Code générés (début et fin de tour, attente) qui notent l'état de la session, et une demande d'éveil tenue côté Windows tant qu'une session l'interdit. Le socle n'éteint jamais le poste : il retarde la veille de Windows, qui reprend la main si l'adaptateur s'arrête. Une session dont rien de daté ne s'écrit depuis 30 min, ni dans sa transcription ni dans celles de ses sous-agents, est tenue pour en attente depuis sa dernière écriture : une demande de permission, une élicitation ou une fin de tour manquée ne tiennent pas le poste éveillé sans fin. Un sous-agent de fond retient le poste tant qu'il écrit ; un shell de fond, non. États des sessions au journal (P4) |
-| Clé `conteneur` | au registre de configuration (contrat config 0.7.0), portée par le profil, le contexte, les types et le projet : `devcontainer` (clés du format `devcontainer.json` telles quelles, fusionnées comme les autres clés : aucun vocabulaire refait, P2), `gpu` (`non` par défaut, `optionnel`, `requis` : traduit en `hostRequirements.gpu`), `connexion_claude` (`volume` par défaut : un volume par conteneur et `CLAUDE_CONFIG_DIR`, comme le conseille Anthropic ; `hote` : montage du `~/.claude` de l'hôte, dérogation écrite) |
+| Clé `conteneur` | au registre de configuration (contrat config 0.8.0), portée par le profil, le contexte, les types et le projet : `devcontainer` (clés du format `devcontainer.json` telles quelles, fusionnées comme les autres clés : aucun vocabulaire refait, P2), `gpu` (`non` par défaut, `optionnel`, `requis` : traduit en `hostRequirements.gpu`), `connexion_claude` (`volume` par défaut : un volume par conteneur et `CLAUDE_CONFIG_DIR`, comme le conseille Anthropic ; `hote` : montage du `~/.claude` de l'hôte, dérogation écrite) |
 | Génération | `holarch projet creer` (étape `conteneur`) écrit `.devcontainer/devcontainer.json` depuis la configuration effective, marqué comme les autres fichiers générés ; l'audit compare le fichier à la configuration ; le modèle recopié (`modeles/projet/devcontainer.json`) est retiré |
 | Lieu de l'accès distant | dans le conteneur du projet : le service de l'hôte lance `devcontainer up` sur le conteneur existant (même étiquette que VS Code), puis `claude remote-control` par `devcontainer exec` ; un projet sans conteneur n'a pas d'accès distant, sauf dérogation écrite |
 | Carte graphique | type transverse `calcul-gpu` (`conteneur.gpu: optionnel`), adopté par un projet qui en a l'usage mesuré, d'abord le projet three.js pour ses tests de rendu ; un poste sans carte démarre le conteneur quand même. Le service de modèles partagé reste à l'idée I20 (après l'étape 4) |
@@ -89,7 +89,7 @@ l'auteur qui dépassent souvent 30 min.
 SSH personnelle ni les conversations des autres projets ; le poste ne s'est pas mis en veille pendant qu'elle
 travaillait.
 
-**Conséquences.** Tranche 12 de l'étape 3 ; contrat config en version mineure (0.7.0, livraison C ; la 0.4.0 est prise par `veille-et-conteneur-precisions`, la 0.5.0 par `exceptions-hors-du-depot`, la 0.6.0 par `profil-designe`) ; essais préalables
+**Conséquences.** Tranche 12 de l'étape 3 ; contrat config en version mineure (0.8.0, livraison C ; la 0.4.0 est prise par `veille-et-conteneur-precisions`, la 0.5.0 par `exceptions-hors-du-depot`, la 0.6.0 par `profil-designe`, la 0.7.0 par `fusion-et-profil-audite`) ; essais préalables
 Q23 à Q26 avant la livraison qui les attend ; les autres projets migrés par `projet creer` rejoué, avec l'accord de
 l'auteur projet par projet.
 
@@ -107,4 +107,4 @@ et limites connues.
 (approuvée) : la livraison C prend la 0.6.0 du contrat de configuration.
 
 **Amendée le 2026-10-10** par [`profil-designe`](/arbre/decisions/2026-10-10-profil-designe.md) (approuvée) : la
-livraison C prend la 0.7.0 du contrat de configuration.
+livraison C prend la 0.8.0 du contrat de configuration (décision `fusion-et-profil-audite`).
