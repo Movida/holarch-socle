@@ -2,7 +2,8 @@
 type: decision
 title: "Le profil désigné par le site : un seul déclarant, aucun identifiant en double, exceptions hors du dépôt"
 description: Après la contre-épreuve de exceptions-hors-du-depot (constats a et c). Le dépôt du profil est nommé par la configuration du site ; seuls ses nœuds déclarent des projets ; un identifiant d'arbre ou de type en double n'est jamais résolu au hasard ; les exceptions de donnees_personnelles se lisent comme celles de montage_sensible ; toute ambiguïté devient une règle effective incomplète ou un écart.
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-10, ref: "échange du 2026-10-10, dix points détaillés et approuvés un à un, choix cliquables (profil désigné, exceptions hors du dépôt, contrat de configuration 0.6.0, montage du profil en écriture)" }
 links:
   derives_from: [/arbre/decisions/2026-10-10-exceptions-hors-du-depot.md, /arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-10-exceptions-hors-du-depot.md, /arbre/decisions/2026-10-09-veille-et-conteneur-precisions.md, /arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/conception/contrats/noeud.md, /arbre/conception/contrats/config.md, /arbre/types-transverses/depot-public/index.md, "profil:/arbre/index.md", "profil:/arbre/contextes/perso.md", "okf-bundle-template:/arbre/index.md"]
@@ -52,20 +53,18 @@ de ces trois exceptions.
 | Contrat de configuration | 0.6.0 : `donnees_personnelles`, `termes` à toutes les couches, `exceptions` au profil et au contexte, hors du dépôt contrôlé ; `montage_sensible`, une exception se juge périmée sur ce site, et seulement là où son contrôle l'a lue en entier. La livraison C passe à la 0.7.0 |
 | Contrat nœud | 0.4.0 : `projects` lu dans le seul arbre du profil désigné par le site ; l'`id` d'une racine et celui d'un type sont uniques sur un site, un doublon n'est jamais résolu |
 
-**Choix à l'auteur.**
+**Choix de l'auteur (2026-10-10, choix cliquables, puis chaque point approuvé un à un) : les recommandations.**
 
-1. Comment le site reconnaît son profil. Recommandation de l'agent : le désigner dans la configuration du site. Rien de
-   ce qu'un dépôt écrit ne peut alors faire un profil, même sur un site où le vrai manque ; le coût est une ligne par
-   site. Autre voie : le déduire comme aujourd'hui, en faisant de toute ambiguïté (deux profils, déclarant hors du
-   profil) un écart. Aucun réglage, mais sur un site sans le dépôt du profil, un dépôt qui écrit un contexte devient le
-   profil sans que rien soit ambigu.
-2. Exceptions de `donnees_personnelles`. Recommandation de l'agent : les fermer comme celles de `montage_sensible`. La
-   menace est la même (la session qui écrit le dépôt écrit l'exception qui fait taire la garde, dans le même commit),
-   et les trois exceptions du poste, génériques ou publiques, se déplacent en trois lignes. Autre voie : les laisser
-   dans le dépôt et seulement les dire à l'audit ; plus court, la voie reste ouverte.
-3. Version du contrat de configuration. Recommandation de l'agent : 0.6.0 pour ce changement, C passe à la 0.7.0 ; c'est
-   le choix fait par l'auteur pour la même question le 2026-10-10 (une portée réduite est une rupture, elle prend sa
-   version). Autre voie : amender la 0.5.0 en place.
+1. Comment le site reconnaît son profil : désigné dans la configuration du site (recommandation suivie). Autre voie
+   écartée : le déduire comme aujourd'hui, toute ambiguïté en écart ; sur un site sans le dépôt du profil, un dépôt qui
+   écrit un contexte devenait le profil sans que rien soit ambigu.
+2. Exceptions de `donnees_personnelles` : fermées comme celles de `montage_sensible` (recommandation suivie). Autre voie
+   écartée : les laisser dans le dépôt et les dire à l'audit.
+3. Version du contrat de configuration : 0.6.0, C passe à la 0.7.0 (recommandation suivie). Autre voie écartée :
+   amender la 0.5.0 en place.
+4. Montage du dépôt du profil : un écart en écriture seulement (recommandation suivie ; la décision porte sur
+   l'intégrité de ce qui fait foi). Autre voie écartée : en lecture aussi (le profil est confidentiel), qui relève de
+   la confidentialité.
 
 **Ce qui le ferait changer.** Un contexte de travail dans un autre dépôt (une clé de plus, ci-dessus) ; un site partagé
 par plusieurs personnes (plusieurs profils) ; un besoin d'exception propre à un projet que ni le profil ni un contexte
