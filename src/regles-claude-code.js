@@ -52,6 +52,18 @@ export function lecturesRefusees(e) {
 export const avantCommit = (e) => e.niveau === 'blocking' && (e.controles || []).some((c) => CONTROLES[c]?.moments.includes('avant-commit'));
 
 /**
+ * Écrit le manifeste de ce que HOLARCH a posé dans `settings.json` (`notees`, null : inchangé), puis `settings.json`
+ * (`c`, null : inchangé). Le manifeste d'abord : refusé, rien ne s'écrit ; `settings.json` refusé ensuite, le manifeste
+ * revient à `precedent`. Une entrée posée par HOLARCH n'est ainsi jamais absente du manifeste, seul à permettre de la
+ * retirer (dans l'ordre inverse, un manifeste refusé laissait dans `settings.json` une entrée que rien ne retirait).
+ */
+function ecrireAvecManifeste(home, { settings, c, manifeste, notees, precedent }) {
+  if (notees) ecrireJson(manifeste, notees, { racine: home });
+  if (!c) return;
+  try { ecrireJson(settings, c, { racine: home }); } catch (e) { if (notees) ecrireJson(manifeste, precedent, { racine: home }); throw e; }
+}
+
+/**
  * Permissions de lecture refusées à la portée du compte (`<home>/settings.json`, `permissions.deny`) : ajoute les
  * entrées voulues, retire celles que HOLARCH avait posées et qui ne le sont plus (manifeste à côté des règles générées) ;
  * une entrée posée par quelqu'un d'autre n'est jamais retirée. `ecrire: false` : dit seulement ce qui changerait.
@@ -65,12 +77,10 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
   const retirees = [...nos].filter((x) => !voulues.has(x) && deny.includes(x));
   const r = { fichier: settings, ajoutees, retirees, inchangees: entrees.filter((x) => deny.includes(x)) };
   if (!ecrire) return r;
-  if (ajoutees.length || retirees.length) {
-    c.permissions = { ...(c.permissions || {}), deny: [...deny.filter((x) => !retirees.includes(x)), ...ajoutees] };
-    ecrireJson(settings, c, { racine: home });
-  }
   const notees = entrees.filter((x) => nos.has(x) || ajoutees.includes(x));
-  if (notees.length || fs.existsSync(manifeste)) ecrireJson(manifeste, { deny: notees }, { racine: home });
+  ecrireAvecManifeste(home, { settings, manifeste, precedent: { deny: [...nos] },
+    c: ajoutees.length || retirees.length ? { ...c, permissions: { ...(c.permissions || {}), deny: [...deny.filter((x) => !retirees.includes(x)), ...ajoutees] } } : null,
+    notees: notees.length || fs.existsSync(manifeste) ? { deny: notees } : null });
   return r;
 }
 
@@ -148,8 +158,10 @@ export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
   }
   if (!Object.keys(hooks).length) delete c.hooks;
   const change = r.cles.posees.length || r.cles.retirees.length || r.crochets.poses.length || r.crochets.retires.length;
-  if (ecrire && change) ecrireJson(settings, c, { racine: home });
-  if (ecrire && (Object.keys(notees.cles).length || notees.crochets.length || fs.existsSync(manifeste))) ecrireJson(manifeste, notees, { racine: home });
+  if (ecrire) {
+    ecrireAvecManifeste(home, { settings, manifeste, precedent: nos, c: change ? c : null,
+      notees: Object.keys(notees.cles).length || notees.crochets.length || fs.existsSync(manifeste) ? notees : null });
+  }
   return r;
 }
 

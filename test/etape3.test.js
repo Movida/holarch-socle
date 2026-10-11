@@ -1482,6 +1482,28 @@ test('Lectures dans un dépôt : un lien symbolique n’y fait lire aucun fichie
   assert.throws(() => ajouterRegles(dr, path.join(dr, 'arbre', 'rules.yaml'), [{ id: 'r', statement: 'Une règle.' }]), (e) => e.message === 'arbre/rules.yaml est un lien symbolique : rien n’est écrit');
 });
 
+// Réglages du compte (limite de C levée) : le manifeste de ce que HOLARCH pose dans settings.json s'écrit d'abord ;
+// refusé, settings.json reste tel quel ; settings.json refusé ensuite, le manifeste revient comme il était. Aucune entrée
+// posée par HOLARCH ne manque au manifeste : une fois le lien retiré, ce qui n'est plus voulu se retire.
+test('Réglages du compte : un manifeste ou un settings.json refusé ne laisse aucune entrée posée par HOLARCH hors du manifeste', () => {
+  const X = 'Read(//**/.env)'; const Y = 'Read(//**/.ssh/**)';
+  const vouloir = (cles) => reglagesVoulus({ claude_code: { reglages: cles } }, { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv' });
+  for (const [nom, poser, avant, apres, manifeste, attendu] of [
+    ['permissions', (h, v) => appliquerPermissions(h, v), [X], [Y], 'permissions.json', [{ permissions: { deny: [Y] } }, { deny: [Y] }]],
+    ['reglages', (h, v) => appliquerReglages(h, vouloir(v)), { effortLevel: 'high' }, { model: 'opus' }, 'reglages.json', [{ model: 'opus' }, { cles: { model: 'opus' }, crochets: [] }]]]) {
+    const home = tmp(); const lire = (f) => fs.readFileSync(path.join(home, f), 'utf8');
+    const etat = () => [lire('settings.json'), lire(path.join('rules', 'holarch', manifeste))];
+    poser(home, avant); const pose = etat();
+    for (const f of [path.join('rules', 'holarch', manifeste), 'settings.json']) {
+      const temporaire = path.join(home, `${f}.${process.pid}.holarch`); fs.symlinkSync(path.join(tmp(), 'x'), temporaire);
+      assert.throws(() => poser(home, apres), (e) => e.message === `${f}.${process.pid}.holarch est un lien symbolique : rien n’est écrit`, `${nom} ${f}`);
+      assert.deepEqual(etat(), pose, `${nom} ${f}`); fs.rmSync(temporaire);
+    }
+    poser(home, apres);
+    assert.deepEqual(etat().map((x) => JSON.parse(x)), attendu, nom);
+  }
+});
+
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
 import { creerService, binaireService, copieEnService } from '../src/service.js';
 
