@@ -280,31 +280,39 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
   const chaines = new Map();
   for (const id of cibles) {
     const p = projets.find((x) => x.id === id); if (!p) continue;
-    const r = regleEffective(fiches, id, { profil: s.profil() });
-    // Un dépôt absent de ce site : ses types, donc ses règles, sont inconnus ; rien ne s'y juge.
-    if (p.location && fs.existsSync(p.location)) chaines.set(id, new Set(r.couches.map((c) => c.provenance)));
-    const { ecarts, controles } = controler(r, contexteControle(s, p, r), 'audit', ['blocking', 'verified']);
-    for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
-    // Une source illisible du profil est déjà un écart du compte : le projet ne la compte pas une seconde fois.
-    const propres = { illisibles: r.illisibles.filter((m) => !compte.illisibles.includes(m)) };
-    const rp = { projet: id, nom: p.name, ecarts: [...ecartsIllisibles(propres), ...ecarts], controles };
-    faits.add(`${id}|regles-lisibles`);
-    if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'conteneur-genere', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
-    else if (p.location && fs.existsSync(p.location)) {
-      const m = materialiserProjet(r, p.location, { accueil: s.config.accueil || accueil(), ecrire: false });
-      // Un lien symbolique dans le dépôt, sur le chemin des règles, du crochet ou du conteneur généré : rien n'y est lu, le
-      // contrôle n'a pas pu se faire, et ce qu'il n'a pas vu ne se résout pas.
-      if (m.fichiers.erreur) rp.controles.push({ id: 'regles-a-jour', etat: 'indisponible', raison: m.fichiers.erreur });
-      else { rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch')); faits.add(`${id}|regles-a-jour`); }
-      if (m.crochet.etat === 'erreur') rp.controles.push({ id: 'crochet-pose', etat: 'indisponible', raison: m.crochet.raison });
-      else { rp.ecarts.push(...ecartsCrochet(m.crochet)); faits.add(`${id}|crochet-pose`); }
-      try { rp.ecarts.push(...ecartsConteneur(r, p.location)); faits.add(`${id}|conteneur-genere`); } catch (e) { rp.controles.push({ id: 'conteneur-genere', etat: 'indisponible', raison: e.message }); }
+    try {
+      const r = regleEffective(fiches, id, { profil: s.profil() });
+      // Un dépôt absent de ce site : ses types, donc ses règles, sont inconnus ; rien ne s'y juge.
+      if (p.location && fs.existsSync(p.location)) chaines.set(id, new Set(r.couches.map((c) => c.provenance)));
+      const { ecarts, controles } = controler(r, contexteControle(s, p, r), 'audit', ['blocking', 'verified']);
+      for (const c of controles) if (c.etat === 'fait') faits.add(`${id}|${c.id}`);
+      // Une source illisible du profil est déjà un écart du compte : le projet ne la compte pas une seconde fois.
+      const propres = { illisibles: r.illisibles.filter((m) => !compte.illisibles.includes(m)) };
+      const rp = { projet: id, nom: p.name, ecarts: [...ecartsIllisibles(propres), ...ecarts], controles };
+      faits.add(`${id}|regles-lisibles`);
+      if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'conteneur-genere', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
+      else if (p.location && fs.existsSync(p.location)) {
+        const m = materialiserProjet(r, p.location, { accueil: s.config.accueil || accueil(), ecrire: false });
+        // Un lien symbolique dans le dépôt, sur le chemin des règles, du crochet ou du conteneur généré : rien n'y est lu, le
+        // contrôle n'a pas pu se faire, et ce qu'il n'a pas vu ne se résout pas.
+        if (m.fichiers.erreur) rp.controles.push({ id: 'regles-a-jour', etat: 'indisponible', raison: m.fichiers.erreur });
+        else { rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch')); faits.add(`${id}|regles-a-jour`); }
+        if (m.crochet.etat === 'erreur') rp.controles.push({ id: 'crochet-pose', etat: 'indisponible', raison: m.crochet.raison });
+        else { rp.ecarts.push(...ecartsCrochet(m.crochet)); faits.add(`${id}|crochet-pose`); }
+        try { rp.ecarts.push(...ecartsConteneur(r, p.location)); faits.add(`${id}|conteneur-genere`); } catch (e) { rp.controles.push({ id: 'conteneur-genere', etat: 'indisponible', raison: e.message }); }
+      }
+      if (!r.illisibles.length) {
+        rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));
+        faits.add(`${id}|memoire-remplacee`);
+      }
+      sorties.push(rp);
+    } catch (e) {
+      // Une levée sur un projet (décision garde-sans-passage-muet) : lui seul n'est pas jugé, les autres le sont ; ce qu'il
+      // avait déjà fait ne résout rien, et ses exceptions ne se jugent pas.
+      for (const k of [...faits]) if (k.startsWith(`${id}|`)) faits.delete(k);
+      chaines.delete(id);
+      sorties.push({ projet: id, nom: p.name, ecarts: [], controles: [{ id: 'audit', etat: 'indisponible', raison: `audit du projet en échec : ${e.message}` }] });
     }
-    if (!r.illisibles.length) {
-      rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));
-      faits.add(`${id}|memoire-remplacee`);
-    }
-    sorties.push(rp);
   }
   const retenus = projet ? new Set() : perimees(sorties, faits, projetsCouverts(fiches, { profil: s.profil() }), chaines);
 

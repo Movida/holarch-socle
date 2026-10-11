@@ -1521,3 +1521,32 @@ test('Contre-épreuve du profil désigné (mineur 3) : la chaîne d’un déclar
   // Témoin : la chaîne atteint la racine.
   assert.deepEqual(lire('links: { derives_from: [/arbre/index.md] }\n'), [[], ['rien-de-personnel'], 0]);
 });
+
+test('Garde sans passage muet (5) : un projet dont l’audit lève est non disponible, les autres sont audités, rien de lui ne se résout', () => {
+  const r = tmp(); const accueil = tmp();
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  ecrireF(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:a, holarch:project:b]\n---\n');
+  const depots = ['a', 'b'].map((n) => {
+    const d = path.join(r, n); spawnSync('git', ['init', '-q', d]);
+    ecrireF(path.join(d, 'arbre', 'index.md'), `---\ntype: guideline\nid: ${n}\ntitle: Dépôt ${n}\nstatus: draft\n---\n`);
+    ecrireF(path.join(d, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel fictif.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+    return d;
+  });
+  const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), ...depots], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+    ...depots.map((d) => ({ id: `holarch:project:${path.basename(d)}`, kind: 'project', name: path.basename(d), status: 'active', location: d, provenance: { source: 't' } }))]);
+  s.indexer();
+  const regles = (a, p) => a.cibles.find((c) => c.projet === `holarch:project:${p}`);
+  let a = s.audit({ journaliser: true });
+  assert.deepEqual(['a', 'b'].map((p) => regles(a, p).ecarts.map((e) => e.controle)), [['regles-a-jour'], ['regles-a-jour']]);
+  assert.equal(a.journal.apparus, 2);
+  // Une panne en fin de calcul, pour b seul : une mémoire dont le rattachement lève.
+  const fichesDe = s.fiches.bind(s);
+  s.fiches = (q) => (q?.kind === 'memory' ? [...fichesDe(q), { id: 'm', kind: 'memory', name: 'm', links: { project: { includes: (id) => {
+    if (id === 'holarch:project:b') throw new Error('panne simulée'); return false; } } } }] : fichesDe(q));
+  a = s.audit({ journaliser: true });
+  assert.deepEqual(regles(a, 'a').ecarts.map((e) => e.controle), ['regles-a-jour'], 'l’autre projet est audité');
+  assert.deepEqual([regles(a, 'b').ecarts, regles(a, 'b').controles], [[], [{ id: 'audit', etat: 'indisponible', raison: 'audit du projet en échec : panne simulée' }]]);
+  assert.deepEqual([a.journal.apparus, a.journal.resolus], [0, 0], 'ce que b avait fait avant la levée ne résout pas son écart');
+});
