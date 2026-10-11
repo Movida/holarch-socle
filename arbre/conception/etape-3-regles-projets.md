@@ -1223,6 +1223,26 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   parent et son mutant. Mesuré : aucun lien aux chemins gardés (6 projets, profil, compte), aucun script indexé sans
   commit. 165 tests verts. Racine du profil vérifiée sur le poste (le contexte `perso.md` y est). Copie de service posée
   (`bd765de`), audit réel : 0 apparu, 0 résolu. Rien poussé.
+- **Fait (2026-10-11)** : livraison C close (Opus 5.5 `xhigh`). Fin de la contre-épreuve sur quatre choix de l'auteur
+  en un tour (recommandations suivies), par une instance neuve relue par l'agent : (c) `9df599c`, `holarch rapport` rend
+  le plus long des messages écrits après le dernier outil de travail (463 sous-agents du poste : 289 rapports inchangés,
+  107 plus longs, souvent « Rapport transmis. » remplacé par la remise, 67 toujours sans rapport lisible) ; (d)
+  `0544b36`, étape `cle` : clé du conteneur en marche comparée aux clés du dépôt ; (e1) `a876798`, `--network=host` dit
+  par `montage-sensible` ; (e2) `4ff6364`, casse du nom gardée dans les volumes (aucun volume du poste renommé) ; (e3)
+  limite écrite. Question de l'auteur sur les limites listées : un palliatif avait-il été cherché ? Non ; sur dix, huit
+  se palliaient à coût faible ou moyen. Palliatifs, au choix de l'auteur, par une seconde instance : `ac2f937` (étape
+  `cle` : tous les conteneurs du projet, « aucun construit » distinct d'« arrêté », utilisateur lu dans l'étiquette
+  `devcontainer.metadata` dans l'ordre de la CLI 0.89.0, échec de `gh` dit : geste s'il n'est pas connecté, échec
+  sinon) ; `4ee6b8a` (`lireSansLien` pour les lectures dont le contenu sort, d'après un inventaire de 51 lectures, dont
+  l'inventaire de l'arbre, qui ne parcourt plus un dossier `arbre` en lien) ; `980c2ac` (manifeste du compte écrit avant
+  `settings.json`, remis en l'état si `settings.json` est refusé) ; `ce3e0d7` et `1a6c704` (espaces de noms
+  `container:` dans les options, réseau de l'hôte ou d'un autre conteneur lu sur les conteneurs construits) ; `fa5ac8c`
+  (`O_NOFOLLOW` dans `ecrireSansLien`, la course éprouvée par un test qui pose le lien après la vérification).
+  `devcontainer` par le registre npm non fait : contrat de configuration 0.9.0 à décider. Chaque test rouge sur son
+  parent et ses mutants ; 168 verts. Revue rétroactive des limites par deux instances en lecture seule
+  (`arbre/conception/revue-limites.md`, brouillon) : 101 ouvertes (82 à palliatif trivial ou faible), 37 levées depuis,
+  29 tranchées par l'auteur. Règle `limite-avec-palliatif` au profil, approuvée par l'auteur (`2a99f55`, `d93c5b4` du
+  profil) et écrite au compte. Copie de service posée (`fa5ac8c`), audit réel : 0 apparu, 0 résolu.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1293,15 +1313,41 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Pour C, reprise au temps 4** (contre-épreuve : M-1, M-2 et les mineurs faits, Faits ci-dessus ; rapport dans
+  0. **Suite de la clôture de C (2026-10-11)**, dans l'ordre : (1) décision du contrat de configuration 0.9.0, source
+     `npm` des outils surveillés, pour suivre `devcontainer` (`@devcontainers/cli` : aucune version publiée sur GitHub,
+     `releases/latest` en 404 ; 0.89.0 au registre, vérifié) ; code prêt, dans `versionPubliee` :
+     `if (o.npm) return lire(`${reglages.url_npm ?? 'https://registry.npmjs.org'}/${o.npm}/latest`).version;`, et au
+     profil `{nom: devcontainer, commande: [devcontainer, --version], npm: "@devcontainers/cli"}`. (2) Revue rétroactive
+     des limites (`arbre/conception/revue-limites.md`) : présenter à l'auteur les ouvertes par lots, en choix
+     cliquables, d'abord les cinq de tête (commits non gardés depuis un conteneur ; règles bloquantes redéfinissables
+     par un projet ; contrôle bloquant indisponible qui laisse passer le commit ; `stable` appliquée sans `approved` ;
+     levée d'un seul projet qui arrête l'audit de tous) ; le document se retire une fois les choix faits. (3) Limites
+     restées après les palliatifs de C, chacune avec son palliatif : course à la lecture (`O_NOFOLLOW` dans
+     `lireSansLien`, 3 lignes et un test) ; dossier remplacé entre `mkdir` et `open` (rouvrir sans `O_TRUNC`, comparer
+     dev et inode à un `lstat` refait, puis tronquer, environ 6 lignes ; rien de complet sans `openat`, absent de Node) ;
+     utilisateur de l'image quand l'étiquette n'a ni `remoteUser` ni `containerUser` (`docker inspect`, `.Config.User`) ;
+     branche « remoteUser inconnu » non testée (un cas). Défauts voisins vus, non corrigés : `recolte.js:56` lit sans
+     garde une mémoire que le conteneur écrit, puis l'envoie à `claude -p` (`cheminSansLien` depuis le dossier des
+     projets, 2 lignes et un test) ; `transcription.js:90` lit `.meta.json` sans vérification ; un contexte illisible se
+     dit « aucun contexte dans le profil » (`configAvantProjet`) ; `git()` sans neutralisation dans la création, le
+     crochet et l'identité ; inventaire Claude Code des projets non gardé (environ 6 lignes) ; `.gitleaks.toml` et liens
+     sous `gitleaks dir` non vérifiés.
+  0. **Livraison C, close le 2026-10-11** (reprise au temps 4 ; contre-épreuve : M-1, M-2 et les mineurs faits, Faits ci-dessus ; rapport dans
      `/tmp/contre-epreuve-c/rapport.md`, perdu au redémarrage, sinon dans la transcription du sous-agent, le plus long
      message qui commence par « # Contre-épreuve de la livraison C »). Reste, dans l'ordre : (c) `holarch rapport` ne lit
      que le dernier message : lire le dernier qui porte le titre, avec un test. (d) Étape `cle` : elle compare la présence
      d'une clé au dépôt, pas la clé du conteneur (lisible par `docker exec` quand il tourne, sinon geste), avec un test.
      (e) Suppositions du rapport, à soumettre à l'auteur : `runArgs: ['--network=host']` non dit par `montage-sensible` ;
      casse du nom (`nom.toLowerCase()` : deux projets qui ne diffèrent que par la casse partageraient volumes de
-     connexion et clé) ; marque retirée à la main (le fichier passe pour écrit à la main). Puis l'approbation de C par
-     l'auteur. Limites laissées par la garde, à dire à l'auteur : lectures non gardées (`ecartsConteneur` et `lire()` de
+     connexion et clé) ; marque retirée à la main (le fichier passe pour écrit à la main). Choix de l'auteur
+     (2026-10-11, en un tour, recommandations suivies) : (c) le rapport est le plus long des messages écrits après le
+     dernier outil de travail (le dernier qui porte un titre rendait la seconde remise, raccourcie : 5 413 signes au
+     lieu de 10 868) ; (e1) `--network=host` dit par `montage-sensible` comme pid ou ipc ; (e2) casse gardée dans les
+     noms de volume ; (e3) rien, limite : un fichier généré dont la marque est retirée passe pour écrit à la main
+     (l'audit ne le compare plus, la création n'y touche plus), `montage-sensible` seul le contrôle, le retrait se voit
+     au diff. Mesuré avant : aucun des 8 `devcontainer.json` du poste n'emploie le réseau de l'hôte, les 2 conteneurs
+     construits sont en `bridge` ; les 8 projets en minuscules ; 7 fichiers sans marque (non migrés). (c), (d), (e1) et
+     (e2) confiés à une instance neuve (Opus 5.5 `xhigh`). Clôture par l'auteur le 2026-10-11, après les palliatifs (Fait ci-dessus). Limites laissées par la garde, dites à l'auteur et palliées le 2026-10-11 (Fait ci-dessus) : lectures non gardées (`ecartsConteneur` et `lire()` de
      l'étape 5, `lireJson` des réglages), écritures de git lui-même (identité, `add`, `commit`), course entre la
      vérification et l'écriture. Défaut mineur vu en route : un manifeste refusé après l'écriture de `settings.json` laisse
      une entrée posée par HOLARCH jamais retirée (vrai avant pour toute panne entre les deux écritures). Le contrôle

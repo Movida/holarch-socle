@@ -1,5 +1,21 @@
 # Journal de l'arbre
 
+## 2026-10-11
+
+* **Livraison C close, palliatifs de ses limites, revue rétroactive des limites** (environ 200 k tokens pour l'agent ;
+  instances neuves : 218 k, 363 k, 250 k et 299 k) : (c) à (e) sur quatre choix de l'auteur en un tour ; puis, à sa
+  question sur des limites listées sans palliatif cherché, palliatifs de C (six commits, `ac2f937` à `fa5ac8c`), règle
+  `limite-avec-palliatif` approuvée et écrite au compte, revue rétroactive (`revue-limites.md` : 101 ouvertes, 37
+  levées depuis, 29 tranchées). 168 tests verts, chacun rouge sur son parent et ses mutants ; copie de service posée
+  (`fa5ac8c`), audit réel : 0 apparu, 0 résolu. Envoi vers origin/main sur autorisation de l'auteur. Leçon de
+  passation : déroulé annoncé en six temps ((c), (d), (e), pose, approbation de C, envoi), passation probable après le
+  temps 2 ; tenu grâce aux instances neuves, avec deux temps ajoutés par l'auteur (palliatifs, revue). Ce qui l'a fait
+  dévier : des limites dites sans palliatif cherché, relevées par l'auteur ; le rapport de la contre-épreuve à
+  retrouver dans la transcription (`/tmp` perdu) ; un remplacement qui a effacé une ligne du profil (illisible une
+  minute, vu à la relecture, aucune trace à l'audit) ; la source npm arrêtée par le contrat. La demande qui y aurait
+  mené : « reprise de C : (c) à (e), chaque limite avec son palliatif cherché avant la clôture, et revue rétroactive
+  des limites en parallèle ».
+
 ## 2026-10-10
 
 * **Livraison C : garde étendue, mineurs de la contre-épreuve, défaut C04** (environ 25 k tokens pour l'agent, 325 k
