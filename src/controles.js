@@ -206,9 +206,11 @@ const telecharger = (url, delai = 20) => {
   return JSON.parse(r.stdout);
 };
 
-/** Dernière version publiée d'un outil : publication GitHub (`github: propriétaire/dépôt`) ou dernière LTS de node. */
+/** Dernière version publiée d'un outil : publication GitHub (`github: propriétaire/dépôt`), dernière LTS de node, ou
+ * dernière version du registre npm (`npm: paquet`, décision version-par-npm). */
 export function versionPubliee(o, lire = telecharger, reglages = {}) {
   if (o.github) return lire(`${reglages.url_github ?? 'https://api.github.com'}/repos/${o.github}/releases/latest`).tag_name;
+  if (o.npm) return lire(`${reglages.url_npm ?? 'https://registry.npmjs.org'}/${o.npm}/latest`).version;
   if (o.node === 'lts') return lire(reglages.url_node ?? 'https://nodejs.org/dist/index.json').find((x) => x.lts)?.version;
   throw new Error(`source de version inconnue pour ${o.nom}`);
 }

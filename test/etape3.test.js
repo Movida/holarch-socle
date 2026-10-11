@@ -653,9 +653,11 @@ test('contrôles : outils à jour (installé contre publié), introuvable signal
   assert.equal(executer('outils-a-jour', { config: { outils_surveilles: [{ nom: 'x', commande: [`sh; touch ${piege}`], github: 'x/y' }] }, publiees: { x: '1.0.0' } }, 'audit').ecarts[0].message, 'x introuvable sur ce site');
   assert.ok(!fs.existsSync(piege), 'un nom d’outil ne passe jamais par un shell');
   assert.match(executer('outils-a-jour', { config, publiees: { 'outil-a': 'pas une version' } }, 'audit').indisponible, /illisible pour outil-a/);
-  const lu = []; const lire = (u) => { lu.push(u); return u.includes('github') ? { tag_name: 'v8.30.1' } : [{ version: 'v25.0.0', lts: false }, { version: 'v24.11.0', lts: 'Krypton' }]; };
-  assert.deepEqual([versionPubliee({ github: 'exemple/outil' }, lire), versionPubliee({ node: 'lts' }, lire)], ['v8.30.1', 'v24.11.0']);
-  assert.deepEqual(lu, ['https://api.github.com/repos/exemple/outil/releases/latest', 'https://nodejs.org/dist/index.json']);
+  const lu = []; const lire = (u) => { lu.push(u); return u.includes('github') ? { tag_name: 'v8.30.1' } : u.includes('npmjs') ? { name: '@exemple/outil', version: '0.89.0' } : [{ version: 'v25.0.0', lts: false }, { version: 'v24.11.0', lts: 'Krypton' }]; };
+  assert.deepEqual([versionPubliee({ github: 'exemple/outil' }, lire), versionPubliee({ node: 'lts' }, lire), versionPubliee({ npm: '@exemple/outil' }, lire)], ['v8.30.1', 'v24.11.0', '0.89.0']);
+  assert.deepEqual(lu, ['https://api.github.com/repos/exemple/outil/releases/latest', 'https://nodejs.org/dist/index.json', 'https://registry.npmjs.org/@exemple/outil/latest']);
+  assert.equal(versionPubliee({ npm: 'outil' }, (u) => ({ version: u }), { url_npm: 'http://miroir' }), 'http://miroir/outil/latest', 'registre réglé par le site');
+  assert.throws(() => versionPubliee({ nom: 'sans-source' }, lire), /source de version inconnue pour sans-source/);
 });
 
 test('audit : un contrôle de portée site s’exécute au compte, jamais dans chaque projet', () => {

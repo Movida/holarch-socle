@@ -26,7 +26,7 @@ et sur la carte du projet. La veille plus large (nouveaux modèles, nouveautés 
 |---|---|
 | Périmètre | deux règles du profil, donc valables partout ; l'audit couvre les projets que le contexte déclare, et l'auteur y déclare ceux à surveiller |
 | Failles | contrôle `dependances-vulnerables` : `osv-scanner` sur les fichiers de verrouillage suivis par git ; un écart par paquet qui porte une faille de gravité élevée ou critique (CVSS ≥ 7, ou gravité déclarée `HIGH` ou `CRITICAL`) |
-| Versions | contrôle `outils-a-jour`, de portée site : chaque outil de la liste du profil (`outils_surveilles`), version installée contre dernière publiée (publication GitHub, ou dernière LTS pour node) |
+| Versions | contrôle `outils-a-jour`, de portée site : chaque outil de la liste du profil (`outils_surveilles`), version installée contre dernière publiée (publication GitHub, dernière LTS pour node, ou dernière version du registre npm, décision `version-par-npm`) |
 | Fréquence | les sources ne sont interrogées qu'une fois par jour ; entre deux, l'audit relit le résultat gardé (et réinterroge si un fichier de verrouillage change) |
 | Outil absent ou source injoignable | contrôle non disponible, jamais conforme |
 
