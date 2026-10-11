@@ -620,8 +620,13 @@ test('Contre-épreuve du conteneur (3) : options de runArgs lues comme le CLI Do
     '--volumes-from', 'autre', '--privileged', '--privileged=false', '--cap-add=SYS_ADMIN', '--device', '/dev/bus/usb', '--pid=host',
     '--network=host', '--security-opt', 'seccomp=unconfined', '--security-opt=no-new-privileges', '--use-api-socket'] });
   let r = lire();
-  assert.deepEqual(cles(r), ['/a', '/b', '/c', 'volumes-from:autre', 'privileged', 'cap-add:SYS_ADMIN', 'device:/dev/bus/usb', 'pid:host', 'security-opt:seccomp=unconfined', 'use-api-socket']);
+  assert.deepEqual(cles(r), ['/a', '/b', '/c', 'volumes-from:autre', 'privileged', 'cap-add:SYS_ADMIN', 'device:/dev/bus/usb', 'pid:host', 'network:host', 'security-opt:seccomp=unconfined', 'use-api-socket']);
   assert.match(r.ecarts.find((e) => e.cle.endsWith(':privileged')).message, /conteneur privilégié.*l’isolement du conteneur ne tient plus/);
+  // Le réseau de l'hôte, comme les autres espaces de noms de l'hôte : en deux arguments, et sous l'ancien nom `--net`.
+  config({ runArgs: ['--network', 'host', '--net=host', '--network=bridge', '--net', 'none'] });
+  r = lire();
+  assert.deepEqual(r.ecarts.map((e) => [cles({ ecarts: [e] })[0], e.message]), [['network:host', 'espace de noms de l’hôte (--network=host) : l’isolement du conteneur ne tient plus'],
+    ['network:host', 'espace de noms de l’hôte (--net=host) : l’isolement du conteneur ne tient plus']]);
   // Les mêmes privilèges écrits en propriétés du fichier, ligne comprise.
   config('{\n  "privileged": true,\n  "capAdd": ["SYS_PTRACE"],\n  "securityOpt": ["apparmor=unconfined", "label=type:x"]\n}');
   r = lire();
