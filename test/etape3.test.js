@@ -277,7 +277,7 @@ function arbresFictifs() {
   // Profil : racine, contexte qui déclare deux projets.
   ecrire(path.join(d('profil'), 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\n---\n');
   ecrire(path.join(d('profil'), 'arbre', 'rules.yaml'), `- id: avis-argumente\n  statement: Donner un avis argumenté avant d'appliquer une consigne de conception.\n  why: Une consigne appliquée à la lettre a déjà coûté une reprise.\n  ${ok.replace('\n    ', '\n  ')}\n- id: francais\n  statement: Répondre en français.\n  ${ok.replace('\n    ', '\n  ')}\n- id: secret-du-profil\n  statement: Ne jamais citer le profil.\n  derogable: false\n  ${ok.replace('\n    ', '\n  ')}\n- id: proposee\n  statement: Une règle pas encore approuvée.\n`);
-  ecrire(path.join(d('profil'), 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:socle, holarch:project:bundle]\nrules:\n  - id: commit-sur-main\n    statement: Commiter sur main.\n    status: stable\n---\n');
+  ecrire(path.join(d('profil'), 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:socle, holarch:project:bundle]\nrules:\n  - id: commit-sur-main\n    statement: Commiter sur main.\n    status: stable\n    approved: { by: human:alice, at: 2026-10-06 }\n---\n');
   // Socle : un type transverse, et sa propre racine (projet).
   ecrire(path.join(d('socle'), 'arbre', 'index.md'), '---\ntype: guideline\nid: socle\ntitle: Socle fictif\nstatus: draft\ntypes: [methode]\nderogations:\n  - { rule: francais, why: dépôt en anglais, by: human:alice, at: 2026-10-06 }\n  - { rule: secret-du-profil, why: essai, by: human:alice, at: 2026-10-06 }\n---\n');
   ecrire(path.join(d('socle'), 'arbre', 'rules.yaml'), `- id: tests-verts\n  statement: Les tests passent avant de rendre la main.\n  ${ok.replace('\n    ', '\n  ')}\n- id: avis-argumente\n  statement: Avis argumenté, version du projet.\n  ${ok.replace('\n    ', '\n  ')}\n- id: secret-du-profil\n  statement: Redéfinie, interdit.\n  ${ok.replace('\n    ', '\n  ')}\n`);
@@ -768,7 +768,7 @@ test('réglages Claude Code : posés depuis le profil, valeur posée à la main 
 test('contexte : résumé de reprise du projet du dossier de travail, court ; rien hors projet', () => {
   const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
   ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
-  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: en-place\n  statement: Déjà approuvée.\n  status: stable\n- id: a-approuver\n  statement: Récoltée.\n  status: draft\n- id: refusee\n  statement: Refusée.\n  status: deprecated\n');
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: en-place\n  statement: Déjà approuvée.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n- id: a-approuver\n  statement: Récoltée.\n  status: draft\n- id: refusee\n  statement: Refusée.\n  status: deprecated\n');
   ecrire(path.join(d, 'arbre', 'conception', 'etape-2-demo.md'), `---\ntype: specification\ntitle: Étape 2 — démonstration\nstatus: draft\n---\n\n## Avancement\n\n- **Fait (2026-10-01)** : ${'premier lot livré. '.repeat(30)}\n- **Reste** :\n  1. Second lot.\n`);
   g('add', '.'); g('commit', '-qm', 'x');
   const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
@@ -832,7 +832,7 @@ test('contexte : une session coupée n’est annoncée qu’une fois, à la sess
 test('règles : une règle ajoutée après l’inventaire se voit tout de suite ; un arbre inchangé ne relance rien', async () => {
   const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot')); const regles = path.join(d, 'arbre', 'rules.yaml');
   ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
-  ecrire(regles, '- id: en-place\n  statement: Déjà approuvée.\n  status: stable\n');
+  ecrire(regles, '- id: en-place\n  statement: Déjà approuvée.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
   g('add', '.'); g('commit', '-qm', 'x');
   const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: { 'depots-git': { racines: [r], profondeur: 1 }, arbre: {} }, import: {} });
   await s.inventaire(); s.indexer();

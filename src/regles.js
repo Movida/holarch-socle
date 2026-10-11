@@ -91,7 +91,11 @@ function fusionner(couches, signaux) {
   for (const { origine, noeud, regles } of couches) {
     for (const f of regles) {
       const a = f.attributes;
-      const e = { id: f.name, fiche: f.id, enonce: a.enonce, pourquoi: a.pourquoi, niveau: a.niveau, statut: a.statut, derogeable: a.derogeable,
+      // Une règle `stable` ne vaut qu'approuvée (décision garde-sans-passage-muet) : sans `approved.by`, elle se lit comme
+      // un brouillon, donc à approuver, et ne remplace pas une règle approuvée de même `id`.
+      const sansApprobation = a.statut === 'stable' && !a.approuve?.by;
+      if (sansApprobation) signaux.push(`règle stable sans approbation : ${f.name} (${a.arbre}:${noeud.node}) ; lue comme brouillon jusqu’à son approbation`);
+      const e = { id: f.name, fiche: f.id, enonce: a.enonce, pourquoi: a.pourquoi, niveau: a.niveau, statut: sansApprobation ? 'draft' : a.statut, derogeable: a.derogeable,
         applique_a: a.applique_a, match: a.match || null, controles: a.controles || null, remplace: a.remplace || null, classification: f.classification, origine, provenance: { arbre: a.arbre, noeud: noeud.node, titre: noeud.name, fichier: f.location, ...(origine === 'type' && { type_id: noeud.attributes.id }) }, recouvre: [] };
       const avant = r.get(e.id);
       if (avant && avant.derogeable === false) { signaux.push(`règle non dérogeable redéfinie : ${e.id} (${avant.provenance.arbre}:${avant.provenance.noeud}, redéfinie par ${e.provenance.arbre}:${e.provenance.noeud}) ; la première tient`); continue; }

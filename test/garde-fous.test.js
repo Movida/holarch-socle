@@ -1584,3 +1584,23 @@ test('Garde sans passage muet (3) : un contrôle d’une règle bloquante non di
   fs.writeFileSync(panne, '#!/bin/sh\necho "[]"\nexit 0\n');
   assert.deepEqual(socle(panne).garde({ depot: d }).refus, []);
 });
+
+test('Garde sans passage muet (4) : une règle stable sans approbation se lit comme un brouillon, signalée, et ne remplace pas une approuvée', async () => {
+  const { regleEffective, aApprouver } = await import('../src/regles.js');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const d = path.join(r, 'depot');
+  ecrireF(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: secrets\n  statement: Aucun secret.\n  level: blocking\n  check: [secrets]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrireF(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  ecrireF(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  // Le dépôt (que le conteneur écrit) ramène la règle bloquante à un rappel, et pose une règle « stable » de lui-même.
+  ecrireF(path.join(d, 'arbre', 'rules.yaml'), '- id: secrets\n  statement: Un simple rappel.\n  status: stable\n'
+    + '- id: inventee\n  statement: Posée stable sans approbation.\n  status: stable\n  approved: oui\n');
+  const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+  const e = regleEffective(fiches, 'holarch:project:depot', { profil: path.join(r, 'profil') });
+  const regle = (id) => e.regles.find((x) => x.id === id);
+  assert.deepEqual([regle('secrets').niveau, regle('secrets').applicable, regle('secrets').provenance.arbre], ['blocking', true, 'profil'], 'l’approuvée tient');
+  assert.equal(regle('secrets').proposee?.statut, 'draft', 'la redéfinition se montre à côté, comme un brouillon');
+  assert.deepEqual([regle('inventee').statut, regle('inventee').applicable, aApprouver(regle('inventee'))], ['draft', false, true]);
+  assert.deepEqual(e.signaux.filter((x) => x.startsWith('règle stable sans approbation')).map((x) => x.split(' : ')[1].split(' ')[0]), ['secrets', 'inventee']);
+});

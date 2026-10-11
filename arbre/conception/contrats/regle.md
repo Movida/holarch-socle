@@ -3,10 +3,10 @@ type: contract
 title: Contrat — règle
 description: Une règle est une donnée attachée à un nœud ; elle s'hérite, se déroge explicitement, et s'applique par des adaptateurs selon son niveau.
 status: draft
-version: 0.4.0
+version: 0.5.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/decisions/2026-10-07-recolte.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/noeud.md, /arbre/decisions/2026-10-06-arbre-des-regles.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/decisions/2026-10-07-recolte.md, /arbre/decisions/2026-10-11-garde-sans-passage-muet.md]
 ---
 
 # Contrat — règle
@@ -51,7 +51,9 @@ d'un projet à l'autre (un emplacement, un nom) est un réglage du projet (`conf
 identifiant, jamais une commande écrite dans l'arbre. `blocking` : le contrôle s'exécute avant l'action, dans le
 mécanisme du runtime qui la porte (crochet de git pour un commit, permissions du client pour une lecture), puis à
 l'audit pour ce qui serait passé outre ; `verified` : à l'audit seulement. Un contrôle qui ne peut pas s'exécuter (outil
-absent) se dit non disponible, jamais conforme. Un écart ne cite jamais le contenu trouvé, seulement où il est.
+absent) se dit non disponible, jamais conforme ; au moment d'une règle `blocking`, il fait refuser l'action, que seul
+un passage explicite (`git commit --no-verify`) laisse faire, et l'audit le voit (décision `garde-sans-passage-muet`).
+Un écart ne cite jamais le contenu trouvé, seulement où il est.
 
 Un adaptateur traduit une règle pour un client (hook, permission, consigne de serveur MCP, contrôle d'un runtime). Une
 règle qu'un client ne peut pas appliquer à son niveau descend au niveau applicable suivant, et l'écart est visible
@@ -63,6 +65,9 @@ un sous-nœud, à une portée limitée à ses chemins. Une règle ne s'écrit ja
 classification (une règle privée n'entre pas dans un dépôt public : portée locale, non commitée). Un fichier généré
 porte une marque ; un fichier non marqué n'est jamais modifié ; une régénération montre son écart ; une panne laisse
 les fichiers précédents en place. Seule une règle `stable` se matérialise.
+
+**Approbation.** Une règle `stable` ne vaut qu'avec `approved` (au moins `by`) ; sans lui, elle se lit comme un
+brouillon (`draft`), à approuver, et la règle effective le signale (décision `garde-sans-passage-muet`).
 
 ## 3. Héritage, dérogation, conflits
 
