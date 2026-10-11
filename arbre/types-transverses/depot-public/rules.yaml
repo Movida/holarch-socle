@@ -4,6 +4,9 @@
   why: "Une donnée publiée ne se reprend pas."
   level: blocking
   check: [donnees-personnelles, secrets]
+  # Non dérogeable (décision garde-sans-passage-muet) : la racine d'un projet, que le conteneur écrit, ne la ramène pas
+  # à un rappel ; une exception se porte au profil ou dans un contexte.
+  derogable: false
   status: stable
   approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07, passage au contrôle (tranche 4), choix cliquable" }
   source: harvest
