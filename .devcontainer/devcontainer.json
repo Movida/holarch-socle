@@ -23,15 +23,16 @@
     }
   },
   // Socle : les dossiers de l’hôte montés ci-dessous, créés s’ils manquent.
-  "initializeCommand": "mkdir -p ${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle ${localEnv:HOME}/.claude/rules",
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle ${localEnv:HOME}/.claude/rules ${localEnv:HOME}/.local/share/holarch/outils",
   // Socle : Claude Code dans un volume propre au conteneur, jamais le ~/.claude de l’hôte (identifiants de tous les
   // projets, crochets que l’hôte exécute) ; la connexion s’y fait une fois. De l’hôte, seulement : les transcriptions
-  // et la mémoire de ce projet (HOLARCH les lit), et les règles du compte en lecture. La clé de déploiement dans un
-  // volume propre au projet.
+  // et la mémoire de ce projet (HOLARCH les lit), les règles du compte et le gitleaks de la garde de commit, en
+  // lecture. La clé de déploiement dans un volume propre au projet.
   "mounts": [
     "source=holarch-socle-claude,target=/home/node/.claude,type=volume",
     "source=${localEnv:HOME}/.claude/projects/-workspaces-holarch-socle,target=/home/node/.claude/projects/-workspaces-holarch-socle,type=bind",
     "source=${localEnv:HOME}/.claude/rules,target=/home/node/.claude/rules,type=bind,readonly",
+    "source=${localEnv:HOME}/.local/share/holarch/outils,target=/opt/holarch/outils,type=bind,readonly",
     "source=holarch-socle-ssh,target=/home/node/.ssh,type=volume"
   ],
   // Socle : toute session, ouverte dans un sous-dossier ou un worktree comprise, range ses transcriptions dans le
