@@ -79,6 +79,14 @@ export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journ
   const enonce = 'les règles du projet ne se lisent pas toutes : la garde ne peut pas dire ce commit conforme';
   const { ecarts, controles } = r.illisibles.length ? { ecarts: ecartsIllisibles(r).map((x) => ({ ...x, enonce })), controles: [] }
     : controler(r, contexteControle(s, fiche, r, path.resolve(depot)), moment, ['blocking']);
+  // Un contrôle d'une règle bloquante non disponible (décision garde-sans-passage-muet) : ce qu'il devait voir n'est pas
+  // vu, le commit est refusé comme pour des règles illisibles ; `--no-verify` reste le passage explicite, que l'audit voit.
+  for (const c of controles.filter((x) => x.etat === 'indisponible')) {
+    for (const e of r.regles.filter((x) => x.applicable && x.niveau === 'blocking' && x.controles?.includes(c.id))) {
+      ecarts.push({ regle: e.fiche, regle_id: e.id, enonce: e.enonce, controle: c.id, fichier: null, ligne: null,
+        message: `contrôle ${c.id} non disponible (${c.raison}) : ce commit n’est pas vérifié ; git commit --no-verify pour passer, l’audit le verra` });
+    }
+  }
   const refus = new Map();
   for (const x of ecarts) { if (!refus.has(x.regle_id)) refus.set(x.regle_id, { regle: x.regle_id, enonce: x.enonce, ecarts: [] }); refus.get(x.regle_id).ecarts.push(x); }
   // Un refus est un échec au journal (décision echecs-au-journal) : un `rule.enforced` par règle et contrôle, compté,

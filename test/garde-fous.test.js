@@ -1550,3 +1550,37 @@ test('Garde sans passage muet (5) : un projet dont l’audit lève est non dispo
   assert.deepEqual([regles(a, 'b').ecarts, regles(a, 'b').controles], [[], [{ id: 'audit', etat: 'indisponible', raison: 'audit du projet en échec : panne simulée' }]]);
   assert.deepEqual([a.journal.apparus, a.journal.resolus], [0, 0], 'ce que b avait fait avant la levée ne résout pas son écart');
 });
+
+test('Garde sans passage muet (3) : un contrôle d’une règle bloquante non disponible fait refuser le commit, au journal comme tout refus', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const d = path.join(r, 'depot');
+  const g = (...a) => { const x = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(x.status, 0, x.stderr); };
+  fs.mkdirSync(d); g('init', '-q'); g('config', 'user.name', 'Alice Exemple'); g('config', 'user.email', 'alice@exemple.test'); g('config', 'commit.gpgsign', 'false');
+  ecrireF(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: secrets-hors-contexte\n  statement: Aucun secret dans un fichier suivi.\n  level: blocking\n  check: [secrets]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n'
+    + '- id: rappel\n  statement: Un rappel qui demande le même contrôle.\n  level: verified\n  check: [secrets]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrireF(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  ecrireF(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
+  ecrireF(path.join(d, 'note.md'), 'modifiée\n'); g('add', '.');
+  const socle = (gitleaks) => {
+    const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: {}, controles: { gitleaks } });
+    s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
+      { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
+    return s;
+  };
+  // gitleaks absent : avant, le commit passait avec « non vérifié ».
+  let s = socle(path.join(r, 'nulle-part', 'gitleaks'));
+  let refus = s.garde({ depot: d, journaliser: true }).refus;
+  assert.deepEqual(refus.map((x) => x.regle), ['secrets-hors-contexte'], 'seule la règle bloquante refuse');
+  assert.match(refus[0].ecarts[0].message, /^contrôle secrets non disponible \(gitleaks absent .*\) : ce commit n’est pas vérifié ; git commit --no-verify pour passer/);
+  s.indexer();
+  assert.deepEqual(s.index.requete("SELECT data FROM evenements WHERE kind='rule.enforced'").map((e) => JSON.parse(e.data).controle), ['secrets']);
+  // gitleaks en panne : de même.
+  const panne = path.join(r, 'gitleaks'); fs.writeFileSync(panne, '#!/bin/sh\necho "config illisible" >&2\nexit 2\n'); fs.chmodSync(panne, 0o755);
+  s = socle(panne);
+  refus = s.garde({ depot: d }).refus;
+  assert.match(refus[0]?.ecarts[0].message ?? '', /contrôle secrets non disponible \(gitleaks en échec : config illisible\)/);
+  // gitleaks qui répond : rien à refuser.
+  fs.writeFileSync(panne, '#!/bin/sh\necho "[]"\nexit 0\n');
+  assert.deepEqual(socle(panne).garde({ depot: d }).refus, []);
+});
