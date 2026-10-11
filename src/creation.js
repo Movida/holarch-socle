@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { git, trouverOutil, porteMarque, ecrireSansLien } from './commun.js';
+import { git, trouverOutil, porteMarque, ecrireSansLien, lireSansLien } from './commun.js';
 import { configAvantProjet, fusionnerConfig } from './regles.js';
 import { identiteDeclaree } from './controles.js';
 import { poserIdentite } from './identite-git.js';
@@ -252,33 +252,35 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   const gen = re.declare ? genererConteneur({ nom, config: re.config }) : null;
   if (!cfg.etapes.conteneur) noter('conteneur', 'desactivee', 'creation.etapes.conteneur');
   else if (!re.declare) noter('conteneur', aBlanc ? 'a-faire' : 'echec', aBlanc ? 'après la déclaration' : 'projet non déclaré : sa configuration est incomplète');
+  else if (gen.erreur) noter('conteneur', 'echec', gen.erreur);
   else {
-    const lire = (f) => { try { return fs.readFileSync(path.join(dossier, f), 'utf8'); } catch { return null; } };
-    const present = lire(CONTENEUR);
-    if (gen.erreur) noter('conteneur', 'echec', gen.erreur);
-    else if (present !== null && !porteMarque(present, MARQUE_CONTENEUR)) {
-      noter('conteneur', 'geste', `${CONTENEUR} écrit à la main : rien n’est touché`, { quoi: 'reporter ce qui lui est propre dans la clé conteneur de la racine de l’arbre du projet, retirer le fichier, puis relancer', commande: `git -C ${dossier} rm -q ${CONTENEUR}` });
-    } else {
-      const voulus = [[CONTENEUR, gen.texte], ...(JSON.stringify(gen.conteneur).includes(SCRIPT_CLE) && lire(SCRIPT_CLE) === null ? [[SCRIPT_CLE, modele('deploy-key.sh'), 0o755]] : [])];
-      const aEcrire = voulus.filter(([f, t]) => lire(f) !== t);
-      // Écrits à un passage précédent dont le commit a été refusé : à commiter. Le script, absent de HEAD (le `git add`
-      // a pu passer : indexé, pas seulement non suivi).
-      const statut = (f) => (g('status', '--porcelain', '--', f).stdout || '').trim();
-      const enAttente = [...(statut(CONTENEUR) ? [CONTENEUR] : []), ...(lire(SCRIPT_CLE) !== null && !commite(SCRIPT_CLE) ? [SCRIPT_CLE] : [])];
-      const aCommiter = [...new Set([...aEcrire.map(([f]) => f), ...enAttente])];
-      if (!aCommiter.length) noter('conteneur', 'deja', CONTENEUR);
-      else if (aBlanc) noter('conteneur', 'a-faire', aCommiter.join(', '));
-      else {
-        try {
+    // Le conteneur écrit le dépôt : un fichier lu ici (ou un dossier de son chemin) qui est un lien symbolique n'est pas
+    // suivi (`lireSansLien`), l'étape échoue et le dit.
+    const lire = (f) => lireSansLien(dossier, f);
+    try {
+      const present = lire(CONTENEUR);
+      if (present !== null && !porteMarque(present, MARQUE_CONTENEUR)) {
+        noter('conteneur', 'geste', `${CONTENEUR} écrit à la main : rien n’est touché`, { quoi: 'reporter ce qui lui est propre dans la clé conteneur de la racine de l’arbre du projet, retirer le fichier, puis relancer', commande: `git -C ${dossier} rm -q ${CONTENEUR}` });
+      } else {
+        const voulus = [[CONTENEUR, gen.texte], ...(JSON.stringify(gen.conteneur).includes(SCRIPT_CLE) && lire(SCRIPT_CLE) === null ? [[SCRIPT_CLE, modele('deploy-key.sh'), 0o755]] : [])];
+        const aEcrire = voulus.filter(([f, t]) => lire(f) !== t);
+        // Écrits à un passage précédent dont le commit a été refusé : à commiter. Le script, absent de HEAD (le `git add`
+        // a pu passer : indexé, pas seulement non suivi).
+        const statut = (f) => (g('status', '--porcelain', '--', f).stdout || '').trim();
+        const enAttente = [...(statut(CONTENEUR) ? [CONTENEUR] : []), ...(lire(SCRIPT_CLE) !== null && !commite(SCRIPT_CLE) ? [SCRIPT_CLE] : [])];
+        const aCommiter = [...new Set([...aEcrire.map(([f]) => f), ...enAttente])];
+        if (!aCommiter.length) noter('conteneur', 'deja', CONTENEUR);
+        else if (aBlanc) noter('conteneur', 'a-faire', aCommiter.join(', '));
+        else {
           for (const [f, t, mode] of aEcrire) ecrireSansLien(dossier, f, t, mode);
           const a = g('add', '--', ...aCommiter); if (a.status !== 0) throw new Error(erreur(a));
           // Une modification jamais commitée, remplacée par le texte déjà commité : rien à commiter.
           const changes = aCommiter.filter(statut);
           if (changes.length) commiter(present === null ? 'Générer la configuration du conteneur' : 'Régénérer la configuration du conteneur', changes);
           noter('conteneur', 'faite', aCommiter.join(', '));
-        } catch (e) { noter('conteneur', 'echec', e.message); }
+        }
       }
-    }
+    } catch (e) { noter('conteneur', 'echec', e.message); }
   }
 
   // 6. Dépôt GitHub, remote `origin` en SSH, premier envoi de la branche.

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
-import { gitLu, trouverOutil, lireJson, ecrireJson, dedans } from './commun.js';
+import { gitLu, trouverOutil, lireJson, ecrireJson, dedans, cheminSansLien, lireSansLien } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
@@ -82,7 +82,7 @@ function parFichier(trouves, message) {
 function donneesPersonnelles(ctx, moment) {
   const trouve = chercheur(ctx.termes || []);
   if (!trouve) return { indisponible: 'liste privée vide' };
-  const trouves = []; const exclu = new Set(fichiersExclus(ctx.couches, ctx.depot));
+  const trouves = []; const nonLus = []; const exclu = new Set(fichiersExclus(ctx.couches, ctx.depot));
   if (moment === 'avant-commit') {
     for (const f of listeZ(gitLu(ctx.depot, ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']))) if (!exclu.has(f) && trouve(f)) trouves.push({ fichier: f, ligne: null });
     for (const l of lignesAjoutees(ctx.depot)) if (!exclu.has(l.fichier) && trouve(l.texte)) trouves.push(l);
@@ -91,14 +91,16 @@ function donneesPersonnelles(ctx, moment) {
     if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
     for (const f of listeZ(r).filter((x) => !exclu.has(x))) {
       if (trouve(f)) trouves.push({ fichier: f, ligne: null });
-      let texte; try { const p = path.join(ctx.depot, f); if (fs.statSync(p).size > reglage(ctx, 'taille_max_mo', 2) * 1024 * 1024) continue; texte = fs.readFileSync(p, 'utf8'); } catch { continue; }
+      // Un fichier suivi (ou un dossier de son chemin) qui est un lien symbolique : il ferait lire un fichier de l'hôte.
+      let p; try { p = cheminSansLien(ctx.depot, f, 'lu'); } catch (e) { nonLus.push(e.message); continue; }
+      let texte; try { if (fs.statSync(p).size > reglage(ctx, 'taille_max_mo', 2) * 1024 * 1024) continue; texte = fs.readFileSync(p, 'utf8'); } catch { continue; }
       if (texte.includes('\0')) continue;
       texte.split('\n').forEach((l, i) => { if (trouve(l)) trouves.push({ fichier: f, ligne: i + 1 }); });
     }
   }
   // Celles qui ne valent pas (hors de leur portée, dans le dépôt contrôlé, sans valeur ni raison) se disent à l'audit.
   const ignorees = ecartees(lireExceptions(ctx.couches, 'donnees_personnelles', ['terme', 'fichier'], { depot: ctx.depot }).ignorees);
-  return { ecarts: parFichier(trouves, 'terme de la liste privée'), ...(ignorees.length && { exceptions_ignorees: ignorees }) };
+  return { ecarts: parFichier(trouves, 'terme de la liste privée'), ...(ignorees.length && { exceptions_ignorees: ignorees }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };
 }
 
 // ---------- secrets (gitleaks) ----------
@@ -159,7 +161,15 @@ function dependancesVulnerables(ctx) {
   if (!ctx.osv) return { indisponible: 'osv-scanner absent (réglage controles.osv_scanner, PATH ou ~/.local/bin)' };
   const r = gitLu(ctx.depot, ['ls-files', '-z']);
   if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
-  const verrous = listeZ(r).filter((f) => VERROUS.test(f) && fs.existsSync(path.join(ctx.depot, f)));
+  // Un fichier de verrouillage qui est un lien symbolique (ou sous un dossier qui en est un) n'est ni lu ni passé à
+  // osv-scanner, qui le suivrait vers un fichier de l'hôte : le contrôle le dit.
+  const nonLus = [];
+  const verrous = listeZ(r).filter((f) => { if (!VERROUS.test(f)) return false; try { return fs.existsSync(cheminSansLien(ctx.depot, f, 'lu')); } catch (e) { nonLus.push(e.message); return false; } });
+  const resultat = verrousVulnerables(ctx, verrous);
+  return nonLus.length ? { ...resultat, indisponible: [resultat.indisponible, ...nonLus].filter(Boolean).join(' ; ') } : resultat;
+}
+
+function verrousVulnerables(ctx, verrous) {
   if (!verrous.length) return { ecarts: [] };
   const seuil = +(ctx.config?.dependances?.seuil_cvss ?? 7);
   const empreinte = hacher(seuil, ...verrous.map((f) => `${f}:${fs.readFileSync(path.join(ctx.depot, f)).length}:${hacher(fs.readFileSync(path.join(ctx.depot, f), 'utf8'))}`));
@@ -261,9 +271,10 @@ function identiteDeCommit(ctx, moment) {
 function journalTenu(ctx) {
   const journal = ctx.config?.journal;
   if (!journal) return { indisponible: 'réglage journal absent (chemin du journal du projet, dans sa racine)' };
-  const f = path.join(ctx.depot, journal);
-  if (!fs.existsSync(f)) return { indisponible: `journal introuvable : ${journal}` };
-  const notes = new Set([...fs.readFileSync(f, 'utf8').matchAll(/^#{1,6}\s.*?(\d{4}-\d{2}-\d{2})/gm)].map((m) => m[1]));
+  // Dans le dépôt, que le conteneur écrit : ni lien symbolique, ni chemin qui en sort (`lireSansLien`).
+  let texte; try { texte = lireSansLien(ctx.depot, journal); } catch (e) { return { indisponible: e.message }; }
+  if (texte === null) return { indisponible: `journal introuvable : ${journal}` };
+  const notes = new Set([...texte.matchAll(/^#{1,6}\s.*?(\d{4}-\d{2}-\d{2})/gm)].map((m) => m[1]));
   const arbre = path.relative(ctx.depot, ctx.arbre || ctx.depot) || '.';
   const r = gitLu(ctx.depot, ['log', `--since=${reglage(ctx, 'journal_jours', 30)}.days`, '--format=%ad', '--date=short', '--', arbre, `:(exclude)${journal}`]);
   if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
@@ -532,18 +543,22 @@ function initialisationHorsAttente(c, depot, maison, env, admis) {
 }
 
 // Les crochets des réglages Claude Code d'un dépôt à conteneur : le conteneur écrit le dépôt, et les sessions de l'hôte
-// ouvertes dans ce dossier les exécutent (le surveillant de fichiers les reprend).
+// ouvertes dans ce dossier les exécutent (le surveillant de fichiers les reprend). Un fichier de réglages qui est un lien
+// symbolique n'est pas lu (`lireSansLien`) : { f, erreur }.
 function crochetsDuDepot(depot) {
   return ['.claude/settings.json', '.claude/settings.local.json'].flatMap((f) => {
-    const j = lireJson(path.join(depot, f), null);
+    let t; try { t = lireSansLien(depot, f); } catch (e) { return [{ f, erreur: e.message }]; }
+    let j = null; try { j = JSON.parse(t); } catch { /* illisible : aucun crochet lu */ }
     return j?.hooks && typeof j.hooks === 'object' && Object.keys(j.hooks).length ? [{ f, evenements: Object.keys(j.hooks) }] : [];
   });
 }
 
-// Une configuration lue (JSONC), avec son arbre pour situer une ligne ; `erreur` si elle ne se lit pas.
+// Une configuration lue (JSONC), avec son arbre pour situer une ligne ; `erreur` si elle ne se lit pas, ou si elle (ou
+// un dossier de son chemin) est un lien symbolique, que le conteneur aurait posé vers un fichier de l'hôte, ou hors du
+// dépôt (une feature locale en `../`).
 function lireConfig(depot, f) {
-  const texte = fs.readFileSync(path.join(depot, f), 'utf8'); const erreurs = [];
-  const c = parseJsonc(texte, erreurs, { allowTrailingComma: true });
+  let texte; try { texte = lireSansLien(depot, f); } catch (e) { return { f, erreur: e.message }; }
+  const erreurs = []; const c = texte === null ? null : parseJsonc(texte, erreurs, { allowTrailingComma: true });
   if (erreurs.length || !c || typeof c !== 'object' || Array.isArray(c)) return { f, erreur: `${f} illisible` };
   return { f, texte, c, arbre: parseTree(texte, [], { allowTrailingComma: true }) };
 }
@@ -653,8 +668,10 @@ function montageSensible(ctx) {
   }
   // Le dépôt monté en écriture reste une voie vers l'hôte (décision environnement-d-execution, risque jusqu'à D) : ses
   // crochets Claude Code, et un accès distant qui fait tourner des sessions de l'hôte dans ce même dossier.
+  let crochetsNonLus = false;
   if (lus || construits.length) {
     for (const x of crochetsDuDepot(ctx.depot)) {
+      if (x.erreur) { nonLus.push(x.erreur); crochetsNonLus = true; continue; }
       ecarts.push({ fichier: x.f, ligne: null, cle: `crochets:${x.f}`, message: `crochets ${x.evenements.join(', ')} dans un dépôt que le conteneur écrit : les sessions de l’hôte ouvertes ici les exécutent` });
     }
     for (const a of (ctx.distants || accesDistants()).filter((x) => x.chemin && dedans(path.resolve(x.chemin), ctx.depot))) {
@@ -668,13 +685,13 @@ function montageSensible(ctx) {
   // dit plus.
   // Chaque exception lue se dit dans le résultat, avec sa raison, sa provenance, si elle a fait taire un écart et si cela
   // se juge ici (l'audit signale celle qui n'en fait taire aucun) : l'accès distant et les crochets du dépôt se lisent
-  // toujours en entier ; le reste, seulement si rien n'est resté illisible. Celle qui ne vaut pas se dit aussi, avec ce
-  // qui l'écarte.
+  // toujours en entier (les crochets, sauf un fichier de réglages en lien symbolique) ; le reste, seulement si rien n'est
+  // resté illisible. Celle qui ne vaut pas se dit aussi, avec ce qui l'écarte.
   const { lues, ignorees } = lireExceptions(ctx.couches, 'montage_sensible', 'ecart', { depot: ctx.depot });
   const exceptes = new Set(lues.map((x) => x.valeur));
   const gardes = ecarts.filter((e) => !exceptes.has(e.cle));
   const dites = lues.map((x) => ({ ecart: x.valeur, pourquoi: x.pourquoi, provenance: x.provenance, utilisee: ecarts.some((e) => e.cle === x.valeur),
-    jugee: !nonLus.length || ['acces-distant', 'crochets'].includes(x.valeur.split(':')[0]) }));
+    jugee: !nonLus.length || ['acces-distant', ...(crochetsNonLus ? [] : ['crochets'])].includes(x.valeur.split(':')[0]) }));
   // Ce qui n'a pu se lire rend le contrôle non disponible, sans taire ce qui a été trouvé ailleurs.
   const ecartes = ecartees(ignorees);
   return { ecarts: gardes, ...(dites.length && { exceptions: dites }), ...(ecartes.length && { exceptions_ignorees: ecartes }), ...(nonLus.length && { indisponible: nonLus.join(' ; ') }) };

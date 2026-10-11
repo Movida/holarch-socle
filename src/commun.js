@@ -11,19 +11,27 @@ export const dedans = (a, b) => { const r = path.relative(b, a); return r === ''
 /**
  * Le chemin absolu de `relatif` sous `racine` (un dépôt), vérifié sans rien écrire : un dossier du chemin (la racine
  * exclue) ou le fichier qui est un lien symbolique, ou un chemin qui sort de la racine, lève une erreur. Un conteneur
- * écrit son dépôt monté ; un lien qu'il y pose détournerait vers l'hôte une écriture faite sur l'hôte. Toute écriture
- * de HOLARCH dans un dépôt passe par là : `ecrireSansLien`, et ce qui renomme, lit un dossier ou retire un fichier.
+ * écrit son dépôt monté ; un lien qu'il y pose détournerait vers l'hôte une écriture faite sur l'hôte, ou ferait lire
+ * un fichier de l'hôte. Toute écriture de HOLARCH dans un dépôt passe par là : `ecrireSansLien`, et ce qui renomme, lit
+ * un dossier ou retire un fichier ; toute lecture dont le contenu sort (audit, journal, écriture), par `lireSansLien`.
+ * `verbe` : ce que l'erreur dit ne pas faire (« écrit », « lu »).
  */
-export function cheminSansLien(racine, relatif) {
+export function cheminSansLien(racine, relatif, verbe = 'écrit') {
   const p = path.resolve(racine, relatif);
   if (!dedans(p, racine) || p === path.resolve(racine)) throw new Error(`${relatif} : hors du dépôt`);
   let q = path.resolve(racine);
   for (const s of path.relative(q, p).split(path.sep)) {
     q = path.join(q, s);
     let l; try { l = fs.lstatSync(q); } catch { break; }
-    if (l.isSymbolicLink()) throw new Error(`${path.relative(racine, q)} est un lien symbolique : rien n’est écrit`);
+    if (l.isSymbolicLink()) throw new Error(`${path.relative(racine, q)} est un lien symbolique : rien n’est ${verbe}`);
   }
   return p;
+}
+
+/** Le texte de `relatif` sous `racine` (un dépôt), null s'il manque ou ne se lit pas, sans suivre de lien symbolique (`cheminSansLien` : un lien lève une erreur). */
+export function lireSansLien(racine, relatif) {
+  const p = cheminSansLien(racine, relatif, 'lu');
+  try { return fs.readFileSync(p, 'utf8'); } catch { return null; }
 }
 
 /** Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique (`cheminSansLien`). */

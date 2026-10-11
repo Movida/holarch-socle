@@ -11,8 +11,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { enTete, lireEnTete, premiereLigne, slug } from './outils.js';
+import { cheminSansLien, lireSansLien } from '../commun.js';
 
-const lire = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } };
+// Un fichier de l'arbre, sous `depot` : vide s'il manque ; un lien symbolique sur son chemin (le conteneur écrit le dépôt)
+// n'est pas suivi, `lireSansLien` lève une erreur.
+const lire = (depot, f) => lireSansLien(depot, path.relative(depot, f)) ?? '';
 const net = (t, n) => premiereLigne(String(t).replace(/\*\*/g, ''), n);
 
 // Section « Avancement » d'une spécification : `- **Étiquette (date)** : texte`, suite et sous-points compris.
@@ -80,12 +83,12 @@ export function arbreModifieDepuis(depot, ms) {
 
 // Règles d'un nœud (contrat règle §1) : celles de son en-tête (`rules:`) et, pour l'`index.md` d'un dossier, celles du
 // `rules.yaml` de ce dossier. Un fichier illisible ne fait pas échouer l'inventaire : il est signalé sur le nœud.
-function reglesDe(f, h) {
+function reglesDe(depot, f, h) {
   const r = (Array.isArray(h.rules) ? h.rules : []).map((x) => ({ x, fichier: f }));
   const y = path.join(path.dirname(f), 'rules.yaml');
   if (path.basename(f) !== 'index.md' || !fs.existsSync(y)) return { regles: r, erreur: null };
   try {
-    const l = YAML.parse(lire(y));
+    const l = YAML.parse(lire(depot, y));
     if (l != null && !Array.isArray(l)) return { regles: r, erreur: 'rules.yaml : une liste de règles est attendue' };
     return { regles: [...r, ...(l || []).map((x) => ({ x, fichier: y }))], erreur: null };
   } catch (e) { return { regles: r, erreur: `rules.yaml illisible : ${e.message.split('\n')[0]}` }; }
@@ -124,7 +127,7 @@ export default function inventaireArbre(options, ctx) {
     // Identité de l'arbre (liens entre arbres, identifiants des règles) : l'`id` de sa racine, sinon celle du projet ;
     // comme tout identifiant de l'arbre (type, règle), dans sa forme normalisée, celle des identifiants du catalogue :
     // deux identifiants qui feraient la même fiche sont le même (`PROFIL` et `profil`).
-    return { ...x, projet, cle, arbre: slug(enTete(x.racine.fichier).id || cle) };
+    return { ...x, projet, cle, arbre: slug(enTete(x.racine.fichier, x.depot).id || cle) };
   });
   // Deux dépôts de même `id` (décision profil-designe) : leurs règles prennent un identifiant qui les distingue
   // (`<id>@<projet>`), sans quoi le catalogue n'en garderait qu'une ; un arbre unique, ou le profil que le site désigne,
@@ -136,18 +139,24 @@ export default function inventaireArbre(options, ctx) {
   const fichesRegles = new Map();
   for (const { depot, racine, projet, cle, arbre } of lus) {
     const ref = parId.get(arbre) > 1 && path.resolve(depot) !== profil ? `${arbre}@${cle}` : arbre;
-    for (const f of racine.okf ? [racine.fichier] : noeuds(racine.dossier, racine.dossier, [])) {
-      const { entete: h, erreur: erreurEntete, indices } = lireEnTete(f);
+    // Le conteneur écrit le dépôt : un lien symbolique sur le chemin d'un nœud n'est pas suivi, le nœud est dit illisible
+    // (`lireEnTete`) ; un dossier `arbre` qui en est un ne se parcourt pas, sa racine seule le dit.
+    let lien = false; if (!racine.okf) try { cheminSansLien(depot, path.relative(depot, racine.dossier), 'lu'); } catch { lien = true; }
+    for (const f of racine.okf || lien ? [racine.fichier] : noeuds(racine.dossier, racine.dossier, [])) {
+      const { entete: h, erreur: erreurEntete, indices } = lireEnTete(f, depot);
       const estRacine = f === racine.fichier;
       // Un en-tête illisible garde son nœud, avec l'erreur : ce pouvait être un contexte ou un type, dont les règles
       // manquent alors (la règle effective le dit, module regles).
       if (!h.type && !estRacine && !erreurEntete) continue;
       const rel = '/' + path.relative(depot, f);
       const etape = rel.match(/^\/arbre\/conception\/etape-(\d+)-[^/]*\.md$/);
-      const suivi = etape ? { etape: +etape[1], avancement: avancement(lire(f)) }
-        : rel === '/arbre/index.md' ? { questions_ouvertes: questionsOuvertes(lire(path.join(racine.dossier, 'questions.md'))),
-          idees: idees(lire(path.join(racine.dossier, 'idees.md'))) } : {};
-      const { regles, erreur } = reglesDe(f, h);
+      let suivi = {};
+      try {
+        suivi = etape ? { etape: +etape[1], avancement: avancement(lire(depot, f)) }
+          : rel === '/arbre/index.md' ? { questions_ouvertes: questionsOuvertes(lire(depot, path.join(racine.dossier, 'questions.md'))),
+            idees: idees(lire(depot, path.join(racine.dossier, 'idees.md'))) } : {};
+      } catch (e) { suivi = { erreur_suivi: e.message }; }
+      const { regles, erreur } = reglesDe(depot, f, h);
       const forme = formes(h);
       const noeud = {
         id: `holarch:node:${slug(cle + rel)}`, kind: 'node', name: h.title || path.basename(f, '.md'),

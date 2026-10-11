@@ -1294,13 +1294,18 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
   const k2 = await creer();
   assert.deepEqual([etats(k2).conteneur, git(d, 'status', '--porcelain'), git(d, 'ls-files', '.devcontainer/deploy-key.sh')], ['faite', '', '.devcontainer/deploy-key.sh'], JSON.stringify(k2.etapes, null, 1));
 
-  const dehors = path.join(r, 'dehors'); fs.mkdirSync(dehors);
+  // Un lien vers un fichier de l'hôte n'est pas même lu (il passerait pour un fichier écrit à la main) : l'étape échoue.
+  const dehors = path.join(r, 'dehors'); ecrire(path.join(dehors, 'cible.json'), '{ "hote": true }\n');
   fs.rmSync(f); fs.symlinkSync(path.join(dehors, 'cible.json'), f);
   const l1 = await creer();
-  assert.deepEqual([etats(l1).conteneur, etape(l1).detail, fs.readdirSync(dehors)], ['echec', '.devcontainer/devcontainer.json est un lien symbolique : rien n’est écrit', []], JSON.stringify(l1.etapes, null, 1));
+  assert.deepEqual([etats(l1).conteneur, etape(l1).detail, fs.readdirSync(dehors)], ['echec', '.devcontainer/devcontainer.json est un lien symbolique : rien n’est lu', ['cible.json']], JSON.stringify(l1.etapes, null, 1));
+  // L'audit non plus ne le lit pas : son contrôle n'a pas pu se faire.
+  assert.deepEqual(s.audit({ projet: l1.projet }).cibles.find((c) => c.projet === l1.projet).controles.find((c) => c.id === 'conteneur-genere'),
+    { id: 'conteneur-genere', etat: 'indisponible', raison: '.devcontainer/devcontainer.json est un lien symbolique : rien n’est lu' });
+  fs.rmSync(path.join(dehors, 'cible.json'));
   fs.rmSync(path.join(d, '.devcontainer'), { recursive: true }); fs.symlinkSync(dehors, path.join(d, '.devcontainer'));
   const l2 = await creer();
-  assert.deepEqual([etats(l2).conteneur, etape(l2).detail, fs.readdirSync(dehors)], ['echec', '.devcontainer est un lien symbolique : rien n’est écrit', []], JSON.stringify(l2.etapes, null, 1));
+  assert.deepEqual([etats(l2).conteneur, etape(l2).detail, fs.readdirSync(dehors)], ['echec', '.devcontainer est un lien symbolique : rien n’est lu', []], JSON.stringify(l2.etapes, null, 1));
   git(d, 'rm', '-q', '.gitignore'); git(d, 'commit', '-qm', 'sans .gitignore');
   fs.symlinkSync(path.join(dehors, 'gitignore'), path.join(d, '.gitignore'));
   const l3 = await creer();
@@ -1377,16 +1382,17 @@ test('Écritures dans un dépôt (M-2) : un lien symbolique n’y détourne vers
     assert.deepEqual([p.ecrites, p.sans_noeud, liste(dehors), liste(dehors2)], [[], [{ id: 'du-projet', raison: LIEN('arbre') }, { id: 'commune', raison: LIEN('arbre/rules.yaml') }], [], []]);
   }
 
-  // Déclaration dans le contexte (création, étape 3) : le contexte du profil qui est un lien, l'étape échoue sans rien
-  // écrire dehors ; un lien posé pendant le commit refusé (par un crochet du profil), la remise en l'état non plus.
+  // Déclaration dans le contexte (création, étape 3) : le contexte du profil qui est un lien n'est pas même lu (l'inventaire
+  // de l'arbre le dit illisible), la création s'arrête sans rien écrire dehors ; un lien posé pendant le commit refusé
+  // (par un crochet du profil), la remise en l'état n'écrit pas dehors non plus.
   const { r, s, etats, git } = await bancCreation();
   const profil = path.join(r, 'profil'); const ctx = path.join(profil, 'arbre', 'contextes', 'perso.md'); const texteCtx = fs.readFileSync(ctx, 'utf8');
   const etape = (x, e) => x.etapes.find((y) => y.etape === e); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
   const dehors = path.join(r, 'dehors'); ecrire(path.join(dehors, 'perso.md'), texteCtx);
   lien(path.join(dehors, 'perso.md'), ctx); git(profil, 'add', '-A'); git(profil, 'commit', '-qm', 'contexte en lien');
-  const p1 = await creer();
-  assert.deepEqual([etats(p1).declaration, etape(p1, 'declaration').detail, liste(dehors), fs.readFileSync(path.join(dehors, 'perso.md'), 'utf8')],
-    ['echec', LIEN('arbre/contextes/perso.md'), ['perso.md'], texteCtx], JSON.stringify(p1.etapes, null, 1));
+  await assert.rejects(creer(), /contexte à préciser \(--contexte\) : aucun contexte dans le profil/);
+  assert.deepEqual([liste(dehors), fs.readFileSync(path.join(dehors, 'perso.md'), 'utf8')], [['perso.md'], texteCtx]);
+  assert.match(s.arbreFrais().find((n) => n.location === ctx).attributes.erreur_entete, /arbre\/contextes\/perso\.md est un lien symbolique : rien n’est lu/);
   fs.rmSync(ctx); fs.writeFileSync(ctx, texteCtx); git(profil, 'add', '-A'); git(profil, 'commit', '-qm', 'contexte en fichier');
   const dehors2 = path.join(r, 'dehors2'); fs.mkdirSync(dehors2); const crochet = path.join(profil, '.git', 'hooks', 'pre-commit');
   ecrire(crochet, `#!/bin/sh\nrm arbre/contextes/perso.md && ln -s '${path.join(dehors2, 'perso.md')}' arbre/contextes/perso.md\nexit 1\n`); fs.chmodSync(crochet, 0o755);
@@ -1411,6 +1417,70 @@ test('Écritures dans un dépôt (M-2) : un lien symbolique n’y détourne vers
   assert.deepEqual(s.audit({ projet: p3.projet }).cibles.find((x) => x.projet === null).controles.find((x) => x.id === 'regles-a-jour'), { id: 'regles-a-jour', etat: 'indisponible', raison: LIEN('rules') });
   assert.equal(fs.existsSync(path.join(r, 'dehors5')), false);
 }));
+
+// Lectures dans un dépôt (limite de C levée) : ce que HOLARCH lit d'un dépôt et dont le contenu sort (audit, journal,
+// écriture) ne se lit pas à travers un lien symbolique que le conteneur y aurait posé vers un fichier de l'hôte
+// (`lireSansLien`) ; le refus se dit (contrôle non disponible, nœud illisible), sans rien arrêter. Chaque fichier de
+// l'hôte porte un secret qui, lu, sortirait dans le résultat.
+test('Lectures dans un dépôt : un lien symbolique n’y fait lire aucun fichier de l’hôte, et le refus se dit', () => {
+  const SECRET = 'SECRET-DE-L-HOTE'; const dehors = tmp();
+  const LU = (x) => `${x} est un lien symbolique : rien n’est lu`;
+  const sans = (x) => { assert.ok(!JSON.stringify(x).includes(SECRET), JSON.stringify(x, null, 1)); return x; };
+  const lien = (cible, contenu, l) => { ecrire(cible, contenu); fs.mkdirSync(path.dirname(l), { recursive: true }); fs.symlinkSync(cible, l); };
+
+  // montage-sensible : une configuration, une feature locale (par un dossier lien, ou hors du dépôt en `../`), les
+  // réglages Claude Code du dépôt. Ce qui est lu ailleurs se dit encore ; une exception des crochets n'est pas jugée.
+  const d = tmp(); const maison = tmp();
+  const vers = (f) => path.relative(path.join(d, '.devcontainer'), path.join(dehors, f));
+  ecrire(path.join(d, '.devcontainer', 'devcontainer.json'), JSON.stringify({ image: 'x', runArgs: ['--cap-add=NET_ADMIN'], features: { './locale': {}, [vers('hors')]: {} } }));
+  lien(path.join(dehors, 'conf.json'), JSON.stringify({ runArgs: [`--cap-add=${SECRET}`] }), path.join(d, '.devcontainer', 'autre', 'devcontainer.json'));
+  ecrire(path.join(dehors, 'locale', 'devcontainer-feature.json'), JSON.stringify({ capAdd: [SECRET] })); fs.symlinkSync(path.join(dehors, 'locale'), path.join(d, '.devcontainer', 'locale'));
+  ecrire(path.join(dehors, 'hors', 'devcontainer-feature.json'), JSON.stringify({ capAdd: [SECRET] }));
+  lien(path.join(dehors, 'reglages.json'), JSON.stringify({ hooks: { [SECRET]: [] } }), path.join(d, '.claude', 'settings.json'));
+  const couches = [{ origine: 'contexte', provenance: 'profil:/arbre/contextes/perso.md', config: { montage_sensible: { exceptions: [{ ecart: 'crochets:.claude/settings.json', pourquoi: 'x' }] } } }];
+  const m = sans(executer('montage-sensible', { depot: d, holarch: [], maison, env: {}, maisonsWindows: [], distants: [], couches }, 'audit'));
+  assert.deepEqual(m.ecarts.map((e) => e.cle), ['privilege:.devcontainer/devcontainer.json:cap-add:NET_ADMIN']);
+  assert.deepEqual(m.indisponible.split(' ; ').sort(), [`${path.join('.devcontainer', vers('hors'), 'devcontainer-feature.json')} : hors du dépôt`, LU('.claude/settings.json'),
+    LU('.devcontainer/autre/devcontainer.json'), LU('.devcontainer/locale')].sort());
+  assert.deepEqual(m.exceptions.map((x) => [x.ecart, x.utilisee, x.jugee]), [['crochets:.claude/settings.json', false, false]]);
+
+  // journal-tenu : le journal, ou un journal réglé hors du dépôt.
+  const { d: dj } = depotGit(); lien(path.join(dehors, 'journal.md'), `## ${SECRET} 2026-10-01\n`, path.join(dj, 'log.md'));
+  assert.deepEqual(sans(executer('journal-tenu', { depot: dj, config: { journal: 'log.md' } }, 'audit')), { indisponible: LU('log.md') });
+  assert.deepEqual(executer('journal-tenu', { depot: dj, config: { journal: '../journal.md' } }, 'audit'), { indisponible: '../journal.md : hors du dépôt' });
+
+  // donnees-personnelles (audit) : un fichier suivi qui est un lien ; un autre, ordinaire, se lit encore.
+  const { d: dp, g: gp } = depotGit(); lien(path.join(dehors, 'note.md'), `${SECRET}\n`, path.join(dp, 'note.md'));
+  ecrire(path.join(dp, 'propre.md'), `${SECRET}\n`); gp('add', '.'); gp('commit', '-qm', 'lien');
+  assert.deepEqual(executer('donnees-personnelles', { depot: dp, termes: [SECRET], couches: [] }, 'audit'),
+    { ecarts: [{ fichier: 'propre.md', ligne: 1, cle: 'propre.md', n: 1, message: 'terme de la liste privée' }], indisponible: LU('note.md') });
+
+  // dependances-vulnerables : un fichier de verrouillage qui est un lien n'est ni lu ni passé à osv-scanner.
+  const { d: dv, g: gv } = depotGit(); lien(path.join(dehors, 'package-lock.json'), `{ "${SECRET}": 1 }`, path.join(dv, 'package-lock.json'));
+  gv('add', '.'); gv('commit', '-qm', 'lien');
+  const osv = path.join(tmp(), 'osv-scanner'); const appels = `${osv}.appels`;
+  ecrire(osv, `#!/bin/sh\necho "$@" >> '${appels}'\necho '{"results":[]}'\n`); fs.chmodSync(osv, 0o755);
+  assert.deepEqual(executer('dependances-vulnerables', { depot: dv, osv, cache: null, config: {} }, 'audit'), { ecarts: [], indisponible: LU('package-lock.json') });
+  assert.equal(fs.existsSync(appels), false);
+
+  // Inventaire de l'arbre : un nœud, le rules.yaml et les questions qui sont des liens ; un dossier `arbre` qui en est un.
+  const da = tmp(); ecrire(path.join(da, 'arbre', 'index.md'), '---\ntype: guideline\ntitle: Racine\nstatus: draft\n---\n');
+  lien(path.join(dehors, 'noeud.md'), `---\ntype: guideline\ntitle: ${SECRET}\nconfig: { conteneur: { devcontainer: { image: ${SECRET} } } }\n---\n`, path.join(da, 'arbre', 'noeud.md'));
+  lien(path.join(dehors, 'rules.yaml'), `- id: fuite\n  statement: ${SECRET}\n  status: stable\n`, path.join(da, 'arbre', 'rules.yaml'));
+  lien(path.join(dehors, 'questions.md'), `| Q1 | x | ${SECRET} | gênant |\n`, path.join(da, 'arbre', 'questions.md'));
+  const db = tmp(); for (const f of ['index.md', 'autre.md']) ecrire(path.join(dehors, 'arbre', f), `---\ntype: guideline\ntitle: ${SECRET}\n---\n`);
+  fs.symlinkSync(path.join(dehors, 'arbre'), path.join(db, 'arbre'));
+  const n = sans(inventaireArbre({ depots: [da, db] }, { site: 'local' }));
+  const de = (dep, f) => n.find((x) => x.location === path.join(dep, f));
+  assert.deepEqual([de(da, 'arbre/noeud.md').attributes.erreur_entete, de(da, 'arbre/index.md').attributes.erreur_regles, de(da, 'arbre/index.md').attributes.erreur_suivi],
+    [`fichier illisible : ${LU('arbre/noeud.md')}`, `rules.yaml illisible : ${LU('arbre/rules.yaml')}`, LU('arbre/questions.md')]);
+  assert.deepEqual(n.filter((x) => x.location.startsWith(db)).map((x) => [x.node, x.attributes.erreur_entete]), [['/arbre/index.md', `fichier illisible : ${LU('arbre')}`]]);
+
+  // Récolte : le rules.yaml où s'ajoute une règle, un lien vers un fichier de l'hôte illisible, dont l'erreur citerait
+  // une ligne : rien n'est lu.
+  const dr = tmp(); lien(path.join(dehors, 'invalide.yaml'), `${SECRET}: [\n`, path.join(dr, 'arbre', 'rules.yaml'));
+  assert.throws(() => ajouterRegles(dr, path.join(dr, 'arbre', 'rules.yaml'), [{ id: 'r', statement: 'Une règle.' }]), (e) => e.message === 'arbre/rules.yaml est un lien symbolique : rien n’est écrit');
+});
 
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
 import { creerService, binaireService, copieEnService } from '../src/service.js';

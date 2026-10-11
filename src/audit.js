@@ -6,7 +6,7 @@ import { comptesClaudeCode, accueil } from './config.js';
 import { projetsDe, localiserProjet } from './projets.js';
 import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts, declarationsDe } from './regles.js';
 import { listePrivee, executer, CONTROLES } from './controles.js';
-import { trouverOutil, porteMarque } from './commun.js';
+import { trouverOutil, porteMarque, lireSansLien } from './commun.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserCompte, materialiserProjet } from './materialisation.js';
 import { ulid } from './ulid.js';
@@ -169,10 +169,11 @@ function ecartsCrochet({ demande, etat }) {
 
 // Le conteneur généré (décision environnement-d-execution) : un fichier qui porte la marque se compare au texte que donne
 // la configuration effective. Un fichier écrit à la main ne se compare pas : il se migre projet par projet (choix de
-// l'auteur, 2026-10-10).
+// l'auteur, 2026-10-10). Le conteneur écrit le dépôt : un lien symbolique à la place du fichier n'est pas suivi
+// (`lireSansLien` lève une erreur).
 function ecartsConteneur(r, depot) {
-  let present; try { present = fs.readFileSync(path.join(depot, CONTENEUR), 'utf8'); } catch { return []; }
-  if (!porteMarque(present, MARQUE_CONTENEUR)) return [];
+  const present = lireSansLien(depot, CONTENEUR);
+  if (present === null || !porteMarque(present, MARQUE_CONTENEUR)) return [];
   const gen = genererConteneur({ nom: path.basename(depot), config: r.config });
   if (gen.texte === present) return [];
   return [{ regle: 'conteneur', regle_id: 'conteneur', controle: 'conteneur-genere', cle: CONTENEUR, fichier: CONTENEUR,
@@ -291,14 +292,13 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
     if (r.illisibles.length) rp.controles.push(...['regles-a-jour', 'crochet-pose', 'conteneur-genere', 'memoire-remplacee'].map((c) => ({ id: c, etat: 'indisponible', raison: 'règles illisibles' })));
     else if (p.location && fs.existsSync(p.location)) {
       const m = materialiserProjet(r, p.location, { accueil: s.config.accueil || accueil(), ecrire: false });
-      // Un lien symbolique dans le dépôt, sur le chemin des règles ou du crochet : rien n'y est lu, le contrôle n'a pas pu
-      // se faire, et ce qu'il n'a pas vu ne se résout pas.
+      // Un lien symbolique dans le dépôt, sur le chemin des règles, du crochet ou du conteneur généré : rien n'y est lu, le
+      // contrôle n'a pas pu se faire, et ce qu'il n'a pas vu ne se résout pas.
       if (m.fichiers.erreur) rp.controles.push({ id: 'regles-a-jour', etat: 'indisponible', raison: m.fichiers.erreur });
       else { rp.ecarts.push(...ecartsFichiers(r.regles, m, '.claude/rules/holarch')); faits.add(`${id}|regles-a-jour`); }
       if (m.crochet.etat === 'erreur') rp.controles.push({ id: 'crochet-pose', etat: 'indisponible', raison: m.crochet.raison });
       else { rp.ecarts.push(...ecartsCrochet(m.crochet)); faits.add(`${id}|crochet-pose`); }
-      rp.ecarts.push(...ecartsConteneur(r, p.location));
-      faits.add(`${id}|conteneur-genere`);
+      try { rp.ecarts.push(...ecartsConteneur(r, p.location)); faits.add(`${id}|conteneur-genere`); } catch (e) { rp.controles.push({ id: 'conteneur-genere', etat: 'indisponible', raison: e.message }); }
     }
     if (!r.illisibles.length) {
       rp.ecarts.push(...remplacees(r.regles.filter((e) => e.origine === 'type' || e.origine === 'projet'), memoires.filter((m) => m.links?.project?.includes(id))));

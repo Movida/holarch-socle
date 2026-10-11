@@ -2,16 +2,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
-import { gitLu } from '../commun.js';
+import { gitLu, cheminSansLien } from '../commun.js';
 
 /**
  * En-tête YAML d'un fichier Markdown (`---` … `---`) : { entete, erreur }. Sans en-tête, `entete` est {} et `erreur`
  * null ; un en-tête présent mais illisible (YAML invalide, autre chose qu'un objet) le dit dans `erreur`, avec les
- * `indices` lus ligne à ligne (`type`, `id`) : ce que le nœud pouvait être. Ne lève jamais.
+ * `indices` lus ligne à ligne (`type`, `id`) : ce que le nœud pouvait être. `depot` : le dépôt du fichier, où un lien
+ * symbolique sur son chemin n'est pas suivi (`cheminSansLien`), et le fichier est dit illisible. Ne lève jamais.
  */
-export function lireEnTete(fichier) {
+export function lireEnTete(fichier, depot = null) {
   let t;
-  try { t = fs.readFileSync(fichier, 'utf8'); } catch (e) { return { entete: {}, erreur: `fichier illisible : ${e.code || e.message}` }; }
+  try { t = fs.readFileSync(depot ? cheminSansLien(depot, path.relative(depot, fichier), 'lu') : fichier, 'utf8'); } catch (e) { return { entete: {}, erreur: `fichier illisible : ${e.code || e.message}` }; }
   const m = t.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!m) return { entete: {}, erreur: null };
   try {
@@ -32,8 +33,8 @@ function indices(texte) {
   return Object.fromEntries(Object.entries(vus).filter(([, s]) => s.size === 1).map(([k, s]) => [k, [...s][0]]));
 }
 
-/** En-tête YAML d'un fichier Markdown, ou {} (absent ou illisible). */
-export const enTete = (fichier) => lireEnTete(fichier).entete;
+/** En-tête YAML d'un fichier Markdown, ou {} (absent ou illisible, ou un lien symbolique dans `depot`). */
+export const enTete = (fichier, depot = null) => lireEnTete(fichier, depot).entete;
 
 export const slug = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9/._-]+/g, '-').replace(/^-+|-+$/g, '');
 

@@ -12,7 +12,7 @@ import YAML from 'yaml';
 import { transcriptions } from './transcription.js';
 import { localiserProjet } from './projets.js';
 import { gitleaks } from './controles.js';
-import { claudeIntrouvable, ecrireSansLien } from './commun.js';
+import { claudeIntrouvable, ecrireSansLien, cheminSansLien } from './commun.js';
 
 // Un message de l'auteur trop court est un acquiescement ou une relance (« oui », « reprends ») ; trop long, un collage.
 const MIN = 25; const MAX = 2000;
@@ -165,10 +165,12 @@ export function regleProposee(g, at) {
 
 /**
  * Ajoute des règles à la fin d'un `rules.yaml` sans réécrire ce qui y est (commentaires compris) ; un `id` déjà présent
- * n'est pas repris. `racine` : le dépôt du fichier, où rien ne s'écrit à travers un lien symbolique (`ecrireSansLien`).
+ * n'est pas repris. `racine` : le dépôt du fichier, où rien ne se lit ni ne s'écrit à travers un lien symbolique
+ * (`cheminSansLien`, `ecrireSansLien`) : l'erreur d'un fichier de l'hôte lu par un lien en citerait une ligne.
  */
 export function ajouterRegles(racine, fichier, regles) {
-  const avant = fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : '';
+  const p = cheminSansLien(racine, path.relative(racine, fichier));
+  const avant = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
   const pris = new Set([].concat(YAML.parse(avant) || []).map((x) => x?.id));
   const neuves = regles.filter((x) => !pris.has(x.id));
   // La provenance d'une règle tient sur une ligne, comme `approved` : elle se lit sans masquer la règle.
