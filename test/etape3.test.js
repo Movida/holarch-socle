@@ -1558,7 +1558,7 @@ test('eprouver : un test neuf rouge sur le parent ou sur un mutant ; vert, ou ro
   assert.match(fs.readFileSync(path.join(r, 'src/a.js'), 'utf8'), /triple/);
 });
 
-test('rapport : le rapport d’un sous-agent se lit dans sa transcription, remise d’abord, sinon dernier texte ; un identifiant se donne par un début qui n’en désigne qu’un', async () => {
+test('rapport : le rapport d’un sous-agent se lit dans sa transcription, le plus long des messages après son dernier outil de travail ; un identifiant se donne par un début qui n’en désigne qu’un', async () => {
   const { rapportSousAgent } = await import('../src/transcription.js');
   const home = tmp(); const sa = path.join(home, 'projects', '-dossier', 'session-1', 'subagents'); fs.mkdirSync(sa, { recursive: true });
   const ligne = (contenu) => JSON.stringify({ type: 'assistant', isSidechain: true, message: { role: 'assistant', content: contenu } });
@@ -1580,6 +1580,18 @@ test('rapport : le rapport d’un sous-agent se lit dans sa transcription, remis
   assert.throws(() => rapportSousAgent([home], 'ab'), /ambigu, 2 sous-agents/);
   assert.throws(() => rapportSousAgent([home], 'zzz'), /aucun sous-agent zzz/);
   assert.throws(() => rapportSousAgent([home], ''), /identifiant du sous-agent attendu/);
+  // Remise refusée (cas du 2026-10-10) : le rapport écrit, puis la remise répétée, raccourcie, puis une explication
+  // courte ; le rapport est le plus long des messages écrits après le dernier outil de travail, pas le dernier.
+  const outil = (nom) => ligne([{ type: 'tool_use', name: nom, input: { command: 'npm test' } }]);
+  const refus = JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', is_error: true, content: 'refusé' }] } });
+  const long = `# Contre-épreuve\n${'Détail. '.repeat(40)}`;
+  fs.writeFileSync(path.join(sa, 'agent-cde789.jsonl'), [ligne([{ type: 'text', text: `Avant le travail : ${'x'.repeat(500)}` }]), outil('Bash'),
+    ligne([{ type: 'text', text: long }]), ligne([{ type: 'tool_use', name: 'SubagentHandback', input: { message: long.slice(0, 100) } }]), refus,
+    ligne([{ type: 'text', text: 'La remise est refusée.' }])].join('\n') + '\n');
+  assert.equal(rapportSousAgent([home], 'cde').rapport, long);
+  // Un texte long suivi d'un outil de travail n'est pas le rapport : le court écrit après l'outil l'est.
+  fs.writeFileSync(path.join(sa, 'agent-cdf000.jsonl'), [ligne([{ type: 'text', text: long }]), outil('Read'), ligne([{ type: 'text', text: 'Rapport court' }])].join('\n') + '\n');
+  assert.equal(rapportSousAgent([home], 'cdf').rapport, 'Rapport court');
   // La commande lit les transcriptions du compte de la configuration, et ne fait rien d'autre.
   const accueil = tmp(); fs.writeFileSync(path.join(accueil, 'config.yaml'), `import:\n  claude-code-transcriptions: { home: ${JSON.stringify(home)} }\n`);
   const holarch = (...a) => spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), ...a], { encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil } });

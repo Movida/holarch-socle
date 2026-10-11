@@ -75,9 +75,9 @@ const AIDE = `holarch — socle autour des agents d'IA
                        appelés par les crochets de Claude Code (entrée JSON du crochet) : avis de passation au-delà du
                        seuil ; résumé du projet au démarrage d'une session
   holarch rapport <sous-agent>
-                       le rapport final d'un sous-agent (contre-épreuve, relecture), lu dans sa transcription : le
-                       message qu'il a remis, sinon son dernier texte ; identifiant entier ou un début qui n'en désigne
-                       qu'un ; en lecture seule
+                       le rapport final d'un sous-agent (contre-épreuve, relecture), lu dans sa transcription : le plus
+                       long des messages (remis ou écrits) après son dernier outil de travail ; identifiant entier ou
+                       un début qui n'en désigne qu'un ; en lecture seule
   holarch pont <url> --cle <fichier>
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier

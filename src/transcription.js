@@ -61,14 +61,20 @@ export const evenements = function* (lignes, filtre = '') {
 
 // Un rapport se lit dans la fin de la transcription du sous-agent : sa remise est son dernier geste.
 const FIN_RAPPORT = 4 * 1024 * 1024;
+// Un outil de travail : tout outil autre que la remise. Ce qui s'écrit après le dernier est la fin du travail.
+const travail = (b) => b.type === 'tool_use' && b.name !== 'SubagentHandback';
 
 /**
- * Le rapport final d'un sous-agent (`agent-<id>.jsonl`, dans les transcriptions des comptes `homes`) : le message qu'il
- * a remis par l'outil `SubagentHandback` (sous-agent de fond ; il n'est pas dans un texte), sinon son dernier texte.
- * L'identifiant se donne entier ou par un début qui n'en désigne qu'un. Une session reprise sous un autre identifiant
- * garde une copie de ses sous-agents (mesure du 2026-10-10 : 16 identifiants sur 461 en double) : la copie la plus
- * récente est lue, les autres sont dites. { id, description, transcription, copies, rapport } ; une erreur dit un
- * identifiant inconnu, ambigu, ou un sous-agent sans rapport.
+ * Le rapport final d'un sous-agent (`agent-<id>.jsonl`, dans les transcriptions des comptes `homes`) : le plus long des
+ * messages écrits après son dernier outil de travail. Un message : ce qu'il remet par l'outil `SubagentHandback`
+ * (sous-agent de fond ; il n'est pas dans un texte), ou les textes d'un de ses tours. Une remise refusée se répète,
+ * raccourcie, puis l'agent s'en explique : le dernier message n'est pas le rapport (mesure du 2026-10-10 : rapport de
+ * 11 189 signes, puis deux remises refusées et deux textes courts). Sans outil de travail dans la fin lue, tous les
+ * messages lus comptent ; sans message après le dernier outil, le dernier écrit avant. L'identifiant se donne entier ou
+ * par un début qui n'en désigne qu'un. Une session reprise sous un autre identifiant garde une copie de ses sous-agents
+ * (mesure du 2026-10-10 : 16 identifiants sur 461 en double) : la copie la plus récente est lue, les autres sont dites.
+ * { id, description, transcription, copies, rapport } ; une erreur dit un identifiant inconnu, ambigu, ou un sous-agent
+ * sans rapport.
  */
 export function rapportSousAgent(homes, id) {
   const voulu = String(id ?? '').trim().replace(/^agent-/, '');
@@ -82,12 +88,17 @@ export function rapportSousAgent(homes, id) {
   const [f, ...copies] = trouves.sort((a, b) => date(b) - date(a)); const nom = noms[0];
   let description = null;
   try { description = JSON.parse(fs.readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8')).description ?? null; } catch { /* sans méta */ }
+  // De la fin vers le début : les messages jusqu'au dernier outil de travail (ce qui le suit dans son tour compris).
+  const messages = []; let fin = false;
   for (const e of evenements(finDeTranscription(f, FIN_RAPPORT), '"assistant"')) {
     if (e.type !== 'assistant' || !Array.isArray(e.message?.content)) continue;
-    const blocs = e.message.content;
-    const remise = blocs.find((b) => b.type === 'tool_use' && b.name === 'SubagentHandback' && typeof b.input?.message === 'string');
+    const blocs = fin ? e.message.content : e.message.content.slice(e.message.content.findLastIndex(travail) + 1);
+    for (const b of blocs) if (b.type === 'tool_use' && b.name === 'SubagentHandback' && typeof b.input?.message === 'string') messages.push(b.input.message);
     const texte = blocs.filter((b) => b.type === 'text' && b.text?.trim()).map((b) => b.text).join('\n');
-    if (remise || texte) return { id: nom, description, transcription: f, copies, rapport: remise ? remise.input.message : texte };
+    if (texte) messages.push(texte);
+    fin ||= e.message.content.some(travail);
+    if (fin && messages.length) break;
   }
-  throw new Error(`sous-agent ${nom} sans rapport lisible (${f})`);
+  if (!messages.length) throw new Error(`sous-agent ${nom} sans rapport lisible (${f})`);
+  return { id: nom, description, transcription: f, copies, rapport: messages.reduce((a, b) => (b.length > a.length ? b : a)) };
 }
