@@ -3,12 +3,16 @@
 // `conteneur.devcontainer`, clés du format telles quelles (P2), fusionnées comme les autres réglages ; le socle pose
 // ensuite les siennes, qu'aucune couche ne remplace : le nom, la connexion Claude (`connexion_claude`), les
 // transcriptions du projet et les règles du compte en lecture, le volume ssh, les variables de Claude Code, la clé d'API
-// vidée et la reprise de propriété des volumes. Une couche qui en pose une ne se génère pas, et c'est dit. Lecture pure :
+// vidée, la reprise de propriété des volumes, et le gitleaks de l'hôte en lecture pour le crochet de commit (décision
+// garde-sans-passage-muet). Une couche qui en pose une ne se génère pas, et c'est dit. Lecture pure :
 // `holarch projet creer` écrit le texte, l'audit le compare au fichier.
 import { dossierClaude } from './projets.js';
 
 export const FICHIER = '.devcontainer/devcontainer.json';
 export const MARQUE = '// Généré par HOLARCH (holarch projet creer) : ne pas modifier ici, changer la clé conteneur de l’arbre.';
+// Les outils de la garde (gitleaks) : un dossier de l'hôte, relatif à son dossier personnel, que `holarch service poser`
+// remplit, monté en lecture seule dans chaque conteneur généré (décision garde-sans-passage-muet).
+export const OUTILS = { hote: '.local/share/holarch/outils', conteneur: '/opt/holarch/outils' };
 // `requis` et `optionnel` comme les lit le CLI Dev Containers (`hostRequirements.gpu` : true ou "optional").
 const GPU = new Map([['non', null], ['optionnel', 'optional'], ['requis', true]]);
 const CONNEXIONS = ['volume', 'hote'];
@@ -23,12 +27,12 @@ const cible = (m) => (objet(m) ? m.target : String(m).match(/(?:^|,)\s*(?:target
 
 // Commentaires fixes sur les parts du socle, au-dessus de leur clé.
 const COMMENTAIRES = {
+  initializeCommand: 'Socle : les dossiers de l’hôte montés ci-dessous, créés s’ils manquent.',
   volume: {
-    initializeCommand: 'Socle : les dossiers de l’hôte montés ci-dessous, créés s’ils manquent.',
-    mounts: 'Socle : Claude Code dans un volume propre au conteneur, jamais le ~/.claude de l’hôte (identifiants de tous les projets, crochets que l’hôte exécute) ; la connexion s’y fait une fois. De l’hôte, seulement : les transcriptions et la mémoire de ce projet (HOLARCH les lit), et les règles du compte en lecture. La clé de déploiement dans un volume propre au projet.',
+    mounts: 'Socle : Claude Code dans un volume propre au conteneur, jamais le ~/.claude de l’hôte (identifiants de tous les projets, crochets que l’hôte exécute) ; la connexion s’y fait une fois. De l’hôte, seulement : les transcriptions et la mémoire de ce projet (HOLARCH les lit), les règles du compte et le gitleaks de la garde de commit, en lecture. La clé de déploiement dans un volume propre au projet.',
   },
   hote: {
-    mounts: 'Socle : le ~/.claude de l’hôte (connexion_claude: hote), une dérogation : le contrôle montage-sensible le dit tant qu’une exception du profil ne le lève pas. La clé de déploiement dans un volume propre au projet.',
+    mounts: 'Socle : le ~/.claude de l’hôte (connexion_claude: hote), une dérogation : le contrôle montage-sensible le dit tant qu’une exception du profil ne le lève pas. Le gitleaks de la garde de commit en lecture. La clé de déploiement dans un volume propre au projet.',
   },
   containerEnv: 'Socle : toute session, ouverte dans un sous-dossier ou un worktree comprise, range ses transcriptions dans le dossier de ce projet (CLAUDE_CODE_PROJECT_DIR_NAME, Claude Code 2.1.234 et suivants, avec CLAUDE_CONFIG_DIR).',
   remoteEnv: 'Socle : la connexion Claude du conteneur sert, jamais une clé d’API reçue de l’hôte.',
@@ -75,11 +79,11 @@ export function genererConteneur({ nom, config = {} }) {
       `source=\${localEnv:HOME}/.claude/projects/${dossier},target=${maison}/.claude/projects/${dossier},type=bind`,
       `source=\${localEnv:HOME}/.claude/rules,target=${maison}/.claude/rules,type=bind,readonly`]
     : [`source=\${localEnv:HOME}/.claude,target=${maison}/.claude,type=bind`];
-  montages.push(`source=${nom}-ssh,target=${maison}/.ssh,type=volume`);
+  montages.push(`source=\${localEnv:HOME}/${OUTILS.hote},target=${OUTILS.conteneur},type=bind,readonly`, `source=${nom}-ssh,target=${maison}/.ssh,type=volume`);
   const proprietaire = u === 'root' ? [] : connexion === 'volume' ? [`${maison}/.claude`, `${maison}/.claude/projects`, `${maison}/.ssh`] : [`${maison}/.ssh`];
   const socle = {
     name: nom,
-    ...(connexion === 'volume' && { initializeCommand: `mkdir -p \${localEnv:HOME}/.claude/projects/${dossier} \${localEnv:HOME}/.claude/rules` }),
+    initializeCommand: `mkdir -p ${connexion === 'volume' ? `\${localEnv:HOME}/.claude/projects/${dossier} \${localEnv:HOME}/.claude/rules ` : ''}\${localEnv:HOME}/${OUTILS.hote}`,
     mounts: montages,
     containerEnv: { CLAUDE_CONFIG_DIR: `${maison}/.claude`, CLAUDE_CODE_PROJECT_DIR_NAME: dossier },
     remoteEnv: { ANTHROPIC_API_KEY: '' },

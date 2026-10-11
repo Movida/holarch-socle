@@ -13,6 +13,7 @@ import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
 import { dossierClaude } from './projets.js';
+import { OUTILS } from './conteneur.js';
 import { exceptions, lireExceptions } from './regles.js';
 
 // Réglages de l'audit (`controles:` de la configuration du site), avec leurs défauts.
@@ -360,7 +361,8 @@ function dossierDeTravail(c, depot) {
 const montagesAdmis = (c, depot, maison) => {
   const travail = dossierDeTravail(c, depot);
   return [...(travail ? [{ chemin: path.join(maison, '.claude', 'projects', dossierClaude(travail)) }] : []),
-    { chemin: path.join(maison, '.claude', 'rules'), lecture: true, quoi: 'règles du compte, lues par les sessions de l’hôte' }];
+    { chemin: path.join(maison, '.claude', 'rules'), lecture: true, quoi: 'règles du compte, lues par les sessions de l’hôte' },
+    { chemin: path.join(maison, OUTILS.hote), lecture: true, quoi: 'outils de la garde de commit, que les conteneurs exécutent' }];
 };
 
 // Fichiers de configuration d'un conteneur, aux emplacements de la spécification Dev Containers.

@@ -14,6 +14,7 @@ import * as affichage from './affichage.js';
 import { alerte, resume, reglesDuDossier } from '../src/contexte.js';
 import { creerProjet } from '../src/creation.js';
 import { creerService, binaireService } from '../src/service.js';
+import { trouverOutil } from '../src/commun.js';
 import { rapportSousAgent } from '../src/transcription.js';
 import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
@@ -152,7 +153,8 @@ switch (cmd) {
   case 'service': {
     const config = chargerConfig(); const [action, ref] = args.filter((a) => !a.startsWith('--'));
     // La règle de veille se lit au moment de poser le gardien : illisible, elle se dit sur sa ligne, après le reste.
-    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}), veille: () => veilleDuCompte() });
+    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}), veille: () => veilleDuCompte(),
+      gitleaks: trouverOutil('gitleaks', config.controles?.gitleaks) });
     try {
       if (action === 'poser') { const r = sv.poser(ref); afficher(json ? r : affichage.posee(r)); if (r.points.some((p) => p.etat === 'erreur')) process.exit(1); }
       else if (action) throw new Error(`action inconnue : ${action}`);

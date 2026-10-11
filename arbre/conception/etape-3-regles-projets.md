@@ -231,7 +231,9 @@ peuvent dériver de la règle effective sans que rien ne le dise ; des mémoires
 3. **Garde avant commit** : `holarch regles appliquer <projet>` pose `.git/hooks/pre-commit` (marqué, il appelle
    `holarch garde avant-commit`) si une règle `blocking` du projet a un contrôle `avant-commit`. Un crochet non marqué
    n'est jamais remplacé : c'est signalé. Le refus dit la règle, le fichier, la ligne et l'énoncé de la règle, sans
-   répéter le terme trouvé. HOLARCH injoignable : le crochet laisse passer et le dit (l'audit rattrape).
+   répéter le terme trouvé. Un contrôle bloquant non disponible fait refuser le commit ; HOLARCH injoignable (un
+   conteneur), le crochet vérifie les secrets par gitleaks s'il le trouve, sinon il laisse passer et le dit (l'audit
+   rattrape) ; décision `garde-sans-passage-muet` (2026-10-11).
 4. **Permissions** : une règle `blocking` sans contrôle de commit et portant `match: { action: read, paths: [...] }`
    devient des entrées `permissions.deny` (`Read(...)`) à sa portée (`~/.claude/settings.json` pour le compte). Les
    entrées posées sont listées dans un manifeste à côté des règles générées ; seules celles-là se retirent.
@@ -264,7 +266,8 @@ shell qui nomment le fichier (`cat`, `head`, `tail`, `sed`, redirections), pas u
 (`grep -r`) ni un script (documentation des permissions de Claude Code, lue le 2026-10-07) ; le bac à sable de Claude
 Code le ferait au niveau du système. Un commit fait ailleurs que dans le clone local (édition sur GitHub) n'est vu qu'à
 l'audit. Le crochet fige les chemins de node et de HOLARCH à son écriture : vu d'un conteneur où ils n'existent pas, il
-laisse passer et le dit.
+ne vérifie que les secrets, par le gitleaks de l'hôte monté en lecture (décision `garde-sans-passage-muet`) ; les termes
+privés, gardés hors du conteneur, attendent l'audit.
 
 ## Tranche 5 — Veille de sécurité et de versions
 

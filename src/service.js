@@ -2,11 +2,13 @@
 // crochets de Claude Code, serveur MCP, garde avant commit) lancent une copie du socle tirée d'un commit, jamais la copie
 // de travail. Les outils font le travail (`git archive`, `npm ci`) ; HOLARCH exporte, installe et bascule un lien.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { git, lireJson, ecrireJson, trouverOutil, configClaude } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
+import { OUTILS } from './conteneur.js';
 
 const SOI = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const FICHE = '.holarch-service.json';
@@ -37,7 +39,23 @@ export function retard(copie) {
   return r.status === 0 ? Number(sortie(r)) : null;
 }
 
-export function creerService({ accueil, comptes = [], veille = null }, {
+/**
+ * Le gitleaks de l'hôte (`bin`), copié dans le dossier que les conteneurs générés montent en lecture (décision
+ * garde-sans-passage-muet) : leur crochet de commit, où HOLARCH est injoignable, vérifie au moins les secrets. Copié
+ * seulement s'il diffère, d'un coup (un fichier neuf renommé sur l'ancien). { etat }.
+ */
+export function copierGitleaks(bin, maison = os.homedir()) {
+  if (!bin) return { etat: 'absent de l’hôte : le crochet d’un conteneur laisse passer et le dit' };
+  const f = path.join(maison, OUTILS.hote, 'gitleaks'); const contenu = fs.readFileSync(bin);
+  let actuel = null; try { actuel = fs.readFileSync(f); } catch { /* absent */ }
+  if (actuel?.equals(contenu)) return { etat: 'inchangé' };
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  const tmp = `${f}.pose-${process.pid}`;
+  fs.writeFileSync(tmp, contenu); fs.chmodSync(tmp, 0o755); fs.renameSync(tmp, f);
+  return { etat: `copié (${f})` };
+}
+
+export function creerService({ accueil, comptes = [], veille = null, gitleaks = null, maison = os.homedir() }, {
   source = null, unites, systemctl, node = process.execPath,
   npm = trouverOutil('npm'),
   lancer = (cmd, args, o) => spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 900e3, ...o }),
@@ -71,6 +89,7 @@ export function creerService({ accueil, comptes = [], veille = null }, {
       essai('recolte', () => creerRecolte({ holarch, accueil }, o).poser()),
       essai('reveil', () => creerReveil({ holarch, accueil }, o).reecrire()),
       essai('veille', () => creerReveil({ holarch, accueil }, o).gardien({ veille })),
+      essai('gitleaks des conteneurs', () => copierGitleaks(gitleaks, maison)),
       ...comptes.filter((c) => c.home).map((c) => essai(`mcp ${c.nom || c.home}`, () => {
         const f = configClaude(c.home); const cfg = lireJson(f, null, { strict: true });
         const s = cfg?.mcpServers?.holarch;

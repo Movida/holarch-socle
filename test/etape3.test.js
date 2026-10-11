@@ -1164,7 +1164,11 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
   assert.deepEqual(Object.keys(v.conteneur), ['name', 'image', 'remoteUser', 'initializeCommand', 'mounts', 'containerEnv', 'remoteEnv', 'onCreateCommand']);
   assert.deepEqual(v.conteneur.mounts, ['source=Neuf_2.x-claude,target=/home/vscode/.claude,type=volume',
     'source=${localEnv:HOME}/.claude/projects/-workspaces-Neuf-2-x,target=/home/vscode/.claude/projects/-workspaces-Neuf-2-x,type=bind',
-    'source=${localEnv:HOME}/.claude/rules,target=/home/vscode/.claude/rules,type=bind,readonly', 'source=Neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume']);
+    'source=${localEnv:HOME}/.claude/rules,target=/home/vscode/.claude/rules,type=bind,readonly',
+    'source=${localEnv:HOME}/.local/share/holarch/outils,target=/opt/holarch/outils,type=bind,readonly', 'source=Neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume']);
+  // Le gitleaks de l'hôte, en lecture, pour le crochet de commit (décision garde-sans-passage-muet) : son dossier est créé
+  // vide s'il manque, le conteneur démarre toujours.
+  assert.equal(v.conteneur.initializeCommand, 'mkdir -p ${localEnv:HOME}/.claude/projects/-workspaces-Neuf-2-x ${localEnv:HOME}/.claude/rules ${localEnv:HOME}/.local/share/holarch/outils');
   // Les volumes gardent la casse du nom : deux projets qui ne diffèrent que par elle ne partagent ni connexion ni clé.
   const volumes = (nom) => g(base, nom).conteneur.mounts.filter((m) => m.endsWith(',type=volume')).map((m) => m.match(/^source=([^,]+)/)[1]);
   assert.deepEqual([volumes('Foo'), volumes('foo')], [['Foo-claude', 'Foo-ssh'], ['foo-claude', 'foo-ssh']]);
@@ -1172,12 +1176,13 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
     { ANTHROPIC_API_KEY: '' }, { holarch: 'sudo chown vscode:vscode /home/vscode/.claude /home/vscode/.claude/projects /home/vscode/.ssh' }]);
   // Les couches s'ajoutent à ce que pose le socle, sans le remplacer.
   const c = g({ devcontainer: { ...base.devcontainer, mounts: ['source=cache,target=/cache,type=volume'], containerEnv: { A: '1' }, onCreateCommand: { outil: 'x' } } }).conteneur;
-  assert.deepEqual([c.mounts.length, c.mounts[0], c.containerEnv.A, Object.keys(c.onCreateCommand)], [5, 'source=cache,target=/cache,type=volume', '1', ['outil', 'holarch']]);
+  assert.deepEqual([c.mounts.length, c.mounts[0], c.containerEnv.A, Object.keys(c.onCreateCommand)], [6, 'source=cache,target=/cache,type=volume', '1', ['outil', 'holarch']]);
   assert.deepEqual([g({ ...base, gpu: 'requis' }).conteneur.hostRequirements, g({ ...base, gpu: 'optionnel' }).conteneur.hostRequirements, g({ ...base, gpu: 'non' }).conteneur.hostRequirements], [{ gpu: true }, { gpu: 'optional' }, undefined]);
   assert.deepEqual(g({ gpu: 'requis', devcontainer: { ...base.devcontainer, hostRequirements: { cpus: 4 } } }).conteneur.hostRequirements, { cpus: 4, gpu: true }, 'le gpu s’ajoute au hostRequirements d’une couche (m-6)');
   const h = g({ ...base, connexion_claude: 'hote' }).conteneur;
-  assert.deepEqual([h.mounts, h.initializeCommand, h.onCreateCommand], [['source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind', 'source=Neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume'],
-    undefined, { holarch: 'sudo chown vscode:vscode /home/vscode/.ssh' }], 'le ~/.claude de l’hôte n’est jamais repris');
+  assert.deepEqual([h.mounts, h.initializeCommand, h.onCreateCommand], [['source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind',
+    'source=${localEnv:HOME}/.local/share/holarch/outils,target=/opt/holarch/outils,type=bind,readonly', 'source=Neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume'],
+    'mkdir -p ${localEnv:HOME}/.local/share/holarch/outils', { holarch: 'sudo chown vscode:vscode /home/vscode/.ssh' }], 'le ~/.claude de l’hôte n’est jamais repris');
   const racine = g({ devcontainer: { image: 'base', remoteUser: 'root' } }).conteneur;
   assert.deepEqual([racine.containerEnv.CLAUDE_CONFIG_DIR, racine.onCreateCommand], ['/root/.claude', undefined]);
   for (const [x, motif] of [[{ devcontainer: { image: 'base' } }, /remoteUser absent : le profil le pose/], [{ ...base, gpu: 'oui' }, /conteneur\.gpu inconnu : oui/],
@@ -1203,6 +1208,8 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
   const monte = (x) => { ecrire(path.join(d, '.devcontainer', 'devcontainer.json'), g(x).texte); return executer('montage-sensible', { depot: d, holarch: [], maison, env: { HOME: maison }, maisonsWindows: [], distants: [] }, 'audit').ecarts.map((e) => e.cle); };
   assert.deepEqual(monte(base), []);
   assert.deepEqual(monte({ ...base, connexion_claude: 'hote' }), ['montage:.devcontainer/devcontainer.json:/home/vscode/.claude']);
+  // Les outils de la garde, admis en lecture seule : en écriture, un conteneur remplacerait le gitleaks des autres.
+  assert.deepEqual(monte({ devcontainer: { ...base.devcontainer, mounts: ['source=${localEnv:HOME}/.local/share/holarch/outils,target=/x,type=bind'] } }), ['montage:.devcontainer/devcontainer.json:/x']);
 });
 
 test('création de projet : conteneur généré, réécrit s’il diffère, jamais un fichier écrit à la main ; l’audit dit un fichier généré modifié', () => gitIsole(async () => {
@@ -1521,7 +1528,19 @@ test('Réglages du compte : un manifeste ou un settings.json refusé ne laisse a
 });
 
 // Copie de service (décision copie-de-service) : git et tar réels sur un dépôt jetable ; npm et systemctl remplacés.
-import { creerService, binaireService, copieEnService } from '../src/service.js';
+import { creerService, binaireService, copieEnService, copierGitleaks } from '../src/service.js';
+
+test('copie de service : le gitleaks de l’hôte copié pour les conteneurs générés, seulement s’il diffère, jamais à moitié', () => {
+  const maison = tmp(); const bin = path.join(tmp(), 'gitleaks'); const f = path.join(maison, '.local', 'share', 'holarch', 'outils', 'gitleaks');
+  assert.match(copierGitleaks(null, maison).etat, /^absent de l’hôte/); assert.ok(!fs.existsSync(f), 'rien n’est écrit sans gitleaks');
+  fs.writeFileSync(bin, '#!/bin/sh\necho 8.30.1\n'); fs.chmodSync(bin, 0o700);
+  assert.equal(copierGitleaks(bin, maison).etat, `copié (${f})`);
+  assert.deepEqual([fs.readFileSync(f, 'utf8'), fs.statSync(f).mode & 0o777], ['#!/bin/sh\necho 8.30.1\n', 0o755], 'exécutable par l’utilisateur du conteneur');
+  assert.equal(copierGitleaks(bin, maison).etat, 'inchangé');
+  fs.writeFileSync(bin, '#!/bin/sh\necho 8.31.0\n');
+  assert.equal(copierGitleaks(bin, maison).etat, `copié (${f})`, 'une mise à jour de l’hôte suit à la pose suivante');
+  assert.deepEqual(fs.readdirSync(path.dirname(f)), ['gitleaks'], 'aucun fichier temporaire laissé');
+});
 
 test('copie de service : posée d\'un commit vérifié, bascule, retour arrière, points d\'entrée, copie de travail cassée sans effet', () => {
   const src = tmp(); const accueil = tmp(); const unites = tmp(); const home = tmp();
@@ -1557,7 +1576,7 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
   assert.equal(fs.readlinkSync(path.join(accueil, 'service', 'courant')), c1, 'lien relatif');
   assert.equal(copieEnService(accueil).commit, c1); assert.ok(!fs.existsSync(path.join(accueil, 'service', c1, '.git')), 'un export, pas un dépôt');
   // Points d'entrée : interface absente laissée, minuteur d'import marqué sur le lien, entrée MCP réécrite (le reste gardé).
-  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['recolte', 'posé'], ['reveil', 'absente'], ['veille', 'erreur'], ['mcp perso', 'posé']]);
+  assert.deepEqual(r1.points.map((p) => [p.point, p.etat.split(' ')[0]]), [['interface', 'absente'], ['import', 'posé'], ['recolte', 'posé'], ['reveil', 'absente'], ['veille', 'erreur'], ['gitleaks des conteneurs', 'absent'], ['mcp perso', 'posé']]);
   assert.equal(r1.points.find((p) => p.point === 'veille').message, 'arbre du profil illisible');
   const unite = fs.readFileSync(path.join(unites, 'holarch-import.service'), 'utf8');
   assert.match(unite, /^# Écrit par HOLARCH/); assert.ok(unite.includes(`"${bin}" inventaire`)); assert.ok(fs.existsSync(path.join(unites, 'holarch-import.timer')));

@@ -1604,3 +1604,23 @@ test('Garde sans passage muet (4) : une règle stable sans approbation se lit co
   assert.deepEqual([regle('inventee').statut, regle('inventee').applicable, aApprouver(regle('inventee'))], ['draft', false, true]);
   assert.deepEqual(e.signaux.filter((x) => x.startsWith('règle stable sans approbation')).map((x) => x.split(' : ')[1].split(' ')[0]), ['secrets', 'inventee']);
 });
+
+test('Garde sans passage muet (1) : HOLARCH injoignable, le crochet vérifie les secrets par gitleaks (celui du conteneur, sinon du PATH)', async () => {
+  const { crochetDe } = await import('../src/garde-git.js');
+  const d = tmp(); spawnSync('git', ['init', '-q', d]);
+  const outils = path.join(tmp(), 'outils'); const chemin = path.join(tmp(), 'bin'); const appels = path.join(tmp(), 'appels');
+  const crochet = path.join(d, '.git', 'hooks', 'pre-commit');
+  fs.writeFileSync(crochet, crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant', outils })); fs.chmodSync(crochet, 0o755);
+  const faux = (dossier, code) => { fs.mkdirSync(dossier, { recursive: true }); const f = path.join(dossier, 'gitleaks');
+    fs.writeFileSync(f, `#!/bin/sh\necho "$PWD $@" > '${appels}'\nexit ${code}\n`); fs.chmodSync(f, 0o755); };
+  const lancer = () => { const r = spawnSync(crochet, { cwd: d, encoding: 'utf8', env: { PATH: `${chemin}:/usr/bin:/bin` } }); return [r.status, r.stderr.trim()]; };
+  // Sans gitleaks nulle part : le commit passe, et c'est dit (choix de l'auteur : un conteneur non reconstruit ne bloque rien).
+  assert.deepEqual(lancer(), [0, 'HOLARCH injoignable : commit non contrôlé (l\'audit le verra)']);
+  faux(chemin, 0);
+  assert.deepEqual(lancer(), [0, 'HOLARCH injoignable : seuls les secrets sont vérifiés (gitleaks), l\'audit verra le reste'], 'celui du PATH');
+  assert.equal(fs.readFileSync(appels, 'utf8'), `${d} git --pre-commit --staged --redact --no-banner --log-level error --verbose .\n`);
+  faux(outils, 1);
+  assert.deepEqual(lancer(), [1, 'HOLARCH injoignable : commit refusé, gitleaks trouve un secret dans les changements indexés'], 'celui du conteneur d’abord');
+  faux(outils, 2);
+  assert.deepEqual(lancer(), [1, 'HOLARCH injoignable et gitleaks en échec : commit refusé ; git commit --no-verify pour passer, l\'audit le verra']);
+});
