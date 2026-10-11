@@ -944,17 +944,27 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     assert.deepEqual(configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['public'], profil: s.profil() }).config.creation, { dossier: r, visibilite: 'public', licence: 'MIT', journal: 'arbre/log.md' });
     await assert.rejects(creerProjet(s, { nom: '../evasion' }), /nom de projet invalide/);
 
-    const appels = []; let cles = 0; const actifs = [];
+    const appels = []; let cles = []; const actifs = [];
     const gh = (args) => {
       appels.push(args.join(' '));
       if (args[0] === 'api' && args[1] === 'user') return { status: 0, stdout: 'alice\n' };
       if (args[0] === 'repo' && args[1] === 'view') return { status: fs.existsSync(path.join(github, args[2])) ? 0 : 1, stdout: '' };
       if (args[0] === 'repo' && args[1] === 'create') { spawnSync('git', ['init', '-q', '--bare', path.join(github, args[2])]); return { status: 0, stdout: '' }; }
-      if (args[0] === 'api') return { status: 0, stdout: `${cles}\n` };
+      if (args[0] === 'api') return { status: 0, stdout: cles.map((k) => `${k}\n`).join('') };
       return { status: 0, stdout: '' };
     };
+    // « Docker » : le conteneur du projet en marche ou non (étiquette de dossier vue de Windows, comme sur le poste), sa
+    // clé de déploiement (avec le commentaire que pose deploy-key.sh), ou Docker injoignable.
+    let enMarche = null;
+    const docker = (args) => {
+      appels.push(`docker ${args.join(' ')}`);
+      if (enMarche === 'injoignable') return { status: 1, stdout: '', stderr: 'Cannot connect to the Docker daemon' };
+      if (args[0] === 'ps') return { status: 0, stdout: `fff999\t/ailleurs/autre\n${enMarche ? `abc123\t\\\\wsl.localhost\\Ubuntu${path.join(r, NOM).replaceAll('/', '\\')}\n` : ''}` };
+      if (args[0] === 'exec' && enMarche?.cle) return { status: 0, stdout: `${enMarche.cle} devcontainer deploy key — alice/${NOM}\n` };
+      return { status: 1, stdout: '', stderr: `cat: ${args.at(-1)}: No such file or directory` };
+    };
     const distant = { liste: () => actifs, activer: (id) => { actifs.push({ projet: id }); return { unite: 'holarch-distant-neuf.service' }; } };
-    const outils = { gh, distant, urlDepot: (o, n) => path.join(github, o, n) };
+    const outils = { gh, docker, distant, urlDepot: (o, n) => path.join(github, o, n) };
     const etats = (x) => Object.fromEntries(x.etapes.map((e) => [e.etape, e.etat]));
 
     // À blanc : rien ne s'écrit, ni le dossier ni le catalogue.
@@ -985,12 +995,31 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     const cle = p1.etapes.find((e) => e.etape === 'cle').geste;
     assert.deepEqual([cle.commande, cle.lien], ['.devcontainer/deploy-key.sh', 'https://github.com/alice/Neuf_2.x/settings/keys/new']);
 
-    // Rejouée, une fois la clé enregistrée : tout est déjà là, rien ne change.
-    cles = 1; const tete = g('rev-parse', 'HEAD');
+    // Rejouée, une fois la clé enregistrée : tout est déjà là, rien ne change. Conteneur arrêté, la clé du dépôt suffit,
+    // dite non vérifiée.
+    const CLE = 'ssh-ed25519 AAAAfictiveA'; cles = [CLE]; const tete = g('rev-parse', 'HEAD');
     const p2 = await creerProjet(s, { nom: NOM, types: ['public'] }, outils);
     assert.deepEqual(Object.values(etats(p2)).filter((e) => e !== 'deja' && e !== 'faite'), [], JSON.stringify(p2.etapes, null, 1));
     assert.deepEqual([etats(p2).fichiers, etats(p2).declaration, etats(p2).regles, etats(p2).conteneur, etats(p2).github, etats(p2).cle, etats(p2).distant], ['deja', 'deja', 'deja', 'deja', 'deja', 'deja', 'deja']);
     assert.equal(g('rev-parse', 'HEAD'), tete);
+    assert.equal(p2.etapes.find((e) => e.etape === 'cle').detail, `1 clé(s) sur alice/${NOM} ; celle du conteneur non vérifiée (conteneur arrêté)`);
+
+    // Conteneur du projet en marche : sa clé, lue dans le dossier de son remoteUser, se compare à celles du dépôt (type et
+    // corps, sans le commentaire). Enregistrée : déjà là ; une autre : geste, qui compte les clés du dépôt ; aucune : geste.
+    const etapeCle = async () => (await creerProjet(s, { nom: NOM, types: ['public'] }, outils)).etapes.find((e) => e.etape === 'cle');
+    enMarche = { cle: CLE };
+    assert.deepEqual(await etapeCle(), { etape: 'cle', etat: 'deja', detail: `la clé du conteneur est enregistrée sur alice/${NOM}` });
+    assert.ok(appels.includes('docker exec abc123 cat /home/vscode/.ssh/id_ed25519.pub'), appels.join('\n'));
+    enMarche = { cle: 'ssh-ed25519 AAAAfictiveB' }; let e = await etapeCle();
+    assert.deepEqual([e.etat, e.detail, e.geste.commande, e.geste.lien], ['geste', `la clé du conteneur n’est pas enregistrée sur alice/${NOM}, qui porte 1 autre(s) clé(s) : à retirer si périmée(s)`,
+      '.devcontainer/deploy-key.sh', `https://github.com/alice/${NOM}/settings/keys/new`]);
+    enMarche = {}; e = await etapeCle();
+    assert.equal(e.etat, 'geste'); assert.match(e.detail, /en marche, n’a pas de clé lisible \(\/home\/vscode\/\.ssh\/id_ed25519\.pub : cat: .*No such file/);
+    enMarche = 'injoignable'; e = await etapeCle();
+    assert.deepEqual([e.etat, e.detail], ['deja', `1 clé(s) sur alice/${NOM} ; celle du conteneur non vérifiée (Docker injoignable)`]);
+    cles = []; e = await etapeCle();
+    assert.deepEqual([e.etat, e.detail], ['geste', `aucune clé de déploiement sur alice/${NOM}`]);
+    cles = [CLE]; enMarche = null;
 
     // Un dossier non vide hors git n'est jamais touché ; un fichier manquant est rajouté, sans rien réécrire.
     ecrire(path.join(r, 'occupe', 'note.txt'), 'à moi\n');

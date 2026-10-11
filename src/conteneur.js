@@ -16,6 +16,8 @@ const CONNEXIONS = ['volume', 'hote'];
 const SOCLE = ['initializeCommand', 'mounts', 'containerEnv', 'remoteEnv', 'onCreateCommand'];
 
 const objet = (x) => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
+/** Le dossier personnel de l'utilisateur du conteneur (`remoteUser`) : les montages du socle et la clé de déploiement. */
+export const maisonDe = (u) => (u === 'root' ? '/root' : `/home/${u}`);
 // La cible d'un montage, chaîne (`target=`, `dst=`, `destination=`) ou objet.
 const cible = (m) => (objet(m) ? m.target : String(m).match(/(?:^|,)\s*(?:target|dst|destination)=([^,]+)/)?.[1]?.trim());
 
@@ -65,7 +67,7 @@ export function genererConteneur({ nom, config = {} }) {
   }
   if (d.mounts !== undefined && !Array.isArray(d.mounts)) return { erreur: 'conteneur.devcontainer.mounts : une liste attendue' };
 
-  const maison = u === 'root' ? '/root' : `/home/${u}`;
+  const maison = maisonDe(u);
   const volume = nom.toLowerCase(); const dossier = dossierClaude(`/workspaces/${nom}`);
   const montages = connexion === 'volume'
     ? [`source=${volume}-claude,target=${maison}/.claude,type=volume`,

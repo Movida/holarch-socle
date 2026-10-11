@@ -15,7 +15,9 @@ import { poserIdentite } from './identite-git.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserProjet } from './materialisation.js';
 import { creerDistant } from './distant.js';
-import { genererConteneur, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
+import { genererConteneur, maisonDe, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
+import { ETIQUETTE_DEVCONTAINER } from './inventaire/docker.js';
+import { projetsDe, localiserProjet } from './projets.js';
 
 const MODELES = fileURLToPath(new URL('../modeles/projet/', import.meta.url));
 // Valeurs par défaut, tirées de la mesure des 9 dépôts du poste (décision) ; la clé `creation` du registre de
@@ -24,10 +26,30 @@ const DEFAUTS = { dossier: null, visibilite: 'private', licence: null, journal: 
 const BRANCHE = 'main';
 const SCRIPT_CLE = '.devcontainer/deploy-key.sh';
 
-const GH = (args) => { const gh = trouverOutil('gh'); return gh ? spawnSync(gh, args, { encoding: 'utf8', timeout: 60e3 }) : { status: 127, stdout: '', stderr: 'gh introuvable' }; };
+// Un outil en ligne de commande, cherché par `trouverOutil` ; absent, un échec qui le dit.
+const outil = (nom, delai) => (args) => { const b = trouverOutil(nom); return b ? spawnSync(b, args, { encoding: 'utf8', timeout: delai }) : { status: 127, stdout: '', stderr: `${nom} introuvable` }; };
+const GH = outil('gh', 60e3); const DOCKER = outil('docker', 30e3);
 const modele = (f, valeurs = {}) => fs.readFileSync(path.join(MODELES, f), 'utf8').replace(/\{\{(\w+)\}\}/g, (_, k) => valeurs[k] ?? '');
 const erreur = (r) => (r.stderr || r.stdout || '').trim().split('\n')[0] || `code ${r.status}`;
 const depuisGithub = (url) => String(url || '').match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/)?.slice(1) || null;
+// Type et corps d'une clé publique, sans son commentaire : ce que GitHub garde d'une clé de déploiement.
+const corpsCle = (k) => String(k).trim().split(/\s+/).slice(0, 2).join(' ');
+
+// La clé de déploiement du conteneur du projet en marche (`~/.ssh/id_ed25519.pub` de son `remoteUser`, que crée
+// `deploy-key.sh`) : { cle, fichier } (`cle` vide : pas de clé lisible, `erreur` dit pourquoi), ou { non_verifiee } qui
+// dit pourquoi elle ne se lit pas. Le conteneur se trouve par son étiquette de dossier, rattachée au projet comme le fait
+// l'inventaire (`localiserProjet`) ; Docker n'est que lu (`ps`, `exec … cat`).
+function cleDuConteneur(docker, projets, projet, utilisateur) {
+  const ps = docker(['ps', '--filter', 'status=running', '--filter', `label=${ETIQUETTE_DEVCONTAINER}`, '--format', `{{.ID}}\t{{.Label "${ETIQUETTE_DEVCONTAINER}"}}`]);
+  if (ps.status !== 0) return { non_verifiee: 'Docker injoignable' };
+  const lieu = localiserProjet(projets);
+  const id = (ps.stdout || '').split('\n').map((l) => l.split('\t')).find(([i, d]) => i && lieu(d)?.id === projet)?.[0];
+  if (!id) return { non_verifiee: 'conteneur arrêté' };
+  if (!utilisateur) return { non_verifiee: 'remoteUser inconnu' };
+  const fichier = `${maisonDe(utilisateur)}/.ssh/id_ed25519.pub`;
+  const c = docker(['exec', id, 'cat', fichier]);
+  return c.status === 0 ? { cle: corpsCle(c.stdout), fichier } : { cle: '', fichier, erreur: erreur(c) };
+}
 
 function claudeMd({ nom, description, contexte, types, journal }) {
   return `# ${nom}
@@ -73,10 +95,10 @@ export function declarer(texte, id, nom) {
 /**
  * Crée ou complète un projet : { nom, dossier, projet, contexte, types, etapes } ; chaque étape dit son état parmi
  * faite · deja · a-faire (à blanc) · desactivee · geste (réservé à l'auteur, avec `geste`) · echec · ecarts.
- * `outils` : gh, accès distant et adresse du dépôt distant, remplaçables pour les tests.
+ * `outils` : gh, docker, accès distant et adresse du dépôt distant, remplaçables pour les tests.
  */
 export async function creerProjet(socle, { nom, contexte = null, types = [], description = null, aBlanc = false }, {
-  gh = GH, distant = null, urlDepot = (proprietaire, n) => `git@github.com:${proprietaire}/${n}.git`, maintenant = new Date(),
+  gh = GH, docker = DOCKER, distant = null, urlDepot = (proprietaire, n) => `git@github.com:${proprietaire}/${n}.git`, maintenant = new Date(),
 } = {}) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(nom || '')) throw new Error(`nom de projet invalide : ${nom ?? '(absent)'} (lettres, chiffres, . _ -)`);
   // L'arbre relu s'il a changé depuis l'inventaire : un geste fait dans le profil (« puis relancer ») vaut tout de suite.
@@ -209,10 +231,10 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   // de la configuration effective, marqué, réécrit quand il en diffère ; un fichier écrit à la main n'est jamais touché
   // (geste : le migrer). Le script de la clé de déploiement, recopié du modèle, quand la commande générée l'appelle et
   // qu'il manque.
+  const gen = re.declare ? genererConteneur({ nom, config: re.config }) : null;
   if (!cfg.etapes.conteneur) noter('conteneur', 'desactivee', 'creation.etapes.conteneur');
   else if (!re.declare) noter('conteneur', aBlanc ? 'a-faire' : 'echec', aBlanc ? 'après la déclaration' : 'projet non déclaré : sa configuration est incomplète');
   else {
-    const gen = genererConteneur({ nom, config: re.config });
     const lire = (f) => { try { return fs.readFileSync(path.join(dossier, f), 'utf8'); } catch { return null; } };
     const present = lire(CONTENEUR);
     if (gen.erreur) noter('conteneur', 'echec', gen.erreur);
@@ -271,15 +293,24 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     }
   }
 
-  // 7. Clé de déploiement du conteneur : créée dans le conteneur, enregistrée par l'auteur (geste réservé).
+  // 7. Clé de déploiement du conteneur : créée dans le conteneur, enregistrée par l'auteur (geste réservé). Celle du
+  // conteneur du projet en marche se compare aux clés du dépôt ; conteneur arrêté ou Docker injoignable, une clé du dépôt
+  // suffit, dite non vérifiée (défaut du 2026-10-10 : le volume ssh du socle était vide, l'étape le disait déjà là).
   if (!cfg.etapes.conteneur) noter('cle', 'desactivee', 'creation.etapes.conteneur');
   else if (!distantGithub && g('remote', 'get-url', 'origin').status === 0) noter('cle', 'desactivee', 'remote origin hors de GitHub : la clé se gère chez son hébergeur');
   else if (!distantGithub) noter('cle', aBlanc ? 'a-faire' : 'geste', 'sans dépôt GitHub, pas de clé de déploiement', aBlanc ? null : { quoi: 'créer le dépôt GitHub (étape github), puis relancer' });
   else {
     const [o, n] = distantGithub;
-    const k = gh(['api', `repos/${o}/${n}/keys`, '--jq', 'length']);
-    if (k.status === 0 && +k.stdout.trim() > 0) noter('cle', 'deja', `${o}/${n} porte une clé de déploiement`);
-    else noter('cle', 'geste', `aucune clé de déploiement sur ${o}/${n}`, { quoi: 'ouvrir le dossier dans son conteneur (la clé s’y crée), puis enregistrer la clé affichée, écriture permise', commande: '.devcontainer/deploy-key.sh', lien: `https://github.com/${o}/${n}/settings/keys/new` });
+    const k = gh(['api', '--paginate', `repos/${o}/${n}/keys`, '--jq', '.[].key']);
+    const cles = k.status === 0 ? k.stdout.split('\n').filter((x) => x.trim()).map(corpsCle) : [];
+    const lue = cleDuConteneur(docker, projetsDe(socle.fiches({ kind: 'project' })), projet.id, gen?.conteneur?.remoteUser);
+    const geste = { quoi: 'ouvrir le dossier dans son conteneur (la clé s’y crée), puis enregistrer la clé affichée, écriture permise', commande: SCRIPT_CLE, lien: `https://github.com/${o}/${n}/settings/keys/new` };
+    if (lue.cle) {
+      if (cles.includes(lue.cle)) noter('cle', 'deja', `la clé du conteneur est enregistrée sur ${o}/${n}`);
+      else noter('cle', 'geste', `la clé du conteneur n’est pas enregistrée sur ${o}/${n}${cles.length ? `, qui porte ${cles.length} autre(s) clé(s) : à retirer si périmée(s)` : ''}`, geste);
+    } else if (lue.fichier) noter('cle', 'geste', `le conteneur du projet, en marche, n’a pas de clé lisible (${lue.fichier} : ${lue.erreur})`, geste);
+    else if (cles.length) noter('cle', 'deja', `${cles.length} clé(s) sur ${o}/${n} ; celle du conteneur non vérifiée (${lue.non_verifiee})`);
+    else noter('cle', 'geste', `aucune clé de déploiement sur ${o}/${n}`, geste);
   }
 
   // 8. Accès distant par projet.

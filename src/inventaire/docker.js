@@ -33,7 +33,10 @@ function lire(cible, chemin) {
 
 // Étiquettes posées par les outils qui créent les conteneurs, et qui disent de quel dossier ils viennent ; le nom de
 // projet Compose est une notion de Docker, gardée telle quelle (`compose`). L'API rend `Labels: null` sans étiquette.
-const dossierDe = (l) => l?.['devcontainer.local_folder'] || l?.['com.docker.compose.project.working_dir'] || null;
+// Le dossier y est tel que l'éditeur l'a ouvert : de Windows, `\\wsl.localhost\<distribution>\…` (les 2 conteneurs du
+// poste, 2026-10-11) ; `localiserProjet` le rattache par le nom.
+export const ETIQUETTE_DEVCONTAINER = 'devcontainer.local_folder';
+const dossierDe = (l) => l?.[ETIQUETTE_DEVCONTAINER] || l?.['com.docker.compose.project.working_dir'] || null;
 const composeDe = (l) => l?.['com.docker.compose.project'] || null;
 
 // Ce qui isole un conteneur de l'hôte, d'après son inspection : ses montages de l'hôte (un volume local en `o=bind`
@@ -70,7 +73,7 @@ export default async function inventaireDocker(options, ctx) {
     return fiche('container', `${ctx.site}/${nom}`, nom, {
       description: `${projet ? `${projet.nom} · ` : compose ? `${compose} · ` : ''}${c.Image} · ${c.Status || c.State}`, projet,
       status: c.State === 'running' ? 'active' : 'suspended', site: ctx.site, location: `docker:container/${c.Id.slice(0, 12)}`,
-      attributes: { etat: c.State, image: c.Image, compose, devcontainer: Boolean(c.Labels?.['devcontainer.local_folder']), cree: c.Created ? new Date(c.Created * 1000).toISOString() : null,
+      attributes: { etat: c.State, image: c.Image, compose, devcontainer: Boolean(c.Labels?.[ETIQUETTE_DEVCONTAINER]), cree: c.Created ? new Date(c.Created * 1000).toISOString() : null,
         ...(details[i] && { isolement: isolement(details[i], parNom) }) },
     });
   });
