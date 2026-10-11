@@ -35,20 +35,38 @@ const depuisGithub = (url) => String(url || '').match(/github\.com[:/]([^/]+)\/(
 // Type et corps d'une clé publique, sans son commentaire : ce que GitHub garde d'une clé de déploiement.
 const corpsCle = (k) => String(k).trim().split(/\s+/).slice(0, 2).join(' ');
 
-// La clé de déploiement du conteneur du projet en marche (`~/.ssh/id_ed25519.pub` de son `remoteUser`, que crée
-// `deploy-key.sh`) : { cle, fichier } (`cle` vide : pas de clé lisible, `erreur` dit pourquoi), ou { non_verifiee } qui
-// dit pourquoi elle ne se lit pas. Le conteneur se trouve par son étiquette de dossier, rattachée au projet comme le fait
-// l'inventaire (`localiserProjet`) ; Docker n'est que lu (`ps`, `exec … cat`).
-function cleDuConteneur(docker, projets, projet, utilisateur) {
-  const ps = docker(['ps', '--filter', 'status=running', '--filter', `label=${ETIQUETTE_DEVCONTAINER}`, '--format', `{{.ID}}\t{{.Label "${ETIQUETTE_DEVCONTAINER}"}}`]);
+// L'utilisateur d'un conteneur construit par le CLI Dev Containers, lu dans son étiquette de métadonnées (rendue par
+// `json` dans `docker ps` : le texte d'une liste de configurations, image et features d'abord, `devcontainer.json` en
+// dernier). Le dernier `remoteUser` l'emporte, à défaut le dernier `containerUser`, comme le résout le CLI (0.89.0) ;
+// null si l'étiquette manque ou ne se lit pas.
+const METADONNEES = 'devcontainer.metadata';
+function utilisateurDe(etiquette) {
+  let l; try { l = JSON.parse(JSON.parse(etiquette)); } catch { return null; }
+  const dernier = (k) => (Array.isArray(l) ? l.findLast((x) => typeof x?.[k] === 'string')?.[k] : null);
+  return dernier('remoteUser') || dernier('containerUser') || null;
+}
+
+// Les clés de déploiement des conteneurs du projet en marche (`~/.ssh/id_ed25519.pub` de leur utilisateur, que crée
+// `deploy-key.sh`) : { conteneurs: [{ id, cle, fichier } ou { id, fichier, erreur }] }, ou { non_verifiee } qui dit
+// pourquoi aucune ne se lit (aucun conteneur construit, tous arrêtés, Docker injoignable). Un conteneur se trouve par son
+// étiquette de dossier, rattachée au projet comme le fait l'inventaire (`localiserProjet`) ; son utilisateur, par son
+// étiquette de métadonnées (un fichier écrit à la main y a mis le sien), à défaut le `remoteUser` de la configuration.
+// Docker n'est que lu (`ps`, `exec … cat`).
+function clesDesConteneurs(docker, projets, projet, utilisateur) {
+  const ps = docker(['ps', '--all', '--filter', `label=${ETIQUETTE_DEVCONTAINER}`, '--format', `{{.ID}}\t{{.State}}\t{{.Label "${ETIQUETTE_DEVCONTAINER}"}}\t{{json (.Label "${METADONNEES}")}}`]);
   if (ps.status !== 0) return { non_verifiee: 'Docker injoignable' };
   const lieu = localiserProjet(projets);
-  const id = (ps.stdout || '').split('\n').map((l) => l.split('\t')).find(([i, d]) => i && lieu(d)?.id === projet)?.[0];
-  if (!id) return { non_verifiee: 'conteneur arrêté' };
-  if (!utilisateur) return { non_verifiee: 'remoteUser inconnu' };
-  const fichier = `${maisonDe(utilisateur)}/.ssh/id_ed25519.pub`;
-  const c = docker(['exec', id, 'cat', fichier]);
-  return c.status === 0 ? { cle: corpsCle(c.stdout), fichier } : { cle: '', fichier, erreur: erreur(c) };
+  const siens = (ps.stdout || '').split('\n').map((l) => l.split('\t')).filter(([i, , d]) => i && lieu(d)?.id === projet);
+  if (!siens.length) return { non_verifiee: 'aucun conteneur construit' };
+  const enMarche = siens.filter(([, etat]) => etat === 'running');
+  if (!enMarche.length) return { non_verifiee: 'conteneur arrêté' };
+  return { conteneurs: enMarche.map(([id, , , etiquette]) => {
+    const u = utilisateurDe(etiquette) || utilisateur;
+    if (!u) return { id, erreur: 'remoteUser inconnu' };
+    const fichier = `${maisonDe(u)}/.ssh/id_ed25519.pub`;
+    const c = docker(['exec', id, 'cat', fichier]);
+    return c.status === 0 ? { id, cle: corpsCle(c.stdout), fichier } : { id, fichier, erreur: erreur(c) };
+  }) };
 }
 
 function claudeMd({ nom, description, contexte, types, journal }) {
@@ -293,24 +311,30 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     }
   }
 
-  // 7. Clé de déploiement du conteneur : créée dans le conteneur, enregistrée par l'auteur (geste réservé). Celle du
-  // conteneur du projet en marche se compare aux clés du dépôt ; conteneur arrêté ou Docker injoignable, une clé du dépôt
-  // suffit, dite non vérifiée (défaut du 2026-10-10 : le volume ssh du socle était vide, l'étape le disait déjà là).
+  // 7. Clé de déploiement du conteneur : créée dans le conteneur, enregistrée par l'auteur (geste réservé). Celles des
+  // conteneurs du projet en marche se comparent aux clés du dépôt : une seule enregistrée suffit ; aucun conteneur en
+  // marche ou Docker injoignable, une clé du dépôt suffit, dite non vérifiée (défaut du 2026-10-10 : le volume ssh du
+  // socle était vide, l'étape le disait déjà là). Clés du dépôt non lues, rien ne se compte : comme à l'étape github, gh
+  // absent ou non connecté est un geste, une autre erreur de gh un échec qui la dit.
   if (!cfg.etapes.conteneur) noter('cle', 'desactivee', 'creation.etapes.conteneur');
   else if (!distantGithub && g('remote', 'get-url', 'origin').status === 0) noter('cle', 'desactivee', 'remote origin hors de GitHub : la clé se gère chez son hébergeur');
   else if (!distantGithub) noter('cle', aBlanc ? 'a-faire' : 'geste', 'sans dépôt GitHub, pas de clé de déploiement', aBlanc ? null : { quoi: 'créer le dépôt GitHub (étape github), puis relancer' });
   else {
     const [o, n] = distantGithub;
     const k = gh(['api', '--paginate', `repos/${o}/${n}/keys`, '--jq', '.[].key']);
-    const cles = k.status === 0 ? k.stdout.split('\n').filter((x) => x.trim()).map(corpsCle) : [];
-    const lue = cleDuConteneur(docker, projetsDe(socle.fiches({ kind: 'project' })), projet.id, gen?.conteneur?.remoteUser);
     const geste = { quoi: 'ouvrir le dossier dans son conteneur (la clé s’y crée), puis enregistrer la clé affichée, écriture permise', commande: SCRIPT_CLE, lien: `https://github.com/${o}/${n}/settings/keys/new` };
-    if (lue.cle) {
-      if (cles.includes(lue.cle)) noter('cle', 'deja', `la clé du conteneur est enregistrée sur ${o}/${n}`);
-      else noter('cle', 'geste', `la clé du conteneur n’est pas enregistrée sur ${o}/${n}${cles.length ? `, qui porte ${cles.length} autre(s) clé(s) : à retirer si périmée(s)` : ''}`, geste);
-    } else if (lue.fichier) noter('cle', 'geste', `le conteneur du projet, en marche, n’a pas de clé lisible (${lue.fichier} : ${lue.erreur})`, geste);
-    else if (cles.length) noter('cle', 'deja', `${cles.length} clé(s) sur ${o}/${n} ; celle du conteneur non vérifiée (${lue.non_verifiee})`);
-    else noter('cle', 'geste', `aucune clé de déploiement sur ${o}/${n}`, geste);
+    if (k.status !== 0 && gh(['auth', 'status']).status !== 0) noter('cle', 'geste', `clés de ${o}/${n} non lues : \`gh\` absent ou non connecté`, { quoi: 'connecter gh, puis relancer', commande: 'gh auth login' });
+    else if (k.status !== 0) noter('cle', 'echec', `clés de ${o}/${n} non lues : gh api : ${erreur(k)}`);
+    else {
+      const cles = k.stdout.split('\n').filter((x) => x.trim()).map(corpsCle);
+      const lues = clesDesConteneurs(docker, projetsDe(socle.fiches({ kind: 'project' })), projet.id, gen?.conteneur?.remoteUser);
+      const enregistre = lues.conteneurs?.find((c) => c.cle && cles.includes(c.cle));
+      const dire = (c) => (c.cle ? `${c.id}, clé non enregistrée` : `${c.id}, pas de clé lisible (${c.fichier ? `${c.fichier} : ` : ''}${c.erreur})`);
+      if (enregistre) noter('cle', 'deja', `la clé du conteneur ${enregistre.id} est enregistrée sur ${o}/${n}`);
+      else if (lues.conteneurs) noter('cle', 'geste', `aucun conteneur du projet en marche n’a sa clé enregistrée sur ${o}/${n} : ${lues.conteneurs.map(dire).join(' ; ')}${cles.length ? ` ; le dépôt porte ${cles.length} autre(s) clé(s) : à retirer si périmée(s)` : ''}`, geste);
+      else if (cles.length) noter('cle', 'deja', `${cles.length} clé(s) sur ${o}/${n} ; celle du conteneur non vérifiée (${lues.non_verifiee})`);
+      else noter('cle', 'geste', `aucune clé de déploiement sur ${o}/${n}`, geste);
+    }
   }
 
   // 8. Accès distant par projet.

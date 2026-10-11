@@ -944,23 +944,30 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     assert.deepEqual(configAvantProjet([...s.fiches({ kind: 'node' })], { types: ['public'], profil: s.profil() }).config.creation, { dossier: r, visibilite: 'public', licence: 'MIT', journal: 'arbre/log.md' });
     await assert.rejects(creerProjet(s, { nom: '../evasion' }), /nom de projet invalide/);
 
-    const appels = []; let cles = []; const actifs = [];
+    const appels = []; let cles = []; const actifs = []; let ghEnPanne = null;
     const gh = (args) => {
       appels.push(args.join(' '));
+      if (ghEnPanne && args[0] === 'auth') return { status: ghEnPanne === 'deconnecte' ? 1 : 0, stdout: '' };
+      if (ghEnPanne && args[0] === 'api' && args[2]?.endsWith('/keys')) return { status: 1, stdout: '', stderr: 'gh: Not Found (HTTP 404)\n' };
       if (args[0] === 'api' && args[1] === 'user') return { status: 0, stdout: 'alice\n' };
       if (args[0] === 'repo' && args[1] === 'view') return { status: fs.existsSync(path.join(github, args[2])) ? 0 : 1, stdout: '' };
       if (args[0] === 'repo' && args[1] === 'create') { spawnSync('git', ['init', '-q', '--bare', path.join(github, args[2])]); return { status: 0, stdout: '' }; }
       if (args[0] === 'api') return { status: 0, stdout: cles.map((k) => `${k}\n`).join('') };
       return { status: 0, stdout: '' };
     };
-    // « Docker » : le conteneur du projet en marche ou non (étiquette de dossier vue de Windows, comme sur le poste), sa
-    // clé de déploiement (avec le commentaire que pose deploy-key.sh), ou Docker injoignable.
-    let enMarche = null;
+    // « Docker » : les conteneurs du projet, en marche ou non (étiquette de dossier vue de Windows, comme sur le poste),
+    // l'étiquette de métadonnées que pose le CLI (rendue par `json`, absente : ""), la clé de déploiement de chacun (avec
+    // le commentaire que pose deploy-key.sh), ou Docker injoignable. Un conteneur d'un autre dossier tourne toujours.
+    let conteneurs = []; let injoignable = false;
     const docker = (args) => {
       appels.push(`docker ${args.join(' ')}`);
-      if (enMarche === 'injoignable') return { status: 1, stdout: '', stderr: 'Cannot connect to the Docker daemon' };
-      if (args[0] === 'ps') return { status: 0, stdout: `fff999\t/ailleurs/autre\n${enMarche ? `abc123\t\\\\wsl.localhost\\Ubuntu${path.join(r, NOM).replaceAll('/', '\\')}\n` : ''}` };
-      if (args[0] === 'exec' && enMarche?.cle) return { status: 0, stdout: `${enMarche.cle} devcontainer deploy key — alice/${NOM}\n` };
+      if (injoignable) return { status: 1, stdout: '', stderr: 'Cannot connect to the Docker daemon' };
+      if (args[0] === 'ps') {
+        return { status: 0, stdout: [{ id: 'fff999', dossier: '/ailleurs/autre', cle: 'ssh-ed25519 AAAAfictiveA' }, ...conteneurs].map((c) => [c.id, c.etat ?? 'running',
+          c.dossier ?? `\\\\wsl.localhost\\Ubuntu${path.join(r, NOM).replaceAll('/', '\\')}`, JSON.stringify(c.meta ? JSON.stringify(c.meta) : '')].join('\t')).join('\n') };
+      }
+      const c = conteneurs.find((x) => x.id === args[1]);
+      if (args[0] === 'exec' && c?.cle) return { status: 0, stdout: `${c.cle} devcontainer deploy key — alice/${NOM}\n` };
       return { status: 1, stdout: '', stderr: `cat: ${args.at(-1)}: No such file or directory` };
     };
     const distant = { liste: () => actifs, activer: (id) => { actifs.push({ projet: id }); return { unite: 'holarch-distant-neuf.service' }; } };
@@ -1002,24 +1009,38 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     assert.deepEqual(Object.values(etats(p2)).filter((e) => e !== 'deja' && e !== 'faite'), [], JSON.stringify(p2.etapes, null, 1));
     assert.deepEqual([etats(p2).fichiers, etats(p2).declaration, etats(p2).regles, etats(p2).conteneur, etats(p2).github, etats(p2).cle, etats(p2).distant], ['deja', 'deja', 'deja', 'deja', 'deja', 'deja', 'deja']);
     assert.equal(g('rev-parse', 'HEAD'), tete);
-    assert.equal(p2.etapes.find((e) => e.etape === 'cle').detail, `1 clé(s) sur alice/${NOM} ; celle du conteneur non vérifiée (conteneur arrêté)`);
+    assert.equal(p2.etapes.find((e) => e.etape === 'cle').detail, `1 clé(s) sur alice/${NOM} ; celle du conteneur non vérifiée (aucun conteneur construit)`);
+    assert.ok(appels.includes(`docker ps --all --filter label=devcontainer.local_folder --format {{.ID}}\t{{.State}}\t{{.Label "devcontainer.local_folder"}}\t{{json (.Label "devcontainer.metadata")}}`), appels.join('\n'));
 
-    // Conteneur du projet en marche : sa clé, lue dans le dossier de son remoteUser, se compare à celles du dépôt (type et
-    // corps, sans le commentaire). Enregistrée : déjà là ; une autre : geste, qui compte les clés du dépôt ; aucune : geste.
+    // Conteneurs du projet : chacun en marche, sa clé lue dans le dossier de son utilisateur (étiquette de métadonnées du
+    // CLI, le dernier remoteUser, à défaut containerUser ; sans étiquette, le remoteUser de la configuration), se compare
+    // à celles du dépôt (type et corps, sans le commentaire). Une enregistrée : déjà là ; aucune : geste, qui dit chaque
+    // conteneur et compte les clés du dépôt.
     const etapeCle = async () => (await creerProjet(s, { nom: NOM, types: ['public'] }, outils)).etapes.find((e) => e.etape === 'cle');
-    enMarche = { cle: CLE };
-    assert.deepEqual(await etapeCle(), { etape: 'cle', etat: 'deja', detail: `la clé du conteneur est enregistrée sur alice/${NOM}` });
+    conteneurs = [{ id: 'abc123', etat: 'exited', cle: CLE }, { id: 'abc124', etat: 'created', cle: CLE }];
+    assert.deepEqual(await etapeCle(), { etape: 'cle', etat: 'deja', detail: `1 clé(s) sur alice/${NOM} ; celle du conteneur non vérifiée (conteneur arrêté)` });
+    conteneurs = [{ id: 'abc123', cle: CLE }];
+    assert.deepEqual(await etapeCle(), { etape: 'cle', etat: 'deja', detail: `la clé du conteneur abc123 est enregistrée sur alice/${NOM}` });
     assert.ok(appels.includes('docker exec abc123 cat /home/vscode/.ssh/id_ed25519.pub'), appels.join('\n'));
-    enMarche = { cle: 'ssh-ed25519 AAAAfictiveB' }; let e = await etapeCle();
-    assert.deepEqual([e.etat, e.detail, e.geste.commande, e.geste.lien], ['geste', `la clé du conteneur n’est pas enregistrée sur alice/${NOM}, qui porte 1 autre(s) clé(s) : à retirer si périmée(s)`,
-      '.devcontainer/deploy-key.sh', `https://github.com/alice/${NOM}/settings/keys/new`]);
-    enMarche = {}; e = await etapeCle();
-    assert.equal(e.etat, 'geste'); assert.match(e.detail, /en marche, n’a pas de clé lisible \(\/home\/vscode\/\.ssh\/id_ed25519\.pub : cat: .*No such file/);
-    enMarche = 'injoignable'; e = await etapeCle();
+    conteneurs = [{ id: 'abc123', cle: 'ssh-ed25519 AAAAfictiveB', meta: [{ id: 'feature', remoteUser: 'root' }, { remoteUser: 'node' }, {}] },
+      { id: 'abc124', meta: [{ containerUser: 'dev' }] }, { id: 'abc125', etat: 'exited', cle: CLE }, { id: 'abc126', cle: CLE }];
+    let e = await etapeCle();
+    assert.deepEqual([e.etat, e.detail], ['deja', `la clé du conteneur abc126 est enregistrée sur alice/${NOM}`]);
+    assert.ok(['docker exec abc123 cat /home/node/.ssh/id_ed25519.pub', 'docker exec abc124 cat /home/dev/.ssh/id_ed25519.pub'].every((x) => appels.includes(x)), appels.join('\n'));
+    conteneurs.pop(); e = await etapeCle();
+    assert.deepEqual([e.etat, e.detail, e.geste.commande, e.geste.lien], ['geste', `aucun conteneur du projet en marche n’a sa clé enregistrée sur alice/${NOM} : abc123, clé non enregistrée ; `
+      + `abc124, pas de clé lisible (/home/dev/.ssh/id_ed25519.pub : cat: /home/dev/.ssh/id_ed25519.pub: No such file or directory) ; le dépôt porte 1 autre(s) clé(s) : à retirer si périmée(s)`,
+    '.devcontainer/deploy-key.sh', `https://github.com/alice/${NOM}/settings/keys/new`]);
+    injoignable = true; e = await etapeCle();
     assert.deepEqual([e.etat, e.detail], ['deja', `1 clé(s) sur alice/${NOM} ; celle du conteneur non vérifiée (Docker injoignable)`]);
     cles = []; e = await etapeCle();
     assert.deepEqual([e.etat, e.detail], ['geste', `aucune clé de déploiement sur alice/${NOM}`]);
-    cles = [CLE]; enMarche = null;
+    // Clés du dépôt non lues : rien ne se compte, comme à l'étape github (gh non connecté : geste ; autre erreur : échec).
+    cles = [CLE]; injoignable = false; conteneurs = [{ id: 'abc123', cle: CLE }]; ghEnPanne = 'refus'; e = await etapeCle();
+    assert.deepEqual([e.etat, e.detail], ['echec', `clés de alice/${NOM} non lues : gh api : gh: Not Found (HTTP 404)`]);
+    ghEnPanne = 'deconnecte'; e = await etapeCle();
+    assert.deepEqual([e.etat, e.detail, e.geste.commande], ['geste', `clés de alice/${NOM} non lues : \`gh\` absent ou non connecté`, 'gh auth login']);
+    ghEnPanne = null; conteneurs = [];
 
     // Un dossier non vide hors git n'est jamais touché ; un fichier manquant est rajouté, sans rien réécrire.
     ecrire(path.join(r, 'occupe', 'note.txt'), 'à moi\n');
