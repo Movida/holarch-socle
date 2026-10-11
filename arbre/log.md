@@ -2,6 +2,25 @@
 
 ## 2026-10-11
 
+* **Suite de la clôture de C : source npm, les cinq limites de tête de la revue** (environ 312 k tokens pour l'agent,
+  aucune instance neuve) : décision `version-par-npm` approuvée (source `npm` du contrôle `outils-a-jour`, contrat
+  config 0.9.0, `devcontainer` suivi au profil, `423f6a7`) ; audit réel : 0.89.0 lu au registre, compte conforme.
+  Revue des limites : cinq choix de l'auteur, puis gitleaks par montage, la limite 5 et deux précisions (A : sans
+  gitleaks, le crochet d'un conteneur laisse passer ; B : `stable` sans `approved` lue comme brouillon), recommandations
+  suivies ; décision `garde-sans-passage-muet` (`8fa5b37`), contrat règle 0.5.0. Codé, un commit et un test chacun,
+  chaque test rouge sur son parent ou ses mutants : projet isolé à l'audit (`46d5d6f`), refus sur contrôle bloquant
+  indisponible (`f9d4bd0`), approbation exigée (`c35c209`, trois données d'essai approuvées), `derogable: false` sur
+  les trois règles bloquantes (`4329c47`, profil `d21191f`), repli gitleaks du crochet avec le gitleaks de l'hôte monté
+  en lecture et copié à la pose (`db527e2`). 173 tests verts ; copie de service posée (`db527e2`), crochets des six
+  projets réécrits, conteneur du socle régénéré (`f339d3f`) ; essai réel du crochet dans un conteneur jetable de
+  l'image du socle, sans réseau : changement propre passé, clé factice refusée. Audit réel : socle conforme.
+  Rien poussé. Leçon : déroulé annoncé en quatre temps (npm, revue par lots, limites restées de C, pose et envoi) ;
+  tenus 1 et 4 (sans l'envoi), le 2 limité aux cinq de tête mais codé, le 3 non commencé. Ce qui l'a fait dévier : des
+  choix qui appelaient leur code (décision, cinq corrections) là où le déroulé ne prévoyait que les choix ; deux
+  précisions hors des options, un tour de plus ; aucune entrée réelle ne reproduisait la limite 5 (test par panne
+  injectée). La demande qui y aurait mené : « suite de C : source npm, puis les cinq limites de tête choisies et
+  codées ; le reste de la revue par famille dans une session neuve ».
+
 * **Livraison C close, palliatifs de ses limites, revue rétroactive des limites** (environ 200 k tokens pour l'agent ;
   instances neuves : 218 k, 363 k, 250 k et 299 k) : (c) à (e) sur quatre choix de l'auteur en un tour ; puis, à sa
   question sur des limites listées sans palliatif cherché, palliatifs de C (six commits, `ac2f937` à `fa5ac8c`), règle

@@ -1316,15 +1316,14 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
        ligne retirée du `~/.bashrc`. Son expiration est inconnue (20 ans par défaut) : un jeton neuf d'un an demandera
        un `fly auth login`. Le workflow attend l'envoi du commit local. Reconstruire les conteneurs corrigés à leur
        prochaine ouverture.
-  0. **Suite de la clôture de C (2026-10-11)**, dans l'ordre : (1) décision du contrat de configuration 0.9.0, source
-     `npm` des outils surveillés, pour suivre `devcontainer` (`@devcontainers/cli` : aucune version publiée sur GitHub,
-     `releases/latest` en 404 ; 0.89.0 au registre, vérifié) ; code prêt, dans `versionPubliee` :
-     `if (o.npm) return lire(`${reglages.url_npm ?? 'https://registry.npmjs.org'}/${o.npm}/latest`).version;`, et au
-     profil `{nom: devcontainer, commande: [devcontainer, --version], npm: "@devcontainers/cli"}`. (2) Revue rétroactive
-     des limites (`arbre/conception/revue-limites.md`) : présenter à l'auteur les ouvertes par lots, en choix
-     cliquables, d'abord les cinq de tête (commits non gardés depuis un conteneur ; règles bloquantes redéfinissables
-     par un projet ; contrôle bloquant indisponible qui laisse passer le commit ; `stable` appliquée sans `approved` ;
-     levée d'un seul projet qui arrête l'audit de tous) ; le document se retire une fois les choix faits. (3) Limites
+  0. **Suite de la clôture de C (2026-10-11)**, dans l'ordre : (1) fait : décision `version-par-npm` (source `npm`,
+     contrat config 0.9.0, `devcontainer` suivi au profil ; `423f6a7`, profil `b647f2c`). (2) Revue rétroactive des
+     limites (`arbre/conception/revue-limites.md`) : les cinq de tête faites, décision `garde-sans-passage-muet`
+     (`8fa5b37` à `f339d3f`, profil `d21191f`) ; les autres, environ 90, par famille au choix de l'auteur (une question
+     par famille : palliatifs triviaux et faibles, recommandations suivies, ou le détail) ; le document se retire une
+     fois les choix faits. Non éprouvé par un mutant : `chaines.delete` de l'isolement (limite 5), dont dépend le
+     jugement d'une exception sur un projet en échec (palliatif : un test avec une exception `montage-sensible` sur ce
+     projet, faible). (3) Limites
      restées après les palliatifs de C, chacune avec son palliatif : course à la lecture (`O_NOFOLLOW` dans
      `lireSansLien`, 3 lignes et un test) ; dossier remplacé entre `mkdir` et `open` (rouvrir sans `O_TRUNC`, comparer
      dev et inode à un `lstat` refait, puis tronquer, environ 6 lignes ; rien de complet sans `openat`, absent de Node) ;
