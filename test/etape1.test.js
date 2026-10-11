@@ -228,7 +228,7 @@ test('inventaire Docker : conteneurs et volumes par l’API en lecture, rattach�
   '/volumes': { Volumes: [{ Name: 'demo-ssh', Driver: 'local' }, { Name: 'oublie', Driver: 'local', Labels: null },
     { Name: 'cles', Driver: 'local', Options: { type: 'none', o: 'bind', device: '/home/quelquun/.ssh' } }] },
   // Seul un conteneur rattaché à un projet est inspecté : ses montages de l'hôte et ses privilèges, jamais son environnement.
-  [`/containers/${'a'.repeat(64)}/json`]: { Config: { Env: ['JETON=SECRET'] }, HostConfig: { Privileged: true, CapAdd: ['SYS_ADMIN'], PidMode: 'host', Devices: [{ PathOnHost: '/dev/kvm' }] },
+  [`/containers/${'a'.repeat(64)}/json`]: { Config: { Env: ['JETON=SECRET'] }, HostConfig: { Privileged: true, CapAdd: ['SYS_ADMIN'], NetworkMode: 'host', PidMode: 'container:jolly', IpcMode: 'container:jolly', UTSMode: 'host', Devices: [{ PathOnHost: '/dev/kvm' }] },
     Mounts: [{ Type: 'volume', Name: 'demo-ssh', Destination: '/s', RW: true }, { Type: 'volume', Name: 'cles', Destination: '/k', RW: false },
       { Type: 'bind', Source: '/run/desktop/mnt/host/c/Users/quelquun', Destination: '/w', RW: true }] } };
   const srv = http.createServer((req, res) => { vus.push(`${req.method} ${req.url}`); res.end(JSON.stringify(api[req.url])); });
@@ -247,7 +247,8 @@ test('inventaire Docker : conteneurs et volumes par l’API en lecture, rattach�
     assert.ok(!JSON.stringify(fiches).includes('SECRET'));
     assert.ok(vus.every((v) => v.startsWith('GET ')));
     assert.deepEqual(par('boring_yalow').attributes.isolement, { montages: [{ source: '/home/quelquun/.ssh', cible: '/k', lecture: true }, { source: '/mnt/c/Users/quelquun', cible: '/w', lecture: false }],
-      privilegie: true, capacites: ['SYS_ADMIN'], peripheriques: ['/dev/kvm'], espaces: ['PidMode'], protections: [], volumes_de: [] });
+      privilegie: true, capacites: ['SYS_ADMIN'], peripheriques: ['/dev/kvm'], espaces: ['NetworkMode', 'UTSMode'],
+      espaces_de: [{ espace: 'PidMode', conteneur: 'jolly' }, { espace: 'IpcMode', conteneur: 'jolly' }], protections: [], volumes_de: [] });
     assert.equal(par('vieux').attributes.isolement, undefined, 'un conteneur sans projet n’est pas inspecté');
     assert.ok(!vus.includes(`GET /containers/${'b'.repeat(64)}/json`));
     for (const f of fiches) assert.equal(valider('fiche', f), null, f.id);

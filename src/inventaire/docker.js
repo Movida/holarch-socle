@@ -41,7 +41,8 @@ const composeDe = (l) => l?.['com.docker.compose.project'] || null;
 
 // Ce qui isole un conteneur de l'hôte, d'après son inspection : ses montages de l'hôte (un volume local en `o=bind`
 // compte comme le chemin qu'il monte ; un lecteur Windows vu par Docker Desktop, `/run/desktop/mnt/host/c/…`, se
-// nomme comme WSL le voit, `/mnt/c/…`) et ses privilèges.
+// nomme comme WSL le voit, `/mnt/c/…`) et ses privilèges, dont les espaces de noms partagés avec l'hôte (`host`, le
+// réseau compris) ou avec un autre conteneur (`container:<id>` : réseau, processus, mémoire partagée).
 const cheminHote = (s) => String(s || '').replace(/^\/run\/desktop\/mnt\/host\/([a-z])\//, '/mnt/$1/');
 function isolement(detail, volumes) {
   const hc = detail.HostConfig || {};
@@ -51,7 +52,9 @@ function isolement(detail, volumes) {
     return m.Type === 'bind' ? [{ source: cheminHote(m.Source), cible: m.Destination, lecture: !m.RW }] : [];
   });
   return { montages, privilegie: Boolean(hc.Privileged), capacites: hc.CapAdd || [], peripheriques: (hc.Devices || []).map((d) => d.PathOnHost),
-    espaces: ['PidMode', 'IpcMode', 'UTSMode', 'UsernsMode', 'CgroupnsMode'].filter((k) => hc[k] === 'host'), protections: hc.SecurityOpt || [], volumes_de: hc.VolumesFrom || [] };
+    espaces: ['NetworkMode', 'PidMode', 'IpcMode', 'UTSMode', 'UsernsMode', 'CgroupnsMode'].filter((k) => hc[k] === 'host'),
+    espaces_de: ['NetworkMode', 'PidMode', 'IpcMode'].filter((k) => /^container:./.test(hc[k] || '')).map((k) => ({ espace: k, conteneur: hc[k].slice('container:'.length) })),
+    protections: hc.SecurityOpt || [], volumes_de: hc.VolumesFrom || [] };
 }
 
 const fiche = (kind, cle, name, { projet, ...extra }) => ({

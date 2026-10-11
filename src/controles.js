@@ -665,6 +665,8 @@ function montageSensible(ctx) {
     for (const c of iso.capacites) dit(`cap-add:${c}`, `a la capacité ${c}`);
     for (const p of iso.peripheriques) dit(`device:${p}`, `a le périphérique ${p} de l’hôte`);
     for (const e of iso.espaces) dit(e, `partage un espace de noms de l’hôte (${e})`);
+    // Une fiche inventoriée avant que l'inventaire les lise n'a pas `espaces_de`.
+    for (const e of iso.espaces_de || []) dit(`${e.espace}:container:${e.conteneur}`, `partage un espace de noms du conteneur ${e.conteneur} (${e.espace})`);
     for (const p of iso.protections.filter((x) => PROTECTION_RETIREE.test(x))) dit(`security-opt:${p}`, `a une protection retirée (${p})`);
     for (const v of iso.volumes_de) dit(`volumes-from:${v}`, `monte les volumes du conteneur ${v}`);
   }

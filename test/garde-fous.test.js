@@ -706,10 +706,11 @@ test('Contre-épreuve du conteneur (5) : un conteneur déjà construit se juge s
   // Le fichier corrigé, mais l'ancien conteneur monte encore ~/.claude en écriture : `devcontainer up` le relancerait tel quel.
   config({ features: { 'ghcr.io/devcontainers/features/git:1': {} }, mounts: [transcriptions('-workspaces-projet')] });
   ctx.conteneurs = [conteneur('jolly', { ...sain, montages: [{ source: path.join(maison, '.claude'), cible: '/home/vscode/.claude', lecture: false }] }),
-    conteneur('neuf', { ...sain, privilegie: true, capacites: ['SYS_ADMIN'], espaces: ['PidMode'], protections: ['seccomp=unconfined'], volumes_de: ['jolly'] })];
+    conteneur('neuf', { ...sain, privilegie: true, capacites: ['SYS_ADMIN'], espaces: ['NetworkMode', 'PidMode'], espaces_de: [{ espace: 'IpcMode', conteneur: 'jolly' }], protections: ['seccomp=unconfined'], volumes_de: ['jolly'] })];
   let r = lire();
   assert.deepEqual(r.ecarts.map((e) => e.cle), ['conteneur:jolly:/home/vscode/.claude', 'conteneur:neuf:privileged', 'conteneur:neuf:cap-add:SYS_ADMIN',
-    'conteneur:neuf:PidMode', 'conteneur:neuf:security-opt:seccomp=unconfined', 'conteneur:neuf:volumes-from:jolly']);
+    'conteneur:neuf:NetworkMode', 'conteneur:neuf:PidMode', 'conteneur:neuf:IpcMode:container:jolly', 'conteneur:neuf:security-opt:seccomp=unconfined', 'conteneur:neuf:volumes-from:jolly']);
+  assert.match(r.ecarts.find((e) => e.cle.endsWith(':IpcMode:container:jolly')).message, /le conteneur neuf, déjà construit, partage un espace de noms du conteneur jolly \(IpcMode\) : le reconstruire/);
   assert.match(r.ecarts[0].message, /le conteneur jolly, déjà construit, monte ~\/\.claude \(identifiants de l’hôte\).*en écriture : le reconstruire, ou le supprimer \(docker rm jolly\)/);
   assert.equal(r.indisponible, undefined, 'les features publiées se voient sur le conteneur construit');
   // Un conteneur sain ne dit rien ; sans configuration, seules les règles en lecture restent admises.
