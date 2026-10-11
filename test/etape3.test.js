@@ -978,7 +978,7 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
     assert.deepEqual(g('log', '--format=%an <%ae> %s').split('\n'), ['Alice Exemple <alice@noreply.test> Générer la configuration du conteneur', 'Alice Exemple <alice@noreply.test> Appliquer les règles HOLARCH', 'Alice Exemple <alice@noreply.test> Créer le projet']);
     assert.deepEqual(g('ls-files').split('\n').sort(), ['.claude/rules/holarch/rien-de-prive.md', '.devcontainer/deploy-key.sh', '.devcontainer/devcontainer.json', '.gitignore', 'CLAUDE.md', 'LICENSE', 'README.md', 'arbre/index.md', 'arbre/log.md']);
     assert.match(fs.readFileSync(path.join(d, 'LICENSE'), 'utf8'), new RegExp(`Copyright \\(c\\) ${new Date().getFullYear()} Alice Exemple`));
-    assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "Neuf_2\.x"[\s\S]*source=neuf_2\.x-claude[\s\S]*projects\/-workspaces-Neuf-2-x,[\s\S]*source=neuf_2\.x-ssh[\s\S]*"CLAUDE_CODE_PROJECT_DIR_NAME": "-workspaces-Neuf-2-x"/);
+    assert.match(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'), /"name": "Neuf_2\.x"[\s\S]*source=Neuf_2\.x-claude[\s\S]*projects\/-workspaces-Neuf-2-x,[\s\S]*source=Neuf_2\.x-ssh[\s\S]*"CLAUDE_CODE_PROJECT_DIR_NAME": "-workspaces-Neuf-2-x"/);
     assert.deepEqual(executer('montage-sensible', { depot: d, holarch: [] }, 'audit').ecarts, [], 'le conteneur créé ne monte rien de sensible de l’hôte');
     const conteneur = parseJsonc(fs.readFileSync(path.join(d, '.devcontainer', 'devcontainer.json'), 'utf8'));
     assert.match(conteneur.onCreateCommand.holarch, /^sudo chown vscode:vscode /, 'le volume est rendu avant que l’éditeur se connecte');
@@ -1139,9 +1139,12 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
   assert.match(commentaire('mounts'), /^ {2}\/\/ Socle : Claude Code dans un volume propre au conteneur/);
   assert.match(lignes[1], /^\/\/ Source : la clé conteneur de la configuration effective du projet/);
   assert.deepEqual(Object.keys(v.conteneur), ['name', 'image', 'remoteUser', 'initializeCommand', 'mounts', 'containerEnv', 'remoteEnv', 'onCreateCommand']);
-  assert.deepEqual(v.conteneur.mounts, ['source=neuf_2.x-claude,target=/home/vscode/.claude,type=volume',
+  assert.deepEqual(v.conteneur.mounts, ['source=Neuf_2.x-claude,target=/home/vscode/.claude,type=volume',
     'source=${localEnv:HOME}/.claude/projects/-workspaces-Neuf-2-x,target=/home/vscode/.claude/projects/-workspaces-Neuf-2-x,type=bind',
-    'source=${localEnv:HOME}/.claude/rules,target=/home/vscode/.claude/rules,type=bind,readonly', 'source=neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume']);
+    'source=${localEnv:HOME}/.claude/rules,target=/home/vscode/.claude/rules,type=bind,readonly', 'source=Neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume']);
+  // Les volumes gardent la casse du nom : deux projets qui ne diffèrent que par elle ne partagent ni connexion ni clé.
+  const volumes = (nom) => g(base, nom).conteneur.mounts.filter((m) => m.endsWith(',type=volume')).map((m) => m.match(/^source=([^,]+)/)[1]);
+  assert.deepEqual([volumes('Foo'), volumes('foo')], [['Foo-claude', 'Foo-ssh'], ['foo-claude', 'foo-ssh']]);
   assert.deepEqual([v.conteneur.containerEnv, v.conteneur.remoteEnv, v.conteneur.onCreateCommand], [{ CLAUDE_CONFIG_DIR: '/home/vscode/.claude', CLAUDE_CODE_PROJECT_DIR_NAME: '-workspaces-Neuf-2-x' },
     { ANTHROPIC_API_KEY: '' }, { holarch: 'sudo chown vscode:vscode /home/vscode/.claude /home/vscode/.claude/projects /home/vscode/.ssh' }]);
   // Les couches s'ajoutent à ce que pose le socle, sans le remplacer.
@@ -1150,7 +1153,7 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
   assert.deepEqual([g({ ...base, gpu: 'requis' }).conteneur.hostRequirements, g({ ...base, gpu: 'optionnel' }).conteneur.hostRequirements, g({ ...base, gpu: 'non' }).conteneur.hostRequirements], [{ gpu: true }, { gpu: 'optional' }, undefined]);
   assert.deepEqual(g({ gpu: 'requis', devcontainer: { ...base.devcontainer, hostRequirements: { cpus: 4 } } }).conteneur.hostRequirements, { cpus: 4, gpu: true }, 'le gpu s’ajoute au hostRequirements d’une couche (m-6)');
   const h = g({ ...base, connexion_claude: 'hote' }).conteneur;
-  assert.deepEqual([h.mounts, h.initializeCommand, h.onCreateCommand], [['source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind', 'source=neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume'],
+  assert.deepEqual([h.mounts, h.initializeCommand, h.onCreateCommand], [['source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind', 'source=Neuf_2.x-ssh,target=/home/vscode/.ssh,type=volume'],
     undefined, { holarch: 'sudo chown vscode:vscode /home/vscode/.ssh' }], 'le ~/.claude de l’hôte n’est jamais repris');
   const racine = g({ devcontainer: { image: 'base', remoteUser: 'root' } }).conteneur;
   assert.deepEqual([racine.containerEnv.CLAUDE_CONFIG_DIR, racine.onCreateCommand], ['/root/.claude', undefined]);

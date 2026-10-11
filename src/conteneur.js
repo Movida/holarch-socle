@@ -67,14 +67,15 @@ export function genererConteneur({ nom, config = {} }) {
   }
   if (d.mounts !== undefined && !Array.isArray(d.mounts)) return { erreur: 'conteneur.devcontainer.mounts : une liste attendue' };
 
-  const maison = maisonDe(u);
-  const volume = nom.toLowerCase(); const dossier = dossierClaude(`/workspaces/${nom}`);
+  // Les volumes gardent la casse du nom : deux projets qui ne diffèrent que par elle ne partagent ni connexion ni clé
+  // (Docker l'accepte : `[a-zA-Z0-9][a-zA-Z0-9_.-]`, le motif du nom ci-dessus).
+  const maison = maisonDe(u); const dossier = dossierClaude(`/workspaces/${nom}`);
   const montages = connexion === 'volume'
-    ? [`source=${volume}-claude,target=${maison}/.claude,type=volume`,
+    ? [`source=${nom}-claude,target=${maison}/.claude,type=volume`,
       `source=\${localEnv:HOME}/.claude/projects/${dossier},target=${maison}/.claude/projects/${dossier},type=bind`,
       `source=\${localEnv:HOME}/.claude/rules,target=${maison}/.claude/rules,type=bind,readonly`]
     : [`source=\${localEnv:HOME}/.claude,target=${maison}/.claude,type=bind`];
-  montages.push(`source=${volume}-ssh,target=${maison}/.ssh,type=volume`);
+  montages.push(`source=${nom}-ssh,target=${maison}/.ssh,type=volume`);
   const proprietaire = u === 'root' ? [] : connexion === 'volume' ? [`${maison}/.claude`, `${maison}/.claude/projects`, `${maison}/.ssh`] : [`${maison}/.ssh`];
   const socle = {
     name: nom,
