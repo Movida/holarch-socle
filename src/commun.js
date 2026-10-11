@@ -34,12 +34,19 @@ export function lireSansLien(racine, relatif) {
   try { return fs.readFileSync(p, 'utf8'); } catch { return null; }
 }
 
-/** Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique (`cheminSansLien`). */
+/**
+ * Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique
+ * (`cheminSansLien`). Le fichier s'ouvre en `O_NOFOLLOW`, et son mode se pose sur ce qui est ouvert : un lien posé à sa
+ * place entre la vérification et l'écriture fait échouer l'ouverture, qui le dit comme la vérification.
+ */
 export function ecrireSansLien(racine, relatif, contenu, mode) {
   const p = cheminSansLien(racine, relatif);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, contenu);
-  if (mode) fs.chmodSync(p, mode);
+  const { O_WRONLY, O_CREAT, O_TRUNC, O_NOFOLLOW } = fs.constants;
+  let fd; try { fd = fs.openSync(p, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, mode ?? 0o666); } catch (e) {
+    throw e.code === 'ELOOP' ? new Error(`${relatif} est un lien symbolique : rien n’est écrit`) : e;
+  }
+  try { fs.writeFileSync(fd, contenu); if (mode) fs.fchmodSync(fd, mode); } finally { fs.closeSync(fd); }
 }
 
 /** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */

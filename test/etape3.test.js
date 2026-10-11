@@ -1482,6 +1482,20 @@ test('Lectures dans un dépôt : un lien symbolique n’y fait lire aucun fichie
   assert.throws(() => ajouterRegles(dr, path.join(dr, 'arbre', 'rules.yaml'), [{ id: 'r', statement: 'Une règle.' }]), (e) => e.message === 'arbre/rules.yaml est un lien symbolique : rien n’est écrit');
 });
 
+// Course entre la vérification et l'écriture (limite de C levée) : un lien posé à la place du fichier juste après
+// `cheminSansLien` (ici, pendant la création de son dossier) fait échouer l'écriture, ouverte en `O_NOFOLLOW` ; le
+// fichier de l'hôte reste tel quel, son mode compris.
+test('ecrireSansLien : un lien posé entre la vérification et l’écriture la fait échouer, rien n’est écrit dehors', () => {
+  const d = tmp(); const cible = path.join(tmp(), 'hote.txt'); fs.writeFileSync(cible, 'à moi\n'); fs.chmodSync(cible, 0o644);
+  const mkdir = fs.mkdirSync;
+  fs.mkdirSync = (...a) => { fs.mkdirSync = mkdir; const r = mkdir(...a); fs.symlinkSync(cible, path.join(d, 'x', 'f.sh')); return r; };
+  try { assert.throws(() => ecrireSansLien(d, 'x/f.sh', 'du conteneur\n', 0o755), (e) => e.message === 'x/f.sh est un lien symbolique : rien n’est écrit'); } finally { fs.mkdirSync = mkdir; }
+  assert.deepEqual([fs.readFileSync(cible, 'utf8'), fs.statSync(cible).mode & 0o777], ['à moi\n', 0o644]);
+  // Sans course, l'écriture se fait ; un fichier présent est remplacé en entier, et prend le mode demandé.
+  ecrireSansLien(d, 'y/f.sh', 'un contenu plus long\n'); ecrireSansLien(d, 'y/f.sh', 'court\n', 0o755);
+  assert.deepEqual([fs.readFileSync(path.join(d, 'y', 'f.sh'), 'utf8'), fs.statSync(path.join(d, 'y', 'f.sh')).mode & 0o777], ['court\n', 0o755]);
+});
+
 // Réglages du compte (limite de C levée) : le manifeste de ce que HOLARCH pose dans settings.json s'écrit d'abord ;
 // refusé, settings.json reste tel quel ; settings.json refusé ensuite, le manifeste revient comme il était. Aucune entrée
 // posée par HOLARCH ne manque au manifeste : une fois le lien retiré, ce qui n'est plus voulu se retire.
