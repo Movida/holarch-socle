@@ -622,11 +622,16 @@ test('Contre-épreuve du conteneur (3) : options de runArgs lues comme le CLI Do
   let r = lire();
   assert.deepEqual(cles(r), ['/a', '/b', '/c', 'volumes-from:autre', 'privileged', 'cap-add:SYS_ADMIN', 'device:/dev/bus/usb', 'pid:host', 'network:host', 'security-opt:seccomp=unconfined', 'use-api-socket']);
   assert.match(r.ecarts.find((e) => e.cle.endsWith(':privileged')).message, /conteneur privilégié.*l’isolement du conteneur ne tient plus/);
-  // Le réseau de l'hôte, comme les autres espaces de noms de l'hôte : en deux arguments, et sous l'ancien nom `--net`.
-  config({ runArgs: ['--network', 'host', '--net=host', '--network=bridge', '--net', 'none'] });
+  // Le réseau de l'hôte, comme les autres espaces de noms de l'hôte : en deux arguments, et sous l'ancien nom `--net`. Le
+  // réseau, les processus ou la mémoire partagée d'un autre conteneur (`container:<id>`) de même.
+  config({ runArgs: ['--network', 'host', '--net=host', '--network=bridge', '--net', 'none', '--network', 'container:abc', '--net=container:abc', '--pid=container:def', '--ipc', 'container:def', '--ipc=shareable'] });
   r = lire();
   assert.deepEqual(r.ecarts.map((e) => [cles({ ecarts: [e] })[0], e.message]), [['network:host', 'espace de noms de l’hôte (--network=host) : l’isolement du conteneur ne tient plus'],
-    ['network:host', 'espace de noms de l’hôte (--net=host) : l’isolement du conteneur ne tient plus']]);
+    ['network:host', 'espace de noms de l’hôte (--net=host) : l’isolement du conteneur ne tient plus'],
+    ['network:container:abc', 'espace de noms d’un autre conteneur (--network=container:abc) : l’isolement du conteneur ne tient plus'],
+    ['network:container:abc', 'espace de noms d’un autre conteneur (--net=container:abc) : l’isolement du conteneur ne tient plus'],
+    ['pid:container:def', 'espace de noms d’un autre conteneur (--pid=container:def) : l’isolement du conteneur ne tient plus'],
+    ['ipc:container:def', 'espace de noms d’un autre conteneur (--ipc=container:def) : l’isolement du conteneur ne tient plus']]);
   // Les mêmes privilèges écrits en propriétés du fichier, ligne comprise.
   config('{\n  "privileged": true,\n  "capAdd": ["SYS_PTRACE"],\n  "securityOpt": ["apparmor=unconfined", "label=type:x"]\n}');
   r = lire();

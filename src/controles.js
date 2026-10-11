@@ -486,8 +486,9 @@ function montagesDe(c, opts) {
 
 // Ce qui défait l'isolement sans monter de fichier : un conteneur privilégié ou doté de capacités voit les périphériques
 // et remonte ce qu'il veut (les règles montées en lecture comprises) ; un périphérique, un espace de noms de l'hôte (son
-// réseau compris : ses services locaux), une protection retirée, les montages d'un autre conteneur, le socket Docker.
-// Propriétés du fichier et options de `runArgs`.
+// réseau compris : ses services locaux) ou d'un autre conteneur (`container:<id>` : son réseau, ses processus, sa mémoire
+// partagée), une protection retirée, les montages d'un autre conteneur, le socket Docker. Propriétés du fichier et
+// options de `runArgs`.
 const PROTECTION_RETIREE = /unconfined|label[=:]disable|no-new-privileges[=:]false/i;
 function privilegesDe(c, opts) {
   const l = []; const p = (ou, cle, quoi) => l.push({ ou, cle, quoi });
@@ -501,6 +502,7 @@ function privilegesDe(c, opts) {
     else if (o.nom === 'device') p(ou, `device:${o.val}`, `périphérique de l’hôte (${o.val})`);
     // `--net`, l'ancien nom de `--network`, se dit sous le nouveau : une exception les couvre tous deux.
     else if (['pid', 'ipc', 'uts', 'userns', 'cgroupns', 'network', 'net'].includes(o.nom) && o.val === 'host') p(ou, `${o.nom === 'net' ? 'network' : o.nom}:host`, `espace de noms de l’hôte (--${o.nom}=host)`);
+    else if (['pid', 'ipc', 'network', 'net'].includes(o.nom) && /^container:./.test(o.val || '')) p(ou, `${o.nom === 'net' ? 'network' : o.nom}:${o.val}`, `espace de noms d’un autre conteneur (--${o.nom}=${o.val})`);
     else if (o.nom === 'security-opt' && PROTECTION_RETIREE.test(o.val || '')) p(ou, `security-opt:${o.val}`, `protection retirée (${o.val})`);
     else if (o.nom === 'volumes-from') p(ou, `volumes-from:${o.val}`, `montages du conteneur ${o.val}`);
     else if (o.nom === 'use-api-socket' && (o.val === null || BOOLEENS[o.val] !== false)) p(ou, 'use-api-socket', 'Docker de l’hôte');
