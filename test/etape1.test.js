@@ -19,7 +19,7 @@ import inventaireDocker from '../src/inventaire/docker.js';
 import inventaireClaudeDesktop, { emplacementParDefaut } from '../src/inventaire/claude-desktop.js';
 import { SourceAbsente } from '../src/inventaire/source.js';
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
+import { tmp } from './temporaire.js';
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
 const vieillir = (f) => { const t = new Date(Date.now() - 3600e3); fs.utimesSync(f, t, t); };
 const ev = (extra = {}) => ({ id: ulid(Date.parse('2026-10-01T10:00:00Z'), JSON.stringify(extra)), at: '2026-10-01T10:00:00Z', kind: 'session.started', actor: 'agent:claude-code/m', data: {}, ...extra });

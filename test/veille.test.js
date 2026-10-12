@@ -16,7 +16,7 @@ import { executer } from '../src/controles.js';
 import { Journal } from '../src/stockage/journal.js';
 import * as affichage from '../bin/affichage.js';
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
+import { tmp } from './temporaire.js';
 const ecrire = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
 const DISTANTE = { CLAUDE_CODE_ENVIRONMENT_KIND: 'bridge' };
 const T0 = Date.parse('2026-10-09T10:00:00Z');

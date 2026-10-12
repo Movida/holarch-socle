@@ -18,7 +18,7 @@ import importerTranscriptions from '../src/import/claude-code-transcriptions.js'
 import inventaireArbre from '../src/inventaire/arbre.js';
 import { regleEffective, regleDuCompte, exceptions, fusionnerConfig } from '../src/regles.js';
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
+import { tmp } from './temporaire.js';
 
 test('X2 : la configuration locale d’un dépôt lu par l’inventaire n’exécute rien (core.fsmonitor)', () => {
   const d = tmp(); const temoin = path.join(tmp(), 'execute');

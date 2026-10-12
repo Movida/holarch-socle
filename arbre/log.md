@@ -9,8 +9,12 @@
   relancé le service à 18:35:01, comme le 11 à 11:16 (2 démarrages sur 2). Corrigé avec un test qui le reproduit : le
   passage note l'identifiant de démarrage du noyau (`boot_id`), et un écart qui enjambe un démarrage ne relance rien.
   La durée de marche ne convenait pas : sous WSL, elle ne compte pas les veilles de Windows. 174 tests verts. Le gros du
-  retard est ailleurs : `systemd-tmpfiles-setup` vide `/tmp` au démarrage (22,8 s ce soir, 2 min 40 s le 11), et un
-  `npm test` y laisse environ 6 800 fichiers ; la correction est proposée à l'auteur.
+  retard est ailleurs : `systemd-tmpfiles-setup` vide `/tmp` au démarrage (22,8 s ce soir après 21 `npm test`, 2 min 40 s
+  le 11 après environ 106), et chaque `npm test` y laissait environ 6 800 fichiers. Sur le choix de l'auteur, les tests
+  rangent leurs dossiers sous une racine par fichier de test, effacée à sa sortie, `TMPDIR` compris (`test/temporaire.js`,
+  qui remplace quatre copies de `tmp()` et le dossier du test visuel) : `/tmp` reste à 14 138 fichiers avant et après
+  `npm test`. Test visuel chargé jusqu'au navigateur, Chromium absent de l'hôte et de l'image du socle reconstruite le
+  2026-10-10 (I32).
 
 ## 2026-10-11
 

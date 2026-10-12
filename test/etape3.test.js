@@ -8,7 +8,7 @@ import path from 'node:path';
 import { creerDistant, creerInterface, creerReveil, creerRecolte, declarerConfiance, nomDe } from '../src/distant.js';
 import { binaireClaude, ecrireSansLien } from '../src/commun.js';
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-'));
+import { tmp } from './temporaire.js';
 
 function banc({ mode = 'auto', session } = {}) {
   const racine = tmp(); const unites = tmp(); const cfgClaude = path.join(tmp(), '.claude.json');

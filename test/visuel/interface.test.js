@@ -5,18 +5,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { Socle } from '../../src/socle.js';
 import { creerServeur } from '../../src/web/serveur.js';
 import { ulid } from '../../src/ulid.js';
+import { tmp } from '../temporaire.js';
 
 const JOUR = 864e5;
 const il_y_a = (j, h = 10) => new Date(Math.floor(Date.now() / JOUR - j) * JOUR + h * 36e5).toISOString().replace(/\.\d+Z$/, 'Z');
 
 function donneesFictives() {
-  const donnees = fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-visuel-'));
+  const donnees = tmp('holarch-visuel-');
   const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {},
     tarifs: { source: 'https://exemple.test/tarifs', releve: '2026-10-01', modeles: { 'modele-a': { entree: 1, cache_ecrit: 1, cache_ecrit_1h: 2, cache_lu: 0.1, sortie: 10 } } } });
   const ev = [];
