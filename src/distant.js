@@ -126,8 +126,12 @@ export function declarerConfiance(fichier, chemin) {
 // `Restart=` n'y peut rien (rien ne s'arrête) ; WSL ne voit pas la veille de Windows. Un minuteur passe chaque minute :
 // un écart de plus de SEUIL_REVEIL depuis son passage précédent dit que le poste a dormi, et les accès distants actifs
 // sont redémarrés. Posé avec le premier accès distant, retiré avec le dernier. Nom hors PREFIXE : ce n'est pas un projet.
+// Un écart qui enjambe un démarrage est un arrêt du poste, pas une veille : les accès viennent de démarrer. Le démarrage
+// se reconnaît à l'identifiant du noyau, pas à sa durée de marche : celle de WSL ne compte pas les veilles de Windows.
 const UNITE_REVEIL = 'holarch-reveil';
 const SEUIL_REVEIL = 5 * 60e3;
+const ID_DEMARRAGE = '/proc/sys/kernel/random/boot_id';
+const idDemarrage = () => { try { return fs.readFileSync(ID_DEMARRAGE, 'utf8').trim(); } catch { return null; } };
 export function uniteReveil({ node = process.execPath, holarch, accueil }) {
   return `${MARQUE} : reprise des accès distants après une veille, lancée par ${UNITE_REVEIL}.timer. Retirée avec le dernier accès distant.
 [Unit]
@@ -265,6 +269,7 @@ export function creerDistant(config, {
   claude = null,
   projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
   accueil = config.accueil || accueilParDefaut(), holarch = binaireService(accueil), node = process.execPath, maintenant = Date.now,
+  demarrage = idDemarrage,
 } = {}) {
   const sv = services({ unites, systemctl });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
@@ -315,14 +320,16 @@ export function creerDistant(config, {
       if (!this.liste().length) retirerReveil();
       return { nom, unite: path.basename(f) };
     },
-    // Passage du minuteur : note l'heure ; après un écart (veille du poste), redémarre les accès distants actifs, un par
-    // un : un échec n'arrête pas les suivants, il se dit (un accès en échec n'est plus actif, le passage suivant le laisse).
+    // Passage du minuteur : note l'heure et le démarrage ; après un écart (veille du poste) dans le même démarrage,
+    // redémarre les accès distants actifs, un par un : un échec n'arrête pas les suivants, il se dit (un accès en échec
+    // n'est plus actif, le passage suivant le laisse). Un passage noté sans démarrage (version antérieure) : l'écart seul.
     reveil() {
-      const t = maintenant(); let avant = null;
-      try { avant = Date.parse(fs.readFileSync(reveil.passage, 'utf8').trim()); } catch { /* premier passage */ }
-      fs.mkdirSync(path.dirname(reveil.passage), { recursive: true }); fs.writeFileSync(reveil.passage, `${new Date(t).toISOString()}\n`);
+      const t = maintenant(); const ici = demarrage(); let avant = null; let deLa = null;
+      try { [avant, deLa] = fs.readFileSync(reveil.passage, 'utf8').trim().split('\n'); avant = Date.parse(avant); } catch { /* premier passage */ }
+      fs.mkdirSync(path.dirname(reveil.passage), { recursive: true }); fs.writeFileSync(reveil.passage, `${new Date(t).toISOString()}\n${ici ?? ''}\n`);
       const ecart = Number.isFinite(avant) ? t - avant : 0;
       if (ecart <= SEUIL_REVEIL) return { ecart_s: Math.round(ecart / 1e3), relances: [], echecs: [] };
+      if (deLa && ici && deLa !== ici) return { ecart_s: Math.round(ecart / 1e3), relances: [], echecs: [], nouveau_demarrage: true };
       const relances = []; const echecs = [];
       for (const x of this.liste().filter((u) => u.actif)) {
         try { sv.lancer(['restart', `${PREFIXE}${x.nom}.service`]); relances.push(x.nom); } catch (e) { echecs.push({ nom: x.nom, message: e.message }); }

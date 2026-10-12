@@ -1,5 +1,17 @@
 # Journal de l'arbre
 
+## 2026-10-12
+
+* **Session distante absente juste après l'allumage** : l'auteur l'a cherchée depuis le téléphone dans les deux minutes
+  qui ont suivi l'allumage du poste (« Arrêter » la veille, donc démarrage rapide de Windows). La chaîne a tenu : session
+  Windows ouverte à 18:33:32, tâche `WSL - demarrage holarch-socle` (déclencheur à l'ouverture de session) à 18:33:33,
+  noyau WSL à 18:34:09, service distant à 18:34:35. Mais `holarch-reveil` a pris l'arrêt pour une veille de 71 944 s et
+  relancé le service à 18:35:01, comme le 11 à 11:16 (2 démarrages sur 2). Corrigé avec un test qui le reproduit : le
+  passage note l'identifiant de démarrage du noyau (`boot_id`), et un écart qui enjambe un démarrage ne relance rien.
+  La durée de marche ne convenait pas : sous WSL, elle ne compte pas les veilles de Windows. 174 tests verts. Le gros du
+  retard est ailleurs : `systemd-tmpfiles-setup` vide `/tmp` au démarrage (22,8 s ce soir, 2 min 40 s le 11), et un
+  `npm test` y laisse environ 6 800 fichiers ; la correction est proposée à l'auteur.
+
 ## 2026-10-11
 
 * **Suite de la clôture de C : source npm, les cinq limites de tête de la revue** (environ 312 k tokens pour l'agent,

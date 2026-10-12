@@ -24,9 +24,9 @@ function banc({ mode = 'auto', session } = {}) {
   };
   const config = { inventaire: { 'depots-git': { racines: [racine] }, 'claude-code': { config: cfgClaude } }, acces_distant: { mode_permissions: mode, ...(session ? { session_au_demarrage: session } : {}) } };
   const projets = ['demo', 'autre'].map((n) => ({ id: `holarch:project:${n}`, nom: n, location: path.join(racine, n) }));
-  const horloge = { t: Date.parse('2026-01-01T08:00:00Z') }; const accueil = tmp();
-  const d = creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets, accueil, holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', maintenant: () => horloge.t });
-  return { racine, unites, cfgClaude, appels, pannes, horloge, d };
+  const horloge = { t: Date.parse('2026-01-01T08:00:00Z'), demarrage: 'premier' }; const accueil = tmp();
+  const d = creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets, accueil, holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', maintenant: () => horloge.t, demarrage: () => horloge.demarrage });
+  return { racine, unites, cfgClaude, appels, pannes, horloge, accueil, d };
 }
 
 test('accès distant : activer écrit un service marqué, déclare la confiance et démarre ; desactiver le retire', () => {
@@ -84,6 +84,18 @@ test('accès distant : après une veille du poste (écart entre deux passages du
   assert.deepEqual(d.reveil(), { ecart_s: 4 * 3600, relances: ['demo'], echecs: [] });
   assert.deepEqual(appels.filter((a) => a.startsWith('restart')), ['restart holarch-distant-demo.service']);
   horloge.t += 60e3; d.reveil(); assert.equal(redemarrages(), 1, 'une seule fois par veille');
+});
+
+test('accès distant : un écart qui enjambe un démarrage (poste arrêté puis rallumé) ne relance rien, les accès viennent de démarrer', () => {
+  const { appels, horloge, accueil, d } = banc();
+  d.activer('demo'); d.reveil();
+  horloge.t += 20 * 3600e3; horloge.demarrage = 'second';
+  assert.deepEqual(d.reveil(), { ecart_s: 20 * 3600, relances: [], echecs: [], nouveau_demarrage: true });
+  assert.deepEqual(appels.filter((a) => a.startsWith('restart')), [], 'arrêt du poste, pas une veille');
+  horloge.t += 4 * 3600e3; assert.deepEqual(d.reveil().relances, ['demo'], 'une veille ensuite, dans le même démarrage, relance');
+  // Passage noté avant cette version (sans démarrage) : l'écart seul décide, comme avant.
+  fs.writeFileSync(path.join(accueil, 'distant-reveil'), `${new Date(horloge.t).toISOString()}\n`); horloge.t += 3600e3; horloge.demarrage = 'troisième';
+  assert.deepEqual(d.reveil().relances, ['demo']);
 });
 
 test('accès distant : un redémarrage en échec au réveil n’arrête pas les suivants, il se dit ; la copie de service réécrit l’unité de réveil', () => {
