@@ -2144,3 +2144,23 @@ test('En-tête d’un fichier d’un dépôt : un FIFO ne bloque pas, la borne t
   assert.deepEqual(r, [{ entete: {}, erreur: 'fichier illisible : pas un fichier' }, { entete: {}, erreur: 'fichier illisible : plus de 4194304 octets' }, ferme,
     { entete: {}, erreur: 'fichier illisible : ENOENT' }, { entete: { type: 'note', title: 'Sain' }, erreur: null }]);
 });
+
+// Contexte à préciser, choix de l'auteur (2026-10-13) sur une limite vue avec le contexte illisible : sans `--contexte`,
+// un contexte illisible à côté d'un seul lisible pouvait être le bon ; le lisible n'est plus pris en silence (un projet
+// entrerait dans le mauvais contexte, avec sa mauvaise identité de commit). Nommé, le lisible se prend ; seul, aussi.
+test('Création : un contexte illisible à côté d’un seul lisible fait préciser le contexte, rien n’est pris en silence', async () => {
+  const { configAvantProjet } = await import('../src/regles.js');
+  const profil = path.join(tmp(), 'profil');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const lien = 'links: { derives_from: [/arbre/index.md] }';
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'pro.md'), `---\ntype: context\ntitle: Pro\nstatus: draft\n${lien}\n---\n`);
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: [Perso\n${lien}\n---\n`);
+  const choix = (o) => { try { return configAvantProjet(inventaireArbre({}, { depots: [profil], projetDe: () => null }), { profil, ...o }).contexte.nom; } catch (e) { return e.message; } };
+  assert.ok(choix({}).startsWith('contexte à préciser (--contexte) : pro, perso illisible (profil:/arbre/contextes/perso.md : en-tête illisible : '), choix({}));
+  assert.equal(choix({ contexte: 'pro' }), 'pro', 'nommé, le lisible se prend comme avant');
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\n${lien}\n---\n`);
+  assert.match(choix({}), /^contexte à préciser \(--contexte\) : (pro, perso|perso, pro)$/, 'deux lisibles : à préciser, comme avant');
+  fs.rmSync(path.join(profil, 'arbre', 'contextes', 'perso.md'));
+  assert.equal(choix({}), 'pro', 'un seul contexte, lisible : pris sans être nommé, comme avant');
+});

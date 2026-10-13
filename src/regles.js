@@ -327,7 +327,9 @@ export function configAvantProjet(fiches, { contexte = null, types: demandes = [
   const sien = contexte ? illisibles.filter((n) => nomDe(n) === contexte) : [];
   if (sien.length) throw new Error(`contexte illisible : ${contexte} (${sien.map(raison).join(' ; ')})`);
   const connus = [...tous.map(nomDe), ...illisibles.map((n) => `${nomDe(n)} illisible (${raison(n)})`)].join(', ') || 'aucun contexte dans le profil';
-  if (choisis.length !== 1) throw new Error(contexte ? `contexte ${choisis.length ? 'ambigu' : 'inconnu'} : ${contexte} (${connus})` : `contexte à préciser (--contexte) : ${connus}`);
+  // Sans contexte demandé, un illisible à côté d'un seul lisible pouvait être le bon (choix de l'auteur, 2026-10-13) : rien
+  // n'est pris en silence, le contexte est à préciser ; nommé, le lisible se prend comme avant.
+  if (choisis.length !== 1 || (!contexte && illisibles.length)) throw new Error(contexte ? `contexte ${choisis.length ? 'ambigu' : 'inconnu'} : ${contexte} (${connus})` : `contexte à préciser (--contexte) : ${connus}`);
   const ambigus = types.filter((t) => a.typesAmbigus.has(t));
   if (ambigus.length) throw new Error(ambigus.map((t) => a.typesAmbigus.get(t)).join(' ; '));
   const inconnus = types.filter((t) => !a.templates.has(t));
