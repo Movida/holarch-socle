@@ -2317,3 +2317,16 @@ test('Routines : sans systemd utilisateur, aucune ne se dit activée ; elles se 
   assert.deepEqual(new Set(Object.values(etats())), new Set(['impossible sans systemd utilisateur']));
   assert.equal(etatVeille(o).gardien, 'impossible sans systemd utilisateur', 'la même phrase que le gardien');
 });
+
+// R1 sans avance lue, voisin de la famille Gardes muettes : quand l'avance sur l'amont ne se lit pas (`en_avance` null,
+// ici un amont dont l'objet manque), le rejeu concluait « github : déjà là ». Il dit qu'elle n'est pas lue.
+test('R1 : rejouée, la création ne dit pas « déjà là » quand l’avance sur l’amont ne se lit pas', () => gitIsole(async () => {
+  const github = path.join(tmp(), 'github.com');
+  const { r, s, etats } = await bancCreation({ creation: { etapes: { github: true, conteneur: false, distant: false } } });
+  const d = path.join(r, 'neuf'); const nu = path.join(github, 'alice', 'neuf');
+  const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] }, { gh: ghFictif(github), urlDepot: (o, n) => path.join(github, o, n) });
+  assert.equal(etats(await creer()).github, 'faite');
+  fs.writeFileSync(path.join(d, '.git', 'refs', 'remotes', 'origin', 'main'), `${'0123456789'.repeat(4)}\n`);
+  const e = (await creer()).etapes.find((x) => x.etape === 'github');
+  assert.deepEqual([e.etat, e.detail], ['echec', `${nu} : avance sur l’amont non lue, commits non poussés inconnus`], JSON.stringify(e));
+}));

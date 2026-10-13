@@ -321,8 +321,10 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   if (!cfg.etapes.github) noter('github', 'desactivee', 'creation.etapes.github');
   else if (g('remote', 'get-url', 'origin').status === 0) {
     const url = g('remote', 'get-url', 'origin').stdout.trim();
+    // L'avance qui ne se lit pas (un objet de l'amont manquant) n'est pas nulle : l'étape ne conclut pas.
     const nonPousses = amont() ? etatDepot(dossier).en_avance : 0;
-    if (nonPousses) noter('github', 'geste', `${url} : ${nonPousses} commit(s) non poussé(s)`, { quoi: 'relire les commits non poussés, puis les envoyer', commande: `git -C ${dossier} push` });
+    if (nonPousses === null) noter('github', 'echec', `${url} : avance sur l’amont non lue, commits non poussés inconnus`);
+    else if (nonPousses) noter('github', 'geste', `${url} : ${nonPousses} commit(s) non poussé(s)`, { quoi: 'relire les commits non poussés, puis les envoyer', commande: `git -C ${dossier} push` });
     else if (amont()) noter('github', 'deja', url);
     else if (aBlanc) noter('github', 'a-faire', `premier envoi de ${BRANCHE}`);
     else { try { envoyer(); noter('github', 'faite', `premier envoi de ${BRANCHE}`); } catch (e) { noter('github', 'echec', e.message); } }
