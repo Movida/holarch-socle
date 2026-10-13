@@ -2235,3 +2235,26 @@ test('Crochet de git : à jour mais sans bit d’exécution, il est remis exécu
   assert.match(affichage.appliquer({ comptes: [], projets: [p] }), /^ {2}crochet de git : modifie \(sans bit d’exécution\)$/m);
   assert.deepEqual([pose().m.crochet.etat, ecarts()], ['inchange', []]);
 });
+
+// M6, reste : sans `racine` (`~/.claude.json`, catalogue, états), `ecrireJson` remplaçait un lien posé par l'auteur
+// par un fichier, et le fichier réécrit perdait ses droits (un 0600 devenait lisible de tous).
+test('M6 : sans racine, ecrireJson réécrit le fichier que vise un lien, garde le lien et les droits', async () => {
+  const { ecrireJson } = await import('../src/commun.js');
+  const d = tmp(); const rangee = path.join(d, 'rangee'); fs.mkdirSync(rangee);
+  const vrai = path.join(rangee, 'conf.json'); fs.writeFileSync(vrai, '{"a":1}\n'); fs.chmodSync(vrai, 0o600);
+  const lien = path.join(d, '.conf.json'); fs.symlinkSync(path.join('rangee', 'conf.json'), lien);
+  // Le temporaire naît avec ces droits : personne d'autre ne l'ouvre avant qu'ils soient posés.
+  const ouvrir = fs.openSync; const modes = [];
+  fs.openSync = (p, ...a) => { if (String(p).endsWith('.holarch')) modes.push(a[1]); return ouvrir(p, ...a); };
+  try { ecrireJson(lien, { a: 2 }); } finally { fs.openSync = ouvrir; }
+  assert.deepEqual(modes, [0o600]);
+  assert.ok(fs.lstatSync(lien).isSymbolicLink(), 'le lien reste');
+  assert.deepEqual([JSON.parse(fs.readFileSync(vrai, 'utf8')), fs.statSync(vrai).mode & 0o777], [{ a: 2 }, 0o600], 'le fichier visé est réécrit, en 0600');
+  assert.deepEqual([fs.readdirSync(rangee), fs.readdirSync(d).sort()], [['conf.json'], ['.conf.json', 'rangee']], 'aucun temporaire laissé');
+  // Sans lien : les droits se gardent aussi, exacts malgré le umask.
+  for (const m of [0o640, 0o666]) { const etat = path.join(d, `etat-${m.toString(8)}.json`); fs.writeFileSync(etat, '{}\n'); fs.chmodSync(etat, m); ecrireJson(etat, { b: 1 }); assert.equal(fs.statSync(etat).mode & 0o777, m); }
+  // Un lien vers un fichier absent n'est pas remplacé : rien n'est écrit, et c'est dit.
+  const casse = path.join(d, 'casse.json'); fs.symlinkSync(path.join(d, 'absent', 'x.json'), casse);
+  assert.throws(() => ecrireJson(casse, { c: 1 }), /casse\.json est un lien vers un fichier absent \(ENOENT\) : rien n’est écrit/);
+  assert.ok(fs.lstatSync(casse).isSymbolicLink()); assert.ok(!fs.existsSync(path.join(d, 'absent')));
+});

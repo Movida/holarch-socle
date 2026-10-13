@@ -115,15 +115,24 @@ export function lireJson(f, defaut = null, { strict = false } = {}) {
  * porte le numéro du processus : deux écrivains simultanés (crochet et inventaire horaire) n'écrivent pas le même.
  * `racine` (un dépôt, un compte Claude Code) : ni le fichier, ni son temporaire, ni un dossier du chemin depuis elle ne
  * sont des liens symboliques (`cheminSansLien`) ; le renommage remplacerait un lien final sans écrire à travers, mais un
- * dossier qui en est un enverrait le temporaire et le fichier dehors.
+ * dossier qui en est un enverrait le temporaire et le fichier dehors. Sans `racine` (`~/.claude.json`, catalogue, états),
+ * un lien posé par l'auteur (une configuration rangée ailleurs) reste : le fichier qu'il vise est réécrit, un lien vers
+ * un fichier absent n'est pas remplacé (rien n'est écrit). Les droits du fichier remplacé se gardent : un fichier en
+ * 0600 ne devient pas lisible de tous.
  */
 export function ecrireJson(f, o, { indent = 2, racine = null } = {}) {
-  const tmp = `${f}.${process.pid}.holarch`;
-  if (racine) for (const x of [f, tmp]) cheminSansLien(racine, path.relative(racine, x));
-  fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(tmp, `${JSON.stringify(o, null, indent || undefined)}\n`);
-  fs.renameSync(tmp, f);
+  let cible = f;
+  if (racine) for (const x of [f, `${f}.${process.pid}.holarch`]) cheminSansLien(racine, path.relative(racine, x));
+  else if (lienSymbolique(f)) { try { cible = fs.realpathSync(f); } catch (e) { throw new Error(`${f} est un lien vers un fichier absent (${e.code}) : rien n’est écrit`); } }
+  const tmp = `${cible}.${process.pid}.holarch`;
+  let mode = null; try { mode = fs.statSync(cible).mode & 0o7777; } catch { /* fichier nouveau : les droits par défaut */ }
+  fs.mkdirSync(path.dirname(cible), { recursive: true });
+  // Le temporaire naît avec les droits du fichier (que personne d'autre ne l'ouvre avant), exacts malgré le umask.
+  const fd = fs.openSync(tmp, 'w', mode ?? 0o666);
+  try { if (mode !== null) fs.fchmodSync(fd, mode); fs.writeFileSync(fd, `${JSON.stringify(o, null, indent || undefined)}\n`); } finally { fs.closeSync(fd); }
+  fs.renameSync(tmp, cible);
 }
+const lienSymbolique = (f) => { try { return fs.lstatSync(f).isSymbolicLink(); } catch { return false; } };
 
 /**
  * Chemin d'un outil : réglage explicite, sinon le PATH, sinon ~/.local/bin ; null s'il est absent ou n'est pas un fichier
