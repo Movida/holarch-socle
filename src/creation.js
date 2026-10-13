@@ -208,11 +208,13 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
 
   // 3. Déclaration dans le contexte. Le projet entre au catalogue par l'inventaire, avec l'identifiant tiré de son premier
   // commit. Un inventaire passé avant ce commit l'a identifié par son chemin : cet identifiant périmé n'est ni déclaré ni
-  // commité dans le profil, l'inventaire est refait d'abord ; à blanc, sans commit, la suite attend l'inventaire.
+  // commité dans le profil, l'inventaire est refait d'abord.
   const premier = racine(dossier);
   const projetIci = () => socle.fiches({ kind: 'project' }).find((p) => p.location === dossier && tireDuCommit(p.id, premier)) || null;
-  // À blanc, rien ne s'écrit, pas même le catalogue : un projet que l'inventaire n'a pas encore vu s'arrête là.
-  if (aBlanc && !projetIci()) { for (const e of ['declaration', 'regles', 'conteneur', 'github', 'cle', 'distant', 'audit']) noter(e, 'a-faire', estGit ? 'après l’inventaire' : 'après la création du dépôt'); return r; }
+  // À blanc, rien ne s'écrit, pas même le catalogue : un projet que l'inventaire n'a pas encore vu s'arrête là, et dit ce
+  // qu'il attend : le dépôt, son premier commit (l'identifiant en vient), ou l'inventaire.
+  const attente = !estGit ? 'après la création du dépôt' : !premier ? 'après le premier commit (étape fichiers)' : 'après l’inventaire';
+  if (aBlanc && !projetIci()) { for (const e of ['declaration', 'regles', 'conteneur', 'github', 'cle', 'distant', 'audit']) noter(e, 'a-faire', attente); return r; }
   if (!projetIci()) { await socle.inventaire(); socle.indexer(); }
   const projet = projetIci();
   if (!projet) { noter('declaration', 'echec', `${dossier} n'entre pas au catalogue : hors des racines de l'inventaire (inventaire.depots-git.racines) ou sans commit`); return r; }

@@ -1913,3 +1913,15 @@ test('R2 : rejouée, la création ne dit l’accès distant déjà là que s’i
   assert.deepEqual([await etape(), activations.length], [['faite', 'service holarch-distant-neuf.service rallumé (il était arrêté)'], 2]);
   assert.deepEqual(await etape(), ['deja', 'service actif']);
 }));
+
+// Voisin du lot 1 : à blanc, sur un dépôt sans commit, la création disait attendre « l’inventaire », qui n'y peut rien :
+// l'identifiant du projet vient de son premier commit. Elle dit attendre le premier commit (étape fichiers).
+test('Création à blanc : sur un dépôt sans commit, la suite attend le premier commit, pas l’inventaire', () => gitIsole(async () => {
+  const { r, s, etats } = await bancCreation();
+  const d = path.join(r, 'neuf'); assert.equal(spawnSync('git', ['init', '-q', '-b', 'main', d]).status, 0);
+  const attentes = async () => { const p = await creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc: true }); return [etats(p).fichiers, [...new Set(p.etapes.filter((e) => e.etape !== 'fichiers' && e.etat === 'a-faire' && !['depot', 'identite'].includes(e.etape)).map((e) => e.detail))]]; };
+  assert.deepEqual(await attentes(), ['a-faire', ['après le premier commit (étape fichiers)']]);
+  await s.inventaire(); s.indexer();
+  assert.deepEqual(await attentes(), ['a-faire', ['après le premier commit (étape fichiers)']], 'l’inventaire passé, rien ne change');
+  assert.equal(spawnSync('git', ['-C', d, 'rev-parse', '--verify', '-q', 'HEAD']).status, 1, 'à blanc, aucun commit');
+}));
