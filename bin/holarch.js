@@ -52,10 +52,13 @@ const AIDE = `holarch — socle autour des agents d'IA
   holarch regles [<projet>]
                        règle effective d'un projet (profil, contexte, types, projet ; provenance, où Claude Code la
                        lit) ; sans projet, ce qui vaut pour tout le compte et les projets qui ont des règles
-  holarch regles appliquer [<projet>…]
-                       écrit les règles applicables : compte (<compte>/rules/holarch/, lectures refusées dans
-                       <compte>/settings.json) et chaque projet cité (.claude/rules/holarch/, à commiter ; crochet
-                       pre-commit de git si une règle bloquante le demande) ; ne touche ni CLAUDE.md ni un fichier non marqué
+  holarch regles appliquer [<projet>…] [--reposer <clé ou rôle>]…
+                       écrit les règles applicables : compte (<compte>/rules/holarch/, lectures refusées et réglages
+                       de Claude Code dans <compte>/settings.json) et chaque projet cité (.claude/rules/holarch/, à
+                       commiter ; crochet pre-commit de git si une règle bloquante le demande) ; ne touche ni CLAUDE.md
+                       ni un fichier non marqué. Un réglage ou un crochet de Claude Code posé par HOLARCH puis retiré
+                       ou changé à la main est laissé, et dit ; --reposer le repose : sa clé de settings.json, ou le
+                       rôle du crochet (crochet:alerte, crochet:debut, crochet:veille:<événement>)
   holarch projet creer <nom> [--contexte <c>] [--type <t>]… [--description <phrase>] [--a-blanc]
                        crée un projet ou complète un projet existant : dépôt et identité, fichiers de base,
                        déclaration au contexte, règles et crochet, dépôt GitHub, clé de déploiement, accès distant,
@@ -85,7 +88,7 @@ const AIDE = `holarch — socle autour des agents d'IA
 Options : --json (sortie brute), --help. Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
 // Une option inconnue arrête la commande avant qu'elle n'agisse : lancée « pour voir l'aide », elle n'écrit rien.
-const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc', '--proposer'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
+const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'], regles: ['--reposer'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc', '--proposer'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
 if (args.includes('--help') || args.includes('-h')) { console.log(AIDE); process.exit(0); }
 const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIONS[cmd] || []).includes(a));
 if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
@@ -161,10 +164,16 @@ switch (cmd) {
     } catch (e) { console.error(`holarch service : ${e.message}`); process.exit(1); }
     break; }
   case 'regles': {
-    const s = socle(); await s.arbreAJour(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
+    // --reposer prend l'argument suivant et se répète ; vérifié avant d'agir, comme une option inconnue.
+    const reposer = []; const positionnels = [];
+    for (let i = 0; i < args.length; i++) { if (args[i] === '--reposer') reposer.push(args[++i]); else if (!args[i].startsWith('--')) positionnels.push(args[i]); }
+    const [action, ...refs] = positionnels;
+    if (reposer.some((x) => !x || x.startsWith('-'))) { console.error('holarch regles : --reposer attend une clé de settings.json ou le rôle d’un crochet (holarch --help)'); process.exit(2); }
+    if (reposer.length && action !== 'appliquer') { console.error('holarch regles : --reposer ne vaut qu’avec regles appliquer (holarch --help)'); process.exit(2); }
+    const s = socle(); await s.arbreAJour(); s.indexer();
     try {
       if (action === 'appliquer') {
-        const { comptes, projets } = appliquerRegles(s, refs, comptesDuSite(s.config));
+        const { comptes, projets } = appliquerRegles(s, refs, comptesDuSite(s.config), { reposer });
         // Le gardien de veille suit la règle, comme les crochets ; posé, il n'est pas relancé pour autant. Son erreur
         // (systemctl, règle illisible) se dit sur sa ligne, après ce qui est écrit, et la commande échoue.
         const gardien = creerReveil({ holarch: binaireService(s.config.accueil), accueil: s.config.accueil }).gardien({ veille: () => veilleDuCompte(s), relancer: false });

@@ -25,9 +25,10 @@ function lisible(r) {
 /**
  * `holarch regles appliquer` : tout est lu et vérifié d'abord (références des projets, lisibilité du compte et de chaque
  * projet, profil trouvé), puis le compte, puis les projets. Rien ne s'écrit si l'un d'eux est faux ou illisible : sans
- * quoi le compte serait déjà réécrit quand l'erreur d'un projet arrête la commande.
+ * quoi le compte serait déjà réécrit quand l'erreur d'un projet arrête la commande. `reposer` : les réglages ou crochets de
+ * Claude Code laissés (retirés ou changés à la main) que l'auteur fait reposer (`appliquerReglages`).
  */
-export function appliquerRegles(s, refs, comptes) {
+export function appliquerRegles(s, refs, comptes, { reposer = [] } = {}) {
   // Un dépôt déplacé depuis l'inventaire : son ancien chemin, absent, n'est pas recréé pour y écrire les règles.
   const effectives = refs.map((ref) => {
     const r = s.regles({ projet: ref });
@@ -39,7 +40,7 @@ export function appliquerRegles(s, refs, comptes) {
   const illisibles = [...new Set([compte, ...effectives].flatMap((r) => r.illisibles || []))];
   if (illisibles.length) throw new Error(`règles illisibles, rien n'est écrit : ${illisibles.join(' ; ')}`);
   lisible(compte);
-  return { comptes: materialiserCompte(compte, comptes, { accueil: s.config.accueil }),
+  return { comptes: materialiserCompte(compte, comptes, { accueil: s.config.accueil, reposer }),
     projets: effectives.map((r) => ({ nom: r.nom, m: materialiserProjet(r, r.chemin, { accueil: s.config.accueil }) })) };
 }
 
@@ -55,7 +56,7 @@ export function appliquerRegles(s, refs, comptes) {
  */
 export const veilleVoulue = (compte) => (compte.illisibles?.length || compte.indetermine ? null : (compte.regles || []).some((e) => e.applicable && (e.controles || []).includes('veille-retardee')));
 
-export function materialiserCompte(compte, comptes, { accueil, holarch = binaireService(accueil), ecrire = true } = {}) {
+export function materialiserCompte(compte, comptes, { accueil, holarch = binaireService(accueil), ecrire = true, reposer = [] } = {}) {
   if (ecrire) lisible(compte);
   const regles = compte.regles;
   const plan = planifier(regles, { portee: 'compte' });
@@ -66,7 +67,7 @@ export function materialiserCompte(compte, comptes, { accueil, holarch = binaire
   return comptes.filter((c) => c.home).map((c) => {
     let permissions; let reglages;
     try { permissions = appliquerPermissions(c.home, lectures.map((x) => x.entree), { ecrire }); } catch (e) { permissions = { erreur: e.message }; }
-    try { reglages = appliquerReglages(c.home, voulus, { ecrire }); } catch (e) { reglages = { erreur: e.message }; }
+    try { reglages = appliquerReglages(c.home, voulus, { ecrire, reposer }); } catch (e) { reglages = { erreur: e.message }; }
     return { compte: c.nom, home: c.home, plan, fichiers: appliquer(c.home, dossierCompte(c.home), plan, { ecrire }), lectures, permissions, reglages };
   });
 }

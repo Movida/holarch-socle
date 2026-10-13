@@ -12,7 +12,7 @@ import { racineArbre } from './inventaire/arbre.js';
 import { projetDuDepot } from './inventaire/depots-git.js';
 import { materialiserCompte, materialiserProjet } from './materialisation.js';
 import { ulid } from './ulid.js';
-import { crochetVoulu, passationVoulue } from './regles-claude-code.js';
+import { crochetVoulu, passationVoulue, gesteLaisse } from './regles-claude-code.js';
 import { genererConteneur, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
 
 // Un écart se reconnaît d'un audit à l'autre par son projet, sa règle, son contrôle et sa clé (jamais par son contenu).
@@ -184,12 +184,14 @@ function ecartPassation(accueilHolarch, voulue) {
 }
 
 // Réglages de Claude Code voulus par le profil et absents (une clé posée à la main n'est pas un écart : elle est dite).
-// Retirés à la main après leur pose, ils restent des écarts : `regles appliquer` les laisse, l'audit dit pourquoi.
+// Retirés ou changés à la main après leur pose, ils restent des écarts : `regles appliquer` les laisse, l'audit dit
+// pourquoi, avec les deux gestes qui ferment l'écart (`gesteLaisse`).
 const ecartsReglages = (regles, m) => {
   const cle = (k, suite = '') => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle: k, fichier: 'settings.json', message: `réglage ${k} non posé${suite}` });
-  const crochet = (c, suite = '') => { const x = crochetVoulu(c, regles); return { regle: x.regle === 'claude_code' ? x.regle : regleNommee(regles, x.regle), regle_id: x.regle, controle: 'reglages-poses', cle: x.cle, fichier: 'settings.json', message: `${x.message}${suite}` }; };
-  return [...m.reglages.cles.posees.map((k) => cle(k)), ...m.reglages.cles.retirees_a_la_main.map((k) => cle(k, ' : retiré à la main, laissé')),
-    ...m.reglages.crochets.poses.map((c) => crochet(c)), ...m.reglages.crochets.retires_a_la_main.map((c) => crochet(c, ' : retiré ou changé à la main, laissé'))];
+  const crochet = (c, laisse = false) => { const x = crochetVoulu(c, regles); return { regle: x.regle === 'claude_code' ? x.regle : regleNommee(regles, x.regle), regle_id: x.regle, controle: 'reglages-poses', cle: x.cle, fichier: 'settings.json',
+    message: `${x.message}${laisse ? ` : retiré ou changé à la main, laissé ; ${gesteLaisse(x.cle)}` : ''}` }; };
+  return [...m.reglages.cles.posees.map((k) => cle(k)), ...m.reglages.cles.retirees_a_la_main.map((k) => cle(k, ` : retiré à la main, laissé ; ${gesteLaisse(k)}`)),
+    ...m.reglages.crochets.poses.map((c) => crochet(c)), ...m.reglages.crochets.retires_a_la_main.map((c) => crochet(c, true))];
 };
 
 function ecartsCrochet({ demande, etat, raison }) {

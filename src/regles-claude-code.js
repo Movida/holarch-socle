@@ -133,28 +133,58 @@ export function crochetVoulu(commande, regles = []) {
 
 const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+// Ce qui, dans la configuration du compte, veut un crochet : la valeur à retirer du profil pour ne plus le vouloir.
+const SOURCES = { 'crochet:alerte': 'claude_code.passation.seuil_tokens', 'crochet:debut': 'claude_code.passation.reprise' };
+const mot = (x) => (/^[\w:.@-]+$/.test(x) ? x : shell(x));
+
+/**
+ * Les deux gestes qui ferment l'écart d'un réglage ou d'un crochet laissé, retiré ou changé à la main (décision
+ * geste-a-la-main) : le reposer, ou ne plus le vouloir. `cle` : la clé de `settings.json`, ou le rôle du crochet
+ * (`crochetVoulu(c).cle`). Une seule écriture, pour `regles appliquer` et pour l'audit.
+ */
+export const gesteLaisse = (cle) => `holarch regles appliquer --reposer ${mot(cle)} pour le reposer, ou retirer ${SOURCES[cle]
+  || (cle.startsWith('crochet:veille:') ? 'la règle qui désigne veille-retardee' : `claude_code.reglages.${cle}`)} du profil pour ne plus le vouloir`;
+
+// Ce qu'un crochet de HOLARCH fait, d'une commande à l'autre (chemin de node ou de la copie de service, forme) : son rôle,
+// et pour l'alerte la valeur du profil qu'il porte (`--seuil N`).
+const role = (commande) => { const x = crochetVoulu(commande); const seuil = x.cle === 'crochet:alerte' && commande.match(/ --seuil (\S+)/)?.[1]; return seuil ? `${x.cle} ${seuil}` : x.cle; };
+
 /**
  * Écrit les réglages voulus dans `<home>/settings.json` : une clé n'est posée que si elle est absente ou posée par HOLARCH
  * (une valeur mise à la main est laissée, et dite) ; une clé ou un crochet que HOLARCH avait posé et qui n'est plus voulu
  * se retire (une clé seulement si personne ne l'a changée depuis). Manifeste : `<home>/rules/holarch/reglages.json`.
  * Une entrée du manifeste absente du fichier a été retirée à la main (un crochet changé à la main aussi : sa commande n'y
- * est plus) : elle est laissée, et dite (`retirees_a_la_main`, `retires_a_la_main`), et reste au manifeste tant qu'elle
- * est voulue ; la remettre, ou la doubler d'un crochet neuf à côté de celui que l'auteur a changé, déferait son geste.
+ * est plus). Décision geste-a-la-main : le geste ne vaut que pour la valeur à laquelle il répondait. Une clé retirée est
+ * laissée, et dite (`retirees_a_la_main`), tant que le profil veut la valeur notée ; une autre valeur est posée. Un
+ * crochet retiré ou changé est laissé (`retires_a_la_main`) tant que le profil veut le même rôle avec la même valeur
+ * (`role`) : une commande que HOLARCH seul a changée ne le repose pas, la voulue est notée à sa place ; un autre seuil
+ * est posé, et dit (`poses_a_cote` : s'il a été changé à la main, les deux tournent ; reconnaître la version changée pour
+ * la remplacer serait deviner). `reposer` (clés ou rôles) : ce qui est nommé et laissé est posé ; un nom inconnu, ou qui
+ * n'est pas laissé, est dit (`reposer`).
  * Rien ne s'écrit à travers un lien symbolique sous `home` (`ecrireJson`) : l'erreur le dit.
  */
-export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
+export function appliquerReglages(home, voulu, { ecrire = true, reposer = [] } = {}) {
   const settings = path.join(home, 'settings.json'); const manifeste = path.join(dossierCompte(home), 'reglages.json');
   const c = lireJson(settings, {}, { strict: true }); const nos = lireJson(manifeste, { cles: {}, crochets: [] }, { strict: true });
-  const r = { fichier: settings, cles: { posees: [], retirees: [], inchangees: [], ignorees: [], retirees_a_la_main: [] }, crochets: { poses: [], retires: [], inchanges: [], retires_a_la_main: [] } };
-  const notees = { cles: {}, crochets: [] };
+  const r = { fichier: settings, cles: { posees: [], retirees: [], inchangees: [], ignorees: [], retirees_a_la_main: [] },
+    crochets: { poses: [], retires: [], inchanges: [], retires_a_la_main: [], poses_a_cote: [] }, reposer: { reposes: [], inconnus: [], non_laisses: [] } };
+  const notees = { cles: {}, crochets: [] }; const demandes = new Set(reposer);
   for (const [cle, v] of Object.entries(voulu.cles)) {
     if (egal(c[cle], v)) { r.cles.inchangees.push(cle); if (cle in nos.cles) notees.cles[cle] = v; continue; }
-    if (c[cle] === undefined && cle in nos.cles) { r.cles.retirees_a_la_main.push(cle); notees.cles[cle] = nos.cles[cle]; continue; }
+    if (c[cle] === undefined && cle in nos.cles && egal(nos.cles[cle], v)) {
+      if (!demandes.has(cle)) { r.cles.retirees_a_la_main.push(cle); notees.cles[cle] = v; continue; }
+      r.reposer.reposes.push(cle);
+    }
     if (c[cle] === undefined || (cle in nos.cles && egal(c[cle], nos.cles[cle]))) { c[cle] = v; notees.cles[cle] = v; r.cles.posees.push(cle); continue; }
     r.cles.ignorees.push(cle);
   }
   for (const [cle, v] of Object.entries(nos.cles)) if (!(cle in voulu.cles) && egal(c[cle], v)) { delete c[cle]; r.cles.retirees.push(cle); }
   const voulues = new Set(voulu.crochets.map((x) => x.command));
+  // Retirés ou changés à la main : au manifeste, absents du fichier avant ce passage (un crochet de HOLARCH présent, que
+  // la boucle suivante retire parce que sa commande a changé, n'en est pas un).
+  const presentes = new Set(Object.values(c.hooks || {}).flatMap((gs) => (Array.isArray(gs) ? gs : []).flatMap((g) => (g?.hooks || []).map((h) => h?.command))));
+  const aLaMain = nos.crochets.filter((x) => !presentes.has(x));
+  const roles = new Set(aLaMain.map(role)); const nomsALaMain = new Set(aLaMain.map((x) => crochetVoulu(x).cle));
   const hooks = (c.hooks ||= {});
   for (const commande of nos.crochets.filter((x) => !voulues.has(x))) {
     for (const ev of Object.keys(hooks)) {
@@ -165,11 +195,17 @@ export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
     }
   }
   for (const x of voulu.crochets) {
+    const nom = crochetVoulu(x.command).cle; const laisse = roles.has(role(x.command));
     if ((hooks[x.evenement] || []).some((g) => (g.hooks || []).some((h) => h.command === x.command))) r.crochets.inchanges.push(x.command);
-    else if (nos.crochets.includes(x.command)) r.crochets.retires_a_la_main.push(x.command);
-    else { (hooks[x.evenement] ||= []).push({ ...(x.matcher && { matcher: x.matcher }), hooks: [{ type: 'command', command: x.command }] }); r.crochets.poses.push(x.command); }
+    else if (laisse && !demandes.has(nom)) r.crochets.retires_a_la_main.push(x.command);
+    else {
+      (hooks[x.evenement] ||= []).push({ ...(x.matcher && { matcher: x.matcher }), hooks: [{ type: 'command', command: x.command }] }); r.crochets.poses.push(x.command);
+      if (laisse) r.reposer.reposes.push(nom); else if (nomsALaMain.has(nom)) r.crochets.poses_a_cote.push(x.command);
+    }
     notees.crochets.push(x.command);
   }
+  const connus = new Set([...Object.keys(voulu.cles), ...voulu.crochets.map((x) => crochetVoulu(x.command).cle)]);
+  for (const n of demandes) if (!r.reposer.reposes.includes(n)) r.reposer[connus.has(n) ? 'non_laisses' : 'inconnus'].push(n);
   if (!Object.keys(hooks).length) delete c.hooks;
   const change = r.cles.posees.length || r.cles.retirees.length || r.crochets.poses.length || r.crochets.retires.length;
   if (ecrire) {

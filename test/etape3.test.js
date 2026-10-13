@@ -2179,8 +2179,10 @@ test('M2 : un réglage ou un crochet retiré ou changé à la main n’est ni re
     assert.equal(fs.readFileSync(settings, 'utf8'), main, 'ni remis ni doublés : settings.json n’est pas réécrit');
     assert.match(affichage.appliquer({ comptes: [m], projets: [] }), /laissés \(retirés à la main\) : autoCompactWindow ; crochets : 0 posé\(s\), 0 retiré\(s\), 0 inchangé\(s\), 2 laissé\(s\) \(retiré\(s\) ou changé\(s\) à la main\)$/m);
   }
-  assert.deepEqual(ecarts(), ['crochet de passation non posé (alerte) : retiré ou changé à la main, laissé', 'crochet de passation non posé (reprise) : retiré ou changé à la main, laissé',
-    'réglage autoCompactWindow non posé : retiré à la main, laissé'], 'l’audit les dit, sans conseiller de les reposer');
+  const gestes = (n, source) => `holarch regles appliquer --reposer ${n} pour le reposer, ou retirer ${source} du profil pour ne plus le vouloir`;
+  assert.deepEqual(ecarts(), [`crochet de passation non posé (alerte) : retiré ou changé à la main, laissé ; ${gestes('crochet:alerte', 'claude_code.passation.seuil_tokens')}`,
+    `crochet de passation non posé (reprise) : retiré ou changé à la main, laissé ; ${gestes('crochet:debut', 'claude_code.passation.reprise')}`,
+    `réglage autoCompactWindow non posé : retiré à la main, laissé ; ${gestes('autoCompactWindow', 'claude_code.reglages.autoCompactWindow')}`], 'l’audit les dit, avec les deux gestes (lot 5)');
   // Remis à la main tels quels : de nouveau inchangés, sans écart.
   fs.writeFileSync(settings, JSON.stringify({ ...lu(), autoCompactWindow: 300000, hooks: { ...lu().hooks, UserPromptSubmit: [{ hooks: [{ type: 'command', command: alerte }] }] } }));
   const r3 = poser().reglages;
@@ -2556,4 +2558,80 @@ test('Règles d’un dépôt : un FIFO dans le dossier des règles ne bloque ni 
   assert.deepEqual(JSON.parse(r.stdout), [[['a.md'], ['prevu.md'], [], null], [['a.md'], ['prevu.md'], [], null], false], 'un essai (l’audit), l’écriture, et une lecture hors dépôt (le compte)');
   assert.deepEqual(fs.readdirSync(dossier).sort(), ['a.md', 'ancien.md', 'prevu.md']);
   assert.ok(fs.lstatSync(path.join(dossier, 'ancien.md')).isFIFO());
+});
+
+// M2, suite (lot 5, décision geste-a-la-main) : un retrait à la main valait pour toujours, pour une clé (une autre valeur
+// au profil n'était pas posée) comme pour un crochet ; un crochet dont HOLARCH seul changeait la commande (node mis à
+// jour) était reposé, doublant celui que l'auteur avait changé ; aucun geste n'était proposé. Le geste ne vaut que pour
+// la valeur à laquelle il répondait : par valeur pour une clé, par rôle et valeur du profil pour un crochet ; `--reposer`
+// repose ce qui est nommé ; la pose et l'audit disent les deux gestes.
+test('M2 : un retrait à la main ne vaut que pour sa valeur ; un changement de HOLARCH seul ne repose rien ; --reposer repose', async () => {
+  const { gesteLaisse } = await import('../src/regles-claude-code.js');
+  const home = tmp(); const settings = path.join(home, 'settings.json'); const lu = () => JSON.parse(fs.readFileSync(settings, 'utf8'));
+  const vouloir = (reglages, seuil, node = '/opt/node') => reglagesVoulus({ claude_code: { reglages, passation: { seuil_tokens: seuil, reprise: true } } }, { node, holarch: '/opt/holarch.js', accueil: '/srv' });
+  const cmd = (v) => v.crochets.map((x) => x.command);
+  const presentes = () => Object.values(lu().hooks || {}).flat().flatMap((g) => g.hooks.map((h) => h.command)).sort();
+  const notees = () => JSON.parse(fs.readFileSync(path.join(dossierCompte(home), 'reglages.json'), 'utf8'));
+  // Cas normal : node mis à jour, l'ancien crochet de HOLARCH présent est retiré, le nouveau posé.
+  const v1 = vouloir({ autoCompactWindow: 300000 }, 150000); appliquerReglages(home, v1);
+  const v2 = vouloir({ autoCompactWindow: 300000 }, 150000, '/opt/node-24'); const r2 = appliquerReglages(home, v2);
+  assert.deepEqual([r2.crochets.retires, r2.crochets.poses, r2.crochets.retires_a_la_main, presentes()], [cmd(v1), cmd(v2), [], [...cmd(v2)].sort()]);
+  // À la main : la clé et l'alerte retirées, la reprise changée.
+  const c = lu(); delete c.autoCompactWindow; delete c.hooks.UserPromptSubmit; c.hooks.SessionStart[0].hooks[0].command = 'ma-reprise';
+  fs.writeFileSync(settings, JSON.stringify(c)); const main = fs.readFileSync(settings, 'utf8');
+  // HOLARCH seul change ses commandes : rien n'est reposé ni doublé ; les voulues sont notées à la place des anciennes.
+  const v3 = vouloir({ autoCompactWindow: 300000 }, 150000, '/opt/node-26'); const r3 = appliquerReglages(home, v3);
+  assert.deepEqual([r3.cles.retirees_a_la_main, r3.crochets.retires_a_la_main, r3.crochets.poses, r3.crochets.poses_a_cote], [['autoCompactWindow'], cmd(v3), [], []]);
+  assert.equal(fs.readFileSync(settings, 'utf8'), main, 'settings.json n’est pas réécrit');
+  assert.deepEqual(notees(), { cles: { autoCompactWindow: 300000 }, crochets: cmd(v3) });
+  // Une autre valeur au profil : la clé est posée ; l'alerte à un autre seuil aussi, et dite (posée à côté) ; la reprise reste laissée.
+  const v4 = vouloir({ autoCompactWindow: 400000 }, 200000, '/opt/node-26'); const r4 = appliquerReglages(home, v4);
+  assert.deepEqual([r4.cles.posees, r4.cles.retirees_a_la_main, r4.crochets.poses, r4.crochets.poses_a_cote, r4.crochets.retires_a_la_main], [['autoCompactWindow'], [], [cmd(v4)[0]], [cmd(v4)[0]], [cmd(v4)[1]]]);
+  assert.deepEqual([lu().autoCompactWindow, presentes(), notees().cles], [400000, [cmd(v4)[0], 'ma-reprise'].sort(), { autoCompactWindow: 400000 }]);
+  // La nouvelle valeur retirée à la main : laissée à son tour.
+  const c4 = lu(); delete c4.autoCompactWindow; fs.writeFileSync(settings, JSON.stringify(c4));
+  assert.deepEqual(appliquerReglages(home, v4).cles.retirees_a_la_main, ['autoCompactWindow']);
+  // La pose dit chaque laissé avec ses deux gestes, et ce qui est posé à côté.
+  const sortie = (r) => affichage.appliquer({ comptes: [{ compte: 'essai', fichiers: { dossier: home, crees: [], modifies: [], retires: [], inchanges: [], ignores: [] }, permissions: { ajoutees: [], retirees: [], inchangees: [] }, reglages: r }], projets: [] });
+  assert.deepEqual(sortie(appliquerReglages(home, v4, { ecrire: false })).split('\n').filter((l) => l.includes('ATTENTION')), [
+    '  ATTENTION réglage autoCompactWindow retiré à la main : laissé ; holarch regles appliquer --reposer autoCompactWindow pour le reposer, ou retirer claude_code.reglages.autoCompactWindow du profil pour ne plus le vouloir',
+    '  ATTENTION crochet crochet:debut retiré ou changé à la main : laissé ; holarch regles appliquer --reposer crochet:debut pour le reposer, ou retirer claude_code.passation.reprise du profil pour ne plus le vouloir']);
+  assert.match(sortie(r4), new RegExp(`^  ATTENTION crochet crochet:alerte posé pour une autre valeur du profil, le précédent ayant été retiré ou changé à la main : changé, il tourne aussi \\(à retirer de ${settings.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')} s'il fait double emploi\\)$`, 'm'));
+  assert.equal(gesteLaisse('crochet:veille:Stop'), 'holarch regles appliquer --reposer crochet:veille:Stop pour le reposer, ou retirer la règle qui désigne veille-retardee du profil pour ne plus le vouloir');
+  assert.match(gesteLaisse('une clé'), /^holarch regles appliquer --reposer 'une clé' pour le reposer, ou retirer claude_code\.reglages\.une clé du profil/, 'un nom que le shell couperait est cité');
+  // --reposer : ce qui est nommé et laissé est posé ; un nom inconnu, ou qui n'est pas laissé, est dit.
+  const r5 = appliquerReglages(home, v4, { reposer: ['crochet:debut', 'autoCompactWindow', 'crochet:alerte', 'crochet:veille:Stop'] });
+  assert.deepEqual([r5.cles.posees, r5.crochets.poses, r5.reposer], [['autoCompactWindow'], [cmd(v4)[1]], { reposes: ['autoCompactWindow', 'crochet:debut'], inconnus: ['crochet:veille:Stop'], non_laisses: ['crochet:alerte'] }]);
+  assert.deepEqual([lu().autoCompactWindow, presentes()], [400000, [...cmd(v4), 'ma-reprise'].sort()], 'reposée à côté de celle que l’auteur a changée, puisqu’il le demande');
+  assert.deepEqual(sortie(r5).split('\n').slice(-3), ['  reposé(s) à la demande (--reposer) : autoCompactWindow, crochet:debut',
+    '  ATTENTION --reposer : crochet:veille:Stop : ni réglage ni crochet voulu par le profil, rien n\'est reposé', '  ATTENTION --reposer : crochet:alerte : ni retiré ni changé à la main, rien à reposer']);
+});
+
+// M2, suite : `holarch regles appliquer --reposer <clé ou rôle>` (répétable) passe à la pose ce qu'il nomme ; une valeur
+// absente, ou l'option sans `appliquer`, arrête la commande avant qu'elle n'agisse. Compte, profil et accueil fictifs,
+// `HOME` aussi (le gardien de veille se lit sous lui : aucune unité de la vraie session n'est touchée).
+test('M2 : regles appliquer --reposer repose un crochet laissé ; mal formée, l’option arrête tout avant d’agir', () => {
+  const maison = tmp(); const accueil = tmp(); const profil = tmp(); const home = path.join(maison, '.claude'); const outils = tmp();
+  fs.writeFileSync(path.join(outils, 'systemctl'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  ecrire(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  claude_code: { passation: { seuil_tokens: 150000 } }\n---\n');
+  ecrire(path.join(profil, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrire(path.join(accueil, 'config.yaml'), YAML.stringify({ site: 'local', profil, donnees: accueil, inventaire: { 'claude-code': { home, config: path.join(home, '.claude.json') },
+    'depots-git': { actif: false }, arbre: { actif: true, depots: [profil] }, docker: { actif: false }, 'claude-desktop': { actif: false } } }));
+  const holarch = (...a) => spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), 'regles', ...a], { encoding: 'utf8', timeout: 60e3,
+    env: { ...process.env, HOME: maison, HOLARCH_HOME: accueil, PATH: `${outils}:${process.env.PATH}` } });
+  for (const [a, message] of [[['appliquer', '--reposer'], /--reposer attend une clé/], [['--reposer', 'crochet:alerte'], /--reposer ne vaut qu’avec regles appliquer/]]) {
+    const r = holarch(...a); assert.deepEqual([r.status, r.stdout], [2, '']); assert.match(r.stderr, message);
+  }
+  assert.deepEqual([fs.readdirSync(accueil), fs.existsSync(home)], [['config.yaml'], false], 'rien n’est écrit');
+  const r1 = holarch('appliquer'); assert.equal(r1.status, 0, r1.stderr);
+  const settings = path.join(home, 'settings.json'); const alerte = () => JSON.parse(fs.readFileSync(settings, 'utf8')).hooks?.UserPromptSubmit?.length ?? 0;
+  assert.equal(alerte(), 1);
+  const c = JSON.parse(fs.readFileSync(settings, 'utf8')); delete c.hooks; fs.writeFileSync(settings, JSON.stringify(c));
+  const r2 = holarch('appliquer'); assert.equal(r2.status, 0, r2.stderr);
+  assert.match(r2.stdout, /^  ATTENTION crochet crochet:alerte retiré ou changé à la main : laissé ; holarch regles appliquer --reposer crochet:alerte pour le reposer/m);
+  assert.equal(alerte(), 0, 'laissé');
+  const r3 = holarch('appliquer', '--reposer', 'crochet:alerte', '--reposer', 'effortLevel'); assert.equal(r3.status, 0, r3.stderr);
+  assert.match(r3.stdout, /^  reposé\(s\) à la demande \(--reposer\) : crochet:alerte$/m);
+  assert.match(r3.stdout, /^  ATTENTION --reposer : effortLevel : ni réglage ni crochet voulu par le profil, rien n'est reposé$/m);
+  assert.equal(alerte(), 1, 'reposé');
 });

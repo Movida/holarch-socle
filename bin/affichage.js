@@ -1,5 +1,6 @@
 // Mise en forme texte de la ligne de commande (étape 3, tranche 6) : ce que `holarch` affiche hors `--json`.
 import { heureLocale } from '../src/commun.js';
+import { crochetVoulu, gesteLaisse } from '../src/regles-claude-code.js';
 
 export const inventaire = (r) => `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.deplacees.length} déplacées, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}${r.comptes_non_lus?.length ? `\nATTENTION comptes Claude Code non lus : ${r.comptes_non_lus.join(', ')}` : ''}\naudit : ${r.audit.ouverts} écart(s) ouvert(s) ; ${r.audit.apparus} apparu(s), ${r.audit.resolus} résolu(s)`;
 
@@ -34,7 +35,14 @@ export function appliquer({ comptes, projets }) {
     if (g.erreur) sortie.push(`  ATTENTION réglages de Claude Code non posés : ${g.erreur}`);
     else if (Object.values(g.cles).some((x) => x.length) || Object.values(g.crochets).some((x) => x.length)) {
       sortie.push(`  réglages de Claude Code : ${g.cles.posees.length} posé(s), ${g.cles.retirees.length} retiré(s), ${g.cles.inchangees.length} inchangé(s)${g.cles.ignorees.length ? `, laissés (posés à la main) : ${g.cles.ignorees.join(', ')}` : ''}${g.cles.retirees_a_la_main.length ? `, laissés (retirés à la main) : ${g.cles.retirees_a_la_main.join(', ')}` : ''} ; crochets : ${g.crochets.poses.length} posé(s), ${g.crochets.retires.length} retiré(s), ${g.crochets.inchanges.length} inchangé(s)${g.crochets.retires_a_la_main.length ? `, ${g.crochets.retires_a_la_main.length} laissé(s) (retiré(s) ou changé(s) à la main)` : ''}`);
+      // Laissés : chacun avec ses deux gestes (décision geste-a-la-main), les mêmes que l'audit.
+      for (const k of g.cles.retirees_a_la_main) sortie.push(`  ATTENTION réglage ${k} retiré à la main : laissé ; ${gesteLaisse(k)}`);
+      for (const c of g.crochets.retires_a_la_main) { const n = crochetVoulu(c).cle; sortie.push(`  ATTENTION crochet ${n} retiré ou changé à la main : laissé ; ${gesteLaisse(n)}`); }
+      for (const c of g.crochets.poses_a_cote) sortie.push(`  ATTENTION crochet ${crochetVoulu(c).cle} posé pour une autre valeur du profil, le précédent ayant été retiré ou changé à la main : changé, il tourne aussi (à retirer de ${g.fichier} s'il fait double emploi)`);
     }
+    if (g.reposer?.reposes.length) sortie.push(`  reposé(s) à la demande (--reposer) : ${g.reposer.reposes.join(', ')}`);
+    if (g.reposer?.inconnus.length) sortie.push(`  ATTENTION --reposer : ${g.reposer.inconnus.join(', ')} : ni réglage ni crochet voulu par le profil, rien n'est reposé`);
+    if (g.reposer?.non_laisses.length) sortie.push(`  ATTENTION --reposer : ${g.reposer.non_laisses.join(', ')} : ni retiré ni changé à la main, rien à reposer`);
   }
   for (const { nom, m } of projets) {
     sortie.push(bilan(nom, m.fichiers), ...m.plan.signaux.map((x) => `  ATTENTION ${x}`));
