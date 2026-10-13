@@ -127,11 +127,18 @@ export const fichierMarque = (f, marque, racine = null) => {
 
 /**
  * JSON d'un fichier, `defaut` s'il est absent ou illisible. `strict` : un fichier présent mais illisible lève une erreur
- * (avant de réécrire un fichier, ne jamais le prendre pour vide).
+ * (avant de réécrire un fichier, ne jamais le prendre pour vide). Lu par `lireFichier` : ce qui n'est pas un fichier (un
+ * FIFO posé à la place de `settings.json`, qui bloquerait la lecture) est illisible.
  */
 export function lireJson(f, defaut = null, { strict = false } = {}) {
   if (!fs.existsSync(f)) return defaut;
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { if (strict) throw new Error(`${f} illisible : ${e.message}`); return defaut; }
+  const t = lireFichier(f);
+  if (t === null) {
+    if (!strict) return defaut;
+    let raison; try { raison = fs.statSync(f).isFile() ? 'ne se lit pas' : 'pas un fichier'; } catch (e) { raison = e.code; }
+    throw new Error(`${f} illisible : ${raison}`);
+  }
+  try { return JSON.parse(t); } catch (e) { if (strict) throw new Error(`${f} illisible : ${e.message}`); return defaut; }
 }
 
 /**

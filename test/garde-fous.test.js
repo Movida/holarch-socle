@@ -2498,3 +2498,23 @@ test('neutralisation sous git antérieur à 2.26 : sans --show-scope, les pilote
   assert.equal(fs.existsSync(temoin) ? fs.readFileSync(temoin, 'utf8') : '', '', 'rien de la configuration du dépôt ne s’exécute');
   assert.deepEqual(['diff.piege.textconv', 'filter.a b=c.clean', 'diff.compte.textconv'].filter((x) => !cles.includes(x)), [], cles.join(' | '));
 });
+
+// Lectures du compte qui bloquaient sur un FIFO (voisin vu par les lots 1 à 3) : le `CLAUDE.md` du compte se lisait par
+// `readFileSync`, et `settings.json`, la liste des plugins et `.claude.json` par `lireJson`. Ils passent par `lireFichier` :
+// un FIFO ne se lit pas (illisible, `strict` le dit), l'inventaire continue.
+test('Compte Claude Code : un FIFO à la place de CLAUDE.md, settings.json ou .claude.json ne bloque pas l’inventaire', () => {
+  const home = tmp(); const fifo = (f) => { fs.mkdirSync(path.dirname(f), { recursive: true }); assert.equal(spawnSync('mkfifo', [f]).status, 0); };
+  for (const f of ['CLAUDE.md', 'settings.json', path.join('plugins', 'installed_plugins.json'), '.claude.json']) fifo(path.join(home, f));
+  fs.mkdirSync(path.join(home, 'skills', 'vraie'), { recursive: true }); fs.writeFileSync(path.join(home, 'skills', 'vraie', 'SKILL.md'), '---\nname: vraie\ndescription: Une vraie skill.\n---\n');
+  // Dans un processus à part, borné dans le temps : un FIFO ouvert en lecture bloquerait le processus entier.
+  const src = (f) => JSON.stringify(new URL(`../src/${f}`, import.meta.url).href);
+  const script = `import inventaire from ${src('inventaire/claude-code.js')}; import { lireJson } from ${src('commun.js')};
+    const h = ${JSON.stringify(home)};
+    const fiches = inventaire({}, { site: 'local', comptes: [{ nom: null, home: h, config: h + '/.claude.json' }], depots: [] });
+    let strict; try { lireJson(h + '/settings.json', {}, { strict: true }); } catch (e) { strict = e.message.slice(h.length); }
+    console.log(JSON.stringify({ fiches: fiches.map((f) => f.name), defaut: lireJson(h + '/settings.json', 'défaut'), strict }));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), { fiches: ['vraie'], defaut: 'défaut', strict: '/settings.json illisible : pas un fichier' });
+});

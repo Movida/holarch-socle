@@ -7,7 +7,7 @@ import path from 'node:path';
 import { enTete, lireJson, liste, mtimeIso, premiereLigne, slug, urlSure, jeton } from './outils.js';
 import { comptesClaudeCode } from '../config.js';
 import { lienProjet } from '../projets.js';
-import { cheminSansLien, lireSansLien } from '../commun.js';
+import { cheminSansLien, lireSansLien, lireFichier } from '../commun.js';
 import { debutDeTranscription } from '../transcription.js';
 
 // Un élément d'aucun projet n'a pas de lien `project` (contrat fiche 0.4.0) : `links` vide disparaît.
@@ -70,7 +70,8 @@ export function mcp(serveurs, fichier, portee, nom, site, source, p = null) {
 }
 
 function consignes(f, portee, nom, site, p = null, depot = null) {
-  let t; try { t = depot ? lireSansLien(depot, path.relative(depot, f)) : fs.readFileSync(f, 'utf8'); } catch { return []; }
+  // Le compte se lit par `lireFichier` (un lien de l'auteur se suit), un dépôt par `lireSansLien` : un FIFO n'est pas lu.
+  let t; try { t = depot ? lireSansLien(depot, path.relative(depot, f)) : lireFichier(f); } catch { return []; }
   if (t === null) return [];
   const lignes = t.split('\n').length;
   return [fiche('instructions', `${portee}/${nom || 'utilisateur'}/${path.basename(f)}`, `${path.basename(f)}${nom ? ` · ${nom}` : ''}`, {
