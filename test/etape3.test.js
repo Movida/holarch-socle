@@ -1638,7 +1638,7 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
   const version = (n) => { fs.mkdirSync(path.join(src, 'bin'), { recursive: true }); fs.writeFileSync(path.join(src, 'bin', 'holarch.js'), `console.log('v${n}');\n`); g('add', '-A'); g('commit', '-qm', `v${n}`); return g('rev-parse', '--short=12', 'HEAD'); };
   g('init', '-q'); fs.writeFileSync(path.join(src, 'package.json'), '{}\n');
   const c1 = version(1);
-  fs.writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ autre: 1, mcpServers: { holarch: { command: 'node', args: ['--no-warnings', '/ancien/bin/holarch.js', 'mcp'] } } }));
+  fs.writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ autre: 1, mcpServers: { holarch: { command: 'node', args: ['--no-warnings', path.join(src, 'bin', 'holarch.js'), 'mcp'] } } }));
   let testsVerts = false; const appels = [];
   const lancer = (cmd, args, o) => {
     if (cmd !== 'npm') return spawnSync(cmd, args, o);
@@ -2185,4 +2185,25 @@ test('M2 : un réglage ou un crochet retiré ou changé à la main n’est ni re
   fs.writeFileSync(settings, JSON.stringify({ ...lu(), autoCompactWindow: 300000, hooks: { ...lu().hooks, UserPromptSubmit: [{ hooks: [{ type: 'command', command: alerte }] }] } }));
   const r3 = poser().reglages;
   assert.deepEqual([r3.cles.inchangees, r3.cles.retirees_a_la_main, r3.crochets.inchanges, r3.crochets.retires_a_la_main], [['autoCompactWindow', 'effortLevel'], [], [alerte], [reprise]]);
+});
+
+// M3 (famille Gardes muettes) : `service poser` repointait vers la copie de service le serveur MCP `holarch` de chaque
+// compte, même réglé vers une autre copie de HOLARCH. Seul un chemin qui lance une copie de service (sous l'accueil) ou le
+// socle (la copie de travail qui pose, la source) est repointé ; un autre est laissé, et dit.
+test('M3 : service poser ne repointe le serveur MCP holarch que s’il lance une copie de service ou le socle', () => {
+  const src = tmp(); const accueil = tmp(); const unites = tmp();
+  const g = (...a) => { const r = spawnSync('git', ['-C', src, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); };
+  g('init', '-q'); ecrire(path.join(src, 'package.json'), '{}\n'); ecrire(path.join(src, 'bin', 'holarch.js'), 'console.log(1);\n'); g('add', '-A'); g('commit', '-qm', 'v1');
+  const args = { ailleurs: '/opt/autre-holarch/bin/holarch.js', relatif: 'bin/holarch.js', source: path.join(src, 'bin', 'holarch.js'), socle: path.resolve('bin/holarch.js'),
+    ancienne: path.join(accueil, 'service', 'abcdef123456', 'bin', 'holarch.js') };
+  const comptes = Object.keys(args).map((nom) => ({ nom, home: tmp() }));
+  const cfg = (c) => path.join(c.home, '.claude.json');
+  for (const c of comptes) fs.writeFileSync(cfg(c), JSON.stringify({ mcpServers: { holarch: { command: 'node', args: ['--no-warnings', args[c.nom], 'mcp'] } } }));
+  const lancer = (cmd, a, o) => { if (cmd !== 'npm') return spawnSync(cmd, a, o); if (a[0] === 'ci') fs.mkdirSync(path.join(o.cwd, 'node_modules')); return { status: 0, stdout: '', stderr: '' }; };
+  const r = creerService({ accueil, comptes }, { source: src, unites, systemctl: () => ({ status: 0, stdout: '', stderr: '' }), npm: 'npm', lancer, node: '/opt/node/bin/node' }).poser();
+  const bin = binaireService(accueil); const pose = 'posé (effet à la prochaine session de Claude Code)';
+  assert.deepEqual(comptes.map((c) => [c.nom, r.points.find((p) => p.point === `mcp ${c.nom}`).etat, JSON.parse(fs.readFileSync(cfg(c), 'utf8')).mcpServers.holarch.args[1]]), [
+    ['ailleurs', 'réglé ailleurs (/opt/autre-holarch/bin/holarch.js) : laissé', args.ailleurs],
+    ['relatif', 'réglé ailleurs (bin/holarch.js) : laissé', args.relatif],
+    ['source', pose, bin], ['socle', pose, bin], ['ancienne', pose, bin]]);
 });

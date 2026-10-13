@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { git, lireJson, ecrireJson, trouverOutil, configClaude } from './commun.js';
+import { git, lireJson, ecrireJson, trouverOutil, configClaude, dedans } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 import { OUTILS } from './conteneur.js';
 
@@ -80,8 +80,11 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
   }
 
   // Points d'entrée tenus par cette commande ; la garde et les crochets suivent `regles appliquer` (l'audit les voit).
-  function pointsDEntree() {
+  // Le serveur MCP `holarch` d'un compte n'est repointé que s'il lance une copie de service ou le socle (la copie de
+  // travail qui pose, ou la source) : réglé ailleurs (une autre copie de HOLARCH, posée à la main), il est laissé, et dit.
+  function pointsDEntree(src) {
     const holarch = binaireService(accueil); const o = { unites, systemctl, node };
+    const notre = (a) => path.isAbsolute(a) && (dedans(path.resolve(a), dossier(accueil)) || [SOI, src].some((d) => d && path.resolve(a) === path.join(d, 'bin', 'holarch.js')));
     const essai = (point, f) => { try { return { point, ...f() }; } catch (e) { return { point, etat: 'erreur', message: e.message }; } };
     return [
       essai('interface', () => creerInterface({ holarch, accueil }, o).relancer()),
@@ -96,6 +99,7 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
         if (!s || !Array.isArray(s.args)) return { etat: 'absent' };
         const i = s.args.findIndex((a) => /(^|\/)bin\/holarch\.js$/.test(a));
         if (i < 0 || s.args[i] === holarch) return { etat: i < 0 ? 'non reconnu' : 'inchangé' };
+        if (!notre(s.args[i])) return { etat: `réglé ailleurs (${s.args[i]}) : laissé` };
         s.args[i] = holarch; ecrireJson(f, cfg);
         return { etat: 'posé (effet à la prochaine session de Claude Code)' };
       })),
@@ -139,7 +143,7 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
       const garder = new Set([commit, precedent]);
       const supprimees = precedent === commit ? [] : fs.readdirSync(dossier(accueil)).filter((d) => COMMIT.test(d) && !garder.has(d));
       for (const d of supprimees) fs.rmSync(path.join(dossier(accueil), d), { recursive: true, force: true });
-      return { commit, source: src, nouvelle, precedent: precedent === commit ? null : precedent, supprimees, points: pointsDEntree() };
+      return { commit, source: src, nouvelle, precedent: precedent === commit ? null : precedent, supprimees, points: pointsDEntree(src) };
     },
   };
 }
