@@ -5,7 +5,7 @@ import { chargerConfig, ecrireConfigExemple, accueil, comptesClaudeCode } from '
 import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
-import { creerDistant, creerInterface, creerReveil, etatVeille } from '../src/distant.js';
+import { creerDistant, creerInterface, creerReveil, etatVeille, retireeModifiee } from '../src/distant.js';
 import { evaluer, etatGardien, creerGardien, surveiller, mecanisme, noterErreur, effacerErreur } from '../src/veille.js';
 import { Journal } from '../src/stockage/journal.js';
 import { appliquerRegles, veilleVoulue } from '../src/materialisation.js';
@@ -116,7 +116,7 @@ switch (cmd) {
     const d = creerDistant(chargerConfig()); const [action, projet] = args.filter((a) => !a.startsWith('--'));
     try {
       if (action === 'activer') { const r = d.activer(projet); afficher(json ? r : `accès distant actif : ${r.nom} (${r.chemin}), service ${r.unite}${r.confiance_declaree ? ' ; dossier déclaré de confiance pour Claude Code' : ''}${r.reveil === 'posé' ? '' : ` ; minuteur de reprise après une veille ${r.reveil}`}`); }
-      else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}`); }
+      else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}${r.copies.map((c) => ` ; ${c.unite} ${retireeModifiee(c.copie)}`).join('')}`); }
       else if (action === 'reveil') {
         const r = d.reveil();
         if (json || r.relances.length) afficher(json ? r : `veille de ${r.ecart_s} s : redémarré ${r.relances.join(', ') || 'rien'}`);
@@ -146,7 +146,7 @@ switch (cmd) {
     const { accueil } = chargerConfig(); const i = creerInterface({ holarch: binaireService(accueil), accueil });
     try {
       if (action === 'activer') afficher(json ? i.activer() : `interface en service : ${i.activer().unite}`);
-      else if (action === 'desactiver') afficher(json ? i.desactiver() : `interface retirée du service : ${i.desactiver().unite}`);
+      else if (action === 'desactiver') { const r = i.desactiver(); afficher(json ? r : `interface retirée du service : ${r.unite}${r.copie ? ` ; ${retireeModifiee(r.copie)}` : ''}`); }
       else { const e = i.etat(); afficher(json ? e : !e.presente ? 'interface hors service (holarch interface activer)' : `${e.actif ? 'active' : 'arrêtée'} : ${e.unite}${e.geree ? '' : ' (non écrite par HOLARCH)'}`); }
     } catch (e) { console.error(`holarch interface : ${e.message}`); process.exit(1); }
     break; }

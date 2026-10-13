@@ -67,13 +67,23 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
     const i = l.findIndex((x) => x.startsWith(EMPREINTE));
     return i >= 0 && hacher([...l.slice(0, i), ...l.slice(i + 1)].join('\n')) !== l[i].slice(EMPREINTE.length);
   }
+  // Une unité modifiée à la main que la demande retire (`distant desactiver`, retrait du réveil, du gardien, de
+  // l'interface) est d'abord copiée à côté, sous un nom que systemd ne lit pas (`.bak` n'est pas un suffixe de type
+  // d'unité, systemd.unit(5)) ; une copie précédente n'est pas écrasée. Le chemin de la copie, ou null.
+  function copierModifiee(f) {
+    if (!modifiee(f)) return null;
+    for (let i = 0; ; i++) {
+      const c = i ? `${f}.${i}.bak` : `${f}.bak`;
+      try { fs.copyFileSync(f, c, fs.constants.COPYFILE_EXCL); return c; } catch (e) { if (e.code !== 'EEXIST') throw e; }
+    }
+  }
   // Ce que HOLARCH ne réécrit jamais : une unité qui ne porte pas la MARQUE, ou modifiée à la main.
   const garder = (f) => {
     if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
     if (modifiee(f)) throw new Error(`${f} a été modifié à la main : rien n'est réécrit`);
   };
   return {
-    unites, geree, lancer, systemd, interrompue, signe, modifiee, garder,
+    unites, geree, lancer, systemd, interrompue, signe, modifiee, garder, copierModifiee,
     actif: (f) => fs.existsSync(f) && etatUnite('is-active', f, ETATS_ACTIF) === 'active',
     // Coupée à la main (`systemctl --user disable`) : une pose la réécrit sans la rallumer (décision routines-posees).
     coupee: (f) => fs.existsSync(f) && !interrompue(f) && etatUnite('is-enabled', f, ETATS_ACTIVATION) === 'disabled',
@@ -92,13 +102,19 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
       if (fs.existsSync(f) && fs.readFileSync(f, 'utf8') === t) return false;
       fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(f, t); return true;
     },
+    // Retire l'unité ; rend le chemin de sa copie si elle était modifiée à la main (`copierModifiee`), sinon null.
     retirer(f, absente) {
       if (!fs.existsSync(f)) throw new Error(absente);
       if (!geree(f)) throw new Error(`${f} n'a pas été écrit par HOLARCH : rien n'est retiré`);
+      const copie = copierModifiee(f);
       lancer(['disable', '--now', path.basename(f)]); fs.rmSync(f); fs.rmSync(enCours(f), { force: true }); lancer(['daemon-reload']);
+      return copie;
     },
   };
 }
+/** Ce que dit le retrait d'une unité modifiée à la main, copiée avant (`copierModifiee`). */
+export const retireeModifiee = (copie) => `modifiée à la main : retirée, copie en ${copie}`;
+
 const ETATS_SYSTEMD = ['initializing', 'starting', 'running', 'degraded', 'maintenance', 'stopping'];
 // États d'une unité et de son fichier (`systemctl --state=help`, systemd 255), que disent `is-active` et `is-enabled`.
 const ETATS_ACTIF = ['active', 'reloading', 'inactive', 'failed', 'activating', 'deactivating', 'maintenance'];
@@ -276,7 +292,8 @@ function retirerVeille(sv, g) {
   if (!fs.existsSync(g)) return 'règle veille-retardee non appliquée : non posé';
   if (!sv.geree(g)) return 'non écrite par HOLARCH : laissée';
   if (!systemdPresent(sv)) return 'règle veille-retardee non appliquée, sans systemd utilisateur : laissé';
-  sv.retirer(g); return 'règle veille-retardee non appliquée : retiré';
+  const copie = sv.retirer(g);
+  return `règle veille-retardee non appliquée : ${copie ? retireeModifiee(copie) : 'retiré'}`;
 }
 
 // Ce que dit l'état du gardien quand systemd utilisateur ne répond pas : l'unité ne se lit pas.
@@ -327,9 +344,15 @@ export function creerDistant(config, {
     sv.poser(reveil.minuteur, MINUTEUR_REVEIL);
     return 'posé';
   };
+  // Les unités du réveil modifiées à la main, copiées avant leur retrait : [{ unite, copie }].
   const retirerReveil = () => {
-    if (fs.existsSync(reveil.minuteur) && sv.geree(reveil.minuteur)) sv.retirer(reveil.minuteur);
-    if (fs.existsSync(reveil.service) && sv.geree(reveil.service)) { fs.rmSync(reveil.service); sv.lancer(['daemon-reload']); }
+    const copies = [];
+    if (fs.existsSync(reveil.minuteur) && sv.geree(reveil.minuteur)) copies.push({ unite: path.basename(reveil.minuteur), copie: sv.retirer(reveil.minuteur) });
+    if (fs.existsSync(reveil.service) && sv.geree(reveil.service)) {
+      copies.push({ unite: path.basename(reveil.service), copie: sv.copierModifiee(reveil.service) });
+      fs.rmSync(reveil.service); sv.lancer(['daemon-reload']);
+    }
+    return copies.filter((x) => x.copie);
   };
 
   // Un projet du catalogue, désigné par son identifiant, son nom ou un chemin (module projets, comme partout ailleurs).
@@ -366,12 +389,13 @@ export function creerDistant(config, {
       return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance, reveil: etatReveil };
     },
     // Le service d'un projet sorti du catalogue doit rester retirable : à défaut de projet, la référence est son nom.
+    // `copies` : les unités retirées (le service, et le réveil avec le dernier accès) qui étaient modifiées à la main.
     desactiver(ref) {
       let p = null; try { p = resoudreProjet(projets, ref); } catch { /* nom ambigu : pris tel quel */ }
       const nom = p?.location ? nomDe(p.location) : String(ref).includes('/') ? nomDe(ref) : ref; const f = fichierUnite(nom);
-      sv.retirer(f, `aucun accès distant actif pour ${nom}`);
-      if (!this.liste().length) retirerReveil();
-      return { nom, unite: path.basename(f) };
+      const copie = sv.retirer(f, `aucun accès distant actif pour ${nom}`);
+      const copies = [...(copie ? [{ unite: path.basename(f), copie }] : []), ...(this.liste().length ? [] : retirerReveil())];
+      return { nom, unite: path.basename(f), copies };
     },
     // Passage du minuteur : note l'heure et le démarrage ; après un écart (veille du poste) dans le même démarrage,
     // redémarre les accès distants actifs, un par un : un échec n'arrête pas les suivants, il se dit (un accès en échec
@@ -436,7 +460,7 @@ export function creerInterface({ holarch, accueil }, { unites = UNITES, systemct
   return {
     etat: () => ({ unite: UNITE_INTERFACE, presente: fs.existsSync(f), geree: sv.geree(f), actif: sv.actif(f) }),
     activer() { sv.poser(f, uniteInterface({ node, holarch, accueil })); return { unite: UNITE_INTERFACE }; },
-    desactiver() { sv.retirer(f, 'interface en service : non activée'); return { unite: UNITE_INTERFACE }; },
+    desactiver() { const copie = sv.retirer(f, 'interface en service : non activée'); return { unite: UNITE_INTERFACE, ...(copie && { copie }) }; },
     // Après une pose de la copie de service : réécrit l'unité si elle est de HOLARCH, et la relance (même code chargé
     // sinon) ; absente ou écrite à la main, rien n'est touché.
     relancer() {

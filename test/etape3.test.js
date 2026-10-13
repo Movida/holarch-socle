@@ -2350,3 +2350,34 @@ test('R2 affiné : rejouée, la création laisse un accès distant coupé à la 
   assert.deepEqual([(await etape()).etat, activations.length], ['faite', 1], 'arrêté sans être coupé : rallumé');
   assert.equal((await etape()).etat, 'deja');
 }));
+
+// Retrait d'une unité modifiée à la main (choix de l'auteur du 2026-10-13, suite de M4) : `distant desactiver`, le retrait
+// du réveil, du gardien de veille et de l'interface exécutent la demande, mais retiraient aussi le texte changé à la main,
+// sans trace. Il est d'abord copié à côté, sous un nom que systemd ne lit pas (`.bak`), et le retrait le dit.
+test('Retrait d’une unité modifiée à la main : copiée en .bak à côté, retirée, et dit ; une copie précédente reste', () => {
+  const { unites, systemctl, d } = banc();
+  const u = (x) => path.join(unites, x);
+  const modifier = (f) => { const t = `${fs.readFileSync(f, 'utf8')}Environment=NOTE=main\n`; fs.writeFileSync(f, t); return t; };
+  d.activer('demo');
+  assert.deepEqual(d.desactiver('demo').copies, [], 'inchangées : aucune copie');
+  d.activer('demo');
+  const texte = modifier(u('holarch-distant-demo.service')); const minuteur = modifier(u('holarch-reveil.timer'));
+  assert.deepEqual(d.desactiver('demo').copies, [
+    { unite: 'holarch-distant-demo.service', copie: u('holarch-distant-demo.service.bak') },
+    { unite: 'holarch-reveil.timer', copie: u('holarch-reveil.timer.bak') }]);
+  assert.deepEqual([fs.readFileSync(u('holarch-distant-demo.service.bak'), 'utf8'), fs.readFileSync(u('holarch-reveil.timer.bak'), 'utf8')], [texte, minuteur]);
+  assert.deepEqual(fs.readdirSync(unites).sort(), ['holarch-distant-demo.service.bak', 'holarch-reveil.timer.bak'], 'les unités retirées');
+  // De nouveau posée, modifiée et retirée : la première copie reste, la seconde prend le nom libre suivant.
+  d.activer('demo'); const autre = modifier(u('holarch-distant-demo.service')); modifier(u('holarch-reveil.service'));
+  assert.deepEqual(d.desactiver('demo').copies.map((c) => c.copie), [u('holarch-distant-demo.service.1.bak'), u('holarch-reveil.service.bak')]);
+  assert.deepEqual([fs.readFileSync(u('holarch-distant-demo.service.bak'), 'utf8'), fs.readFileSync(u('holarch-distant-demo.service.1.bak'), 'utf8')], [texte, autre]);
+  // Le gardien de veille, quand sa règle ne s'applique plus, et l'interface.
+  const o = { unites, systemctl, sousSystemd: () => true };
+  const reveil = creerReveil({ holarch: '/opt/holarch/bin/holarch.js', accueil: tmp() }, o);
+  assert.equal(reveil.gardien({ veille: true }).etat, 'posée'); modifier(u('holarch-veille.service'));
+  assert.equal(reveil.gardien({ veille: false }).etat, `règle veille-retardee non appliquée : modifiée à la main : retirée, copie en ${u('holarch-veille.service.bak')}`);
+  const i = creerInterface({ holarch: '/opt/holarch/bin/holarch.js', accueil: tmp() }, o);
+  i.activer(); modifier(u('holarch-interface.service'));
+  assert.deepEqual(i.desactiver(), { unite: 'holarch-interface.service', copie: u('holarch-interface.service.bak') });
+  assert.ok(!fs.existsSync(u('holarch-veille.service')) && !fs.existsSync(u('holarch-interface.service')));
+});
