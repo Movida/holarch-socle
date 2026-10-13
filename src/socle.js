@@ -151,14 +151,17 @@ export class Socle {
 
   // Contexte relu par tour (décision passation-sereine) : la mesure de l'économie (moyenne pondérée par les tours, donc
   // portée par les longues sessions, celles qui coûtent), et les sessions de la semaine au-dessus du seuil de passation.
+  // Le seuil est celui du profil, comme pour le crochet d'alerte : sans lui (null), aucune alerte n'est posée et aucune
+  // session n'est dite lourde.
   contexte() {
     const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
-    const seuil = +regleDuCompte(fiches, { profil: this.profil() }).config?.claude_code?.passation?.seuil_tokens || 150000;
+    const regle = +regleDuCompte(fiches, { profil: this.profil() }).config?.claude_code?.passation?.seuil_tokens;
+    const seuil = regle > 0 ? regle : null;
     const l = this.sessions({ jours: 30 }).filter((x) => x.tours_total && x.cache_lu);
     const moyen = (a) => { const t = a.reduce((x, y) => x + y.tours_total, 0); return t ? Math.round(a.reduce((x, y) => x + y.cache_lu, 0) / t) : null; };
     const j7 = new Date(Date.now() - 7 * 864e5).toISOString(); const semaine = l.filter((x) => x.fin >= j7);
     const lourdes = semaine.map((x) => ({ session: x.session, fin: x.fin, projets: x.projets.map((p) => p.nom || p.id), tours: x.tours_total, moyen: Math.round(x.cache_lu / x.tours_total) }))
-      .filter((x) => x.moyen > seuil).sort((a, b) => b.moyen - a.moyen);
+      .filter((x) => seuil !== null && x.moyen > seuil).sort((a, b) => b.moyen - a.moyen);
     return { seuil, moyen_7: moyen(semaine), moyen_30: moyen(l), lourdes: lourdes.slice(0, 8), lourdes_n: lourdes.length };
   }
 

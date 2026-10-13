@@ -2424,3 +2424,23 @@ test('Compte Claude Code : posé à l’inventaire seul, l’import et la récol
   assert.deepEqual(sessions(deux), [['s2'], 1, 50], 'la clé de l’import, posée à la main, l’emporte pour le journal');
   assert.deepEqual(comptesDuSite(deux).map((x) => x.home), [compte], 'l’inventaire garde le sien');
 });
+
+// Seuil de passation en dur (risque faible à la clôture) : sans seuil réglé au profil, le tableau de bord prenait 150 000
+// et disait des sessions « lourdes, au-dessus du seuil de passation » alors qu'aucune alerte n'était posée. Le seuil est
+// celui du profil, comme pour le crochet ; sans lui, aucun.
+test('Seuil de passation : sans seuil au profil, aucune session lourde ; réglé, celles qui le dépassent', () => {
+  const home = tmp(); const t = path.join(home, 'projects', '-ws-demo', 's1.jsonl'); const at = new Date(Date.now() - 864e5).toISOString();
+  ecrire(t, [1, 2].map((i) => JSON.stringify({ type: 'assistant', sessionId: 's1', cwd: '/ws/demo', timestamp: at, requestId: `r${i}`, message: { id: `m${i}`, model: 'modele-x', usage: { input_tokens: 1, cache_read_input_tokens: 200000, output_tokens: 2 } } })).join('\n') + '\n');
+  vieillir(t);
+  const r = tmp();
+  const s = new Socle({ site: 'local', profil: r, donnees: tmp(), accueil: tmp(), web: {}, tarifs: {}, inventaire: {}, import: { 'claude-code-transcriptions': { home, calme_minutes: 10 } } });
+  s.importer();
+  const contexte = (passation) => {
+    ecrire(path.join(r, 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n${passation ? `config:\n  claude_code: { passation: ${passation} }\n` : ''}---\n`);
+    s.catalogue.remplacer(inventaireArbre({}, { depots: [r], projetDe: () => null })); s.indexer();
+    const c = s.contexte(); return [c.seuil, c.lourdes_n, c.moyen_7];
+  };
+  assert.deepEqual(contexte(null), [null, 0, 200000], 'au-dessus de l’ancien défaut, et pourtant aucune session lourde');
+  for (const x of ['0', '-1']) assert.deepEqual(contexte(`{ seuil_tokens: ${x} }`), [null, 0, 200000], 'un seuil qui ne pose pas d’alerte : aucun non plus');
+  assert.deepEqual(contexte('{ seuil_tokens: 100000 }'), [100000, 1, 200000]);
+});
