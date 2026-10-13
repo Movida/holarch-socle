@@ -1765,3 +1765,40 @@ test('Inventaire Claude Code d’un dépôt : rien ne s’y lit à travers un li
   const fiches = inventaireClaudeCode({}, { site: 'local', comptes: [{ nom: null, home }], depots: [a, b] });
   assert.deepEqual(fiches.map((f) => [f.kind, f.name, f.description]), [['skill', 'du-compte', 'Du compte.'], ['instructions', 'CLAUDE.md', '3 lignes'], ['skill', 'vraie', 'Une vraie skill.']]);
 });
+
+test('Crochets de passation : une erreur ne bloque aucun message, mais se garde datée et l’audit la dit, comme celle de la veille', async () => {
+  const { reglagesVoulus } = await import('../src/regles-claude-code.js');
+  const { fichierErreur } = await import('../src/veille.js');
+  const accueil = tmp(); const f = fichierErreur(accueil, 'passation');
+  const commandes = (o = {}) => reglagesVoulus({ claude_code: { passation: { seuil_tokens: 150000, reprise: true } } },
+    { node: process.execPath, holarch: path.resolve('bin/holarch.js'), accueil, ...o }).crochets.map((c) => c.command);
+  const lancer = (cmd) => spawnSync('/bin/sh', ['-c', cmd], { input: '{}', encoding: 'utf8', env: { PATH: process.env.PATH, HOME: process.env.HOME } }).status;
+  const lue = () => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null);
+  // node introuvable (une version retirée) : la commande écrit elle-même l'erreur, datée ; le message passe.
+  const [alerteSansNode, repriseSansNode] = commandes({ node: '/nulle/part/node' });
+  assert.equal(lancer(alerteSansNode), 0);
+  assert.deepEqual([lue().evenement, lue().message], ['UserPromptSubmit', 'holarch contexte en échec (code 127)']);
+  assert.ok(Date.now() - Date.parse(lue().at) < 120e3, 'datée');
+  assert.equal(fs.existsSync(fichierErreur(accueil, 'veille')), false, 'à part de celle de la veille : une note réussie ne l’efface pas, le contrôle de la veille ne la dit pas');
+  assert.equal(lancer(repriseSansNode), 0); assert.equal(lue().evenement, 'SessionStart');
+  // Une erreur levée par holarch contexte (configuration illisible) : gardée par lui ; un passage réussi l'efface.
+  fs.rmSync(f); fs.writeFileSync(path.join(accueil, 'config.yaml'), 'site: [illisible\n');
+  const [alerte, reprise] = commandes();
+  assert.equal(lancer(reprise), 0); assert.equal(lue().evenement, 'SessionStart'); assert.doesNotMatch(lue().message, /code \d+\)$/);
+  assert.equal(lancer(alerte), 0); assert.equal(lue(), null, 'le passage réussi suivant l’efface');
+  lancer(reprise);
+  // L'audit la dit au compte (réglages posés), datée et nommée par son événement, sans chemin ; plus d'une semaine, plus.
+  const r = tmp(); const ecrireF = (x, t) => { fs.mkdirSync(path.dirname(x), { recursive: true }); fs.writeFileSync(x, t); };
+  ecrireF(path.join(r, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+  ecrireF(path.join(r, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  const s = new Socle({ site: 'local', profil: r, donnees: tmp(), accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer(inventaireArbre({}, { depots: [r], projetDe: () => null })); s.indexer();
+  const passation = (a) => a.cibles.find((c) => c.projet === null).ecarts.filter((e) => e.cle === 'crochet:passation:erreur');
+  const a1 = s.audit({ journaliser: true }); const e = passation(a1);
+  assert.deepEqual(e.map((x) => [x.controle, x.regle]), [['reglages-poses', 'claude_code']]);
+  assert.match(e[0].message, /^crochet de passation en erreur le \d{4}-\d\d-\d\d \d\d:\d\d \(SessionStart\) : /); assert.ok(!e[0].message.includes(accueil));
+  assert.equal(a1.journal.apparus, 1);
+  fs.writeFileSync(f, JSON.stringify({ ...lue(), at: new Date(Date.now() - 8 * 864e5).toISOString() }));
+  const a2 = s.audit({ journaliser: true });
+  assert.deepEqual([passation(a2), a2.journal.resolus], [[], 1], 'plus d’une semaine : plus dite, l’écart se résout');
+});

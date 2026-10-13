@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { ecrireJson, lireJson, heureLocale } from './commun.js';
+import { ecrireJson, lireJson, heureLocale, shell } from './commun.js';
 import { finDeTranscription, evenements, sousAgents } from './transcription.js';
 import { ulid } from './ulid.js';
 
@@ -34,15 +34,26 @@ function relanceMarquee(accueil, maintenant) {
   try { fs.rmSync(fichierRelance(accueil), { force: true }); } catch { /* rien à effacer */ }
   return Number.isFinite(t) && maintenant - t >= 0 && maintenant - t < RELANCE_VUE;
 }
-// Dernière erreur d'un crochet de veille : `2>/dev/null` du crochet (un tour ne doit jamais échouer) la cacherait ;
-// gardée datée, le contrôle la signale une semaine.
-export const fichierErreur = (accueil) => path.join(accueil, 'veille-erreur.json');
+// Dernière erreur d'un crochet de Claude Code, par famille (`veille` : notes des sessions ; `passation` : alerte et
+// reprise) : `2>/dev/null` du crochet (un tour ne doit jamais échouer) la cacherait ; gardée datée, son contrôle la
+// signale une semaine (`veille-retardee`, `reglages-poses`).
+export const fichierErreur = (accueil, famille = 'veille') => path.join(accueil, `${famille}-erreur.json`);
 export const ERREUR_VUE_JOURS = 7;
-export function noterErreur(accueil, evenement, e, maintenant = Date.now()) {
-  try { ecrireJson(fichierErreur(accueil), { at: new Date(maintenant).toISOString(), evenement: String(evenement || ''), message: String(e?.message || e).split('\n')[0].slice(0, 300) }); } catch { /* accueil illisible : rien de plus à faire */ }
+export function noterErreur(accueil, evenement, e, { maintenant = Date.now(), famille = 'veille' } = {}) {
+  try { ecrireJson(fichierErreur(accueil, famille), { at: new Date(maintenant).toISOString(), evenement: String(evenement || ''), message: String(e?.message || e).split('\n')[0].slice(0, 300) }); } catch { /* accueil illisible : rien de plus à faire */ }
 }
-// Une note réussie efface l'erreur précédente : une erreur corrigée ne reste pas un écart une semaine.
-export const effacerErreur = (accueil) => fs.rmSync(fichierErreur(accueil), { force: true });
+// Un passage réussi efface l'erreur précédente de sa famille : une erreur corrigée ne reste pas un écart une semaine.
+export const effacerErreur = (accueil, famille = 'veille') => fs.rmSync(fichierErreur(accueil, famille), { force: true });
+/** L'erreur d'un crochet de la famille, de moins de ERREUR_VUE_JOURS : { at, evenement }, sinon null. */
+export function erreurRecente(accueil, famille = 'veille', maintenant = Date.now()) {
+  const err = lireJson(fichierErreur(accueil, famille), null); const t = Date.parse(err?.at);
+  return Number.isFinite(t) && maintenant - t < ERREUR_VUE_JOURS * 864e5 ? { at: new Date(t).toISOString(), evenement: String(err.evenement || '?') } : null;
+}
+/**
+ * Ce que la commande d'un crochet fait quand son point d'entrée échoue (node absent, modules qui ne se chargent pas :
+ * il sort en erreur) : elle écrit elle-même l'erreur datée de sa famille, `quoi` nommant ce qui a échoué.
+ */
+export const repliShell = (accueil, famille, evenement, quoi) => `{ c=$?; printf '{"at":"%s","evenement":"${evenement}","message":"${quoi} en échec (code %s)"}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$c" > ${shell(fichierErreur(accueil, famille))}; }`;
 
 // État qu'un crochet note ; `SessionEnd` efface la note. `Stop` ne vient pas après une interruption : la transcription
 // la dit (`attenteDansTranscription`). Une demande de permission ou une élicitation MCP attend l'auteur au milieu d'un tour.
@@ -238,8 +249,7 @@ export function etatGardien({ accueil, gardien, besoin = evaluer({ accueil }).be
   const frais = passage !== null && maintenant - maj < GARDIEN_FRAIS;
   const tenue = gardien === 'actif' && frais && ecrit.tenue === true;
   const relance = frais && ecrit?.relance === true;
-  const err = lireJson(fichierErreur(accueil), null); const t = Date.parse(err?.at);
-  const erreur = Number.isFinite(t) && maintenant - t < ERREUR_VUE_JOURS * 864e5 ? { at: new Date(t).toISOString(), evenement: String(err.evenement || '?') } : null;
+  const erreur = erreurRecente(accueil, 'veille', maintenant);
   const vu = passage ? `dernier passage du gardien le ${heureLocale(passage)}` : 'aucun passage du gardien';
   const constats = [];
   if (besoin && !tenue && !relance) constats.push({ cle: 'retenue', message: `une session distante retient la veille, mais la demande d'éveil n'est pas tenue (gardien ${gardien}${frais ? '' : `, ${vu}`})` });

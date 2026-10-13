@@ -6,7 +6,8 @@ import { comptesClaudeCode, accueil } from './config.js';
 import { projetsDe, localiserProjet } from './projets.js';
 import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts, declarationsDe } from './regles.js';
 import { listePrivee, executer, CONTROLES } from './controles.js';
-import { trouverOutil, porteMarque, lireSansLien } from './commun.js';
+import { trouverOutil, porteMarque, lireSansLien, heureLocale } from './commun.js';
+import { erreurRecente } from './veille.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserCompte, materialiserProjet } from './materialisation.js';
 import { ulid } from './ulid.js';
@@ -161,6 +162,15 @@ function ecartsFichiers(regles, m, prefixe) {
 const ecartsPermissions = (m) => (m.permissions.ajoutees || []).map((x) => { const e = m.lectures.find((l) => l.entree === x).regle;
   return { regle: e.fiche, regle_id: e.id, controle: 'permissions-posees', cle: x, fichier: 'settings.json', message: 'lecture non refusée' }; });
 
+// Les crochets de passation (alerte, reprise) en erreur, gardée datée par eux comme celle de la veille (famille
+// `passation`) : l'avis ou le résumé n'arrivent pas, et rien d'autre ne le dirait. Daté et nommé par son événement ; le
+// message, qui peut citer un chemin, reste dans le fichier.
+function ecartPassation(accueilHolarch) {
+  const e = erreurRecente(accueilHolarch, 'passation');
+  return e ? [{ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle: 'crochet:passation:erreur', fichier: 'settings.json',
+    message: `crochet de passation en erreur le ${heureLocale(e.at)} (${e.evenement}) : l'avis de passation ou le résumé de reprise peuvent ne pas arriver ; détail dans passation-erreur.json de l'accueil HOLARCH` }] : [];
+}
+
 // Réglages de Claude Code voulus par le profil et absents (une clé posée à la main n'est pas un écart : elle est dite).
 const ecartsReglages = (regles, m) => [
   ...m.reglages.cles.posees.map((cle) => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle, fichier: 'settings.json', message: `réglage ${cle} non posé` })),
@@ -260,7 +270,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
       if (m.reglages.erreur) rc.controles.push({ id: 'reglages-poses', etat: 'indisponible', raison: m.reglages.erreur });
       else rc.ecarts.push(...ecartsReglages(compte.regles, m));
     }
-    if (!incomplet) rc.ecarts.push(...remplacees(compte.regles, memoires));
+    if (!incomplet) rc.ecarts.push(...remplacees(compte.regles, memoires), ...ecartPassation(s.config.accueil || accueil()));
     for (const c of ['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
     // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
     const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache'), accueil: s.config.accueil || accueil() }, 'audit', ['blocking', 'verified'], 'site');

@@ -6,7 +6,7 @@ import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
 import { creerDistant, creerInterface, creerReveil, etatVeille } from '../src/distant.js';
-import { evaluer, etatGardien, creerGardien, surveiller, mecanisme } from '../src/veille.js';
+import { evaluer, etatGardien, creerGardien, surveiller, mecanisme, noterErreur, effacerErreur } from '../src/veille.js';
 import { Journal } from '../src/stockage/journal.js';
 import { appliquerRegles, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -183,8 +183,10 @@ switch (cmd) {
       }
     } catch (e) { console.error(`holarch regles : ${e.message}`); process.exit(1); }
     break; }
-  // Crochets de Claude Code (décision passation-sereine) : ne jamais faire échouer un message ni un démarrage.
+  // Crochets de Claude Code (décision passation-sereine) : ne jamais faire échouer un message ni un démarrage. Une erreur
+  // est gardée datée (famille `passation`), que l'audit dit (`reglages-poses`) ; un passage réussi l'efface.
   case 'contexte': {
+    const evenement = { alerte: 'UserPromptSubmit', debut: 'SessionStart' }[args[0]] || args[0];
     try {
       const entree = JSON.parse(lire(0, 'utf8') || '{}');
       if (args[0] === 'alerte') {
@@ -194,7 +196,8 @@ switch (cmd) {
         const s = socle(); if (await s.arbreAJour()) s.indexer(); const r = resume(s, entree.cwd || process.cwd(), { transcription: entree.transcript_path });
         if (r) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: r } }));
       }
-    } catch (e) { console.error(`holarch contexte : ${e.message}`); }
+      try { effacerErreur(accueil(), 'passation'); } catch { /* accueil illisible */ }
+    } catch (e) { console.error(`holarch contexte : ${e.message}`); noterErreur(accueil(), evenement, e, { famille: 'passation' }); }
     break; }
   case 'projet': {
     // Les options à valeur prennent l'argument suivant ; --type se répète.

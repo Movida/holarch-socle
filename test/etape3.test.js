@@ -761,7 +761,7 @@ test('réglages Claude Code : posés depuis le profil, valeur posée à la main 
   ecrire(path.join(home, 'settings.json'), JSON.stringify({ model: 'x', effortLevel: 'high', hooks: { Stop: [{ hooks: [{ type: 'command', command: 'a-moi' }] }] } }));
   const config = { claude_code: { reglages: { autoCompactWindow: 300000, effortLevel: 'medium' }, passation: { seuil_tokens: 150000, reprise: true } } };
   const v = reglagesVoulus(config, { node: '/opt/node', holarch: '/opt/holarch.js', accueil: '/srv/donnees' });
-  assert.match(v.crochets[0].command, /HOLARCH_HOME='\/srv\/donnees' '\/opt\/node' --no-warnings '\/opt\/holarch\.js' contexte alerte --seuil 150000 2>\/dev\/null \|\| true/);
+  assert.match(v.crochets[0].command, /^\{ HOLARCH_HOME='\/srv\/donnees' '\/opt\/node' --no-warnings '\/opt\/holarch\.js' contexte alerte --seuil 150000 2>\/dev\/null \|\| \{ c=\$\?; .* > '\/srv\/donnees\/passation-erreur\.json'; \}; \} 2>\/dev\/null \|\| true$/);
   assert.equal(v.crochets[1].matcher, 'startup|clear|compact');
   const r1 = appliquerReglages(home, v);
   assert.deepEqual([r1.cles.posees, r1.cles.ignorees, r1.crochets.poses.length], [['autoCompactWindow'], ['effortLevel'], 2], 'une valeur posée à la main est laissée');

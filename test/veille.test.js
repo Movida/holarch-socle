@@ -558,8 +558,8 @@ test('veille : une règle applicable qui désigne le contrôle pose les crochets
   // Une règle d'un autre nom qui désigne le contrôle : le crochet absent lui revient.
   assert.equal(crochetVoulu(v.crochets[5].command, [{ id: 'garder-eveil', applicable: true, controles: ['veille-retardee'] }]).regle, 'garder-eveil');
   assert.equal(crochetVoulu(v.crochets[5].command, [{ id: 'garder-eveil', applicable: false, controles: ['veille-retardee'] }]).regle, 'veille-retardee');
-  // Les crochets de passation gardent leur commande (rien à reposer après ce changement).
-  assert.equal(reglagesVoulus({ claude_code: { passation: { reprise: true } } }, o).crochets[0].command, "HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' contexte debut 2>/dev/null || true");
+  // Les crochets de passation ont le même repli, dans leur propre fichier d'erreur (famille `passation`).
+  assert.equal(reglagesVoulus({ claude_code: { passation: { reprise: true } } }, o).crochets[0].command, `{ HOLARCH_HOME='/srv/a' '/opt/node' --no-warnings '/opt/holarch.js' contexte debut 2>/dev/null || { c=$?; printf '{"at":"%s","evenement":"SessionStart","message":"holarch contexte en échec (code %s)"}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$c" > '/srv/a/passation-erreur.json'; }; } 2>/dev/null || true`);
   const regle = (statut) => ({ id: 'veille-retardee', fiche: 'f', niveau: 'blocking', controles: ['veille-retardee'], statut, origine: 'profil', applicable: statut === 'stable', provenance: { arbre: 'p', noeud: 'n' } });
   const home = tmp();
   const [brouillon] = materialiserCompte({ regles: [regle('draft')], config: {} }, [{ home }], { ...o, ecrire: false });
