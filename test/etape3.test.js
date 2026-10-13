@@ -828,17 +828,43 @@ test('contexte : une session arrêtée en route (appel d’outil sans résultat)
   assert.match(ligne, /question restée sans réponse : « Comment régler l’autonomie des sessions \? »/); assert.match(ligne, /pendant Bash \(Lancer les tests\)/);
   assert.doesNotMatch(resume(s, d), /arrêtée/, 'sans transcription : rien');
 });
-test('contexte : une session coupée n’est annoncée qu’une fois, à la session ouverte après elle', () => {
+// R5 (famille Gardes muettes, choix de l'auteur du 2026-10-13) : une coupure passait pour annoncée dès qu'une autre session
+// du dossier s'était ouverte après elle, sans preuve qu'elle l'avait reçue (crochet en échec, session ouverte hors du
+// projet). La reprise qui la dit écrit une marque durable ; seule cette marque l'écarte ensuite.
+test('R5 : une session coupée n’est annoncée qu’une fois, par la marque écrite à l’annonce, pas par une session ouverte après elle', () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n'); g('add', '.'); g('commit', '-qm', 'x');
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [d], projetDe: () => ({ id: 'holarch:project:depot' }) }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
   const dossier = tmp(); const maintenant = Date.parse('2026-10-08T18:40:00Z');
   const msg = (type, content, timestamp) => JSON.stringify({ type, timestamp, message: { role: type, content } });
   const session = (nom, lignes) => { const f = path.join(dossier, `${nom}.jsonl`); ecrire(f, lignes.join('\n') + '\n'); return f; };
   const question = (q, t) => msg('assistant', [{ type: 'tool_use', id: 't', name: 'AskUserQuestion', input: { questions: [{ question: q }] } }], t);
-  session('matin', [msg('user', 'Règle l’autonomie.', '2026-10-08T10:19:00Z'), question('Autonomie ?', '2026-10-08T10:20:00Z')]);
-  session('midi', [msg('user', 'Autre chose.', '2026-10-08T10:00:00Z'), question('Midi ?', '2026-10-08T12:00:00Z')]);
-  // Ouverte après la coupure du matin : elle l’a reçue à sa reprise ; celle de midi, plus tardive, reste à annoncer.
+  const matin = session('matin', [msg('user', 'Règle l’autonomie.', '2026-10-08T10:19:00Z'), question('Autonomie ?', '2026-10-08T10:20:00Z')]);
+  // Ouverte après la coupure du matin, sans l'avoir reçue (aucune reprise ne l'a dite) : elle ne l'écarte pas.
   session('apres', [msg('user', 'Reprise.', '2026-10-08T11:00:00Z'), msg('assistant', [{ type: 'text', text: 'Fait.' }], '2026-10-08T13:00:00Z')]);
   const courante = session('courante', [msg('user', 'Pose-moi tes questions.', '2026-10-08T18:30:00Z')]);
-  assert.deepEqual(sessionsCoupees(courante, { maintenant }).map((c) => c.question), ['Midi ?']);
+  const dites = (t = courante) => (resume(s, d, { transcription: t, maintenant }).match(/« ([^»]+) »/g) || []);
+  // Marques d'avant : celle de plus de 48 h s'oublie à l'écriture suivante, la récente reste.
+  const marques = path.join(accueil, 'reprise-coupures.json');
+  fs.writeFileSync(marques, JSON.stringify({ '/ailleurs/ancienne.jsonl': '2026-10-06T10:00:00Z', '/ailleurs/recente.jsonl': '2026-10-08T09:00:00Z' }));
+  assert.deepEqual(dites(), ['« Autonomie ? »']);
+  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(marques, 'utf8'))), ['/ailleurs/recente.jsonl', matin]);
+  assert.deepEqual(dites(), [], 'annoncée une fois : la marque l’écarte');
+  assert.deepEqual(sessionsCoupees(courante, { maintenant }).map((c) => c.question), ['Autonomie ?'], 'sans marque, elle reste à dire');
+  // La même session reprise puis coupée de nouveau : une coupure nouvelle, annoncée.
+  fs.appendFileSync(matin, [msg('user', 'Suite.', '2026-10-08T15:00:00Z'), question('Midi ?', '2026-10-08T15:01:00Z')].join('\n') + '\n');
+  assert.deepEqual(dites(), ['« Midi ? »']);
+  // Trois coupures dites au plus : la quatrième, non dite, n'est pas marquée et vient à la reprise suivante.
+  for (const h of [14, 15, 16, 17]) session(`q${h}`, [question(`${h} h ?`, `2026-10-08T${h}:30:00Z`)]);
+  assert.deepEqual([dites(), dites()], [['« 17 h ? »', '« 16 h ? »', '« 15 h ? »'], ['« 14 h ? »']]);
+  // Une marque qui ne s'écrit pas n'empêche pas la reprise : la coupure se redira.
+  fs.rmSync(marques); fs.mkdirSync(marques);
+  assert.deepEqual(dites(), ['« 17 h ? »', '« 16 h ? »', '« 15 h ? »']);
+  // Sans accueil, aucun endroit où tenir la marque : la coupure se redit à chaque reprise.
+  const sansAccueil = new Socle({ site: 'local', donnees: accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  assert.match(resume(sansAccueil, d, { transcription: courante, maintenant }), /« 17 h \? »/);
 });
 
 test('règles : une règle ajoutée après l’inventaire se voit tout de suite ; un arbre inchangé ne relance rien', async () => {

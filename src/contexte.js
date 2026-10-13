@@ -8,7 +8,7 @@ import { etatDepot, integrationContinue, projetDuDepot } from './inventaire/depo
 import { copieEnService, retard } from './service.js';
 import { aApprouver } from './regles.js';
 import { finDeTranscription, evenements } from './transcription.js';
-import { heureLocale } from './commun.js';
+import { heureLocale, lireJson, ecrireJson } from './commun.js';
 
 /**
  * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), lu à la fin de
@@ -26,18 +26,17 @@ export function tailleContexte(transcription, { octets = 1024 * 1024 } = {}) {
  * Sessions du même dossier arrêtées en route depuis `heures` : leur dernier message est un appel d'outil resté sans
  * résultat (veille du poste, redémarrage d'un accès distant). La session en cours est exclue. Une interruption voulue
  * (Échap) laisse un message de l'auteur après l'appel : elle n'en est pas une. Une coupure n'est annoncée qu'une fois :
- * une autre session du dossier ouverte après elle l'a déjà reçue à sa reprise.
+ * `annoncees` ({ fichier: date de la coupure annoncée }, `coupuresAnnoncees`) écarte celles qu'une reprise a déjà dites.
  */
-export function sessionsCoupees(transcription, { heures = 24, maintenant = Date.now(), octets = 1024 * 1024 } = {}) {
+export function sessionsCoupees(transcription, { heures = 24, maintenant = Date.now(), octets = 1024 * 1024, annoncees = {} } = {}) {
   if (!transcription) return [];
   const dossier = path.dirname(transcription); let noms;
   try { noms = fs.readdirSync(dossier).filter((n) => n.endsWith('.jsonl') && path.join(dossier, n) !== path.resolve(transcription)); } catch { return []; }
-  const coupees = []; const debuts = [];
+  const coupees = [];
   for (const n of noms) {
     const f = path.join(dossier, n);
     let m; try { m = fs.statSync(f).mtimeMs; } catch { continue; }
     if (maintenant - m > heures * 3600 * 1000) continue;
-    debuts.push({ fichier: f, debut: debutDeTranscription(f) });
     for (const e of evenements(finDeTranscription(f, octets))) {
       if ((e.type !== 'user' && e.type !== 'assistant') || e.isSidechain) continue;
       const appels = e.type === 'assistant' && Array.isArray(e.message?.content) ? e.message.content.filter((c) => c.type === 'tool_use') : [];
@@ -48,21 +47,25 @@ export function sessionsCoupees(transcription, { heures = 24, maintenant = Date.
       break;
     }
   }
-  const annoncee = (c) => debuts.some((d) => d.fichier !== c.fichier && d.debut > Date.parse(c.date));
+  const annoncee = (c) => Date.parse(annoncees[c.fichier]) >= Date.parse(c.date);
   return coupees.filter((c) => !annoncee(c)).sort((a, b) => b.date.localeCompare(a.date));
 }
 
-/** Date du premier événement daté d'une transcription (ses `octets` premiers), en millisecondes ; NaN sinon. */
-function debutDeTranscription(transcription, octets = 64 * 1024) {
-  let fd;
-  try {
-    fd = fs.openSync(transcription, 'r');
-    const b = Buffer.alloc(octets); const n = fs.readSync(fd, b, 0, octets, 0);
-    for (const e of evenements(b.subarray(0, n).toString('utf8').split('\n'), '"timestamp"')) {
-      const t = Date.parse(e.timestamp); if (!Number.isNaN(t)) return t;
-    }
-  } catch { /* illisible : ne masque rien */ } finally { if (fd !== undefined) fs.closeSync(fd); }
-  return NaN;
+/**
+ * Les coupures déjà annoncées, marque durable écrite par la reprise qui les dit (une session ouverte après une coupure ne
+ * prouve pas qu'elle l'a reçue : son crochet a pu échouer, ou elle s'est ouverte hors du projet). `noter` : ajoute les
+ * coupures dites ; les marques de plus de 48 h s'oublient (au-delà de 24 h, une coupure ne s'annonce plus).
+ */
+export function coupuresAnnoncees(accueil, { maintenant = Date.now() } = {}) {
+  const f = path.join(accueil, 'reprise-coupures.json');
+  const lues = lireJson(f, {}) || {};
+  return {
+    lues,
+    noter(coupees) {
+      const gardees = Object.fromEntries(Object.entries(lues).filter(([, d]) => maintenant - Date.parse(d) <= 48 * 3600e3));
+      ecrireJson(f, { ...gardees, ...Object.fromEntries(coupees.map((c) => [c.fichier, c.date])) });
+    },
+  };
 }
 
 const k = (n) => `${Math.round(n / 1000)} k`;
@@ -106,10 +109,13 @@ export function resume(s, dossier, { max = 1500, transcription = null, maintenan
   if (!v) return null;
   const ecarts = s.ecartsOuverts().filter((o) => o.projet === p.id);
   const l = [`HOLARCH — reprise du projet ${v.nom} (résumé au démarrage ; le détail est dans son journal et l’avancement de l’étape).`];
-  // Avant le reste : une question restée sans réponse ne doit pas tomber sous la troncature.
-  const coupees = sessionsCoupees(transcription, { maintenant });
+  // Avant le reste : une question restée sans réponse ne doit pas tomber sous la troncature. Les coupures dites sont
+  // marquées (`coupuresAnnoncees`), sans accueil elles se redisent.
+  const marques = s.config?.accueil ? coupuresAnnoncees(s.config.accueil, { maintenant }) : null;
+  const coupees = sessionsCoupees(transcription, { maintenant, annoncees: marques?.lues }).slice(0, 3);
   if (coupees.length) {
-    l.push(`Session(s) arrêtée(s) en route (24 h) : ${coupees.slice(0, 3).map((c) => `${heureLocale(c.date)}, ${c.question ? `question restée sans réponse : « ${court(c.question, 120)} »` : `pendant ${c.outil}${c.quoi ? ` (${court(c.quoi, 60)})` : ''}`}`).join(' ; ')}. À signaler à l’auteur.`);
+    l.push(`Session(s) arrêtée(s) en route (24 h) : ${coupees.map((c) => `${heureLocale(c.date)}, ${c.question ? `question restée sans réponse : « ${court(c.question, 120)} »` : `pendant ${c.outil}${c.quoi ? ` (${court(c.quoi, 60)})` : ''}`}`).join(' ; ')}. À signaler à l’auteur.`);
+    try { marques?.noter(coupees); } catch { /* marque non écrite : la coupure se redira à la reprise suivante */ }
   }
   if (v.etape) {
     l.push(`Étape ${v.etape.numero} : ${court(v.etape.titre, 90)}${v.etape.close ? ' (close)' : ''}.`);
