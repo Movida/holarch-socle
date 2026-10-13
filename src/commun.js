@@ -262,8 +262,12 @@ export function gitLu(depot, args, o = {}) {
  */
 export const configGit = (depot, cle, ...options) => (gitLu(depot, ['config', ...options, '--get', cle]).stdout || '').trim();
 
+// Le compte de Claude Code par défaut (`~/.claude`), celui que `claude` lit sans `CLAUDE_CONFIG_DIR`.
+const compteParDefaut = (home) => path.resolve(home) === path.join(os.homedir(), '.claude');
 /** Fichier de configuration de Claude Code d'un compte : `~/.claude.json` pour `~/.claude`, sinon `<home>/.claude.json`. */
-export const configClaude = (home) => (path.resolve(home) === path.join(os.homedir(), '.claude') ? path.join(os.homedir(), '.claude.json') : path.join(home, '.claude.json'));
+export const configClaude = (home) => (compteParDefaut(home) ? path.join(os.homedir(), '.claude.json') : path.join(home, '.claude.json'));
+/** Ce qui fait parler une commande `claude` au compte `home` : rien pour le compte par défaut, sinon `CLAUDE_CONFIG_DIR`. */
+export const pourCompte = (home) => (compteParDefaut(home) ? '' : `CLAUDE_CONFIG_DIR=${shell(home)} `);
 
 /** Clé d'un serveur MCP, telle qu'elle apparaît dans le nom de ses outils (`mcp__<clé>__<outil>`). */
 // Heure locale du poste, « AAAA-MM-JJ HH:MM » (`seule` : « HH:MM ») : une seule façon de la dire, au terminal, dans les

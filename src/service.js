@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { git, lireJson, ecrireJson, trouverOutil, configClaude, dedans } from './commun.js';
+import { git, lireJson, ecrireJson, trouverOutil, configClaude, dedans, shell, pourCompte } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 import { OUTILS } from './conteneur.js';
 
@@ -91,12 +91,32 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
     } catch (e) { fs.rmSync(tmp, { recursive: true, force: true }); throw e; }
   }
 
+  // Le serveur MCP `holarch` d'un compte (portée utilisateur : `mcpServers` de son `.claude.json`), lu : { fichier, cfg,
+  // s, i (le chemin de `bin/holarch.js` dans ses arguments), lance (une copie de service, le socle : la copie de travail
+  // qui pose, ou la source ; null sinon) }. `service poser` ne repointe que ce qui lance une copie de service ou le socle :
+  // réglé ailleurs (une autre copie de HOLARCH, posée à la main), il est laissé, et dit (décision geste-a-la-main).
+  function entreeMcp(c, src) {
+    const fichier = configClaude(c.home); const cfg = lireJson(fichier, null, { strict: true });
+    const s = cfg?.mcpServers?.holarch;
+    if (!s || typeof s !== 'object') return { fichier, s: null };
+    const i = Array.isArray(s.args) ? s.args.findIndex((a) => /(^|\/)bin\/holarch\.js$/.test(a)) : -1; const a = s.args?.[i];
+    const lance = i < 0 || !path.isAbsolute(a) ? null : dedans(path.resolve(a), dossier(accueil)) ? 'copie de service'
+      : [SOI, src].some((d) => d && path.resolve(a) === path.join(d, 'bin', 'holarch.js')) ? 'socle' : null;
+    return { fichier, cfg, s, i, lance };
+  }
+
+  // Le geste qui repointe vers la copie de service l'entrée MCP laissée : la même entrée, le chemin de `bin/holarch.js`
+  // remplacé (sans lui, une entrée neuve qui lance `holarch mcp` par node, son environnement gardé), réécrite par
+  // `claude mcp` dans la portée utilisateur du compte (`add` refuse un nom déjà pris : retirée d'abord).
+  function repointer(c, { s, i }) {
+    const holarch = binaireService(accueil);
+    const entree = i < 0 ? { type: 'stdio', command: node, args: ['--no-warnings', holarch, 'mcp'], ...(s.env && { env: s.env }) } : { ...s, args: s.args.map((a, n) => (n === i ? holarch : a)) };
+    return `${pourCompte(c.home)}claude mcp remove holarch --scope user && ${pourCompte(c.home)}claude mcp add-json holarch ${shell(JSON.stringify(entree))} --scope user`;
+  }
+
   // Points d'entrée tenus par cette commande ; la garde et les crochets suivent `regles appliquer` (l'audit les voit).
-  // Le serveur MCP `holarch` d'un compte n'est repointé que s'il lance une copie de service ou le socle (la copie de
-  // travail qui pose, ou la source) : réglé ailleurs (une autre copie de HOLARCH, posée à la main), il est laissé, et dit.
   function pointsDEntree(src) {
     const holarch = binaireService(accueil); const o = { unites, systemctl, node };
-    const notre = (a) => path.isAbsolute(a) && (dedans(path.resolve(a), dossier(accueil)) || [SOI, src].some((d) => d && path.resolve(a) === path.join(d, 'bin', 'holarch.js')));
     const essai = (point, f) => { try { return { point, ...f() }; } catch (e) { return { point, etat: 'erreur', message: e.message }; } };
     return [
       essai('interface', () => creerInterface({ holarch, accueil }, o).relancer()),
@@ -106,13 +126,11 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
       essai('veille', () => creerReveil({ holarch, accueil }, o).gardien({ veille })),
       essai('gitleaks des conteneurs', () => copierGitleaks(gitleaks, maison)),
       ...comptes.filter((c) => c.home).map((c) => essai(`mcp ${c.nom || c.home}`, () => {
-        const f = configClaude(c.home); const cfg = lireJson(f, null, { strict: true });
-        const s = cfg?.mcpServers?.holarch;
-        if (!s || !Array.isArray(s.args)) return { etat: 'absent' };
-        const i = s.args.findIndex((a) => /(^|\/)bin\/holarch\.js$/.test(a));
+        const { fichier, cfg, s, i, lance } = entreeMcp(c, src);
+        if (!s) return { etat: 'absent' };
         if (i < 0 || s.args[i] === holarch) return { etat: i < 0 ? 'non reconnu' : 'inchangé' };
-        if (!notre(s.args[i])) return { etat: `réglé ailleurs (${s.args[i]}) : laissé` };
-        s.args[i] = holarch; ecrireJson(f, cfg);
+        if (!lance) return { etat: `réglé ailleurs (${s.args[i]}) : laissé` };
+        s.args[i] = holarch; ecrireJson(fichier, cfg);
         return { etat: 'posé (effet à la prochaine session de Claude Code)' };
       })),
     ];
@@ -122,7 +140,20 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
     etat() {
       const copie = copieEnService(accueil);
       const copies = fs.existsSync(dossier(accueil)) ? fs.readdirSync(dossier(accueil)).filter((d) => COMMIT.test(d)) : [];
-      return { copie, retard: retard(copie), copies, binaire: binaireService(accueil), routines: etatRoutines({ unites, systemctl }) };
+      // L'entrée MCP de chaque compte : ce qu'elle lance ; laissée par la pose (réglée ailleurs, non reconnue), le geste
+      // qui la repointe. Aucune clé de l'arbre ne porte ce chemin : c'est ici qu'il se voit.
+      const src = sourceDe(); const holarch = binaireService(accueil);
+      const mcp = comptes.filter((c) => c.home).map((c) => {
+        const compte = c.nom || c.home;
+        try {
+          const m = entreeMcp(c, src);
+          if (!m.s) return { compte, fichier: m.fichier, etat: 'absente' };
+          const lance = Array.isArray(m.s.args) ? [m.s.command, ...m.s.args].join(' ') : m.s.url || m.s.command || JSON.stringify(m.s);
+          if (m.lance) return { compte, fichier: m.fichier, lance, etat: m.s.args[m.i] === holarch ? m.lance : `${m.lance} : repointée à la prochaine pose (holarch service poser)` };
+          return { compte, fichier: m.fichier, lance, etat: m.i < 0 ? 'non reconnue : laissée' : 'réglée ailleurs : laissée', geste: repointer(c, m) };
+        } catch (e) { return { compte, etat: 'illisible', message: e.message }; }
+      });
+      return { copie, retard: retard(copie), copies, binaire: holarch, routines: etatRoutines({ unites, systemctl }), mcp };
     },
 
     /**

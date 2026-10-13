@@ -2635,3 +2635,41 @@ test('M2 : regles appliquer --reposer repose un crochet laissé ; mal formée, l
   assert.match(r3.stdout, /^  ATTENTION --reposer : effortLevel : ni réglage ni crochet voulu par le profil, rien n'est reposé$/m);
   assert.equal(alerte(), 1, 'reposé');
 });
+
+// M3, suite (lot 5, décision geste-a-la-main) : l'entrée MCP `holarch` réglée ailleurs était laissée par `service poser`,
+// mais rien ne la montrait ensuite, ni ne disait comment la repointer. `holarch service` montre l'entrée de chaque compte
+// (ce qu'elle lance : copie de service, socle, ou réglée ailleurs) et, laissée, la commande `claude mcp` qui la repointe.
+test('M3 : holarch service montre l’entrée MCP de chaque compte, et le geste qui repointe celle réglée ailleurs', async () => {
+  const { pourCompte } = await import('../src/commun.js');
+  const src = tmp(); const accueil = tmp(); const socle = path.resolve('bin/holarch.js');
+  const entrees = { ailleurs: { command: 'node', args: ['--no-warnings', '/opt/autre-holarch/bin/holarch.js', 'mcp'], env: { A: 'x y' } }, socle: { command: 'node', args: [socle, 'mcp'] },
+    source: { command: 'node', args: [path.join(src, 'bin', 'holarch.js'), 'mcp'] }, ancienne: { command: 'node', args: [path.join(accueil, 'service', 'abcdef123456', 'bin', 'holarch.js'), 'mcp'] },
+    chemin: { command: 'holarch', args: ['mcp'] }, hub: { type: 'http', url: 'https://hub.exemple.invalid/mcp' }, absente: null };
+  const comptes = Object.keys(entrees).map((nom) => ({ nom, home: tmp() }));
+  for (const c of comptes) if (entrees[c.nom]) fs.writeFileSync(path.join(c.home, '.claude.json'), JSON.stringify({ mcpServers: { holarch: entrees[c.nom] } }));
+  const e = creerService({ accueil, comptes }, { source: src, unites: tmp(), systemctl: () => ({ status: 0, stdout: '', stderr: '' }), node: '/opt/node/bin/node' }).etat();
+  const bin = binaireService(accueil); const pose = ' : repointée à la prochaine pose (holarch service poser)';
+  assert.deepEqual(e.mcp.map((m) => [m.compte, m.lance ?? null, m.etat, Boolean(m.geste)]), [
+    ['ailleurs', 'node --no-warnings /opt/autre-holarch/bin/holarch.js mcp', 'réglée ailleurs : laissée', true], ['socle', `node ${socle} mcp`, 'socle', false],
+    ['source', `node ${path.join(src, 'bin', 'holarch.js')} mcp`, `socle${pose}`, false], ['ancienne', `node ${entrees.ancienne.args[0]} mcp`, `copie de service${pose}`, false],
+    ['chemin', 'holarch mcp', 'non reconnue : laissée', true], ['hub', 'https://hub.exemple.invalid/mcp', 'non reconnue : laissée', true], ['absente', null, 'absente', false]]);
+  // Le geste : la même entrée, le chemin remplacé, réécrite dans la portée utilisateur du compte que désigne CLAUDE_CONFIG_DIR.
+  const geste = (nom) => e.mcp.find((m) => m.compte === nom).geste;
+  const json = (g) => { const m = g.match(/ claude mcp add-json holarch '(.*)' --scope user$/); return JSON.parse(m[1].replace(/'\\''/g, "'")); };
+  const home = comptes[0].home;
+  assert.ok(geste('ailleurs').startsWith(`CLAUDE_CONFIG_DIR='${home}' claude mcp remove holarch --scope user && CLAUDE_CONFIG_DIR='${home}' claude mcp add-json holarch '`), geste('ailleurs'));
+  assert.deepEqual(json(geste('ailleurs')), { command: 'node', args: ['--no-warnings', bin, 'mcp'], env: { A: 'x y' } });
+  assert.deepEqual(json(geste('chemin')), { type: 'stdio', command: '/opt/node/bin/node', args: ['--no-warnings', bin, 'mcp'] });
+  assert.deepEqual(json(geste('hub')), { type: 'stdio', command: '/opt/node/bin/node', args: ['--no-warnings', bin, 'mcp'] });
+  assert.deepEqual([pourCompte(path.join(os.homedir(), '.claude')), pourCompte('/srv/compte b')], ['', "CLAUDE_CONFIG_DIR='/srv/compte b' "], 'le compte par défaut se désigne sans la variable');
+  // Un .claude.json illisible : dit, sans arrêter les autres.
+  fs.writeFileSync(path.join(comptes[1].home, '.claude.json'), '{ cassé');
+  const illisible = creerService({ accueil, comptes }, { source: src, unites: tmp(), systemctl: () => ({ status: 0, stdout: '', stderr: '' }) }).etat().mcp[1];
+  assert.deepEqual([illisible.etat, /illisible/.test(illisible.message)], ['illisible', true]);
+  // Ce que montre `holarch service`.
+  const texte = affichage.service(e).split('\n');
+  assert.ok(texte.includes(`serveur MCP holarch du compte ailleurs (${path.join(home, '.claude.json')}) : lance node --no-warnings /opt/autre-holarch/bin/holarch.js mcp ; réglée ailleurs : laissée`), texte.join('\n'));
+  assert.equal(texte[texte.indexOf(`serveur MCP holarch du compte ailleurs (${path.join(home, '.claude.json')}) : lance node --no-warnings /opt/autre-holarch/bin/holarch.js mcp ; réglée ailleurs : laissée`) + 2], `    ${geste('ailleurs')}`);
+  assert.ok(texte.includes(`serveur MCP holarch du compte socle (${path.join(comptes[1].home, '.claude.json')}) : lance node ${socle} mcp ; socle`));
+  assert.ok(texte.includes(`serveur MCP holarch du compte absente (${path.join(comptes[6].home, '.claude.json')}) : absente`));
+});
