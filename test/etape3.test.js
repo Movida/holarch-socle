@@ -2153,3 +2153,36 @@ test('M4 : une unité modifiée à la main n’est plus réécrite ; la pose le 
   d.activer('autre');
   assert.equal(lire('holarch-distant-autre.service').replace(/# Empreinte HOLARCH : [0-9a-f]{16}\n$/, ''), ancienne, path.join(racine, 'autre'));
 });
+
+// M2 (famille Gardes muettes) : une clé ou un crochet que HOLARCH avait posé dans `settings.json`, puis retiré à la main,
+// était remis à la pose suivante ; un crochet changé à la main était doublé d'un neuf. Une entrée du manifeste absente du
+// fichier est un retrait à la main : laissée, dite par la pose et par l'audit, gardée au manifeste tant qu'elle est voulue.
+import { materialiserCompte } from '../src/materialisation.js';
+test('M2 : un réglage ou un crochet retiré ou changé à la main n’est ni remis ni doublé ; la pose et l’audit le disent', () => {
+  const profil = tmp(); const home = tmp(); const accueil = tmp(); const settings = path.join(home, 'settings.json');
+  ecrire(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  claude_code: { reglages: { autoCompactWindow: 300000, effortLevel: medium }, passation: { seuil_tokens: 150000, reprise: true } }\n---\n');
+  ecrire(path.join(profil, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  const s = new Socle({ site: 'local', profil, donnees: tmp(), accueil, web: {}, tarifs: {}, inventaire: { 'claude-code': { home } }, import: {} });
+  s.catalogue.remplacer(inventaireArbre({}, { depots: [profil], projetDe: () => null })); s.indexer();
+  const poser = () => materialiserCompte(s.regles().compte, [{ home }], { accueil })[0];
+  const ecarts = () => s.audit().cibles.find((c) => c.projet === null).ecarts.filter((e) => e.controle === 'reglages-poses').map((e) => e.message).sort();
+  const lu = () => JSON.parse(fs.readFileSync(settings, 'utf8'));
+  const r1 = poser().reglages;
+  assert.deepEqual([r1.cles.posees, r1.crochets.poses.length, ecarts()], [['autoCompactWindow', 'effortLevel'], 2, []]);
+  const [alerte, reprise] = r1.crochets.poses;
+  // À la main : une clé retirée, le crochet d'alerte retiré, celui de reprise changé.
+  const c = lu(); delete c.autoCompactWindow; delete c.hooks.UserPromptSubmit; c.hooks.SessionStart[0].hooks[0].command = reprise.replace('contexte debut', 'contexte debut --court');
+  fs.writeFileSync(settings, JSON.stringify(c)); const main = fs.readFileSync(settings, 'utf8');
+  for (const fois of ['première', 'seconde']) {
+    const m = poser(); const r = m.reglages;
+    assert.deepEqual([r.cles.retirees_a_la_main, r.cles.posees, r.cles.inchangees, r.crochets.retires_a_la_main, r.crochets.poses], [['autoCompactWindow'], [], ['effortLevel'], [alerte, reprise], []], `${fois} pose : laissés, et dits`);
+    assert.equal(fs.readFileSync(settings, 'utf8'), main, 'ni remis ni doublés : settings.json n’est pas réécrit');
+    assert.match(affichage.appliquer({ comptes: [m], projets: [] }), /laissés \(retirés à la main\) : autoCompactWindow ; crochets : 0 posé\(s\), 0 retiré\(s\), 0 inchangé\(s\), 2 laissé\(s\) \(retiré\(s\) ou changé\(s\) à la main\)$/m);
+  }
+  assert.deepEqual(ecarts(), ['crochet de passation non posé (alerte) : retiré ou changé à la main, laissé', 'crochet de passation non posé (reprise) : retiré ou changé à la main, laissé',
+    'réglage autoCompactWindow non posé : retiré à la main, laissé'], 'l’audit les dit, sans conseiller de les reposer');
+  // Remis à la main tels quels : de nouveau inchangés, sans écart.
+  fs.writeFileSync(settings, JSON.stringify({ ...lu(), autoCompactWindow: 300000, hooks: { ...lu().hooks, UserPromptSubmit: [{ hooks: [{ type: 'command', command: alerte }] }] } }));
+  const r3 = poser().reglages;
+  assert.deepEqual([r3.cles.inchangees, r3.cles.retirees_a_la_main, r3.crochets.inchanges, r3.crochets.retires_a_la_main], [['autoCompactWindow', 'effortLevel'], [], [alerte], [reprise]]);
+});

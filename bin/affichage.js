@@ -33,7 +33,7 @@ export function appliquer({ comptes, projets }) {
     const g = m.reglages;
     if (g.erreur) sortie.push(`  ATTENTION réglages de Claude Code non posés : ${g.erreur}`);
     else if (Object.values(g.cles).some((x) => x.length) || Object.values(g.crochets).some((x) => x.length)) {
-      sortie.push(`  réglages de Claude Code : ${g.cles.posees.length} posé(s), ${g.cles.retirees.length} retiré(s), ${g.cles.inchangees.length} inchangé(s)${g.cles.ignorees.length ? `, laissés (posés à la main) : ${g.cles.ignorees.join(', ')}` : ''} ; crochets : ${g.crochets.poses.length} posé(s), ${g.crochets.retires.length} retiré(s), ${g.crochets.inchanges.length} inchangé(s)`);
+      sortie.push(`  réglages de Claude Code : ${g.cles.posees.length} posé(s), ${g.cles.retirees.length} retiré(s), ${g.cles.inchangees.length} inchangé(s)${g.cles.ignorees.length ? `, laissés (posés à la main) : ${g.cles.ignorees.join(', ')}` : ''}${g.cles.retirees_a_la_main.length ? `, laissés (retirés à la main) : ${g.cles.retirees_a_la_main.join(', ')}` : ''} ; crochets : ${g.crochets.poses.length} posé(s), ${g.crochets.retires.length} retiré(s), ${g.crochets.inchanges.length} inchangé(s)${g.crochets.retires_a_la_main.length ? `, ${g.crochets.retires_a_la_main.length} laissé(s) (retiré(s) ou changé(s) à la main)` : ''}`);
     }
   }
   for (const { nom, m } of projets) {

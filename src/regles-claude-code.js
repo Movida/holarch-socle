@@ -137,15 +137,19 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
  * Écrit les réglages voulus dans `<home>/settings.json` : une clé n'est posée que si elle est absente ou posée par HOLARCH
  * (une valeur mise à la main est laissée, et dite) ; une clé ou un crochet que HOLARCH avait posé et qui n'est plus voulu
  * se retire (une clé seulement si personne ne l'a changée depuis). Manifeste : `<home>/rules/holarch/reglages.json`.
+ * Une entrée du manifeste absente du fichier a été retirée à la main (un crochet changé à la main aussi : sa commande n'y
+ * est plus) : elle est laissée, et dite (`retirees_a_la_main`, `retires_a_la_main`), et reste au manifeste tant qu'elle
+ * est voulue ; la remettre, ou la doubler d'un crochet neuf à côté de celui que l'auteur a changé, déferait son geste.
  * Rien ne s'écrit à travers un lien symbolique sous `home` (`ecrireJson`) : l'erreur le dit.
  */
 export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
   const settings = path.join(home, 'settings.json'); const manifeste = path.join(dossierCompte(home), 'reglages.json');
   const c = lireJson(settings, {}, { strict: true }); const nos = lireJson(manifeste, { cles: {}, crochets: [] }, { strict: true });
-  const r = { fichier: settings, cles: { posees: [], retirees: [], inchangees: [], ignorees: [] }, crochets: { poses: [], retires: [], inchanges: [] } };
+  const r = { fichier: settings, cles: { posees: [], retirees: [], inchangees: [], ignorees: [], retirees_a_la_main: [] }, crochets: { poses: [], retires: [], inchanges: [], retires_a_la_main: [] } };
   const notees = { cles: {}, crochets: [] };
   for (const [cle, v] of Object.entries(voulu.cles)) {
     if (egal(c[cle], v)) { r.cles.inchangees.push(cle); if (cle in nos.cles) notees.cles[cle] = v; continue; }
+    if (c[cle] === undefined && cle in nos.cles) { r.cles.retirees_a_la_main.push(cle); notees.cles[cle] = nos.cles[cle]; continue; }
     if (c[cle] === undefined || (cle in nos.cles && egal(c[cle], nos.cles[cle]))) { c[cle] = v; notees.cles[cle] = v; r.cles.posees.push(cle); continue; }
     r.cles.ignorees.push(cle);
   }
@@ -161,9 +165,9 @@ export function appliquerReglages(home, voulu, { ecrire = true } = {}) {
     }
   }
   for (const x of voulu.crochets) {
-    const groupes = (hooks[x.evenement] ||= []);
-    if (groupes.some((g) => (g.hooks || []).some((h) => h.command === x.command))) r.crochets.inchanges.push(x.command);
-    else { groupes.push({ ...(x.matcher && { matcher: x.matcher }), hooks: [{ type: 'command', command: x.command }] }); r.crochets.poses.push(x.command); }
+    if ((hooks[x.evenement] || []).some((g) => (g.hooks || []).some((h) => h.command === x.command))) r.crochets.inchanges.push(x.command);
+    else if (nos.crochets.includes(x.command)) r.crochets.retires_a_la_main.push(x.command);
+    else { (hooks[x.evenement] ||= []).push({ ...(x.matcher && { matcher: x.matcher }), hooks: [{ type: 'command', command: x.command }] }); r.crochets.poses.push(x.command); }
     notees.crochets.push(x.command);
   }
   if (!Object.keys(hooks).length) delete c.hooks;

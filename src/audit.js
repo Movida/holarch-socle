@@ -184,9 +184,13 @@ function ecartPassation(accueilHolarch, voulue) {
 }
 
 // Réglages de Claude Code voulus par le profil et absents (une clé posée à la main n'est pas un écart : elle est dite).
-const ecartsReglages = (regles, m) => [
-  ...m.reglages.cles.posees.map((cle) => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle, fichier: 'settings.json', message: `réglage ${cle} non posé` })),
-  ...m.reglages.crochets.poses.map((c) => { const x = crochetVoulu(c, regles); return { regle: x.regle === 'claude_code' ? x.regle : regleNommee(regles, x.regle), regle_id: x.regle, controle: 'reglages-poses', cle: x.cle, fichier: 'settings.json', message: x.message }; })];
+// Retirés à la main après leur pose, ils restent des écarts : `regles appliquer` les laisse, l'audit dit pourquoi.
+const ecartsReglages = (regles, m) => {
+  const cle = (k, suite = '') => ({ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle: k, fichier: 'settings.json', message: `réglage ${k} non posé${suite}` });
+  const crochet = (c, suite = '') => { const x = crochetVoulu(c, regles); return { regle: x.regle === 'claude_code' ? x.regle : regleNommee(regles, x.regle), regle_id: x.regle, controle: 'reglages-poses', cle: x.cle, fichier: 'settings.json', message: `${x.message}${suite}` }; };
+  return [...m.reglages.cles.posees.map((k) => cle(k)), ...m.reglages.cles.retirees_a_la_main.map((k) => cle(k, ' : retiré à la main, laissé')),
+    ...m.reglages.crochets.poses.map((c) => crochet(c)), ...m.reglages.crochets.retires_a_la_main.map((c) => crochet(c, ' : retiré ou changé à la main, laissé'))];
+};
 
 function ecartsCrochet({ demande, etat, raison }) {
   const e = (message, r = demande) => [{ regle: r ? r.fiche : 'crochet', regle_id: r ? r.id : 'crochet', controle: 'crochet-pose', cle: 'pre-commit', fichier: '.git/hooks/pre-commit', message }];
