@@ -2055,3 +2055,23 @@ test('Récolte : claude -p part d’un dossier vide sous l’accueil HOLARCH, re
     assert.deepEqual([fs.readdirSync(accueil), fs.readdirSync(neuf), fs.readdirSync(ailleurs)], [['neuf'], [], []]);
   } finally { if (avant === undefined) delete process.env.HOLARCH_HOME; else process.env.HOLARCH_HOME = avant; }
 });
+
+// Écriture gardée sur un FIFO, voisin de la famille « Sécurité et intégrité » : un FIFO posé à la place du fichier
+// (le conteneur écrit le dépôt) bloquait `ecrireSansLien` à l'ouverture, faute de lecteur. Ouvert sans attendre, il
+// lève une erreur avant la troncature, qu'un lecteur soit là ou non ; rien n'y est écrit, il reste en place.
+test('ecrireSansLien : un FIFO à la place du fichier lève une erreur sans bloquer, rien n’y est écrit', () => {
+  const d = tmp(); fs.mkdirSync(path.join(d, 'x'));
+  for (const f of ['x/seul.fifo', 'lu.fifo']) assert.equal(spawnSync('mkfifo', [path.join(d, f)]).status, 0);
+  // Dans un processus à part, borné dans le temps : l'ouverture d'un FIFO sans lecteur bloquerait le processus entier.
+  const src = JSON.stringify(new URL('../src/commun.js', import.meta.url).href);
+  const script = `import fs from 'node:fs'; import { ecrireSansLien } from ${src};
+    const d = ${JSON.stringify(d)}; const essai = (f) => { try { ecrireSansLien(d, f, 'contenu\\n'); return 'écrit'; } catch (e) { return e.message; } };
+    const lecteur = fs.openSync(${JSON.stringify(path.join(d, 'lu.fifo'))}, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    const avec = essai('lu.fifo'); let lu; try { lu = fs.readSync(lecteur, Buffer.alloc(64)); } catch (e) { lu = e.code; }
+    console.log(JSON.stringify({ sans: essai('x/seul.fifo'), avec, lu, fichier: essai('x/f.txt') }));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'l’écriture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), { sans: 'x/seul.fifo n’est pas un fichier : rien n’est écrit', avec: 'lu.fifo n’est pas un fichier : rien n’est écrit', lu: 0, fichier: 'écrit' });
+  assert.deepEqual([fs.lstatSync(path.join(d, 'x', 'seul.fifo')).isFIFO(), fs.lstatSync(path.join(d, 'lu.fifo')).isFIFO(), fs.readFileSync(path.join(d, 'x', 'f.txt'), 'utf8')], [true, true, 'contenu\n']);
+});

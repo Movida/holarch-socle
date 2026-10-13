@@ -64,13 +64,20 @@ export function lireSansLien(racine, relatif, { max = Infinity } = {}) {
 /**
  * Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique
  * (`cheminSansLien`, puis `ouvrirSansLien` pour la course entre la vérification et l'écriture). Le fichier s'ouvre sans
- * `O_TRUNC` et ne se tronque qu'une fois l'ouverture vérifiée ; son mode se pose sur ce qui est ouvert.
+ * `O_TRUNC` et ne se tronque qu'une fois l'ouverture vérifiée ; son mode se pose sur ce qui est ouvert. Ce qui n'est pas
+ * un fichier (un FIFO posé à sa place) lève une erreur avant la troncature : ouvert sans attendre de lecteur
+ * (`O_NONBLOCK` ; sans lecteur, l'ouverture échoue en `ENXIO`), il ne bloque pas l'écriture.
  */
 export function ecrireSansLien(racine, relatif, contenu, mode) {
   const p = cheminSansLien(racine, relatif);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  const fd = ouvrirSansLien(racine, relatif, fs.constants.O_WRONLY | fs.constants.O_CREAT, 'écrit', mode ?? 0o666);
-  try { fs.ftruncateSync(fd, 0); fs.writeFileSync(fd, contenu); if (mode) fs.fchmodSync(fd, mode); } finally { fs.closeSync(fd); }
+  const { O_WRONLY, O_CREAT, O_NONBLOCK } = fs.constants;
+  const pasUnFichier = () => new Error(`${relatif} n’est pas un fichier : rien n’est écrit`);
+  let fd; try { fd = ouvrirSansLien(racine, relatif, O_WRONLY | O_CREAT | O_NONBLOCK, 'écrit', mode ?? 0o666); } catch (e) { throw e.code === 'ENXIO' ? pasUnFichier() : e; }
+  try {
+    if (!fs.fstatSync(fd).isFile()) throw pasUnFichier();
+    fs.ftruncateSync(fd, 0); fs.writeFileSync(fd, contenu); if (mode) fs.fchmodSync(fd, mode);
+  } finally { fs.closeSync(fd); }
 }
 
 /** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */
