@@ -2460,3 +2460,14 @@ test('Lecture de l’amont et d’une clé git : une seule fonction de chaque, a
   });
   assert.deepEqual(copies, []);
 }, '[user]\n\tname = Compte Fictif\n\temail = compte@exemple.invalid\n'));
+
+// Récolte sans gitleaks en code 0 (risque faible à la clôture) : rien n'était envoyé, mais la commande, et la routine du
+// lundi qui la lance, se disaient réussies. Elle sort en code 1.
+test('Récolte sans gitleaks : rien n’est envoyé, et la commande sort en code 1', () => {
+  const accueil = tmp(); const maison = tmp();
+  const coupe = Object.fromEntries(['depots-git', 'claude-code', 'arbre', 'docker', 'claude-desktop'].map((x) => [x, { actif: false }]));
+  fs.writeFileSync(path.join(accueil, 'config.yaml'), YAML.stringify({ site: 'local', inventaire: coupe, controles: { gitleaks: path.join(maison, 'inexistant', 'gitleaks') } }));
+  const r = spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), 'recolte', '--a-blanc'], { encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil, HOME: maison } });
+  assert.match(r.stdout, /rien n'est envoyé : gitleaks absent/);
+  assert.equal(r.status, 1, r.stderr);
+});

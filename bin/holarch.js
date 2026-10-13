@@ -229,6 +229,8 @@ switch (cmd) {
       const r = s.recolte({ depuis, jusqua, aBlanc: args.includes('--a-blanc'), proposer: args.includes('--proposer'), modele: val('--modele'), budget: val('--budget') });
       if (r.propositions?.ecrites.length) { await s.inventaire(); s.indexer(); }
       afficher(json ? r : affichage.recolte(r));
+      // Rien n'est parti (gitleaks absent ou en panne) : la récolte a échoué, la routine du lundi aussi (systemd la dit).
+      if (r.indisponible) process.exitCode = 1;
     } catch (e) { console.error(`holarch recolte : ${e.message}`); process.exit(1); }
     break; }
   case 'audit': {
