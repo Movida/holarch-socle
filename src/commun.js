@@ -144,10 +144,13 @@ export function ecrireJson(f, o, { indent = 2, racine = null } = {}) {
   const tmp = `${cible}.${process.pid}.holarch`;
   let mode = null; try { mode = fs.statSync(cible).mode & 0o7777; } catch { /* fichier nouveau : les droits par défaut */ }
   fs.mkdirSync(path.dirname(cible), { recursive: true });
-  // Le temporaire naît avec les droits du fichier (que personne d'autre ne l'ouvre avant), exacts malgré le umask.
+  // Le temporaire naît avec les droits du fichier (que personne d'autre ne l'ouvre avant), exacts malgré le umask. Une
+  // écriture ou un renommage en échec (disque plein, un dossier à la place du fichier) ne le laisse pas derrière elle.
   const fd = fs.openSync(tmp, 'w', mode ?? 0o666);
-  try { if (mode !== null) fs.fchmodSync(fd, mode); fs.writeFileSync(fd, `${JSON.stringify(o, null, indent || undefined)}\n`); } finally { fs.closeSync(fd); }
-  fs.renameSync(tmp, cible);
+  try {
+    try { if (mode !== null) fs.fchmodSync(fd, mode); fs.writeFileSync(fd, `${JSON.stringify(o, null, indent || undefined)}\n`); } finally { fs.closeSync(fd); }
+    fs.renameSync(tmp, cible);
+  } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 const lienSymbolique = (f) => { try { return fs.lstatSync(f).isSymbolicLink(); } catch { return false; } };
 

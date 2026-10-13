@@ -2461,3 +2461,14 @@ console.log('[]');
   const cles = JSON.parse(fs.readFileSync(appels, 'utf8'));
   assert.deepEqual(['diff.piege.textconv', 'filter.a b=c.clean', 'diff.compte.textconv'].filter((x) => !cles.includes(x)), [], cles.join(' | '));
 });
+
+// Temporaire d'`ecrireJson`, voisin de la famille Gardes muettes : un renommage en échec (ici, un dossier à la place du
+// fichier) laissait le temporaire `<fichier>.<pid>.holarch` à côté. Il est retiré, et l'erreur relancée.
+test('ecrireJson : un renommage en échec ne laisse pas le fichier temporaire, et l’erreur se dit', async () => {
+  const { ecrireJson } = await import('../src/commun.js');
+  const d = tmp(); fs.mkdirSync(path.join(d, 'etat.json'));
+  assert.throws(() => ecrireJson(path.join(d, 'etat.json'), { a: 1 }), { code: 'EISDIR' });
+  assert.deepEqual(fs.readdirSync(d), ['etat.json']);
+  assert.throws(() => ecrireJson(path.join(d, 'etat.json'), { a: 1 }, { racine: d }), { code: 'EISDIR' });
+  assert.deepEqual(fs.readdirSync(d), ['etat.json'], 'avec une racine aussi');
+});
