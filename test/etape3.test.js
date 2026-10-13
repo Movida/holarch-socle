@@ -2236,3 +2236,17 @@ test('M5 : une identité de commit retirée à la main n’est pas reposée ; la
   assert.equal(spawnSync('/bin/sh', ['-c', e.geste.commande]).status, 0);
   assert.deepEqual([etats(await creer()).identite, locale()], ['faite', voulue.email]);
 }));
+
+// `git add -A` des règles non vérifié (famille Gardes muettes, écarts mineurs) : refusé (ici, `.claude/` ignoré par le
+// compte), l'étape disait les règles faites alors que rien n'était commité. L'échec se dit, avec le message de git.
+test('Création : un ajout des règles refusé par git se dit en échec, pas « fait »', () => {
+  const exclus = path.join(tmp(), 'exclus'); fs.writeFileSync(exclus, '.claude/\n');
+  return gitIsole(async () => {
+    const { r, s, git } = await bancCreation();
+    const d = path.join(r, 'neuf'); const p = await creerProjet(s, { nom: 'neuf', types: ['methode'] });
+    const e = p.etapes.find((x) => x.etape === 'regles');
+    assert.deepEqual([e?.etat, e?.detail], ['echec', 'règles écrites, non ajoutées à git : The following paths are ignored by one of your .gitignore files:'], JSON.stringify(p.etapes, null, 1));
+    assert.equal(p.etapes.at(-1), e, 'la suite attend un rejeu, comme après un commit refusé');
+    assert.deepEqual([fs.readdirSync(path.join(d, '.claude', 'rules', 'holarch')), git(d, 'ls-files', '--', '.claude')], [['tests-verts.md'], ''], 'écrites, non commitées');
+  }, `[core]\n\texcludesFile = ${exclus}\n`);
+});

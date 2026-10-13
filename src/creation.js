@@ -265,7 +265,8 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     if (!changes && !enAttente && ['inchange', 'absent'].includes(m.crochet.etat)) noter('regles', 'deja', detail);
     else if (aBlanc) noter('regles', 'a-faire', detail);
     else {
-      g('add', '-A', '--', dossierRegles);
+      // Refusé (un verrou de l'index, le dossier ignoré par git), rien ne serait commité : l'étape le dit.
+      const a = g('add', '-A', '--', dossierRegles); if (a.status !== 0) { noter('regles', 'echec', `règles écrites, non ajoutées à git : ${erreur(a)}`); return r; }
       if (g('diff', '--cached', '--quiet', '--', dossierRegles).status !== 0) {
         try { commiter('Appliquer les règles HOLARCH', [dossierRegles]); } catch (e) { noter('regles', 'echec', e.message); return r; }
       }
