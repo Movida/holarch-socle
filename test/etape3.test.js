@@ -14,19 +14,21 @@ function banc({ mode = 'auto', session } = {}) {
   const racine = tmp(); const unites = tmp(); const cfgClaude = path.join(tmp(), '.claude.json');
   fs.mkdirSync(path.join(racine, 'demo')); fs.mkdirSync(path.join(racine, 'autre'));
   fs.writeFileSync(cfgClaude, JSON.stringify({ autre: 1, projects: { '/x': { hasTrustDialogAccepted: false, garde: true } } }));
-  const appels = []; const actifs = new Set(); const pannes = new Set();
+  const appels = []; const actifs = new Set(); const pannes = new Set(); const coupees = new Set();
   const systemctl = (args) => {
     appels.push(args.join(' '));
     if (args[0] === 'restart' && pannes.has(args[1])) { actifs.delete(args[1]); return { status: 1, stdout: '', stderr: 'Job failed' }; }
-    if (args[0] === 'enable') actifs.add(args.at(-1));
-    if (args[0] === 'disable') actifs.delete(args.at(-1));
-    return { status: 0, stdout: args[0] === 'is-active' ? (actifs.has(args[1]) ? 'active\n' : 'inactive\n') : '', stderr: '' };
+    if (args[0] === 'enable') { actifs.add(args.at(-1)); coupees.delete(args.at(-1)); }
+    if (args[0] === 'disable') { actifs.delete(args.at(-1)); coupees.add(args.at(-1)); }
+    const etat = { 'is-active': actifs.has(args[1]) ? 'active' : 'inactive', 'is-enabled': coupees.has(args[1]) ? 'disabled' : 'enabled', 'is-system-running': 'running' }[args[0]];
+    return { status: 0, stdout: etat ? `${etat}\n` : '', stderr: '' };
   };
   const config = { inventaire: { 'depots-git': { racines: [racine] }, 'claude-code': { config: cfgClaude } }, acces_distant: { mode_permissions: mode, ...(session ? { session_au_demarrage: session } : {}) } };
   const projets = ['demo', 'autre'].map((n) => ({ id: `holarch:project:${n}`, nom: n, location: path.join(racine, n) }));
   const horloge = { t: Date.parse('2026-01-01T08:00:00Z'), demarrage: 'premier' }; const accueil = tmp();
-  const d = creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets, accueil, holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', maintenant: () => horloge.t, demarrage: () => horloge.demarrage });
-  return { racine, unites, cfgClaude, appels, pannes, horloge, accueil, d };
+  const creer = (o = {}) => creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets, accueil, holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', maintenant: () => horloge.t, demarrage: () => horloge.demarrage, ...o });
+  const d = creer();
+  return { racine, unites, cfgClaude, appels, pannes, horloge, accueil, d, systemctl, creer };
 }
 
 test('accès distant : activer écrit un service marqué, déclare la confiance et démarre ; desactiver le retire', () => {
@@ -2059,4 +2061,21 @@ test('Accès distant : un systemctl sans réponse ne se lit ni « arrêté » ni
   // Sans systemd, rien ne tourne ni n'a été coupé.
   panne = 'Failed to connect to bus: No medium found'; sousSystemd = false;
   assert.deepEqual([d.liste().map((x) => x.actif), routine()], [[false], 'activée']);
+});
+
+// M1 (famille Gardes muettes) : `distant activer` rallumait le minuteur de reprise après une veille coupé à la main (trou de
+// la décision routines-posees). Il est réécrit sans être rallumé, et la commande le dit.
+test('M1 : distant activer laisse coupé le minuteur de réveil coupé à la main, et le dit', () => {
+  const { unites, appels, d, systemctl, creer } = banc();
+  assert.equal(d.activer('demo').reveil, 'posé');
+  systemctl(['disable', '--now', 'holarch-reveil.timer']); appels.length = 0;
+  // Une autre copie de HOLARCH : le service du réveil est réécrit pour elle, le minuteur reste coupé.
+  assert.equal(creer({ holarch: '/opt/holarch-2/bin/holarch.js' }).activer('autre').reveil, 'coupé à la main : laissé');
+  assert.deepEqual(appels.filter((a) => /^(enable|start|restart)/.test(a)), ['enable --now holarch-distant-autre.service'], 'le minuteur n’est pas rallumé');
+  assert.match(fs.readFileSync(path.join(unites, 'holarch-reveil.service'), 'utf8'), /"\/opt\/holarch-2\/bin\/holarch\.js" distant reveil$/m);
+  assert.equal(appels.filter((a) => a === 'daemon-reload').length, 2, 'l’accès distant, puis le réveil réécrit');
+  systemctl(['enable', '--now', 'holarch-reveil.timer']);
+  assert.equal(d.activer('demo').reveil, 'posé', 'rallumé à la main : de nouveau tenu');
+  fs.writeFileSync(path.join(unites, 'holarch-reveil.timer'), '[Timer]\nOnCalendar=hourly\n');
+  assert.equal(d.activer('demo').reveil, 'non écrit par HOLARCH : laissé');
 });

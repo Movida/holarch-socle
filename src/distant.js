@@ -288,10 +288,17 @@ export function creerDistant(config, {
   const sv = services({ unites, systemctl, sousSystemd });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
   const reveil = { service: path.join(unites, `${UNITE_REVEIL}.service`), minuteur: path.join(unites, `${UNITE_REVEIL}.timer`), passage: path.join(accueil, 'distant-reveil') };
+  // Le minuteur coupé à la main est réécrit sans être rallumé, comme les routines de la copie de service (décision
+  // routines-posees) : un accès distant de plus ne le rallume pas.
   const poserReveil = () => {
-    for (const x of [reveil.service, reveil.minuteur]) if (fs.existsSync(x) && !sv.geree(x)) return;
+    for (const x of [reveil.service, reveil.minuteur]) if (fs.existsSync(x) && !sv.geree(x)) return 'non écrit par HOLARCH : laissé';
+    if (sv.coupee(reveil.minuteur)) {
+      if ([sv.ecrire(reveil.service, uniteReveil({ node, holarch, accueil })), sv.ecrire(reveil.minuteur, MINUTEUR_REVEIL)].some(Boolean)) sv.lancer(['daemon-reload']);
+      return 'coupé à la main : laissé';
+    }
     if (sv.ecrire(reveil.service, uniteReveil({ node, holarch, accueil }))) sv.lancer(['daemon-reload']);
     sv.poser(reveil.minuteur, MINUTEUR_REVEIL);
+    return 'posé';
   };
   const retirerReveil = () => {
     if (fs.existsSync(reveil.minuteur) && sv.geree(reveil.minuteur)) sv.retirer(reveil.minuteur);
@@ -323,8 +330,8 @@ export function creerDistant(config, {
       const texte = uniteDe({ nom, chemin, claude: binaire, mode: config.acces_distant?.mode_permissions || null, session: config.acces_distant?.session_au_demarrage || 'aucune' });
       const confiance = declarerConfiance(config.inventaire?.['claude-code']?.config || configClaude(path.join(os.homedir(), '.claude')), chemin);
       sv.poser(f, texte);
-      poserReveil();
-      return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance };
+      const etatReveil = poserReveil();
+      return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance, reveil: etatReveil };
     },
     // Le service d'un projet sorti du catalogue doit rester retirable : à défaut de projet, la référence est son nom.
     desactiver(ref) {
