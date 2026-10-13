@@ -110,13 +110,21 @@ export function invite(candidats, regles) {
   return `Règles existantes :\n${r}\n\nÉléments :\n${c}\n`;
 }
 
-/** Regroupement par `claude -p` : sans outils, sans serveur MCP, sans session gardée, dépense plafonnée. */
-export function regroupeurClaude({ claude, config = null, modele = 'sonnet', budget = 1, delai = 600e3, dossier = os.tmpdir() }) {
+/**
+ * Regroupement par `claude -p` : sans outils, sans serveur MCP, sans session gardée, dépense plafonnée. Lancé d'un dossier
+ * vide créé pour lui, retiré ensuite : `--setting-sources project` lit les réglages du dossier courant, et ceux du dossier
+ * temporaire commun (`/tmp/.claude/settings.json`, crochets compris) sont à tout utilisateur du poste.
+ */
+export function regroupeurClaude({ claude, config = null, modele = 'sonnet', budget = 1, delai = 600e3 }) {
   return (texte) => {
     if (!claude) throw new Error(claudeIntrouvable(config));
-    const r = spawnSync(claude, ['-p', '--model', modele, '--output-format', 'json', '--no-session-persistence', '--tools', '',
-      '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', 'project', '--max-budget-usd', String(budget),
-      '--system-prompt', CONSIGNE, '--json-schema', JSON.stringify(SCHEMA)], { input: texte, encoding: 'utf8', cwd: dossier, timeout: delai, maxBuffer: 64 * 1024 * 1024 });
+    const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-regroupement-'));
+    let r;
+    try {
+      r = spawnSync(claude, ['-p', '--model', modele, '--output-format', 'json', '--no-session-persistence', '--tools', '',
+        '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', 'project', '--max-budget-usd', String(budget),
+        '--system-prompt', CONSIGNE, '--json-schema', JSON.stringify(SCHEMA)], { input: texte, encoding: 'utf8', cwd: dossier, timeout: delai, maxBuffer: 64 * 1024 * 1024 });
+    } finally { fs.rmSync(dossier, { recursive: true, force: true }); }
     let o; try { o = JSON.parse(r.stdout); } catch { throw new Error(`claude -p en échec : ${(r.stderr || r.error?.message || `code ${r.status}`).trim().split('\n')[0]}`); }
     if (o.is_error || !o.structured_output) throw new Error(`claude -p sans résultat : ${o.subtype || 'inconnu'}${o.result ? ` (${String(o.result).slice(0, 200)})` : ''}`);
     return { groupes: o.structured_output.groupes || [], cout_usd: o.total_cost_usd ?? null, modele };

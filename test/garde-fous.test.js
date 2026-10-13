@@ -1624,3 +1624,18 @@ test('Garde sans passage muet (1) : HOLARCH injoignable, le crochet vérifie les
   faux(outils, 2);
   assert.deepEqual(lancer(), [1, 'HOLARCH injoignable et gitleaks en échec : commit refusé ; git commit --no-verify pour passer, l\'audit le verra']);
 });
+
+// Revue des limites, famille « Sécurité et intégrité » (2026-10-13) : palliatifs triviaux et faibles.
+
+test('X4 : la récolte lance claude -p d’un dossier vide à elle, retiré ensuite, jamais du dossier temporaire commun', async () => {
+  const { regroupeurClaude } = await import('../src/recolte.js');
+  // Des réglages posés dans le dossier temporaire commun, que tout utilisateur du poste peut écrire (crochets compris).
+  fs.mkdirSync(path.join(os.tmpdir(), '.claude'), { recursive: true }); fs.writeFileSync(path.join(os.tmpdir(), '.claude', 'settings.json'), '{"hooks":{}}');
+  const trace = path.join(tmp(), 'trace'); const faux = path.join(tmp(), 'claude');
+  fs.writeFileSync(faux, `#!/bin/sh\ncat > /dev/null\n{ pwd -P; ls -A; [ -e .claude/settings.json ] && echo "réglages lus"; } > '${trace}'\necho '{"structured_output":{"groupes":[]},"total_cost_usd":0}'\n`, { mode: 0o755 });
+  assert.deepEqual(regroupeurClaude({ claude: faux })('texte').groupes, []);
+  const [dossier, ...reste] = fs.readFileSync(trace, 'utf8').trim().split('\n');
+  assert.notEqual(dossier, fs.realpathSync(os.tmpdir()), 'lancé du dossier temporaire commun');
+  assert.deepEqual(reste, [], 'un dossier vide, sans réglages');
+  assert.equal(fs.existsSync(dossier), false, 'retiré après le regroupement');
+});
