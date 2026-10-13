@@ -28,10 +28,19 @@ export function cheminSansLien(racine, relatif, verbe = 'écrit') {
   return p;
 }
 
-/** Le texte de `relatif` sous `racine` (un dépôt), null s'il manque ou ne se lit pas, sans suivre de lien symbolique (`cheminSansLien` : un lien lève une erreur). */
+/**
+ * Le texte de `relatif` sous `racine` (un dépôt), null s'il manque ou ne se lit pas, sans suivre de lien symbolique
+ * (`cheminSansLien` : un lien lève une erreur). Le fichier s'ouvre en `O_NOFOLLOW` : un lien posé à sa place entre la
+ * vérification et la lecture fait échouer l'ouverture, qui le dit comme la vérification.
+ */
 export function lireSansLien(racine, relatif) {
   const p = cheminSansLien(racine, relatif, 'lu');
-  try { return fs.readFileSync(p, 'utf8'); } catch { return null; }
+  const { O_RDONLY, O_NOFOLLOW } = fs.constants;
+  let fd; try { fd = fs.openSync(p, O_RDONLY | O_NOFOLLOW); } catch (e) {
+    if (e.code === 'ELOOP') throw new Error(`${relatif} est un lien symbolique : rien n’est lu`);
+    return null;
+  }
+  try { return fs.readFileSync(fd, 'utf8'); } catch { return null; } finally { fs.closeSync(fd); }
 }
 
 /**

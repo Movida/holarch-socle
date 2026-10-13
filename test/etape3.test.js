@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { creerDistant, creerInterface, creerReveil, creerRecolte, declarerConfiance, nomDe } from '../src/distant.js';
-import { binaireClaude, ecrireSansLien } from '../src/commun.js';
+import { binaireClaude, ecrireSansLien, lireSansLien } from '../src/commun.js';
 
 import { tmp } from './temporaire.js';
 
@@ -1515,6 +1515,24 @@ test('ecrireSansLien : un lien posé entre la vérification et l’écriture la 
   // Sans course, l'écriture se fait ; un fichier présent est remplacé en entier, et prend le mode demandé.
   ecrireSansLien(d, 'y/f.sh', 'un contenu plus long\n'); ecrireSansLien(d, 'y/f.sh', 'court\n', 0o755);
   assert.deepEqual([fs.readFileSync(path.join(d, 'y', 'f.sh'), 'utf8'), fs.statSync(path.join(d, 'y', 'f.sh')).mode & 0o777], ['court\n', 0o755]);
+});
+
+// Course entre la vérification et la lecture (limite de C levée) : un lien posé à la place du fichier juste après
+// `cheminSansLien` (ici, après le `lstat` qui le vérifie) fait échouer la lecture, ouverte en `O_NOFOLLOW` : rien de
+// l'hôte n'est lu, et un lien vers un fichier absent se dit aussi, au lieu de passer pour un fichier absent.
+test('lireSansLien : un lien posé entre la vérification et la lecture la fait échouer, rien n’est lu dehors', () => {
+  const d = tmp(); const cible = path.join(tmp(), 'hote.txt'); fs.writeFileSync(cible, 'secret de l’hôte\n');
+  const f = path.join(d, 'x', 'f.yaml'); fs.mkdirSync(path.dirname(f));
+  const lstat = fs.lstatSync;
+  const course = (vers) => {
+    fs.writeFileSync(f, 'du dépôt\n');
+    fs.lstatSync = (q, ...a) => { const r = lstat(q, ...a); if (q === f) { fs.lstatSync = lstat; fs.rmSync(f); fs.symlinkSync(vers, f); } return r; };
+    try { assert.throws(() => lireSansLien(d, 'x/f.yaml'), (e) => e.message === 'x/f.yaml est un lien symbolique : rien n’est lu', vers); } finally { fs.lstatSync = lstat; fs.rmSync(f, { force: true }); }
+  };
+  course(cible); course(path.join(d, 'absent.yaml'));
+  // Sans course, le fichier se lit ; absent, il vaut null.
+  fs.writeFileSync(f, 'du dépôt\n');
+  assert.deepEqual([lireSansLien(d, 'x/f.yaml'), lireSansLien(d, 'x/absent.yaml')], ['du dépôt\n', null]);
 });
 
 // Réglages du compte (limite de C levée) : le manifeste de ce que HOLARCH pose dans settings.json s'écrit d'abord ;
