@@ -1618,7 +1618,7 @@ test('Garde sans passage muet (1) : HOLARCH injoignable, le crochet vérifie les
   assert.deepEqual(lancer(), [0, 'HOLARCH injoignable : commit non contrôlé (l\'audit le verra)']);
   faux(chemin, 0);
   assert.deepEqual(lancer(), [0, 'HOLARCH injoignable : seuls les secrets sont vérifiés (gitleaks), l\'audit verra le reste'], 'celui du PATH');
-  assert.equal(fs.readFileSync(appels, 'utf8'), `${d} git --pre-commit --staged --redact --no-banner --log-level error --verbose .\n`);
+  assert.equal(fs.readFileSync(appels, 'utf8'), `${d} git --pre-commit --staged --gitleaks-ignore-path /dev/null --ignore-gitleaks-allow --redact --no-banner --log-level error --verbose .\n`);
   faux(outils, 1);
   assert.deepEqual(lancer(), [1, 'HOLARCH injoignable : commit refusé, gitleaks trouve un secret dans les changements indexés'], 'celui du conteneur d’abord');
   faux(outils, 2);
@@ -1898,4 +1898,55 @@ test('Création : un contexte qui ne se lit pas se dit illisible, avec sa raison
   ecrireF(path.join(profil, 'arbre', 'index.md'), '---\n<<<<<<< HEAD\ntype: guideline\nid: profil\ntitle: Profil fictif\n=======\ntype: index\nid: profil\ntitle: Profil\n>>>>>>> autre\n---\n');
   assert.ok(message({ contexte: 'x' }).startsWith(`contexte inconnu : x (pro, perso illisible (${raison}`), message({ contexte: 'x' }));
   assert.doesNotMatch(message({ contexte: 'x' }), /index/);
+});
+
+// Repli du crochet de commit, voisin de la famille « Sécurité et intégrité » : HOLARCH injoignable (un conteneur), le
+// crochet lance gitleaks comme le contrôle des secrets (`gitleaks` du module controles) : sa configuration par défaut
+// (`GITLEAKS_CONFIG` retirée), ni `gitleaks:allow` ni le `.gitleaksignore` du dossier courant, un `.gitleaksignore` du
+// dépôt refuse le commit ; et le git que gitleaks lance n'exécute rien de la configuration du dépôt, par les mêmes clés
+// que `neutralisation` (portées local et worktree, chaque pilote une fois, après un `GIT_CONFIG_COUNT` déjà posé).
+test('Repli du crochet de commit : gitleaks y est lancé comme par le contrôle des secrets, configuration par défaut et git neutralisé', async () => {
+  const { crochetDe } = await import('../src/garde-git.js');
+  const { gitleaks, CONFIG_GITLEAKS } = await import('../src/controles.js');
+  const d = tmp(); const temoin = path.join(tmp(), 'execute'); const appels = path.join(tmp(), 'appels'); const outils = tmp();
+  const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', ...a], { encoding: 'utf8' });
+  g('init', '-q');
+  const piege = path.join(d, '.git', 'piege.sh');
+  fs.writeFileSync(piege, `#!/bin/sh\necho "$0 $*" >> '${temoin}'\ncat "$@" 2>/dev/null\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(d, '.gitattributes'), '* diff=piege\n'); fs.writeFileSync(path.join(d, 'conf.txt'), 'a\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  // Un pilote au nom qui porte une espace et un `=`, déclaré deux fois ; un autre au compte, qui reste.
+  for (const [k, v] of [['core.fsmonitor', piege], ['diff.piege.textconv', piege], ['filter.a b=c.clean', piege], ['filter.a b=c.smudge', piege]]) g('config', k, v);
+  const compte = path.join(tmp(), 'gitconfig'); fs.writeFileSync(compte, '[diff "compte"]\n\ttextconv = cat\n');
+  fs.writeFileSync(path.join(d, 'conf.txt'), 'b\n'); g('add', 'conf.txt');
+  // Un gitleaks fictif : il lance git dans la cible comme le 8.30.1 essayé (`git diff` des changements indexés), puis
+  // note ses arguments et ce qui, de son environnement, règle git ou gitleaks.
+  const faux = path.join(outils, 'gitleaks');
+  fs.writeFileSync(faux, `#!${process.execPath}
+const { spawnSync } = require('node:child_process');
+spawnSync('git', ['-C', process.argv.at(-1), 'diff', '--staged', '-U0', '.']); spawnSync('git', ['-C', process.argv.at(-1), 'status']);
+const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^(GIT_CONFIG_|GIT_ALLOW_PROTOCOL$|GITLEAKS_)/.test(k)).sort());
+require('node:fs').appendFileSync(${JSON.stringify(appels)}, JSON.stringify({ args: process.argv.slice(2), env }) + '\\n');
+console.log('[]');
+`, { mode: 0o755 });
+  const crochet = path.join(d, '.git', 'hooks', 'pre-commit'); fs.mkdirSync(path.dirname(crochet), { recursive: true });
+  fs.writeFileSync(crochet, crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant', outils }), { mode: 0o755 });
+  const permissive = path.join(tmp(), 'gitleaks.toml'); fs.writeFileSync(permissive, "[allowlist]\npaths = ['''.*''']\n");
+  const reglage = { GITLEAKS_CONFIG: permissive, GIT_CONFIG_GLOBAL: compte, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'user.name', GIT_CONFIG_VALUE_0: 'posé avant' };
+  const lancer = () => { const r = spawnSync(crochet, { cwd: d, encoding: 'utf8', env: { PATH: '/usr/bin:/bin', ...reglage } }); return [r.status, r.stderr.trim()]; };
+  const vus = () => fs.readFileSync(appels, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(lancer(), [0, 'HOLARCH injoignable : seuls les secrets sont vérifiés (gitleaks), l\'audit verra le reste']);
+  assert.equal(fs.existsSync(temoin) ? fs.readFileSync(temoin, 'utf8') : '', '', 'rien de la configuration du dépôt ne s’exécute');
+  const [crochetVu] = vus();
+  assert.deepEqual(crochetVu.args, ['git', '--pre-commit', '--staged', '--gitleaks-ignore-path', '/dev/null', '--ignore-gitleaks-allow', '--redact', '--no-banner', '--log-level', 'error', '--verbose', '.']);
+  assert.deepEqual([crochetVu.env.GITLEAKS_CONFIG, crochetVu.env.GITLEAKS_CONFIG_TOML], [undefined, CONFIG_GITLEAKS], 'la configuration par défaut, jamais celle de l’environnement');
+  // Les mêmes réglages que le chemin Node, à l'identique (clés, valeurs, ordre).
+  const avant = { ...process.env }; Object.assign(process.env, reglage);
+  try { assert.deepEqual(gitleaks(faux, ['git', '--pre-commit', '--staged', d], { depot: d }), { trouves: [] }); } finally { for (const k of Object.keys(reglage)) { if (k in avant) process.env[k] = avant[k]; else delete process.env[k]; } }
+  assert.deepEqual(crochetVu.env, vus()[1].env);
+  assert.deepEqual([crochetVu.env.GIT_CONFIG_COUNT, crochetVu.env.GIT_CONFIG_KEY_0, crochetVu.env.GIT_CONFIG_KEY_9, crochetVu.env.GIT_CONFIG_KEY_13, crochetVu.env.GIT_ALLOW_PROTOCOL],
+    ['14', 'user.name', 'diff.piege.textconv', 'filter.a b=c.required', 'aucun'], 'un pilote une fois, celui du compte non');
+  // Un `.gitleaksignore` du dépôt, que gitleaks suit toujours : le commit est refusé, comme par la garde.
+  fs.writeFileSync(path.join(d, '.gitleaksignore'), 'conf.txt:cle:1\n');
+  assert.deepEqual(lancer(), [1, 'HOLARCH injoignable : commit refusé, le .gitleaksignore du dépôt peut taire un secret ; git commit --no-verify pour passer, l\'audit le verra']);
 });

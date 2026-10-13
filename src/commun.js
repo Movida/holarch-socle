@@ -152,6 +152,20 @@ export function git(depot, args, o = {}) {
 }
 
 /**
+ * Ce que pose `neutralisation`, partagé avec son écriture en shell (repli du crochet de commit, `garde-git`) : les clés
+ * fixes, celles de chaque pilote déclaré (`filter.<x>.<clé>`, `diff.<x>.<clé>`), le protocole qui n'existe pas, et ce
+ * qui désigne les pilotes dans `git config --get-regexp`.
+ */
+export const NEUTRE = {
+  cles: [['core.fsmonitor', 'false'], ['core.hooksPath', '/dev/null'], ['log.showSignature', 'false'], ['submodule.recurse', 'false'],
+    ...['gpg.program', 'gpg.openpgp.program', 'gpg.ssh.program', 'gpg.x509.program'].map((k) => [k, 'false'])],
+  filter: [['clean', ''], ['smudge', ''], ['process', ''], ['required', 'false']],
+  diff: [['textconv', 'cat']],
+  protocole: 'aucun',
+  pilotes: '^(filter|diff)\\..+\\.',
+};
+
+/**
  * Ce que la configuration propre d'un dépôt (portées `local` et `worktree`, inclusions comprises) pourrait faire
  * exécuter à une lecture, annulé : `core.fsmonitor`, les crochets (`core.hooksPath` vers /dev/null), les programmes de
  * vérification des signatures (qu'un `export-subst` d'`archive` appelle), tout transport (`GIT_ALLOW_PROTOCOL` réduit à un protocole qui n'existe pas :
@@ -161,20 +175,16 @@ export function git(depot, args, o = {}) {
  * lance git lui-même dans un dépôt (gitleaks avant commit) le reçoit dans son environnement, que git hérite.
  */
 export function neutralisation(depot, env) {
-  const r = spawnSync('git', ['-C', depot, 'config', '--show-scope', '-z', '--get-regexp', '^(filter|diff)\\..+\\.'], { encoding: 'utf8', timeout: 10e3 });
+  const r = spawnSync('git', ['-C', depot, 'config', '--show-scope', '-z', '--get-regexp', NEUTRE.pilotes], { encoding: 'utf8', timeout: 10e3 });
   const pilotes = new Set();
   const champs = (r.stdout || '').split('\0'); // portée, puis clé et valeur séparées par une fin de ligne
   for (let i = 0; i + 1 < champs.length; i += 2) {
     const m = champs[i + 1].split('\n')[0].match(/^(filter|diff)\.(.+)\.[^.]+$/);
     if (m && (champs[i] === 'local' || champs[i] === 'worktree')) pilotes.add(`${m[1]}.${m[2]}`);
   }
-  const cles = [['core.fsmonitor', 'false'], ['core.hooksPath', '/dev/null'], ['log.showSignature', 'false'], ['submodule.recurse', 'false'],
-    ...['gpg.program', 'gpg.openpgp.program', 'gpg.ssh.program', 'gpg.x509.program'].map((k) => [k, 'false'])];
-  for (const p of pilotes) {
-    if (p.startsWith('filter.')) cles.push([`${p}.clean`, ''], [`${p}.smudge`, ''], [`${p}.process`, ''], [`${p}.required`, 'false']);
-    else cles.push([`${p}.textconv`, 'cat']);
-  }
-  const n0 = Number(env.GIT_CONFIG_COUNT) || 0; const e = { ...env, GIT_ALLOW_PROTOCOL: 'aucun', GIT_CONFIG_COUNT: String(n0 + cles.length) };
+  const cles = [...NEUTRE.cles];
+  for (const p of pilotes) cles.push(...NEUTRE[p.startsWith('filter.') ? 'filter' : 'diff'].map(([v, x]) => [`${p}.${v}`, x]));
+  const n0 = Number(env.GIT_CONFIG_COUNT) || 0; const e = { ...env, GIT_ALLOW_PROTOCOL: NEUTRE.protocole, GIT_CONFIG_COUNT: String(n0 + cles.length) };
   cles.forEach(([k, v], i) => { e[`GIT_CONFIG_KEY_${n0 + i}`] = k; e[`GIT_CONFIG_VALUE_${n0 + i}`] = v; });
   return e;
 }

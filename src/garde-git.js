@@ -3,13 +3,43 @@
 // local au clone, jamais versionné ; il porte une MARQUE, et un crochet non marqué n'est jamais remplacé ni retiré.
 // HOLARCH injoignable (un conteneur, où les chemins de l'hôte n'existent pas), le crochet vérifie au moins les secrets par
 // gitleaks, celui que le conteneur généré monte de l'hôte ou celui du PATH (décision garde-sans-passage-muet) ; sans
-// gitleaks, il laisse passer et le dit : l'audit rattrape ce qui serait passé.
+// gitleaks, il laisse passer et le dit : l'audit rattrape ce qui serait passé. gitleaks y est lancé comme par le contrôle
+// des secrets (module controles) : sa configuration par défaut, rien de la cible qui allège le contrôle, et un git qui
+// n'exécute rien de la configuration du dépôt (`neutralisation`, écrite en shell).
 import fs from 'node:fs';
 import path from 'node:path';
-import { shell as sh, porteMarque, git, dedans, cheminSansLien } from './commun.js';
+import { shell as sh, porteMarque, git, dedans, cheminSansLien, NEUTRE } from './commun.js';
 import { OUTILS } from './conteneur.js';
+import { CONFIG_GITLEAKS, GITLEAKS_SANS_CIBLE, IGNORE_CIBLE } from './controles.js';
 
 export const MARQUE = '# Généré par HOLARCH (holarch regles appliquer) : garde avant commit.';
+
+/**
+ * `neutralisation` (commun.js) en shell, pour le git que lance gitleaks : les mêmes clés (`NEUTRE`), dans le même ordre,
+ * passées par `GIT_CONFIG_COUNT` ; les pilotes déclarés aux portées `local` et `worktree`, chacun une fois. Un nom de
+ * pilote ne contient pas de fin de ligne (git le refuse) : une ligne de `git config --name-only` en est un.
+ */
+function neutralisationShell() {
+  const k = (cle, v) => `k ${cle} ${sh(v)}`;
+  const pilote = (genre) => NEUTRE[genre].map(([c, v]) => k(`"$p".${sh(c)}`, v)).join('; ');
+  return `  T=$(printf '\\t'); n=\${GIT_CONFIG_COUNT:-0}; case $n in ''|*[!0-9]*) n=0 ;; esac
+  k() { export "GIT_CONFIG_KEY_$n=$1" "GIT_CONFIG_VALUE_$n=$2"; n=$((n + 1)); }
+  ${NEUTRE.cles.map(([c, v]) => k(sh(c), v)).join('; ')}
+  vus='
+'
+  while IFS= read -r l; do
+    case $l in local"$T"*|worktree"$T"*) p=\${l#*"$T"}; p=\${p%.*} ;; *) continue ;; esac
+    case $vus in *"
+$p
+"*) continue ;; esac
+    vus="$vus$p
+"
+    case $p in filter.*) ${pilote('filter')} ;; *) ${pilote('diff')} ;; esac
+  done <<FIN
+$(git config --show-scope --name-only --get-regexp ${sh(NEUTRE.pilotes)} 2>/dev/null)
+FIN
+  export GIT_CONFIG_COUNT=$n GIT_ALLOW_PROTOCOL=${sh(NEUTRE.protocole)}`;
+}
 
 /**
  * Texte du crochet : le binaire node, la ligne de commande HOLARCH et son répertoire de travail, figés à l'écriture ;
@@ -26,9 +56,12 @@ if [ -x "$N" ] && [ -f "$H" ]; then HOLARCH_HOME=${sh(accueil)} exec "$N" --no-w
 G=${sh(`${outils}/gitleaks`)}
 [ -x "$G" ] || G=$(command -v gitleaks 2>/dev/null)
 if [ -n "$G" ]; then
-  "$G" git --pre-commit --staged --redact --no-banner --log-level error --verbose .
+${neutralisationShell()}
+  unset GITLEAKS_CONFIG; export GITLEAKS_CONFIG_TOML=${sh(CONFIG_GITLEAKS)}
+  "$G" git --pre-commit --staged ${GITLEAKS_SANS_CIBLE.join(' ')} --redact --no-banner --log-level error --verbose .
   case $? in
-    0) echo "HOLARCH injoignable : seuls les secrets sont vérifiés (gitleaks), l'audit verra le reste" >&2; exit 0 ;;
+    0) if [ -e ${IGNORE_CIBLE} ]; then echo "HOLARCH injoignable : commit refusé, le ${IGNORE_CIBLE} du dépôt peut taire un secret ; git commit --no-verify pour passer, l'audit le verra" >&2; exit 1; fi
+       echo "HOLARCH injoignable : seuls les secrets sont vérifiés (gitleaks), l'audit verra le reste" >&2; exit 0 ;;
     1) echo "HOLARCH injoignable : commit refusé, gitleaks trouve un secret dans les changements indexés" >&2; exit 1 ;;
     *) echo "HOLARCH injoignable et gitleaks en échec : commit refusé ; git commit --no-verify pour passer, l'audit le verra" >&2; exit 1 ;;
   esac

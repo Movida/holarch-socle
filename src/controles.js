@@ -112,8 +112,12 @@ export { trouverOutil } from './commun.js';
 // n'allège jamais le contrôle (comme une exception, décision exceptions-hors-du-depot) ; essayé en 8.30.1, sans
 // configuration explicite, un `[allowlist]` de son `.gitleaks.toml` taisait tout, et un commentaire `gitleaks:allow` sa
 // ligne. Ni le `.gitleaksignore` du dossier courant (`--gitleaks-ignore-path`). `gitleaks dir` ne suit pas un lien
-// symbolique hors de la cible (son défaut, essayé ; `--follow-symlinks` n'est jamais passé).
-const CONFIG_GITLEAKS = '[extend]\nuseDefault = true\n';
+// symbolique hors de la cible (son défaut, essayé ; `--follow-symlinks` n'est jamais passé). Partagés avec le repli shell
+// du crochet de commit (`garde-git`), qui lance le même gitleaks.
+export const CONFIG_GITLEAKS = '[extend]\nuseDefault = true\n';
+export const GITLEAKS_SANS_CIBLE = ['--gitleaks-ignore-path', '/dev/null', '--ignore-gitleaks-allow'];
+// Avant commit, le `.gitleaksignore` de la cible, que gitleaks lit toujours (aucune option ne l'écarte).
+export const IGNORE_CIBLE = '.gitleaksignore';
 
 /**
  * gitleaks, sortie JSON, avec sa configuration par défaut (`CONFIG_GITLEAKS`, qui l'emporte sur celle de la cible ; la
@@ -124,7 +128,7 @@ const CONFIG_GITLEAKS = '[extend]\nuseDefault = true\n';
 export function gitleaks(bin, args, { depot = null } = {}) {
   const env = { ...(depot ? neutralisation(depot, process.env) : process.env), GITLEAKS_CONFIG_TOML: CONFIG_GITLEAKS };
   delete env.GITLEAKS_CONFIG;
-  const r = spawnSync(bin, [...args, '--gitleaks-ignore-path', '/dev/null', '--ignore-gitleaks-allow', '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'],
+  const r = spawnSync(bin, [...args, ...GITLEAKS_SANS_CIBLE, '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env });
   // 0 : rien trouvé ; 1 : des fuites, listées en JSON. Tout le reste est une panne, jamais un « rien trouvé ».
   if (r.status === 0 || r.status === 1) {
@@ -141,7 +145,7 @@ function secrets(ctx, moment) {
     // Le `.gitleaksignore` de la cible, gitleaks le lit toujours (aucune option ne l'écarte) : dans le dépôt, il peut taire
     // un secret, le contrôle n'a pas tout vu. Exporté à l'audit, il ne tait rien : ses empreintes ne peuvent pas nommer le
     // dossier temporaire.
-    if (fs.existsSync(path.join(ctx.depot, '.gitleaksignore'))) ignore = '.gitleaksignore du dépôt : gitleaks le suit, un secret peut y être tu ; non vérifié tant qu’il est là';
+    if (fs.existsSync(path.join(ctx.depot, IGNORE_CIBLE))) ignore = `${IGNORE_CIBLE} du dépôt : gitleaks le suit, un secret peut y être tu ; non vérifié tant qu’il est là`;
   } else {
     // Le contenu suivi au dernier commit, exporté : ni les fichiers ignorés, ni l'historique. Un dépôt que git ne lit
     // pas (dossier sans dépôt, dépôt abîmé, git absent) n'est pas contrôlé ; seul un dépôt sans commit n'a rien à lire.
