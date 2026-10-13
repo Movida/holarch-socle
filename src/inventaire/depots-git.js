@@ -50,11 +50,15 @@ export function integrationContinue(d) {
   return s;
 }
 
+const PREFIXE = 'holarch:project:';
 function identifiants(depots) {
   const r = depots.map((d) => ({ d, racine: racine(d) }));
   const n = {}; for (const x of r) if (x.racine) n[x.racine] = (n[x.racine] || 0) + 1;
-  return new Map(r.map((x) => [x.d, `holarch:project:${!x.racine ? slug(x.d) : n[x.racine] > 1 ? `${x.racine}:${slug(x.d)}` : x.racine}`]));
+  return new Map(r.map((x) => [x.d, `${PREFIXE}${!x.racine ? slug(x.d) : n[x.racine] > 1 ? `${x.racine}:${slug(x.d)}` : x.racine}`]));
 }
+
+/** L'identifiant `id` est-il tiré du premier commit `r` (`identifiants`) : lui seul, ou suivi du chemin d'un des clones ? */
+export const tireDuCommit = (id, r) => id === `${PREFIXE}${r}` || String(id).startsWith(`${PREFIXE}${r}:`);
 
 export default function inventaireDepots(options, ctx) {
   const depots = trouverDepots(options);

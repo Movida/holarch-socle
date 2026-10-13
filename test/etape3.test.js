@@ -1843,3 +1843,23 @@ test('rapport : le rapport d’un sous-agent se lit dans sa transcription, le pl
   assert.equal(ko.status, 1); assert.match(ko.stderr, /holarch rapport : identifiant ambigu/);
   assert.deepEqual(fs.readdirSync(accueil), ['config.yaml']);
 });
+
+// C2 (famille Gardes muettes, choix de l'auteur du 2026-10-13) : un inventaire passé entre `git init` et le premier
+// commit identifie le projet par son chemin ; la création reprenait cet identifiant périmé, le déclarait et le commitait
+// dans le profil, puis ne trouvait plus le projet. L'identifiant se compare au premier commit : l'inventaire est refait.
+import { racine as premierCommit, tireDuCommit } from '../src/inventaire/depots-git.js';
+test('C2 : la création ne déclare pas l’identifiant de chemin qu’un inventaire a pris avant le premier commit', () => gitIsole(async () => {
+  const { r, s, etats, git } = await bancCreation();
+  const d = path.join(r, 'neuf'); assert.equal(spawnSync('git', ['init', '-q', '-b', 'main', d]).status, 0);
+  await s.inventaire(); s.indexer();
+  const perime = s.fiches({ kind: 'project' }).find((p) => p.location === d)?.id;
+  assert.ok(perime && !/^holarch:project:[0-9a-f]{12}$/.test(perime), `identifiant de chemin attendu avant le premier commit : ${perime}`);
+  const p = await creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  const id = `holarch:project:${premierCommit(d)}`;
+  const contexte = fs.readFileSync(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), 'utf8');
+  assert.deepEqual([p.projet, contexte.includes(id), contexte.includes(perime), etats(p).identite, etats(p).declaration, etats(p).regles], [id, true, false, 'faite', 'faite', 'faite'], JSON.stringify(p.etapes, null, 1));
+  assert.equal(git(path.join(r, 'profil'), 'log', '-1', '--format=%s'), 'Déclarer le projet neuf');
+  // Tiré du premier commit : lui seul, ou suivi du chemin quand deux clones du site le partagent ; jamais sans commit.
+  assert.deepEqual([['holarch:project:abc', 'abc'], ['holarch:project:abc:/a/neuf', 'abc'], ['holarch:project:abcd', 'abc'], ['holarch:project:/a/abc', 'abc'], ['holarch:project:abc', null]]
+    .map(([x, c]) => tireDuCommit(x, c)), [true, true, false, false, false]);
+}));

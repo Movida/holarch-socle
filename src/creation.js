@@ -13,6 +13,7 @@ import { configAvantProjet, fusionnerConfig } from './regles.js';
 import { identiteDeclaree } from './controles.js';
 import { poserIdentite } from './identite-git.js';
 import { racineArbre } from './inventaire/arbre.js';
+import { racine, tireDuCommit } from './inventaire/depots-git.js';
 import { materialiserProjet } from './materialisation.js';
 import { creerDistant } from './distant.js';
 import { genererConteneur, maisonDe, NOM_UTILISATEUR, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
@@ -205,8 +206,11 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     } catch (e) { noter('fichiers', 'echec', e.message); return r; }
   }
 
-  // 3. Déclaration dans le contexte. Le projet entre au catalogue par l'inventaire (son identifiant vient de son dépôt).
-  const projetIci = () => socle.fiches({ kind: 'project' }).find((p) => p.location === dossier) || null;
+  // 3. Déclaration dans le contexte. Le projet entre au catalogue par l'inventaire, avec l'identifiant tiré de son premier
+  // commit. Un inventaire passé avant ce commit l'a identifié par son chemin : cet identifiant périmé n'est ni déclaré ni
+  // commité dans le profil, l'inventaire est refait d'abord ; à blanc, sans commit, la suite attend l'inventaire.
+  const premier = racine(dossier);
+  const projetIci = () => socle.fiches({ kind: 'project' }).find((p) => p.location === dossier && tireDuCommit(p.id, premier)) || null;
   // À blanc, rien ne s'écrit, pas même le catalogue : un projet que l'inventaire n'a pas encore vu s'arrête là.
   if (aBlanc && !projetIci()) { for (const e of ['declaration', 'regles', 'conteneur', 'github', 'cle', 'distant', 'audit']) noter(e, 'a-faire', estGit ? 'après l’inventaire' : 'après la création du dépôt'); return r; }
   if (!projetIci()) { await socle.inventaire(); socle.indexer(); }
