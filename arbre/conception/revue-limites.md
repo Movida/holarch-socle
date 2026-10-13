@@ -80,17 +80,24 @@ empreinte) ; crochet de commit des cinq projets qui le portent réécrit ; audit
 L'unité d'accès distant n'est pas réécrite (`distant activer` relance son serveur et coupe les sessions distantes) :
 elle prendra son empreinte à la prochaine activation.
 
-**Lot 5, à faire** (choix de l'auteur, recommandations suivies, après lecture de la conception prévue) : direction
-commune, l'arbre dit ce qui est voulu ; un geste à la main n'est jamais défait en silence ; l'écart reste ouvert
-jusqu'à ce que l'auteur choisisse entre reposer et l'écrire dans l'arbre ; le geste ne survit pas à un changement de
-l'arbre (modèle : `routines-posees`). Une décision en brouillon qui modifie `copie-de-service` (entrée MCP, `:44`),
-`identite-par-contexte` (`:33`) et `passation-sereine` (`:33`), soumise à l'auteur. M3 : gardé, et l'entrée MCP de
-chaque compte montrée par `holarch service` (faible). M5 : revenir en partie sur `d0540bc` : reposer l'identité et le
-dire (« retirée à la main ; pour une autre identité ici, déclarer `identite` au projet »), la garde d'identité étant
-bloquante ; retirer la note devenue orpheline. M2 : un retrait ne vaut que pour la valeur à laquelle il répondait (un
-changement du profil repose ; un changement de commande par HOLARCH non : comparaison par rôle, `crochetVoulu(c).cle`) ;
-geste à deux commandes (reposer, ou retirer la clé du profil). Plus : `.claude/` ignoré par git (comme R4 :
-`check-ignore` et geste) ; git antérieur à 2.6 : refuser le commit quand les deux listes répondent 129. Laissés, avec
+**Lot 5** (famille close le 2026-10-13) : décision `geste-a-la-main` approuvée (`bcb4e32`, modifie `copie-de-service`,
+`identite-par-contexte` et `passation-sereine`), puis une instance neuve relue par l'agent (environ 364 k tokens), cinq
+commits (`d5edf5b` à `3a951ba`), chaque test rouge sur son parent et ses mutants. M2 : un retrait à la main ne vaut que
+pour sa valeur (clé : valeur notée ; crochet : rôle et seuil), un autre seuil pose à côté et le dit, option
+`regles appliquer --reposer <clé ou rôle>`, gestes d'une seule fonction (`gesteLaisse`). M3 : `holarch service` montre
+l'entrée MCP de chaque compte et, réglée ailleurs, la commande qui la repointe (`claude mcp remove` puis `add-json`,
+vérifiées dans la documentation). M5 : identité retirée à la main reposée et dite (état `repose`), note retirée quand
+l'identité n'est plus voulue. `.claude/` ignoré par git : geste avec `check-ignore -v`, la création continue. git
+antérieur à 2.6 : le repli du crochet refuse le commit ; arrêté côté `neutralisation()` en JS (son repli n'emploie pas
+`--name-only` et neutralise encore sous git 2.0 à 2.5 ; une levée viderait le catalogue, `gitInventaire` sans `try` par
+dépôt : proposition, ne rien lever ; alternative, lever avec un `try` par dépôt, moyen). 250 tests verts ; copie de
+service posée (`3a951ba`) ; crochet de commit des cinq projets qui le portent réécrit ; audit réel : socle et compte
+conformes. Voisins vus, à soumettre : `.devcontainer/` ignoré fait échouer l'étape conteneur à chaque rejeu (même
+traitement, faible) ; `service poser` dit « réglé ailleurs » sans la commande (renvoi, trivial) ; `--reposer` d'une clé
+changée à la main (trivial, mais remplacerait une valeur posée à la main, contre la décision) ; `--reposer` d'un nom
+inconnu sort en 0 (sortir en 1, trivial). Limites laissées : crochet changé à la main puis autre seuil, les deux tournent
+(dit ; le reconnaître serait deviner) ; `.claude.json` sous `CLAUDE_CONFIG_DIR`, emplacement non dit par la
+documentation (hypothèse de `configClaude`). Laissés, avec
 leur palliatif : session d'un worktree hors du chemin du principal comptée hors projet (rattacher à l'import par
 `projetDuDepot`, faible) ; `procedure-site-travail.md:55` redondant si la clé de l'import est retirée (trivial) ; `.bak`
 accumulés (retrait par l'auteur : une copie retirée perdrait un texte écrit à la main) ; pid repris par un autre

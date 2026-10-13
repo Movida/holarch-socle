@@ -2,6 +2,20 @@
 
 ## 2026-10-13
 
+* **Revue des limites, famille Gardes muettes close (lot 5)** (environ 175 k tokens de contexte pour l'agent ; instance
+  neuve : 364 k, soit 73 k par point) : décision `geste-a-la-main` écrite en brouillon puis approuvée (`bcb4e32`, choix
+  cliquable « Approuver telle quelle ») : un geste à la main sur ce que HOLARCH pose est laissé et dit, ne vaut que pour
+  sa valeur, avec deux gestes (reposer, l'écrire dans l'arbre) ; exception d'une règle bloquante (identité reposée).
+  Mesure avant : 0 réglage ni crochet retiré à la main, entrée MCP sur la copie de service, 0 note d'identité sur 10
+  dépôts. Cinq commits (`d5edf5b` à `3a951ba`) : M2 (`--reposer`), M3, M5, `.claude/` ignoré, git antérieur à 2.6 (repli
+  du crochet ; côté JS arrêté, la prémisse ne vaut que pour le shell). 250 tests verts ; copie de service posée
+  (`3a951ba`) ; crochet de commit des cinq projets qui le portent réécrit ; audit réel : socle et compte conformes
+  (0 écart apparu, 5 résolus). Détail et voisins à soumettre : `revue-limites.md`. Leçon : déroulé annoncé en quatre
+  temps (approbation, instance neuve, relecture et pose, journal et envoi sur accord) ; tenus. Ce qui l'a fait dévier :
+  le point 5 arrêté côté JS, sa prémisse (« les deux listes répondent 129 ») ne valant que pour le shell, et le coût de
+  l'instance, plus du double par point (option nouvelle, documentation vérifiée). La demande qui y aurait mené : « lot 5
+  selon la décision ; vérifier d'abord que la prémisse de chaque palliatif vaut partout où il s'applique ».
+
 * **Revue des limites, famille Gardes muettes, lots 1 à 4, et bac à sable essayé** (environ 230 k tokens pour
   l'agent ; instances neuves en série : 323 k, 355 k, 344 k et 381 k, soit 29 k par point ; lecture de la conception
   prévue : 161 k) : envoi de `9dd104b` sur demande (pas d'intégration continue). `bubblewrap` et `socat` extraits sans

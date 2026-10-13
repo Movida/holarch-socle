@@ -1254,8 +1254,10 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
 - **Fait (2026-10-13)** : famille Sécurité close (points 9 à 14 et dix voisins) ; bac à sable de Claude Code essayé
   sous WSL2 (refus de `cat`, `grep -r` et `python3` sur un `.env` interdit), pose rangée avec les palliatifs moyens ;
   famille Gardes muettes, lots 1 à 4 (`7b58a62` à `7625bfd`, 245 tests verts, copie de service posée, crochets de
-  commit réécrits, audit conforme), lot 5 à faire, par une décision en brouillon d'abord. Détail : `revue-limites.md`,
-  section « Suite du 2026-10-13 ».
+  commit réécrits, audit conforme) ; lot 5 : décision `geste-a-la-main` approuvée (`bcb4e32`), cinq commits
+  (`d5edf5b` à `3a951ba`), 250 tests verts, copie de service posée, audit conforme : famille close. Restent à soumettre :
+  quatre voisins du lot 5, Veille et outillage, palliatifs moyens ou forts. Détail : `revue-limites.md`, section « Suite
+  du 2026-10-13 ».
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
