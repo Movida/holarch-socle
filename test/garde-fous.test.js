@@ -1633,7 +1633,7 @@ test('X4 : la récolte lance claude -p d’un dossier vide à elle, retiré ensu
   fs.mkdirSync(path.join(os.tmpdir(), '.claude'), { recursive: true }); fs.writeFileSync(path.join(os.tmpdir(), '.claude', 'settings.json'), '{"hooks":{}}');
   const trace = path.join(tmp(), 'trace'); const faux = path.join(tmp(), 'claude');
   fs.writeFileSync(faux, `#!/bin/sh\ncat > /dev/null\n{ pwd -P; ls -A; [ -e .claude/settings.json ] && echo "réglages lus"; } > '${trace}'\necho '{"structured_output":{"groupes":[]},"total_cost_usd":0}'\n`, { mode: 0o755 });
-  assert.deepEqual(regroupeurClaude({ claude: faux })('texte').groupes, []);
+  assert.deepEqual(regroupeurClaude({ claude: faux, config: { accueil: tmp() } })('texte').groupes, []);
   const [dossier, ...reste] = fs.readFileSync(trace, 'utf8').trim().split('\n');
   assert.notEqual(dossier, fs.realpathSync(os.tmpdir()), 'lancé du dossier temporaire commun');
   assert.deepEqual(reste, [], 'un dossier vide, sans réglages');
@@ -2032,4 +2032,26 @@ test('Écart de passation : l’erreur d’un crochet ne se dit que si ce croche
   assert.deepEqual(dite('{ seuil_tokens: 150000 }', 'UserPromptSubmit'), ['UserPromptSubmit']);
   assert.deepEqual(dite('{ seuil_tokens: 0, reprise: false }', 'UserPromptSubmit'), []);
   assert.deepEqual(dite('{ seuil_tokens: 150000 }', 'constructor'), [], 'un événement inconnu');
+});
+
+// Dossier de la récolte, voisin de la famille « Sécurité et intégrité » (suite de X4) : Claude Code lit les CLAUDE.md
+// (et AGENTS.md, `.claude/rules/`) du dossier courant et de chaque dossier au-dessus ; sous le dossier temporaire commun,
+// un `/tmp/CLAUDE.md` serait à tout utilisateur du poste. `claude -p` part d'un dossier vide sous l'accueil HOLARCH (celui
+// de la configuration, sinon `HOLARCH_HOME`), retiré ensuite, en échec aussi.
+test('Récolte : claude -p part d’un dossier vide sous l’accueil HOLARCH, retiré ensuite, même en échec', async () => {
+  const { regroupeurClaude } = await import('../src/recolte.js');
+  const trace = path.join(tmp(), 'trace'); const faux = path.join(tmp(), 'claude');
+  const claude = (sortie) => { fs.writeFileSync(faux, `#!/bin/sh\ncat > /dev/null\n{ pwd -P; ls -A; } > '${trace}'\necho '${sortie}'\n`, { mode: 0o755 }); return faux; };
+  const vu = () => { const [dossier, ...reste] = fs.readFileSync(trace, 'utf8').trim().split('\n'); return { parent: path.dirname(dossier), reste, existe: fs.existsSync(dossier) }; };
+  const accueil = fs.realpathSync(tmp()); const ailleurs = fs.realpathSync(tmp());
+  const avant = process.env.HOLARCH_HOME; process.env.HOLARCH_HOME = ailleurs;
+  try {
+    assert.deepEqual(regroupeurClaude({ claude: claude('{"structured_output":{"groupes":[]},"total_cost_usd":0}'), config: { accueil } })('texte').groupes, []);
+    assert.deepEqual(vu(), { parent: accueil, reste: [], existe: false }, 'sous l’accueil de la configuration');
+    assert.throws(() => regroupeurClaude({ claude: claude('pas du JSON') })('texte'), /claude -p en échec/);
+    assert.deepEqual(vu(), { parent: ailleurs, reste: [], existe: false }, 'sans accueil réglé, HOLARCH_HOME ; retiré après un échec');
+    const neuf = path.join(accueil, 'neuf'); regroupeurClaude({ claude: claude('{"structured_output":{"groupes":[]}}'), config: { accueil: neuf } })('texte');
+    assert.deepEqual(vu(), { parent: neuf, reste: [], existe: false }, 'un accueil absent se crée');
+    assert.deepEqual([fs.readdirSync(accueil), fs.readdirSync(neuf), fs.readdirSync(ailleurs)], [['neuf'], [], []]);
+  } finally { if (avant === undefined) delete process.env.HOLARCH_HOME; else process.env.HOLARCH_HOME = avant; }
 });

@@ -12,7 +12,7 @@ import YAML from 'yaml';
 import { transcriptions } from './transcription.js';
 import { localiserProjet } from './projets.js';
 import { gitleaks } from './controles.js';
-import { claudeIntrouvable, ecrireSansLien, cheminSansLien, lireSansLien, dedans } from './commun.js';
+import { claudeIntrouvable, ecrireSansLien, cheminSansLien, lireSansLien, dedans, accueil } from './commun.js';
 
 // Un message de l'auteur trop court est un acquiescement ou une relance (« oui », « reprends ») ; trop long, un collage.
 const MIN = 25; const MAX = 2000;
@@ -119,13 +119,17 @@ export function invite(candidats, regles) {
 
 /**
  * Regroupement par `claude -p` : sans outils, sans serveur MCP, sans session gardée, dépense plafonnée. Lancé d'un dossier
- * vide créé pour lui, retiré ensuite : `--setting-sources project` lit les réglages du dossier courant, et ceux du dossier
- * temporaire commun (`/tmp/.claude/settings.json`, crochets compris) sont à tout utilisateur du poste.
+ * vide créé pour lui sous l'accueil HOLARCH (`config.accueil`, sinon `accueil()`), retiré ensuite : `--setting-sources
+ * project` lit les réglages du dossier courant, et Claude Code lit les `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md` et
+ * `.claude/rules/` du dossier courant et de chaque dossier au-dessus (documentation, page « memory », 2026-10-13). Sous le
+ * dossier temporaire commun, `/tmp/.claude/settings.json` ou `/tmp/CLAUDE.md` seraient à tout utilisateur du poste ;
+ * l'accueil et ses parents ne s'écrivent que par l'auteur et root (la configuration de HOLARCH s'y lit déjà).
  */
 export function regroupeurClaude({ claude, config = null, modele = 'sonnet', budget = 1, delai = 600e3 }) {
   return (texte) => {
     if (!claude) throw new Error(claudeIntrouvable(config));
-    const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'holarch-regroupement-'));
+    const base = config?.accueil || accueil(); fs.mkdirSync(base, { recursive: true });
+    const dossier = fs.mkdtempSync(path.join(base, 'regroupement-'));
     let r;
     try {
       r = spawnSync(claude, ['-p', '--model', modele, '--output-format', 'json', '--no-session-persistence', '--tools', '',
