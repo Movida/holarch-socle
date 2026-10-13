@@ -2109,3 +2109,47 @@ test('R3 : une pose interrompue avant l’activation n’est pas prise pour une 
   assert.throws(() => i.activer(), /interrompu/); i.desactiver();
   assert.deepEqual(fs.readdirSync(unites).filter((x) => x.startsWith('holarch-interface')), []);
 });
+
+// M4 (famille Gardes muettes) : une unité marquée modifiée à la main était réécrite à la pose suivante. Le texte écrit
+// porte son empreinte ; une unité dont le texte ne lui correspond plus est laissée, et c'est dit (même principe que le
+// retrait à la main). Une unité d'avant l'empreinte n'en a pas : rien ne la distingue, elle est réécrite avec la sienne.
+test('M4 : une unité modifiée à la main n’est plus réécrite ; la pose le dit', () => {
+  const { unites, appels, d, systemctl, cfgClaude, racine } = banc();
+  const o = { unites, systemctl, node: '/opt/node/bin/node' };
+  const lire = (u) => fs.readFileSync(path.join(unites, u), 'utf8');
+  const retoucher = (u, de, vers) => { fs.writeFileSync(path.join(unites, u), lire(u).replace(de, vers)); return lire(u); };
+  const routine = (u) => etatRoutines(o).find((r) => r.unite === u).etat;
+  d.activer('demo');
+  const recolte = (h) => creerRecolte({ holarch: h, accueil: '/a' }, o); recolte('/v1/holarch.js').poser();
+  const gardien = (h) => creerReveil({ holarch: h, accueil: '/a' }, o).gardien({ veille: true }).etat; gardien('/v1/holarch.js');
+  const interface_ = (h) => creerInterface({ holarch: h, accueil: '/a' }, o); interface_('/v1/holarch.js').activer();
+  for (const u of ['holarch-distant-demo.service', 'holarch-reveil.service', 'holarch-reveil.timer', 'holarch-recolte.timer', 'holarch-veille.service', 'holarch-interface.service']) {
+    assert.match(lire(u), /\n# Empreinte HOLARCH : [0-9a-f]{16}\n$/, u);
+  }
+  // Le texte signé se compare au texte voulu : inchangée, l'interface est relancée une fois (même code chargé sinon).
+  appels.length = 0; assert.equal(interface_('/v1/holarch.js').relancer().etat, 'relancée');
+  assert.deepEqual(appels.filter((a) => /^(restart|enable)/.test(a)), ['enable --now holarch-interface.service', 'restart holarch-interface.service']);
+  // Retouchées à la main : laissées, et dit, à chaque pose ; rien n'est relancé.
+  const gardienMain = retoucher('holarch-veille.service', 'Restart=on-failure', 'Restart=always'); appels.length = 0;
+  assert.deepEqual([gardien('/v2/holarch.js'), lire('holarch-veille.service'), routine('holarch-veille.service')], ['modifiée à la main : laissée', gardienMain, 'modifiée à la main']);
+  const minuteurMain = retoucher('holarch-recolte.timer', 'Mon *-*-* 08:00', 'Fri *-*-* 18:00');
+  assert.throws(() => recolte('/v2/holarch.js').poser(), /holarch-recolte\.timer a été modifié à la main : rien n'est réécrit$/);
+  assert.deepEqual([lire('holarch-recolte.timer'), lire('holarch-recolte.service').includes('/v1/holarch.js')], [minuteurMain, true]);
+  const interfaceMain = retoucher('holarch-interface.service', 'RestartSec=30', 'RestartSec=5');
+  assert.deepEqual([interface_('/v2/holarch.js').relancer().etat, lire('holarch-interface.service')], ['modifiée à la main : laissée, à relancer à la main', interfaceMain]);
+  const reveilMain = retoucher('holarch-reveil.service', 'Type=oneshot', 'Type=oneshot\nNice=10');
+  assert.deepEqual([creerReveil({ holarch: '/v2/holarch.js', accueil: '/a' }, o).reecrire().etat, lire('holarch-reveil.service')], ['modifiée à la main : laissée', reveilMain]);
+  assert.equal(d.activer('autre').reveil, 'modifié à la main : laissé');
+  assert.deepEqual(appels.filter((a) => /^(restart|start|enable)/.test(a)), ['enable --now holarch-distant-autre.service'], 'rien n’est relancé ni réactivé');
+  // Un accès distant retouché : la commande le dit, rien n'est écrit, pas même la confiance.
+  const distantMain = fs.readFileSync(path.join(unites, 'holarch-distant-demo.service'), 'utf8').replace('RestartSec=30', 'RestartSec=60') + 'Environment=A=1\n';
+  fs.writeFileSync(path.join(unites, 'holarch-distant-demo.service'), distantMain);
+  const confiance = fs.readFileSync(cfgClaude, 'utf8'); fs.writeFileSync(cfgClaude, '{}');
+  assert.throws(() => d.activer('demo'), /holarch-distant-demo\.service a été modifié à la main : rien n'est réécrit$/);
+  assert.deepEqual([lire('holarch-distant-demo.service'), fs.readFileSync(cfgClaude, 'utf8')], [distantMain, '{}']); fs.writeFileSync(cfgClaude, confiance);
+  // Une unité écrite avant l'empreinte : réécrite avec la sienne.
+  const ancienne = lire('holarch-distant-autre.service').replace(/# Empreinte HOLARCH : [0-9a-f]{16}\n$/, '');
+  fs.writeFileSync(path.join(unites, 'holarch-distant-autre.service'), ancienne.replace('RestartSec=30', 'RestartSec=60'));
+  d.activer('autre');
+  assert.equal(lire('holarch-distant-autre.service').replace(/# Empreinte HOLARCH : [0-9a-f]{16}\n$/, ''), ancienne, path.join(racine, 'autre'));
+});

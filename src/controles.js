@@ -6,9 +6,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
-import { gitLu, neutralisation, trouverOutil, lireJson, ecrireJson, dedans, cheminSansLien, lireSansLien } from './commun.js';
+import { gitLu, neutralisation, trouverOutil, lireJson, ecrireJson, dedans, cheminSansLien, lireSansLien, hacher } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
@@ -177,7 +176,6 @@ function garde(ctx, nom, empreinte, calcul) {
   if (f && !resultat.indisponible) ecrireJson(f, { at: new Date().toISOString(), empreinte, resultat });
   return resultat;
 }
-const hacher = (...x) => createHash('sha256').update(x.join('\0')).digest('hex').slice(0, 16);
 
 // ---------- dépendances vulnérables (osv-scanner) ----------
 

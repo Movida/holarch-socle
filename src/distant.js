@@ -2,19 +2,21 @@
 // demande. Le runtime fait le travail (`claude remote-control`) ; HOLARCH écrit, démarre et retire un service systemd
 // utilisateur par projet, et déclare le dossier de confiance pour Claude Code (sans terminal, un serveur lancé dans un
 // dossier non déclaré attendrait une confirmation que personne ne peut donner).
-// Un service porte la MARQUE : un service que HOLARCH n'a pas écrit n'est jamais modifié ni retiré.
+// Un service porte la MARQUE : un service que HOLARCH n'a pas écrit n'est jamais modifié ni retiré ; il porte aussi
+// l'empreinte du texte écrit : modifié à la main depuis, il n'est plus réécrit.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { Catalogue } from './stockage/catalogue.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
-import { shell, systemd, fichierMarque, lireJson, ecrireJson, binaireClaude, configClaude, claudeIntrouvable } from './commun.js';
+import { shell, systemd, fichierMarque, lireJson, ecrireJson, binaireClaude, configClaude, claudeIntrouvable, hacher } from './commun.js';
 import { accueil as accueilParDefaut } from './config.js';
 import { binaireService } from './service.js';
 import { marquerRelance } from './veille.js';
 
 const MARQUE = '# Écrit par HOLARCH (holarch distant)';
+const EMPREINTE = '# Empreinte HOLARCH : ';
 const PREFIXE = 'holarch-distant-';
 
 export const nomDe = (chemin) => path.basename(chemin).replace(/[^A-Za-z0-9_.-]+/g, '-');
@@ -56,25 +58,39 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
   // fois l'unité activée, la distingue (un nom sans suffixe d'unité : systemd ne le lit pas).
   const enCours = (f) => `${f}.pose-en-cours`;
   const interrompue = (f) => fs.existsSync(enCours(f));
+  // L'empreinte du texte écrit, en ligne de l'unité (`signe`) : une unité marquée dont le texte ne correspond plus à son
+  // empreinte a été modifiée à la main, et n'est plus réécrite (laissée, et dit, comme une unité écrite à la main). Une
+  // unité écrite avant l'empreinte n'en porte pas : rien ne la distingue, elle est réécrite avec la sienne.
+  const signe = (texte) => `${texte}${EMPREINTE}${hacher(texte)}\n`;
+  function modifiee(f) {
+    let l; try { l = fs.readFileSync(f, 'utf8').split('\n'); } catch { return false; }
+    const i = l.findIndex((x) => x.startsWith(EMPREINTE));
+    return i >= 0 && hacher([...l.slice(0, i), ...l.slice(i + 1)].join('\n')) !== l[i].slice(EMPREINTE.length);
+  }
+  // Ce que HOLARCH ne réécrit jamais : une unité qui ne porte pas la MARQUE, ou modifiée à la main.
+  const garder = (f) => {
+    if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+    if (modifiee(f)) throw new Error(`${f} a été modifié à la main : rien n'est réécrit`);
+  };
   return {
-    unites, geree, lancer, systemd, interrompue,
+    unites, geree, lancer, systemd, interrompue, signe, modifiee, garder,
     actif: (f) => fs.existsSync(f) && etatUnite('is-active', f, ETATS_ACTIF) === 'active',
     // Coupée à la main (`systemctl --user disable`) : une pose la réécrit sans la rallumer (décision routines-posees).
     coupee: (f) => fs.existsSync(f) && !interrompue(f) && etatUnite('is-enabled', f, ETATS_ACTIVATION) === 'disabled',
     // Écrit l'unité et la démarre ; une unité déjà active dont le texte change est redémarrée (`avantRelance` juste avant).
     poser(f, texte, { avantRelance = () => {} } = {}) {
-      if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
-      const avant = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
-      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(enCours(f), ''); fs.writeFileSync(f, texte);
+      garder(f);
+      const avant = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null; const t = signe(texte);
+      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(enCours(f), ''); fs.writeFileSync(f, t);
       lancer(['daemon-reload']); lancer(['enable', '--now', path.basename(f)]);
-      if (avant != null && avant !== texte) { avantRelance(); lancer(['restart', path.basename(f)]); }
+      if (avant != null && avant !== t) { avantRelance(); lancer(['restart', path.basename(f)]); }
       fs.rmSync(enCours(f), { force: true });
     },
     // Écrit une unité sans la démarrer (le service d'un minuteur), même garde que `poser` ; vrai si le texte a changé.
     ecrire(f, texte) {
-      if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
-      if (fs.existsSync(f) && fs.readFileSync(f, 'utf8') === texte) return false;
-      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(f, texte); return true;
+      garder(f); const t = signe(texte);
+      if (fs.existsSync(f) && fs.readFileSync(f, 'utf8') === t) return false;
+      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(f, t); return true;
     },
     retirer(f, absente) {
       if (!fs.existsSync(f)) throw new Error(absente);
@@ -232,6 +248,7 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
     reecrire() {
       if (!fs.existsSync(f)) return { unite: path.basename(f), etat: 'absente' };
       if (!sv.geree(f)) return { unite: path.basename(f), etat: 'non écrite par HOLARCH : laissée' };
+      if (sv.modifiee(f)) return { unite: path.basename(f), etat: 'modifiée à la main : laissée' };
       if (!sv.ecrire(f, uniteReveil({ node, holarch, accueil }))) return { unite: path.basename(f), etat: 'inchangée' };
       sv.lancer(['daemon-reload']); return { unite: path.basename(f), etat: 'réécrite' };
     },
@@ -247,10 +264,11 @@ export function creerReveil({ holarch, accueil }, { unites = UNITES, systemctl =
 // relancée si son texte change).
 function poserVeille(sv, g, texte, avantRelance) {
   if (fs.existsSync(g) && !sv.geree(g)) return 'non écrite par HOLARCH : laissée';
+  if (sv.modifiee(g)) return 'modifiée à la main : laissée';
   if (sv.coupee(g)) { if (sv.ecrire(g, texte)) sv.lancer(['daemon-reload']); return 'coupée à la main : laissée'; }
   const avant = fs.existsSync(g) ? fs.readFileSync(g, 'utf8') : null;
   sv.poser(g, texte, { avantRelance });
-  return avant === null ? 'posée' : avant === texte ? 'inchangée' : 'réécrite';
+  return avant === null ? 'posée' : avant === sv.signe(texte) ? 'inchangée' : 'réécrite';
 }
 
 // Retrait du gardien quand la règle ne s'applique plus : une unité de la main n'est jamais touchée.
@@ -297,7 +315,10 @@ export function creerDistant(config, {
   // Le minuteur coupé à la main est réécrit sans être rallumé, comme les routines de la copie de service (décision
   // routines-posees) : un accès distant de plus ne le rallume pas.
   const poserReveil = () => {
-    for (const x of [reveil.service, reveil.minuteur]) if (fs.existsSync(x) && !sv.geree(x)) return 'non écrit par HOLARCH : laissé';
+    for (const x of [reveil.service, reveil.minuteur]) {
+      if (fs.existsSync(x) && !sv.geree(x)) return 'non écrit par HOLARCH : laissé';
+      if (sv.modifiee(x)) return 'modifié à la main : laissé';
+    }
     if (sv.coupee(reveil.minuteur)) {
       if ([sv.ecrire(reveil.service, uniteReveil({ node, holarch, accueil })), sv.ecrire(reveil.minuteur, MINUTEUR_REVEIL)].some(Boolean)) sv.lancer(['daemon-reload']);
       return 'coupé à la main : laissé';
@@ -331,7 +352,7 @@ export function creerDistant(config, {
       const binaire = claude || binaireClaude(config);
       if (!binaire) throw new Error(claudeIntrouvable(config));
       const nom = nomDe(chemin); const f = fichierUnite(nom);
-      if (fs.existsSync(f) && !sv.geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+      sv.garder(f);
       // L'unité d'abord : un réglage refusé n'écrit rien, pas même la confiance.
       const texte = uniteDe({ nom, chemin, claude: binaire, mode: config.acces_distant?.mode_permissions || null, session: config.acces_distant?.session_au_demarrage || 'aucune' });
       const confiance = declarerConfiance(config.inventaire?.['claude-code']?.config || configClaude(path.join(os.homedir(), '.claude')), chemin);
@@ -391,13 +412,13 @@ WantedBy=default.target
 
 /**
  * État des routines que pose la copie de service : absente, activée, coupée (à la main), pose interrompue (la pose
- * suivante l'active), écrite à la main, ou illisible (systemctl ne répond pas : son message).
+ * suivante l'active), écrite ou modifiée à la main, ou illisible (systemctl ne répond pas : son message).
  */
 export function etatRoutines({ unites = UNITES, systemctl = SYSTEMCTL, sousSystemd = SOUS_SYSTEMD } = {}) {
   const sv = services({ unites, systemctl, sousSystemd });
   return [UNITE_INTERFACE, `${UNITE_IMPORT}.timer`, `${UNITE_RECOLTE}.timer`, `${UNITE_REVEIL}.timer`, UNITE_VEILLE].map((unite) => {
     const f = path.join(unites, unite);
-    try { return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.interrompue(f) ? 'pose interrompue' : sv.coupee(f) ? 'coupée' : 'activée' }; } catch (e) { return { unite, etat: `illisible (${e.message})` }; }
+    try { return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.modifiee(f) ? 'modifiée à la main' : sv.interrompue(f) ? 'pose interrompue' : sv.coupee(f) ? 'coupée' : 'activée' }; } catch (e) { return { unite, etat: `illisible (${e.message})` }; }
   });
 }
 
@@ -412,9 +433,10 @@ export function creerInterface({ holarch, accueil }, { unites = UNITES, systemct
     relancer() {
       if (!fs.existsSync(f)) return { unite: UNITE_INTERFACE, etat: 'absente' };
       if (!sv.geree(f)) return { unite: UNITE_INTERFACE, etat: 'non écrite par HOLARCH : à relancer à la main' };
+      if (sv.modifiee(f)) return { unite: UNITE_INTERFACE, etat: 'modifiée à la main : laissée, à relancer à la main' };
       const avant = fs.readFileSync(f, 'utf8'); const texte = uniteInterface({ node, holarch, accueil });
       if (sv.coupee(f)) { if (sv.ecrire(f, texte)) sv.lancer(['daemon-reload']); return { unite: UNITE_INTERFACE, etat: 'coupée à la main : laissée' }; }
-      sv.poser(f, texte); if (avant === texte) sv.lancer(['restart', UNITE_INTERFACE]);
+      sv.poser(f, texte); if (avant === sv.signe(texte)) sv.lancer(['restart', UNITE_INTERFACE]);
       return { unite: UNITE_INTERFACE, etat: 'relancée' };
     },
   };
@@ -454,7 +476,7 @@ function creerMinuteur(nom, unite, minuteur, { unites, systemctl }) {
   const f = path.join(unites, `${nom}.service`); const m = path.join(unites, `${nom}.timer`);
   return {
     poser() {
-      for (const x of [f, m]) if (fs.existsSync(x) && !sv.geree(x)) throw new Error(`${x} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
+      for (const x of [f, m]) sv.garder(x);
       if (sv.coupee(m)) {
         if ([sv.ecrire(f, unite), sv.ecrire(m, minuteur)].some(Boolean)) sv.lancer(['daemon-reload']);
         return { unite: `${nom}.timer`, etat: 'coupé à la main : laissé' };

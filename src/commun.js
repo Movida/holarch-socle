@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 /** `a` est `b` ou se trouve dessous (chemins de même base) ; un dossier dessous nommé `..x` l'est aussi. */
 export const dedans = (a, b) => { const r = path.relative(b, a); return r === '' || (r !== '..' && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r)); };
@@ -82,6 +83,9 @@ export function ecrireSansLien(racine, relatif, contenu, mode) {
 
 /** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */
 export const accueil = () => process.env.HOLARCH_HOME || path.join(os.homedir(), '.holarch');
+
+/** Empreinte courte d'un texte (ou de plusieurs, séparés par un octet nul) : SHA-256, 16 chiffres hexadécimaux. */
+export const hacher = (...x) => createHash('sha256').update(x.join('\0')).digest('hex').slice(0, 16);
 
 /** Un mot pour le shell, entre apostrophes. */
 export const shell = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
