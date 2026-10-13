@@ -1,6 +1,7 @@
 // Mise en forme texte de la ligne de commande (étape 3, tranche 6) : ce que `holarch` affiche hors `--json`.
 import { heureLocale } from '../src/commun.js';
 import { crochetVoulu, gesteLaisse } from '../src/regles-claude-code.js';
+import { REPOSEE } from '../src/identite-git.js';
 
 export const inventaire = (r) => `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.deplacees.length} déplacées, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}${r.comptes_non_lus?.length ? `\nATTENTION comptes Claude Code non lus : ${r.comptes_non_lus.join(', ')}` : ''}\naudit : ${r.audit.ouverts} écart(s) ouvert(s) ; ${r.audit.apparus} apparu(s), ${r.audit.resolus} résolu(s)`;
 
@@ -52,7 +53,8 @@ export function appliquer({ comptes, projets }) {
     else if (c.etat !== 'absent' && c.etat !== 'ignore') sortie.push(`  crochet de git : ${c.etat}${c.raison ? ` (${c.raison})` : ''}`);
     const i = m.identite.etat;
     if (i === 'ignore') sortie.push(`  ATTENTION identité de commit posée à la main dans ce dépôt, différente de la déclarée : laissée (git config --local --unset user.name, puis user.email${m.identite.note ? ', puis holarch.identite' : ''}, pour la retirer)`);
-    else if (i === 'retire-a-la-main') sortie.push('  ATTENTION identité de commit posée par HOLARCH, retirée à la main dans ce dépôt : laissée (git config --local --unset holarch.identite pour qu’il la repose)');
+    else if (i === 'repose') sortie.push(`  ATTENTION identité de commit posée par HOLARCH dans ce dépôt, ${REPOSEE}`);
+    else if (i === 'note-retiree') sortie.push('  identité de commit plus déclarée : note de HOLARCH retirée ; le réglage local, posé à la main, reste');
     else if (['pose', 'modifie', 'retire'].includes(i)) sortie.push(`  identité de commit : ${i === 'pose' ? 'posée' : i === 'modifie' ? 'mise à jour' : 'retirée'} en réglage local`);
   }
   return sortie.join('\n');
