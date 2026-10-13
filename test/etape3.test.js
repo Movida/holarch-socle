@@ -2272,3 +2272,32 @@ test('Dépendances vulnérables : un verrou remplacé par un FIFO ou démesuré 
   assert.deepEqual(JSON.parse(r.stdout), { ecarts: [], indisponible: 'go.sum : pas un fichier, ou plus de 32 Mio, non lu ; package-lock.json : pas un fichier, ou plus de 32 Mio, non lu' });
   assert.equal(fs.readFileSync(appels, 'utf8'), 'scan source --config /dev/null -L web/uv.lock --format json\n', 'seul le verrou lu est scanné');
 });
+
+// agentgateway, voisin de la famille Gardes muettes : la position de lecture allait au bout du fichier malgré des
+// événements refusés par le journal, qui étaient perdus. Elle s'arrête au début de la première ligne refusée, relue au
+// passage suivant ; ce qui la suit et a été accepté revient avec le même identifiant, et ne se compte pas deux fois.
+test('Passerelle : une ligne dont l’événement est refusé est relue au passage suivant, sans doubler les autres', async () => {
+  const { default: importerPasserelle } = await import('../src/import/agentgateway.js');
+  const ligne = (t, outil) => JSON.stringify({ level: 'info', time: t, 'http.status': 200, 'mcp.method.name': 'tools/call', 'mcp.target': 'demo', 'gen_ai.tool.name': outil, duration: '6ms' });
+  const donnees = tmp(); const vrai = new Journal(donnees, 'local'); const f = path.join(tmp(), 'passerelle.jsonl');
+  // Un journal qui refuse les appels d'un outil, comme le ferait sa validation.
+  let refuse = null;
+  const journal = { ajouter: (evs) => {
+    const non = evs.filter((e) => e.data.outil === refuse); const r = vrai.ajouter(evs.filter((e) => e.data.outil !== refuse));
+    return { ...r, refuses: [...r.refuses, ...non.map((e) => ({ evenement: e, erreur: `${e.data.outil} refusé pour l’essai` }))] };
+  } };
+  const importer = () => importerPasserelle({ fichier: f, nom: 'hub' }, { journal, donnees });
+  const outils = () => [...vrai.lire()].map((e) => e.data.outil).sort();
+  // Des caractères accentués avant la ligne refusée : la position se compte en octets.
+  const premiere = ligne('2026-10-01T10:00:00Z', 'àé');
+  fs.writeFileSync(f, `${premiere}\n${ligne('2026-10-01T10:00:01Z', 'refusé')}\n${ligne('2026-10-01T10:00:02Z', 'c')}\n`);
+  refuse = 'refusé';
+  const position = () => JSON.parse(fs.readFileSync(path.join(donnees, 'import', 'agentgateway.json'), 'utf8'))[f].position;
+  assert.deepEqual([importer().refuses, outils(), position()], [1, ['c', 'àé'], Buffer.byteLength(premiere) + 1], 'arrêtée au premier octet de la ligne refusée');
+  refuse = null;
+  const r = importer();
+  assert.deepEqual([r.ajoutes, r.ignores, outils()], [1, 1, ['c', 'refusé', 'àé']], 'relue depuis la ligne refusée : elle passe, la suivante est déjà connue');
+  fs.appendFileSync(f, `${ligne('2026-10-01T10:00:03Z', 'd')}\n`);
+  const r2 = importer();
+  assert.deepEqual([r2.ajoutes, r2.ignores, outils()], [1, 0, ['c', 'd', 'refusé', 'àé']], 'tout accepté : la position est allée au bout');
+});

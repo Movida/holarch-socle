@@ -1,7 +1,8 @@
 // Import du journal JSON d'une passerelle agentgateway (étape 2, décision passerelle-par-site) vers le journal :
 // `tool.called` pour chaque appel d'outil qui la traverse, quel que soit le client (Claude Code, Claude Desktop…).
 // Garde le serveur, l'outil, le code HTTP, la durée et la session ; jamais les arguments (la passerelle ne les écrit
-// pas). Idempotent : identifiants tirés de la ligne, lecture reprise là où la précédente s'est arrêtée.
+// pas). Idempotent : identifiants tirés de la ligne, lecture reprise là où la précédente s'est arrêtée, ou à la première
+// ligne dont un événement a été refusé par le journal.
 //
 // Limite constatée (essai du 2026-10-03) : la passerelle répond 200 même quand l'outil échoue ; elle ne voit que les
 // échecs HTTP (refus, authentification, serveur injoignable). Le statut d'un appel transmis reste donc inconnu (null).
@@ -60,9 +61,18 @@ export default function importerPasserelle(options, { journal, donnees }) {
   const fd = fs.openSync(f, 'r');
   const tampon = Buffer.alloc(Math.max(0, st.size - debut));
   fs.readSync(fd, tampon, 0, tampon.length, debut); fs.closeSync(fd);
-  const texte = tampon.toString('utf8'); const fin = texte.lastIndexOf('\n') + 1; // seulement les lignes complètes
-  const r = journal.ajouter(evenementsDe(texte.slice(0, fin).split('\n').filter(Boolean), options.nom || 'passerelle'));
-  etat[f] = { ino: st.ino, position: debut + Buffer.byteLength(texte.slice(0, fin)) };
+  const texte = tampon.toString('utf8'); const complet = texte.slice(0, texte.lastIndexOf('\n') + 1); // seulement les lignes complètes
+  // Chaque événement, avec l'octet où commence sa ligne.
+  const evenements = []; const ligneDe = new Map(); let o = 0;
+  for (const l of complet.split('\n')) {
+    if (l) for (const e of evenementsDe([l], options.nom || 'passerelle')) { evenements.push(e); ligneDe.set(e.id, o); }
+    o += Buffer.byteLength(l) + 1;
+  }
+  const r = journal.ajouter(evenements);
+  // Un événement refusé par le journal n'est pas perdu : la position s'arrête au début de sa ligne, relue au passage
+  // suivant (les événements acceptés qui la suivent reviennent avec le même identifiant et sont ignorés).
+  const refus = r.refuses.map((x) => ligneDe.get(x.evenement?.id)).filter((x) => x !== undefined);
+  etat[f] = { ino: st.ino, position: debut + (refus.length ? Math.min(...refus) : Buffer.byteLength(complet)) };
   ecrireJson(etatF, etat, { indent: 0 });
   return { fichiers_lus: 1, ...r, refuses: r.refuses.length };
 }
