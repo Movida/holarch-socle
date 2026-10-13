@@ -1504,8 +1504,8 @@ test('Lectures dans un dépôt : un lien symbolique n’y fait lire aucun fichie
 });
 
 // Course entre la vérification et l'écriture (limite de C levée) : un lien posé à la place du fichier juste après
-// `cheminSansLien` (ici, pendant la création de son dossier) fait échouer l'écriture, ouverte en `O_NOFOLLOW` ; le
-// fichier de l'hôte reste tel quel, son mode compris.
+// `cheminSansLien` (ici, pendant la création de son dossier) fait échouer l'écriture ; le fichier de l'hôte reste tel
+// quel, son mode compris.
 test('ecrireSansLien : un lien posé entre la vérification et l’écriture la fait échouer, rien n’est écrit dehors', () => {
   const d = tmp(); const cible = path.join(tmp(), 'hote.txt'); fs.writeFileSync(cible, 'à moi\n'); fs.chmodSync(cible, 0o644);
   const mkdir = fs.mkdirSync;
@@ -1533,6 +1533,38 @@ test('lireSansLien : un lien posé entre la vérification et la lecture la fait 
   // Sans course, le fichier se lit ; absent, il vaut null.
   fs.writeFileSync(f, 'du dépôt\n');
   assert.deepEqual([lireSansLien(d, 'x/f.yaml'), lireSansLien(d, 'x/absent.yaml')], ['du dépôt\n', null]);
+});
+
+// Course sur un dossier du chemin (limite de C levée) : `x` remplacé par un lien vers un dossier de l'hôte juste avant
+// l'ouverture, puis laissé (la vérification refaite après l'ouverture le voit) ou remis aussitôt (l'inode ouvert n'est
+// pas celui que le chemin désigne) : rien n'est écrit ni lu dehors, rien n'est tronqué, aucun descripteur ne reste
+// ouvert. Reste ouvert sans `openat` (absent de Node) : un fichier absent est créé, vide, au bout du lien.
+test('ecrireSansLien, lireSansLien : un dossier du chemin remplacé par un lien pendant l’ouverture ne fait rien écrire ni lire dehors', () => {
+  const d = tmp(); const hote = tmp(); const x = path.join(d, 'x');
+  fs.writeFileSync(path.join(hote, 'f.sh'), 'à moi\n'); fs.chmodSync(path.join(hote, 'f.sh'), 0o644);
+  fs.mkdirSync(x); fs.writeFileSync(path.join(x, 'f.sh'), 'du dépôt\n');
+  const open = fs.openSync; let pose = false;
+  const poser = () => { fs.renameSync(x, `${x}-vrai`); fs.symlinkSync(hote, x); pose = true; };
+  const remettre = () => { if (pose) { fs.unlinkSync(x); fs.renameSync(`${x}-vrai`, x); pose = false; } };
+  const course = (f, remis) => {
+    fs.openSync = (...a) => { fs.openSync = open; poser(); try { return open(...a); } finally { if (remis) remettre(); } };
+    try { f(); } finally { fs.openSync = open; remettre(); }
+  };
+  const refus = (fn, message) => () => assert.throws(fn, (e) => e.message === message);
+  const descripteurs = () => fs.readdirSync('/proc/self/fd').length; const avant = descripteurs();
+  course(refus(() => ecrireSansLien(d, 'x/f.sh', 'du conteneur\n', 0o755), 'x est un lien symbolique : rien n’est écrit'), false);
+  course(refus(() => ecrireSansLien(d, 'x/f.sh', 'du conteneur\n', 0o755), 'x/f.sh : un dossier de son chemin a changé pendant l’ouverture, rien n’est écrit'), true);
+  course(refus(() => lireSansLien(d, 'x/f.sh'), 'x est un lien symbolique : rien n’est lu'), false);
+  course(refus(() => lireSansLien(d, 'x/f.sh'), 'x/f.sh : un dossier de son chemin a changé pendant l’ouverture, rien n’est lu'), true);
+  course(refus(() => ecrireSansLien(d, 'x/neuf.sh', 'du conteneur\n'), 'x/neuf.sh : un dossier de son chemin a changé pendant l’ouverture, rien n’est écrit'), true);
+  assert.equal(descripteurs(), avant, 'un refus ferme ce qu’il a ouvert');
+  assert.deepEqual([fs.readFileSync(path.join(hote, 'f.sh'), 'utf8'), fs.statSync(path.join(hote, 'f.sh')).mode & 0o777, fs.readFileSync(path.join(x, 'f.sh'), 'utf8')], ['à moi\n', 0o644, 'du dépôt\n']);
+  assert.deepEqual([fs.readFileSync(path.join(hote, 'neuf.sh'), 'utf8'), fs.existsSync(path.join(x, 'neuf.sh'))], ['', false], 'la limite qui reste : créé vide au bout du lien');
+  // Un lien vers un fichier absent, posé à la place du fichier juste avant l'ouverture : rien n'est créé au bout.
+  const bout = path.join(hote, 'cree.sh'); fs.mkdirSync(path.join(d, 'z'));
+  fs.openSync = (...a) => { fs.openSync = open; fs.symlinkSync(bout, path.join(d, 'z', 'f.sh')); return open(...a); };
+  try { assert.throws(() => ecrireSansLien(d, 'z/f.sh', 'du conteneur\n'), (e) => e.message === 'z/f.sh est un lien symbolique : rien n’est écrit'); } finally { fs.openSync = open; }
+  assert.equal(fs.existsSync(bout), false);
 });
 
 // Réglages du compte (limite de C levée) : le manifeste de ce que HOLARCH pose dans settings.json s'écrit d'abord ;

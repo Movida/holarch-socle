@@ -29,33 +29,45 @@ export function cheminSansLien(racine, relatif, verbe = 'écrit') {
 }
 
 /**
+ * Le descripteur de `relatif` sous `racine`, ouvert (`drapeaux`) sans suivre de lien. Le fichier s'ouvre en
+ * `O_NOFOLLOW` : un lien posé à sa place entre la vérification et l'ouverture la fait échouer, qui le dit comme la
+ * vérification. Un dossier du chemin remplacé par un lien dans cet intervalle se voit après l'ouverture : à la
+ * vérification refaite (le lien est encore là), sinon à l'inode ouvert, qui n'est pas celui que le chemin désigne (il a
+ * été remis). Reste ouvert sans `openat`, absent de Node : un dossier remplacé, remis pour la vérification refaite, puis
+ * remplacé de nouveau avant la comparaison des inodes ; et ce que l'ouverture crée au bout du lien (un fichier vide).
+ */
+function ouvrirSansLien(racine, relatif, drapeaux, verbe, mode) {
+  const p = cheminSansLien(racine, relatif, verbe);
+  let fd; try { fd = fs.openSync(p, drapeaux | fs.constants.O_NOFOLLOW, mode); } catch (e) {
+    throw e.code === 'ELOOP' ? new Error(`${relatif} est un lien symbolique : rien n’est ${verbe}`) : e;
+  }
+  try {
+    cheminSansLien(racine, relatif, verbe);
+    const o = fs.fstatSync(fd, { bigint: true }); let l; try { l = fs.lstatSync(p, { bigint: true }); } catch { l = null; }
+    if (!l || l.dev !== o.dev || l.ino !== o.ino) throw new Error(`${relatif} : un dossier de son chemin a changé pendant l’ouverture, rien n’est ${verbe}`);
+    return fd;
+  } catch (e) { fs.closeSync(fd); throw e; }
+}
+
+/**
  * Le texte de `relatif` sous `racine` (un dépôt), null s'il manque ou ne se lit pas, sans suivre de lien symbolique
- * (`cheminSansLien` : un lien lève une erreur). Le fichier s'ouvre en `O_NOFOLLOW` : un lien posé à sa place entre la
- * vérification et la lecture fait échouer l'ouverture, qui le dit comme la vérification.
+ * (`cheminSansLien` : un lien lève une erreur ; `ouvrirSansLien` pour la course entre la vérification et la lecture).
  */
 export function lireSansLien(racine, relatif) {
-  const p = cheminSansLien(racine, relatif, 'lu');
-  const { O_RDONLY, O_NOFOLLOW } = fs.constants;
-  let fd; try { fd = fs.openSync(p, O_RDONLY | O_NOFOLLOW); } catch (e) {
-    if (e.code === 'ELOOP') throw new Error(`${relatif} est un lien symbolique : rien n’est lu`);
-    return null;
-  }
+  let fd; try { fd = ouvrirSansLien(racine, relatif, fs.constants.O_RDONLY, 'lu'); } catch (e) { if (e.code) return null; throw e; }
   try { return fs.readFileSync(fd, 'utf8'); } catch { return null; } finally { fs.closeSync(fd); }
 }
 
 /**
  * Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique
- * (`cheminSansLien`). Le fichier s'ouvre en `O_NOFOLLOW`, et son mode se pose sur ce qui est ouvert : un lien posé à sa
- * place entre la vérification et l'écriture fait échouer l'ouverture, qui le dit comme la vérification.
+ * (`cheminSansLien`, puis `ouvrirSansLien` pour la course entre la vérification et l'écriture). Le fichier s'ouvre sans
+ * `O_TRUNC` et ne se tronque qu'une fois l'ouverture vérifiée ; son mode se pose sur ce qui est ouvert.
  */
 export function ecrireSansLien(racine, relatif, contenu, mode) {
   const p = cheminSansLien(racine, relatif);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  const { O_WRONLY, O_CREAT, O_TRUNC, O_NOFOLLOW } = fs.constants;
-  let fd; try { fd = fs.openSync(p, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, mode ?? 0o666); } catch (e) {
-    throw e.code === 'ELOOP' ? new Error(`${relatif} est un lien symbolique : rien n’est écrit`) : e;
-  }
-  try { fs.writeFileSync(fd, contenu); if (mode) fs.fchmodSync(fd, mode); } finally { fs.closeSync(fd); }
+  const fd = ouvrirSansLien(racine, relatif, fs.constants.O_WRONLY | fs.constants.O_CREAT, 'écrit', mode ?? 0o666);
+  try { fs.ftruncateSync(fd, 0); fs.writeFileSync(fd, contenu); if (mode) fs.fchmodSync(fd, mode); } finally { fs.closeSync(fd); }
 }
 
 /** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */
