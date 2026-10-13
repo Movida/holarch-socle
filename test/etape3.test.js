@@ -2495,3 +2495,20 @@ test('Copies de pose interrompues : retirées à la pose suivante si leur proces
   assert.deepEqual(fs.readdirSync(outils), ['gitleaks']);
   assert.match(affichage.posee(r).split('\n')[0], new RegExp(`pose\\(s\\) interrompue\\(s\\) retirée\\(s\\) : .*gitleaks\\.pose-${mort}`));
 });
+
+// Worktree sous les racines de l'inventaire (voisin vu par les lots 1 à 3) : son `.git` est un fichier, et il était pris
+// pour un dépôt de plus ; le premier commit devenait partagé et l'identifiant du projet principal prenait un suffixe. Un
+// worktree lié dont le principal est trouvé est écarté ; celui d'un dépôt nu, sans principal, reste le seul à le porter.
+test('Inventaire : un worktree lié n’est pas un projet de plus, et l’identifiant du principal ne change pas', () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  fs.writeFileSync(path.join(d, 'a.txt'), 'a\n'); g('add', '.'); g('commit', '-qm', 'x');
+  const id = `holarch:project:${premierCommit(d)}`;
+  g('worktree', 'add', '-q', '--detach', path.join(r, 'branche'));
+  assert.deepEqual(inventaireDepots({ racines: [r], profondeur: 2 }, { site: 'local' }).map((f) => [f.id, f.location]), [[id, d]]);
+  // Son principal hors des racines, ou un dépôt nu : le worktree est le seul à porter le dépôt.
+  const r3 = tmp(); g('worktree', 'add', '-q', '--detach', path.join(r3, 'ailleurs'));
+  assert.deepEqual(inventaireDepots({ racines: [r3], profondeur: 2 }, { site: 'local' }).map((f) => [f.id, f.location]), [[id, path.join(r3, 'ailleurs')]]);
+  const nu = path.join(tmp(), 'nu.git'); spawnSync('git', ['clone', '-q', '--bare', d, nu]);
+  const r2 = tmp(); spawnSync('git', ['-C', nu, 'worktree', 'add', '-q', '--detach', path.join(r2, 'travail')]);
+  assert.deepEqual(inventaireDepots({ racines: [r2], profondeur: 2 }, { site: 'local' }).map((f) => [f.id, f.location]), [[id, path.join(r2, 'travail')]]);
+});

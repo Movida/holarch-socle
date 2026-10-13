@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { gitInventaire, liste, mtimeIso, slug, urlSure } from './outils.js';
 import { projetsDe, localiserProjet } from '../projets.js';
+import { lireSansLien } from '../commun.js';
 
 function chercher(racine, profondeur, ignorer, trouves) {
   if (profondeur < 0 || !fs.existsSync(racine)) return;
@@ -20,7 +21,19 @@ export function trouverDepots({ racines = [], profondeur = 3, ignorer = [] }) {
   const trouves = new Set();
   // `~` non cité en YAML vaut null : on le comprend comme le répertoire personnel plutôt que de l'ignorer en silence.
   for (const r of racines) chercher(r === null || r === '~' ? os.homedir() : r, profondeur, ignorer, trouves);
-  return [...trouves].sort();
+  // Un worktree lié dont le worktree principal est trouvé aussi n'est pas un dépôt de plus : pris pour un projet, il
+  // partageait le premier commit du principal, dont l'identifiant prenait un suffixe. Il se rattache au principal
+  // (`projetDuDepot`). Sans principal trouvé (dépôt nu, ou hors des racines), il reste le seul à porter le dépôt.
+  return [...trouves].filter((d) => !trouves.has(principalDe(d))).sort();
+}
+
+// Le worktree principal d'un worktree lié, lu dans son fichier `.git` (`gitdir: <principal>/.git/worktrees/<nom>`, chemin
+// absolu ou relatif au worktree), sans suivre de lien ni attendre sur un FIFO ; null pour un dépôt (`.git` dossier), un
+// sous-module ou un worktree de dépôt nu.
+function principalDe(d) {
+  let t; try { t = lireSansLien(d, '.git', { max: 4096 }); } catch { return null; }
+  const m = t?.match(/^gitdir: (.+?)[\\/]\.git[\\/]worktrees[\\/][^\\/\n]+?[\\/]?[ \t\r]*$/m);
+  return m ? path.resolve(d, m[1]) : null;
 }
 
 // Identité d'un dépôt : son premier commit (le plus ancien s'il y a plusieurs racines), qui ne change ni avec le
