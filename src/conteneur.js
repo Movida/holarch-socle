@@ -22,6 +22,8 @@ const SOCLE = ['initializeCommand', 'mounts', 'containerEnv', 'remoteEnv', 'onCr
 const objet = (x) => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
 /** Le dossier personnel de l'utilisateur du conteneur (`remoteUser`) : les montages du socle et la clé de déploiement. */
 export const maisonDe = (u) => (u === 'root' ? '/root' : `/home/${u}`);
+/** Un nom d'utilisateur dont le dossier personnel se déduit (`maisonDe`) : ni uid, ni chemin. */
+export const NOM_UTILISATEUR = /^[a-z_][a-z0-9_-]*$/;
 // La cible d'un montage, chaîne (`target=`, `dst=`, `destination=`) ou objet.
 const cible = (m) => (objet(m) ? m.target : String(m).match(/(?:^|,)\s*(?:target|dst|destination)=([^,]+)/)?.[1]?.trim());
 
@@ -65,7 +67,7 @@ export function genererConteneur({ nom, config = {} }) {
   const connexion = c.connexion_claude ?? 'volume';
   if (!CONNEXIONS.includes(connexion)) return { erreur: `conteneur.connexion_claude inconnu : ${connexion} (${CONNEXIONS.join(', ')})` };
   const u = d.remoteUser;
-  if (typeof u !== 'string' || !/^[a-z_][a-z0-9_-]*$/.test(u)) return { erreur: `conteneur.devcontainer.remoteUser ${u === undefined ? 'absent' : `invalide : ${u}`} : le profil le pose avec l’image de base` };
+  if (typeof u !== 'string' || !NOM_UTILISATEUR.test(u)) return { erreur: `conteneur.devcontainer.remoteUser ${u === undefined ? 'absent' : `invalide : ${u}`} : le profil le pose avec l’image de base` };
   for (const k of ['containerEnv', 'remoteEnv', 'onCreateCommand']) {
     if (d[k] !== undefined && !objet(d[k])) return { erreur: `conteneur.devcontainer.${k} : un objet attendu${k === 'onCreateCommand' ? ' (commandes nommées : le socle y pose la sienne)' : ''}` };
   }

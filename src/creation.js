@@ -15,7 +15,7 @@ import { poserIdentite } from './identite-git.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserProjet } from './materialisation.js';
 import { creerDistant } from './distant.js';
-import { genererConteneur, maisonDe, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
+import { genererConteneur, maisonDe, NOM_UTILISATEUR, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
 import { ETIQUETTE_DEVCONTAINER } from './inventaire/docker.js';
 import { projetsDe, localiserProjet } from './projets.js';
 
@@ -38,21 +38,34 @@ const corpsCle = (k) => String(k).trim().split(/\s+/).slice(0, 2).join(' ');
 // L'utilisateur d'un conteneur construit par le CLI Dev Containers, lu dans son étiquette de métadonnées (rendue par
 // `json` dans `docker ps` : le texte d'une liste de configurations, image et features d'abord, `devcontainer.json` en
 // dernier). Le dernier `remoteUser` l'emporte, à défaut le dernier `containerUser`, comme le résout le CLI (0.89.0) ;
-// null si l'étiquette manque ou ne se lit pas.
+// undefined si l'étiquette manque ou ne se lit pas, null si elle n'en nomme aucun.
 const METADONNEES = 'devcontainer.metadata';
 function utilisateurDe(etiquette) {
-  let l; try { l = JSON.parse(JSON.parse(etiquette)); } catch { return null; }
-  const dernier = (k) => (Array.isArray(l) ? l.findLast((x) => typeof x?.[k] === 'string')?.[k] : null);
+  let l; try { l = JSON.parse(JSON.parse(etiquette)); } catch { return undefined; }
+  if (!Array.isArray(l)) return undefined;
+  const dernier = (k) => l.findLast((x) => typeof x?.[k] === 'string')?.[k];
   return dernier('remoteUser') || dernier('containerUser') || null;
+}
+
+// L'utilisateur du conteneur lui-même (`.Config.User` de `docker inspect` : celui de son image, à défaut d'un `-u` au
+// lancement), root s'il est vide, la part utilisateur d'un `utilisateur:groupe`, comme le résout le CLI (0.89.0) ; null
+// si Docker ne le dit pas, ou si ce n'est pas un nom (un uid n'a pas de dossier personnel qui se déduise).
+function utilisateurDuConteneur(docker, id) {
+  const r = docker(['inspect', '--type', 'container', '--format', '{{json .Config.User}}', id]);
+  let u; try { u = r.status === 0 ? JSON.parse(r.stdout) : null; } catch { return null; }
+  if (typeof u !== 'string') return null;
+  u = u.split(':')[0] || 'root';
+  return NOM_UTILISATEUR.test(u) ? u : null;
 }
 
 // Les clés de déploiement des conteneurs du projet en marche (`~/.ssh/id_ed25519.pub` de leur utilisateur, que crée
 // `deploy-key.sh`) : { conteneurs: [{ id, cle, fichier } ou { id, fichier, erreur }] }, ou { non_verifiee } qui dit
 // pourquoi aucune ne se lit (aucun conteneur construit, tous arrêtés, Docker injoignable). Un conteneur se trouve par son
 // étiquette de dossier, rattachée au projet comme le fait l'inventaire (`localiserProjet`) ; son utilisateur, par son
-// étiquette de métadonnées (un fichier écrit à la main y a mis le sien), à défaut le `remoteUser` de la configuration.
-// Docker n'est que lu (`ps`, `exec … cat`).
-function clesDesConteneurs(docker, projets, projet, utilisateur) {
+// étiquette de métadonnées (un fichier écrit à la main y a mis le sien) ; une étiquette qui n'en nomme aucun laisse celui
+// du conteneur (`utilisateurDuConteneur`), que le CLI prend alors ; sans étiquette lisible, le `remoteUser` de la
+// configuration, à défaut celui du conteneur. Docker n'est que lu (`ps`, `inspect`, `exec … cat`).
+export function clesDesConteneurs(docker, projets, projet, utilisateur) {
   const ps = docker(['ps', '--all', '--filter', `label=${ETIQUETTE_DEVCONTAINER}`, '--format', `{{.ID}}\t{{.State}}\t{{.Label "${ETIQUETTE_DEVCONTAINER}"}}\t{{json (.Label "${METADONNEES}")}}`]);
   if (ps.status !== 0) return { non_verifiee: 'Docker injoignable' };
   const lieu = localiserProjet(projets);
@@ -61,7 +74,8 @@ function clesDesConteneurs(docker, projets, projet, utilisateur) {
   const enMarche = siens.filter(([, etat]) => etat === 'running');
   if (!enMarche.length) return { non_verifiee: 'conteneur arrêté' };
   return { conteneurs: enMarche.map(([id, , , etiquette]) => {
-    const u = utilisateurDe(etiquette) || utilisateur;
+    const lu = utilisateurDe(etiquette);
+    const u = lu || (lu === undefined && utilisateur) || utilisateurDuConteneur(docker, id);
     if (!u) return { id, erreur: 'remoteUser inconnu' };
     const fichier = `${maisonDe(u)}/.ssh/id_ed25519.pub`;
     const c = docker(['exec', id, 'cat', fichier]);

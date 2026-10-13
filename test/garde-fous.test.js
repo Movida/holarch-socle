@@ -1802,3 +1802,33 @@ test('Crochets de passation : une erreur ne bloque aucun message, mais se garde 
   const a2 = s.audit({ journaliser: true });
   assert.deepEqual([passation(a2), a2.journal.resolus], [[], 1], 'plus d’une semaine : plus dite, l’écart se résout');
 });
+
+// Clé du conteneur, limite de C : une étiquette de métadonnées qui ne nomme ni remoteUser ni containerUser (un
+// devcontainer.json écrit à la main sans eux) laisse l'utilisateur du conteneur, que dit `docker inspect`
+// (`.Config.User`, root s'il est vide, l'utilisateur d'un `utilisateur:groupe`), comme le résout le CLI Dev Containers ;
+// la configuration du profil n'y vaut pas. Sans étiquette lisible, la configuration, à défaut le conteneur.
+const dockerFictif = (conteneurs, appels) => (args) => {
+  appels.push(args.join(' '));
+  if (args[0] === 'ps') return { status: 0, stdout: conteneurs.map((c) => [c.id, 'running', '/depots/p', JSON.stringify(c.meta ? JSON.stringify(c.meta) : '')].join('\t')).join('\n') };
+  const c = conteneurs.find((x) => x.id === (args[0] === 'exec' ? args[1] : args.at(-1)));
+  if (args[0] === 'inspect') return c.user === undefined ? { status: 1, stdout: '', stderr: `Error: No such container: ${c.id}` } : { status: 0, stdout: c.brut ? c.user : `${JSON.stringify(c.user)}\n` };
+  return { status: 0, stdout: `ssh-ed25519 AAAA${c.id} commentaire\n` };
+};
+const PROJETS_CLE = [{ id: 'holarch:project:p', location: '/depots/p' }];
+
+test('Clé du conteneur : sans remoteUser ni containerUser dans l’étiquette, l’utilisateur est celui du conteneur (docker inspect)', async () => {
+  const { clesDesConteneurs } = await import('../src/creation.js');
+  const sansUtilisateur = [{ id: 'feature' }, {}];
+  const conteneurs = [{ id: 'a1', meta: sansUtilisateur, user: 'dev' }, { id: 'a2', meta: sansUtilisateur, user: '' }, { id: 'a3', meta: sansUtilisateur, user: 'node:node' },
+    { id: 'a4', user: 'dev' }, { id: 'a5', meta: [{ remoteUser: 'node' }], user: 'root' }, { id: 'a6', meta: { remoteUser: 'x' }, user: 'dev' }];
+  const appels = [];
+  const fichiers = (utilisateur) => clesDesConteneurs(dockerFictif(conteneurs, appels), PROJETS_CLE, 'holarch:project:p', utilisateur).conteneurs.map((c) => c.fichier ?? c.erreur);
+  assert.deepEqual(fichiers('vscode'), ['/home/dev/.ssh/id_ed25519.pub', '/root/.ssh/id_ed25519.pub', '/home/node/.ssh/id_ed25519.pub', '/home/vscode/.ssh/id_ed25519.pub',
+    '/home/node/.ssh/id_ed25519.pub', '/home/vscode/.ssh/id_ed25519.pub'], 'une étiquette qui n’est pas une liste ne se lit pas');
+  assert.ok(appels.includes('inspect --type container --format {{json .Config.User}} a1'), appels.join('\n'));
+  assert.ok(!appels.some((a) => a.startsWith('inspect') && / a[456]$/.test(a)), 'une étiquette ou une configuration qui le nomme suffit');
+  // Sans étiquette lisible ni configuration : le conteneur. Ce que Docker rend et qui n'est pas un nom ne vaut pas : un
+  // uid (pas de dossier personnel qui se déduise), autre chose qu'une chaîne, un texte qui n'est pas du JSON.
+  conteneurs.push({ id: 'a7', meta: sansUtilisateur, user: '1000:1000' }, { id: 'a8', meta: sansUtilisateur, user: 1000 }, { id: 'a9', meta: sansUtilisateur, user: 'dev\n', brut: true });
+  assert.deepEqual(fichiers(undefined).slice(3), ['/home/dev/.ssh/id_ed25519.pub', '/home/node/.ssh/id_ed25519.pub', '/home/dev/.ssh/id_ed25519.pub', 'remoteUser inconnu', 'remoteUser inconnu', 'remoteUser inconnu']);
+});
