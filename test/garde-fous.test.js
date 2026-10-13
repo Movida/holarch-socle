@@ -1868,3 +1868,34 @@ test('Rapport d’un sous-agent : sa description ne se lit ni à travers un lien
   assert.deepEqual(JSON.parse(r.stdout), { rapports: [[null, 'Rapport de lien'], [null, 'Rapport de fifo'], [null, 'Rapport de enorme'], ['Une description', 'Rapport de sain']],
     lus: [null, null, '{"description":"Une description"}'] }, 'un FIFO ne se lit pas (null, pas un texte vide), un fichier au-delà de la borne non plus');
 });
+
+// Contexte illisible, limite de C : un contexte du profil dont l'en-tête ne se lit pas (YAML faux ; un fichier
+// illisible ou en lien, test de la création) se dit illisible, avec la raison que l'inventaire en donne, au lieu de
+// « aucun contexte dans le profil » ; demandé par son nom, il l'est d'abord. Ne pouvaient pas être un contexte : la
+// racine du profil, un nœud dont le type se lit autre (une décision), un nœud d'un autre arbre.
+test('Création : un contexte qui ne se lit pas se dit illisible, avec sa raison, et non « aucun contexte dans le profil »', async () => {
+  const { configAvantProjet } = await import('../src/regles.js');
+  const r = tmp(); const profil = path.join(r, 'profil'); const autre = path.join(r, 'autre');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const lien = 'links: { derives_from: [/arbre/index.md] }';
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\n${lien.slice(0, -2)}\n---\n`);
+  ecrireF(path.join(profil, 'arbre', 'decisions', 'choix.md'), '---\ntype: decision\ntitle: [Choix\n---\n');
+  ecrireF(path.join(autre, 'arbre', 'index.md'), '---\ntype: guideline\nid: autre\ntitle: Autre\nstatus: draft\n---\n');
+  ecrireF(path.join(autre, 'arbre', 'contextes', 'ailleurs.md'), `---\ntype: context\ntitle: [Ailleurs\n${lien}\n---\n`);
+  const message = (o) => { try { configAvantProjet(inventaireArbre({}, { depots: [profil, autre], projetDe: () => null }), { profil, ...o }); return 'sans erreur'; } catch (e) { return e.message; } };
+  const raison = 'profil:/arbre/contextes/perso.md : en-tête illisible : ';
+  assert.ok(message({ contexte: 'perso' }).startsWith(`contexte illisible : perso (${raison}`), message({ contexte: 'perso' }));
+  assert.ok(message({}).startsWith(`contexte à préciser (--contexte) : perso illisible (${raison}`), message({}));
+  assert.doesNotMatch(message({}), /choix|ailleurs|index/);
+  // Un contexte lisible à côté : demandé par un autre nom, la liste nomme les deux ; la racine illisible n'y est pas. Un
+  // contexte lisible dont le titre est le nom d'un illisible ne le cache pas.
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'pro.md'), `---\ntype: context\ntitle: Pro\nstatus: draft\n${lien}\n---\n`);
+  assert.ok(message({ contexte: 'x' }).startsWith(`contexte inconnu : x (pro, perso illisible (${raison}`), message({ contexte: 'x' }));
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'pro.md'), `---\ntype: context\ntitle: perso\nstatus: draft\n${lien}\n---\n`);
+  assert.ok(message({ contexte: 'perso' }).startsWith(`contexte illisible : perso (${raison}`), message({ contexte: 'perso' }));
+  // Racine en conflit de fusion : son type ne se lit pas, elle n'est pas un contexte pour autant.
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\n<<<<<<< HEAD\ntype: guideline\nid: profil\ntitle: Profil fictif\n=======\ntype: index\nid: profil\ntitle: Profil\n>>>>>>> autre\n---\n');
+  assert.ok(message({ contexte: 'x' }).startsWith(`contexte inconnu : x (pro, perso illisible (${raison}`), message({ contexte: 'x' }));
+  assert.doesNotMatch(message({ contexte: 'x' }), /index/);
+});

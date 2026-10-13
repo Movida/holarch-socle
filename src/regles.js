@@ -319,8 +319,14 @@ export function configAvantProjet(fiches, { contexte = null, types: demandes = [
   if (!a.profil) throw new Error(a.sansProfil);
   const nomDe = (n) => n.node.split('/').pop().replace(/\.md$/, '');
   const tous = a.contextes;
+  // Un nœud du profil dont l'en-tête ne se lit pas (YAML faux, fichier illisible) pouvait être un contexte, sauf la racine
+  // ou un type qui se lit autre (`indices_entete`) : il se dit, avec sa raison, au lieu de manquer en silence.
+  const illisibles = a.noeuds.filter((n) => n.attributes?.erreur_entete && !n.attributes.racine && depotDe(n) === depotDe(a.profil) && [undefined, 'context'].includes(n.attributes.indices_entete?.type));
+  const raison = (n) => `${designation(n)} : ${n.attributes.erreur_entete}`;
   const choisis = contexte ? tous.filter((n) => nomDe(n) === contexte || n.name === contexte) : tous;
-  const connus = tous.map(nomDe).join(', ') || 'aucun contexte dans le profil';
+  const sien = contexte ? illisibles.filter((n) => nomDe(n) === contexte) : [];
+  if (sien.length) throw new Error(`contexte illisible : ${contexte} (${sien.map(raison).join(' ; ')})`);
+  const connus = [...tous.map(nomDe), ...illisibles.map((n) => `${nomDe(n)} illisible (${raison(n)})`)].join(', ') || 'aucun contexte dans le profil';
   if (choisis.length !== 1) throw new Error(contexte ? `contexte ${choisis.length ? 'ambigu' : 'inconnu'} : ${contexte} (${connus})` : `contexte à préciser (--contexte) : ${connus}`);
   const ambigus = types.filter((t) => a.typesAmbigus.has(t));
   if (ambigus.length) throw new Error(ambigus.map((t) => a.typesAmbigus.get(t)).join(' ; '));

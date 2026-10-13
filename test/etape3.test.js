@@ -1411,7 +1411,7 @@ test('Écritures dans un dépôt (M-2) : un lien symbolique n’y détourne vers
   const etape = (x, e) => x.etapes.find((y) => y.etape === e); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
   const dehors = path.join(r, 'dehors'); ecrire(path.join(dehors, 'perso.md'), texteCtx);
   lien(path.join(dehors, 'perso.md'), ctx); git(profil, 'add', '-A'); git(profil, 'commit', '-qm', 'contexte en lien');
-  await assert.rejects(creer(), /contexte à préciser \(--contexte\) : aucun contexte dans le profil/);
+  await assert.rejects(creer(), /contexte à préciser \(--contexte\) : perso illisible \(profil:\/arbre\/contextes\/perso\.md : fichier illisible : arbre\/contextes\/perso\.md est un lien symbolique : rien n’est lu\)/);
   assert.deepEqual([liste(dehors), fs.readFileSync(path.join(dehors, 'perso.md'), 'utf8')], [['perso.md'], texteCtx]);
   assert.match(s.arbreFrais().find((n) => n.location === ctx).attributes.erreur_entete, /arbre\/contextes\/perso\.md est un lien symbolique : rien n’est lu/);
   fs.rmSync(ctx); fs.writeFileSync(ctx, texteCtx); git(profil, 'add', '-A'); git(profil, 'commit', '-qm', 'contexte en fichier');
