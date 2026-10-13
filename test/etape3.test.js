@@ -2079,3 +2079,33 @@ test('M1 : distant activer laisse coupé le minuteur de réveil coupé à la mai
   fs.writeFileSync(path.join(unites, 'holarch-reveil.timer'), '[Timer]\nOnCalendar=hourly\n');
   assert.equal(d.activer('demo').reveil, 'non écrit par HOLARCH : laissé');
 });
+
+// R3 (famille Gardes muettes) : une pose interrompue entre l'écriture d'une unité et son activation la laissait présente et
+// `disabled` ; la pose suivante la prenait pour coupée à la main et ne la rallumait plus jamais. Une marque posée avant la
+// pose et retirée après la distingue.
+test('R3 : une pose interrompue avant l’activation n’est pas prise pour une routine coupée à la main', () => {
+  const unites = tmp(); const appels = []; const actives = new Set(); let refus = true;
+  const systemctl = (args) => {
+    appels.push(args.join(' '));
+    if (args[0] === 'enable' && refus) { refus = false; return { status: 1, stdout: '', stderr: 'Failed to enable unit: interrompu\n' }; }
+    if (args[0] === 'enable') actives.add(args.at(-1)); if (args[0] === 'disable') actives.delete(args.at(-1));
+    const etat = { 'is-enabled': actives.has(args[1]) ? 'enabled' : 'disabled', 'is-active': actives.has(args[1]) ? 'active' : 'inactive', 'is-system-running': 'running' }[args[0]];
+    return { status: 0, stdout: etat ? `${etat}\n` : '', stderr: '' };
+  };
+  const o = { unites, systemctl, node: '/opt/node/bin/node' };
+  const recolte = creerRecolte({ holarch: '/v1/holarch.js', accueil: '/a' }, o);
+  const etat = () => etatRoutines(o).find((r) => r.unite === 'holarch-recolte.timer').etat;
+  assert.throws(() => recolte.poser(), /systemctl --user enable --now holarch-recolte\.timer : Failed to enable unit: interrompu/);
+  assert.ok(fs.existsSync(path.join(unites, 'holarch-recolte.timer')), 'l’unité est écrite, pas activée');
+  assert.equal(etat(), 'pose interrompue');
+  appels.length = 0; recolte.poser();
+  assert.ok(appels.includes('enable --now holarch-recolte.timer'), 'la pose suivante l’active');
+  assert.deepEqual([etat(), fs.readdirSync(unites).sort()], ['activée', ['holarch-recolte.service', 'holarch-recolte.timer']], 'la marque est retirée');
+  // Coupée à la main ensuite : laissée, comme avant.
+  systemctl(['disable', '--now', 'holarch-recolte.timer']); appels.length = 0;
+  assert.deepEqual([recolte.poser().etat, appels.filter((a) => a.startsWith('enable')), etat()], ['coupé à la main : laissé', [], 'coupée']);
+  // Une unité retirée après une pose interrompue part avec sa marque.
+  const i = creerInterface({ holarch: '/v1/holarch.js', accueil: '/a' }, o); refus = true;
+  assert.throws(() => i.activer(), /interrompu/); i.desactiver();
+  assert.deepEqual(fs.readdirSync(unites).filter((x) => x.startsWith('holarch-interface')), []);
+});

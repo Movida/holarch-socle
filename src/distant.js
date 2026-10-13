@@ -51,18 +51,24 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
     if (!sousSystemd()) return { etat: 'absent' };
     return { etat: 'injoignable', message: (r.stderr || '').trim().split('\n')[0] || r.error?.message || `code ${r.status}` };
   }
+  // Une pose interrompue entre l'écriture de l'unité et son activation la laisse présente et `disabled`, comme une unité
+  // coupée à la main, que plus aucune pose ne rallumait. Une marque, posée à côté de l'unité avant la pose et retirée une
+  // fois l'unité activée, la distingue (un nom sans suffixe d'unité : systemd ne le lit pas).
+  const enCours = (f) => `${f}.pose-en-cours`;
+  const interrompue = (f) => fs.existsSync(enCours(f));
   return {
-    unites, geree, lancer, systemd,
+    unites, geree, lancer, systemd, interrompue,
     actif: (f) => fs.existsSync(f) && etatUnite('is-active', f, ETATS_ACTIF) === 'active',
     // Coupée à la main (`systemctl --user disable`) : une pose la réécrit sans la rallumer (décision routines-posees).
-    coupee: (f) => fs.existsSync(f) && etatUnite('is-enabled', f, ETATS_ACTIVATION) === 'disabled',
+    coupee: (f) => fs.existsSync(f) && !interrompue(f) && etatUnite('is-enabled', f, ETATS_ACTIVATION) === 'disabled',
     // Écrit l'unité et la démarre ; une unité déjà active dont le texte change est redémarrée (`avantRelance` juste avant).
     poser(f, texte, { avantRelance = () => {} } = {}) {
       if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
       const avant = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
-      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(f, texte);
+      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(enCours(f), ''); fs.writeFileSync(f, texte);
       lancer(['daemon-reload']); lancer(['enable', '--now', path.basename(f)]);
       if (avant != null && avant !== texte) { avantRelance(); lancer(['restart', path.basename(f)]); }
+      fs.rmSync(enCours(f), { force: true });
     },
     // Écrit une unité sans la démarrer (le service d'un minuteur), même garde que `poser` ; vrai si le texte a changé.
     ecrire(f, texte) {
@@ -73,7 +79,7 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
     retirer(f, absente) {
       if (!fs.existsSync(f)) throw new Error(absente);
       if (!geree(f)) throw new Error(`${f} n'a pas été écrit par HOLARCH : rien n'est retiré`);
-      lancer(['disable', '--now', path.basename(f)]); fs.rmSync(f); lancer(['daemon-reload']);
+      lancer(['disable', '--now', path.basename(f)]); fs.rmSync(f); fs.rmSync(enCours(f), { force: true }); lancer(['daemon-reload']);
     },
   };
 }
@@ -384,14 +390,14 @@ WantedBy=default.target
 }
 
 /**
- * État des routines que pose la copie de service : absente, activée, coupée (à la main), écrite à la main, ou illisible
- * (systemctl ne répond pas : son message).
+ * État des routines que pose la copie de service : absente, activée, coupée (à la main), pose interrompue (la pose
+ * suivante l'active), écrite à la main, ou illisible (systemctl ne répond pas : son message).
  */
 export function etatRoutines({ unites = UNITES, systemctl = SYSTEMCTL, sousSystemd = SOUS_SYSTEMD } = {}) {
   const sv = services({ unites, systemctl, sousSystemd });
   return [UNITE_INTERFACE, `${UNITE_IMPORT}.timer`, `${UNITE_RECOLTE}.timer`, `${UNITE_REVEIL}.timer`, UNITE_VEILLE].map((unite) => {
     const f = path.join(unites, unite);
-    try { return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.coupee(f) ? 'coupée' : 'activée' }; } catch (e) { return { unite, etat: `illisible (${e.message})` }; }
+    try { return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.interrompue(f) ? 'pose interrompue' : sv.coupee(f) ? 'coupée' : 'activée' }; } catch (e) { return { unite, etat: `illisible (${e.message})` }; }
   });
 }
 
