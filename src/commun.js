@@ -234,7 +234,8 @@ export function neutralisation(depot, env) {
     for (let i = 0; i + 1 < champs.length; i += 2) if (champs[i] === 'local' || champs[i] === 'worktree') ajouter(champs[i + 1].split('\n')[0]);
   } else {
     // Un git antérieur à 2.26 (celui d'un conteneur) n'a pas `--show-scope` (code 129) : comme au repli du crochet de
-    // commit, tous les pilotes déclarés, de toute portée, sont neutralisés (ceux du compte aussi), plutôt qu'aucun.
+    // commit, tous les pilotes déclarés, de toute portée, sont neutralisés (ceux du compte aussi), plutôt qu'aucun. Cette
+    // liste-ci se passe de `--name-only` (absent avant 2.6, où le crochet refuse le commit) : clé et valeur se séparent.
     for (const x of (lister().stdout || '').split('\0')) if (x) ajouter(x.split('\n')[0]);
   }
   const cles = [...NEUTRE.cles];

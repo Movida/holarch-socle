@@ -20,6 +20,8 @@ export const MARQUE = '# Généré par HOLARCH (holarch regles appliquer) : gard
  * pilote ne contient pas de fin de ligne (git le refuse) : une ligne de `git config --name-only` en est un. Un git
  * antérieur à 2.26 (celui d'un conteneur) n'a pas `--show-scope` (code 129) : tous les pilotes déclarés, de toute
  * portée, sont neutralisés (ceux du compte aussi), plutôt qu'aucun. Sans pilote (code 1), la seconde liste est vide aussi.
+ * Antérieur à 2.6, sans `--name-only` non plus : aucune liste ne se lit, rien ne serait neutralisé ; le commit est
+ * refusé, et dit (décision garde-sans-passage-muet), plutôt que gitleaks lancé sur les pilotes du dépôt.
  */
 function neutralisationShell() {
   const k = (cle, v) => `k ${cle} ${sh(v)}`;
@@ -28,7 +30,9 @@ function neutralisationShell() {
   return `  T=$(printf '\\t'); n=\${GIT_CONFIG_COUNT:-0}; case $n in ''|*[!0-9]*) n=0 ;; esac
   k() { export "GIT_CONFIG_KEY_$n=$1" "GIT_CONFIG_VALUE_$n=$2"; n=$((n + 1)); }
   ${NEUTRE.cles.map(([c, v]) => k(sh(c), v)).join('; ')}
-  pilotes=$(${lister('--show-scope ')}) || pilotes=$(${lister('')} | while IFS= read -r x; do printf 'local%s%s\\n' "$T" "$x"; done)
+  pilotes=$(${lister('--show-scope ')}); c=$?
+  if [ $c -gt 1 ]; then noms=$(${lister('')}); c=$?; pilotes=$(printf '%s\\n' "$noms" | while IFS= read -r x; do [ -n "$x" ] && printf 'local%s%s\\n' "$T" "$x"; done); fi
+  if [ $c -gt 1 ]; then echo "HOLARCH injoignable et pilotes du dépôt illisibles (git antérieur à 2.6 : ni --show-scope ni --name-only) : commit refusé, gitleaks les lancerait ; git commit --no-verify pour passer, l'audit le verra" >&2; exit 1; fi
   vus='
 '
   while IFS= read -r l; do

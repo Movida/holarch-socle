@@ -2518,3 +2518,37 @@ test('Compte Claude Code : un FIFO à la place de CLAUDE.md, settings.json ou .c
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(JSON.parse(r.stdout), { fiches: ['vraie'], defaut: 'défaut', strict: '/settings.json illisible : pas un fichier' });
 });
+
+// Repli du crochet de commit sous un git antérieur à 2.6 (lot 5, suite de eb3317c) : ni `--show-scope` ni
+// `--name-only`, les deux listes de pilotes répondaient 129 et aucun n'était neutralisé : le git que lance gitleaks
+// exécutait ceux du dépôt. Le commit est refusé, et dit ; sans pilote sous un git qui lit `--name-only` (code 1), il passe.
+test('Repli du crochet de commit sous git antérieur à 2.6 : sans liste des pilotes, le commit est refusé, et dit', async () => {
+  const { crochetDe } = await import('../src/garde-git.js');
+  const vrai = spawnSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  // Un git qui refuse les options données comme un git ancien, sinon le vrai.
+  const ancien = (...options) => { const d = tmp(); fs.writeFileSync(path.join(d, 'git'), `#!/bin/sh\nfor a in "$@"; do case "$a" in ${options.join('|')}) echo "error: unknown option $a" >&2; exit 129 ;; esac; done\nexec '${vrai}' "$@"\n`, { mode: 0o755 }); return d; };
+  const avant26 = ancien('--show-scope'); const avant6 = ancien('--show-scope', '--name-only');
+  const commiter = (bin, { pilote }) => {
+    const d = tmp(); const temoin = path.join(tmp(), 'execute'); const lance = path.join(tmp(), 'gitleaks-lance'); const outils = tmp();
+    const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' });
+    g('init', '-q'); fs.writeFileSync(path.join(d, 'conf.txt'), 'a\n'); g('add', '.'); g('commit', '-qm', 'x');
+    if (pilote) {
+      const piege = path.join(d, '.git', 'piege.sh'); fs.writeFileSync(piege, `#!/bin/sh\necho "$0 $*" >> '${temoin}'\ncat "$@" 2>/dev/null\n`, { mode: 0o755 });
+      fs.writeFileSync(path.join(d, '.gitattributes'), '* diff=piege\n'); g('config', 'diff.piege.textconv', piege);
+    }
+    fs.writeFileSync(path.join(d, 'conf.txt'), 'b\n'); g('add', '.');
+    // Un gitleaks fictif qui lance git dans la cible, comme le vrai, et échoue avec lui (une clé neutralisée mal formée).
+    fs.writeFileSync(path.join(outils, 'gitleaks'), `#!/bin/sh\ntouch '${lance}'\ngit -C "$(pwd)" diff --staged -U0 . >/dev/null || exit 2\necho '[]'\n`, { mode: 0o755 });
+    const crochet = path.join(d, '.git', 'hooks', 'pre-commit'); fs.mkdirSync(path.dirname(crochet), { recursive: true });
+    fs.writeFileSync(crochet, crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant', outils }), { mode: 0o755 });
+    const r = spawnSync(crochet, { cwd: d, encoding: 'utf8', env: { PATH: `${bin}:/usr/bin:/bin`, GIT_CONFIG_GLOBAL: path.join(tmp(), 'vide'), GIT_CONFIG_NOSYSTEM: '1' } });
+    return [r.status, r.stderr.trim(), fs.existsSync(lance), fs.existsSync(temoin)];
+  };
+  const refus = 'HOLARCH injoignable et pilotes du dépôt illisibles (git antérieur à 2.6 : ni --show-scope ni --name-only) : commit refusé, gitleaks les lancerait ; git commit --no-verify pour passer, l\'audit le verra';
+  const passe = 'HOLARCH injoignable : seuls les secrets sont vérifiés (gitleaks), l\'audit verra le reste';
+  assert.deepEqual(commiter(avant6, { pilote: true }), [1, refus, false, false], 'refusé, gitleaks non lancé, rien du dépôt exécuté');
+  assert.deepEqual(commiter(avant6, { pilote: false }), [1, refus, false, false], 'sans liste, aucun pilote ne se sait absent');
+  assert.deepEqual(commiter(avant26, { pilote: false }), [0, passe, true, false], 'sans pilote (code 1) : un succès');
+  assert.deepEqual(commiter(avant26, { pilote: true }), [0, passe, true, false], 'la liste sans portée neutralise');
+  assert.deepEqual(commiter(path.dirname(vrai), { pilote: false }), [0, passe, true, false]);
+});
