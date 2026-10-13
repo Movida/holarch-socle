@@ -116,7 +116,14 @@ export function porteMarque(texte, marque) {
   const debut = fin > 0 ? fin + 1 : 0;
   return l.slice(debut, debut + 12).some((x) => x.startsWith(marque));
 }
-export const fichierMarque = (f, marque) => { try { return porteMarque(fs.readFileSync(f, 'utf8'), marque); } catch { return false; } };
+/**
+ * Le fichier `f` porte-t-il la marque ? Lu sous `racine` (un dépôt) par `lireSansLien`, sinon (le compte) par
+ * `lireFichier` : un lien dans le dépôt, ou ce qui n'est pas un fichier (un FIFO, qui bloquerait la lecture), ne la porte
+ * pas, et n'est donc jamais réécrit ni retiré.
+ */
+export const fichierMarque = (f, marque, racine = null) => {
+  try { return porteMarque(racine ? lireSansLien(racine, path.relative(racine, f)) : lireFichier(f), marque); } catch { return false; }
+};
 
 /**
  * JSON d'un fichier, `defaut` s'il est absent ou illisible. `strict` : un fichier présent mais illisible lève une erreur

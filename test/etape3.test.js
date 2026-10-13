@@ -2536,3 +2536,24 @@ test('Reprise : l’état du dépôt se lit dans le worktree ou au nouveau chemi
   for (const f of ['c.txt', 'd.txt']) fs.writeFileSync(path.join(ailleurs, f), 'x\n');
   assert.equal(etat(ailleurs), 'Dépôt : 2 fichier(s) non commité(s), 0 commit(s) non poussé(s).', 'au nouveau chemin, en direct');
 });
+
+// `fichierMarque` lisait par `readFileSync` (voisin vu par les lots 1 à 3) : un FIFO posé dans `.claude/rules/holarch/`
+// d'un dépôt, que le conteneur écrit, bloquait `regles appliquer` et l'audit. La marque se lit par la lecture gardée :
+// un FIFO ne la porte pas, il n'est ni réécrit ni retiré.
+test('Règles d’un dépôt : un FIFO dans le dossier des règles ne bloque ni l’écriture ni l’audit, et reste', () => {
+  const depot = tmp(); const dossier = path.join(depot, '.claude', 'rules', 'holarch'); fs.mkdirSync(dossier, { recursive: true });
+  for (const n of ['prevu.md', 'ancien.md']) assert.equal(spawnSync('mkfifo', [path.join(dossier, n)]).status, 0);
+  const plan = { fichiers: ['a.md', 'prevu.md'].map((fichier) => ({ fichier, contenu: `${MARQUE} : règle ${fichier}\n` })), non: [], signaux: [] };
+  // Dans un processus à part, borné dans le temps : un FIFO ouvert en lecture bloquerait le processus entier.
+  const src = (f) => JSON.stringify(new URL(`../src/${f}`, import.meta.url).href);
+  const script = `import { appliquer } from ${src('regles-claude-code.js')}; import { fichierMarque } from ${src('commun.js')};
+    const [d, r, p] = ${JSON.stringify([depot, dossier, plan])};
+    const x = (o) => { const y = appliquer(d, r, p, o); return [y.crees, y.ignores, y.retires, y.erreur ?? null]; };
+    console.log(JSON.stringify([x({ ecrire: false }), x(), fichierMarque(r + '/ancien.md', '#')]));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), [[['a.md'], ['prevu.md'], [], null], [['a.md'], ['prevu.md'], [], null], false], 'un essai (l’audit), l’écriture, et une lecture hors dépôt (le compte)');
+  assert.deepEqual(fs.readdirSync(dossier).sort(), ['a.md', 'ancien.md', 'prevu.md']);
+  assert.ok(fs.lstatSync(path.join(dossier, 'ancien.md')).isFIFO());
+});

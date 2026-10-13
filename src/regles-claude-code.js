@@ -205,7 +205,7 @@ export function planifier(regles, { portee, classificationDepot } = {}) {
   return { fichiers, non, signaux };
 }
 
-const marque = (f) => fichierMarque(f, MARQUE);
+const marque = (f, racine) => fichierMarque(f, MARQUE, racine);
 
 /**
  * Écrit un plan dans un dossier de règles, sous `racine` (le dépôt du projet, ou le dossier du compte) : crée ou met à
@@ -223,7 +223,7 @@ export function appliquer(racine, dossier, plan, { ecrire = true } = {}) {
     for (const { fichier, contenu: c } of plan.fichiers) {
       const f = chemin(fichier);
       if (!fs.existsSync(f)) { r.crees.push(fichier); if (ecrire) { fs.mkdirSync(dossier, { recursive: true }); fs.writeFileSync(f, c); } continue; }
-      if (!marque(f)) { r.ignores.push(fichier); continue; }
+      if (!marque(f, racine)) { r.ignores.push(fichier); continue; }
       if (fs.readFileSync(f, 'utf8') === c) { r.inchanges.push(fichier); continue; }
       r.modifies.push(fichier); if (ecrire) fs.writeFileSync(f, c);
     }
@@ -231,7 +231,7 @@ export function appliquer(racine, dossier, plan, { ecrire = true } = {}) {
     for (const x of presents) {
       if (prevus.has(x)) continue;
       const f = chemin(x);
-      if (!marque(f)) continue;
+      if (!marque(f, racine)) continue;
       r.retires.push(x); if (ecrire) fs.unlinkSync(f);
     }
   } catch (e) { r.erreur = e.message; }
