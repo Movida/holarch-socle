@@ -1832,3 +1832,12 @@ test('Clé du conteneur : sans remoteUser ni containerUser dans l’étiquette, 
   conteneurs.push({ id: 'a7', meta: sansUtilisateur, user: '1000:1000' }, { id: 'a8', meta: sansUtilisateur, user: 1000 }, { id: 'a9', meta: sansUtilisateur, user: 'dev\n', brut: true });
   assert.deepEqual(fichiers(undefined).slice(3), ['/home/dev/.ssh/id_ed25519.pub', '/home/node/.ssh/id_ed25519.pub', '/home/dev/.ssh/id_ed25519.pub', 'remoteUser inconnu', 'remoteUser inconnu', 'remoteUser inconnu']);
 });
+
+test('Clé du conteneur : ni l’étiquette, ni le conteneur, ni la configuration ne donnent d’utilisateur, « remoteUser inconnu », sans rien lancer dans le conteneur', async () => {
+  const { clesDesConteneurs } = await import('../src/creation.js');
+  // Docker ne dit pas l'utilisateur du conteneur : étiquette sans utilisateur, ou absente sans configuration.
+  const conteneurs = [{ id: 'b1', meta: [{ id: 'feature' }] }, { id: 'b2' }]; const appels = [];
+  assert.deepEqual(clesDesConteneurs(dockerFictif(conteneurs, appels), PROJETS_CLE, 'holarch:project:p', undefined),
+    { conteneurs: [{ id: 'b1', erreur: 'remoteUser inconnu' }, { id: 'b2', erreur: 'remoteUser inconnu' }] });
+  assert.deepEqual(appels.filter((a) => !a.startsWith('ps')), ['inspect --type container --format {{json .Config.User}} b1', 'inspect --type container --format {{json .Config.User}} b2']);
+});
