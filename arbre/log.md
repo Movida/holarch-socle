@@ -2,6 +2,25 @@
 
 ## 2026-10-13
 
+* **Revue des limites, famille Gardes muettes, lots 1 à 4, et bac à sable essayé** (environ 230 k tokens pour
+  l'agent ; instances neuves en série : 323 k, 355 k, 344 k et 381 k, soit 29 k par point ; lecture de la conception
+  prévue : 161 k) : envoi de `9dd104b` sur demande (pas d'intégration continue). `bubblewrap` et `socat` extraits sans
+  `sudo` des paquets Ubuntu dans `~/.local/bin` (empreintes conformes à l'index apt ; `socat` derrière un script qui
+  charge `libwrap`), choix de l'auteur hors de son poste ; à retirer après l'installation par apt. Essai unique du bac à
+  sable (0,0033 $) : un `.env` interdit est refusé par le système à `cat`, `grep -r` et `python3` ; sa pose est rangée
+  avec les palliatifs moyens (choix), environ 9 % des 15 927 commandes de 30 jours sortant des limites par défaut.
+  Gardes muettes : 47 points en 47 commits (`7b58a62` à `7625bfd`), chaque test rouge sur son parent et ses mutants ;
+  un point arrêté (récolte muette : contrat événement). 245 tests verts ; copie de service posée (`7625bfd`) ; crochet
+  de commit des cinq projets qui le portent réécrit ; audit réel : socle et compte conformes. Choix de l'auteur,
+  recommandations suivies, en quatre tours : C1, M6, rythme ; R2, retrait d'une unité modifiée, R5 (la marque remplace
+  « sans état à tenir ») ; M2 par rôle, note M5 retirée, passation après le lot 4 ; direction des trois décisions
+  contredites (M2, M3, M5), après lecture de la conception prévue : lot 5 (`revue-limites.md`). Leçon : déroulé
+  annoncé en quatre temps (outils du bac à sable, essai, Gardes muettes en instances en série, pose et passation) ;
+  tenus, sauf le troisième, arrêté au lot 4 de 5. Ce qui l'a fait dévier : quatorze voisins vus par les lots, et trois
+  décisions approuvées que des correctifs de la revue contredisaient, vues après le code. La demande qui y aurait mené :
+  « Gardes muettes en lots de dix ; relever d'abord les décisions approuvées que chaque correctif touche, pour trancher
+  la direction avant de coder ; passation à la fin de la famille ».
+
 * **Revue des limites, famille Sécurité close** (environ 160 k tokens pour l'agent ; instances neuves en série : 268 k
   et 319 k, soit 35 k par point) : points 9 à 14 (`dc17bdc` à `0d6d006`) et dix voisins (`cb67eaa` à `b4e9723`), un
   commit et un test chacun, rouge sur son parent et ses mutants (un mutant vert, dit dans la revue) ; détail dans

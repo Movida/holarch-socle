@@ -57,6 +57,48 @@ pour osv-scanner, moyen) ; `lireEnTete` du compte bloque sur un FIFO (`O_NONBLOC
 antérieur à 2.26 sans `--show-scope` (repli `--name-only`) ; mutant M10 de `73143ea` vert (repli « ne se lit pas »,
 atteint par une course seulement).
 
+**Gardes muettes** : lots 1 à 4 le 2026-10-13, par quatre instances neuves en série relues par l'agent (environ 320 k,
+355 k, 345 k et 380 k tokens), 47 points en 47 commits et un arrêté (`7b58a62` à `7625bfd`), chaque test rouge sur son parent et
+ses mutants (verts, par une course seulement : `'r'` remis dans `repertoireDe`, `enTete(f)` et `marque(f)` sans
+racine). Lot 1 (`7b58a62` à `e289e11`) : C1 (`projetDuDepot` : chemin, worktree principal, premier commit ; rattaché à
+rien : avertissement, choix de l'auteur), C2 à C5, M6 (lien suivi, lien cassé refusé et dit, choix de l'auteur ; droits
+gardés), crochet sans bit d'exécution, `poserCrochet` et `racineArbre` gardés. Lot 2 (`41f9a74` à `1912a61`) : R1 à R5
+(R5 : marque `reprise-coupures.json`, oubliée après 48 h ; elle remplace le choix ancien « sans état à tenir », choix de
+l'auteur), import qui n'avance plus sur un refus, M1, M4 (ligne d'empreinte dans chaque unité ; modifiée : laissée et
+dite), échec de `systemctl` dit, reprise d'un worktree ou d'un dépôt déplacé, création à blanc. Lot 3 (`c9c3f95` à
+`d7e4b9a`) : M2, M3, M5, `git add -A` vérifié, lecture stricte des crochets, ouvertures sans lien ni blocage, verrous
+lus bornés, `lireFichier` du compte, repli du crochet sous git antérieur à 2.26, passerelle, `etatRoutines` sans
+systemd, R1 sans avance lue, temporaire d'`ecrireJson`. Lot 4 (`514cb6e` à `7625bfd`) : R2 affiné (désactivé : laissé,
+geste ; choix de l'auteur), unité modifiée retirée après copie en `.bak` (choix de l'auteur), projets du site, compte
+Claude Code lu à un seul endroit (clé de l'import gardée en dérogation : la retirer est une décision, après Q32), seuil
+de passation `null` sans réglage, `configGit` commune, récolte sans gitleaks en code 1, copies de pose orphelines
+retirées, import en double, worktree écarté de l'inventaire, reprise lue au nouveau chemin, `fichierMarque`,
+`neutralisation()` sous git ancien, lectures du compte par `lireFichier`. Arrêté : récolte muette (un événement change
+le contrat événement ; proposition `system.degraded` en 0.11.0, avec E6 ; alternative sans contrat : `is-failed` lu
+par `etatRoutines`, trivial). 245 tests verts ; copie de service posée (`7625bfd`, unités réécrites avec leur
+empreinte) ; crochet de commit des cinq projets qui le portent réécrit ; audit réel : socle et compte conformes.
+L'unité d'accès distant n'est pas réécrite (`distant activer` relance son serveur et coupe les sessions distantes) :
+elle prendra son empreinte à la prochaine activation.
+
+**Lot 5, à faire** (choix de l'auteur, recommandations suivies, après lecture de la conception prévue) : direction
+commune, l'arbre dit ce qui est voulu ; un geste à la main n'est jamais défait en silence ; l'écart reste ouvert
+jusqu'à ce que l'auteur choisisse entre reposer et l'écrire dans l'arbre ; le geste ne survit pas à un changement de
+l'arbre (modèle : `routines-posees`). Une décision en brouillon qui modifie `copie-de-service` (entrée MCP, `:44`),
+`identite-par-contexte` (`:33`) et `passation-sereine` (`:33`), soumise à l'auteur. M3 : gardé, et l'entrée MCP de
+chaque compte montrée par `holarch service` (faible). M5 : revenir en partie sur `d0540bc` : reposer l'identité et le
+dire (« retirée à la main ; pour une autre identité ici, déclarer `identite` au projet »), la garde d'identité étant
+bloquante ; retirer la note devenue orpheline. M2 : un retrait ne vaut que pour la valeur à laquelle il répondait (un
+changement du profil repose ; un changement de commande par HOLARCH non : comparaison par rôle, `crochetVoulu(c).cle`) ;
+geste à deux commandes (reposer, ou retirer la clé du profil). Plus : `.claude/` ignoré par git (comme R4 :
+`check-ignore` et geste) ; git antérieur à 2.6 : refuser le commit quand les deux listes répondent 129. Laissés, avec
+leur palliatif : session d'un worktree hors du chemin du principal comptée hors projet (rattacher à l'import par
+`projetDuDepot`, faible) ; `procedure-site-travail.md:55` redondant si la clé de l'import est retirée (trivial) ; `.bak`
+accumulés (retrait par l'auteur : une copie retirée perdrait un texte écrit à la main) ; pid repris par un autre
+processus (heure de démarrage lue dans `/proc`, faible) ; deux poses simultanées de la même unité (verrou, faible) ;
+ligne toujours refusée relue à chaque import (plafond et événement, faible) ; `appliquerPermissions` remet une
+interdiction de lecture retirée à la main (voulu : règle bloquante, la voie est une dérogation). Test visuel non lancé
+(Chromium absent, I32) : `app.js` inchangé, l'infobulle du seuil peut dire « — ».
+
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur
 Tailscale retirée (le téléphone n'y était plus vu depuis le 2026-10-07 ; seul le serveur d'un projet privé, membre,
