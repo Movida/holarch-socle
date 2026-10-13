@@ -48,10 +48,34 @@ export function gitInventaire(depot, args) {
   return r.status === 0 ? r.stdout.trim() : null;
 }
 
-/** URL sans identifiants ni paramètres : une fiche ne porte jamais de secret. */
-export function urlSure(u) {
+/**
+ * URL sans identifiants, paramètres ni fragment : une fiche ne porte jamais de secret. `origine` : schéma et hôte seuls,
+ * pour l'URL d'un serveur, dont un jeton peut faire le chemin (`…/s/<jeton>/mcp`) ; le chemin d'un remote git
+ * (propriétaire et dépôt) reste.
+ */
+export function urlSure(u, { origine = false } = {}) {
   if (!u) return null;
-  try { const x = new URL(u); x.username = ''; x.password = ''; x.search = ''; return x.toString(); } catch { return String(u).replace(/\/\/[^@/]+@/, '//'); }
+  try {
+    const x = new URL(u);
+    if (origine) return x.host ? `${x.protocol}//${x.host}` : x.protocol;
+    x.username = ''; x.password = ''; x.search = ''; x.hash = ''; return x.toString();
+  } catch {
+    const t = String(u).replace(/\/\/[^@/]+@/, '//');
+    return origine ? t.match(/^(?:[^/?#]*\/\/)?[^/?#]*/)[0] : t;
+  }
+}
+
+/**
+ * Un mot qui a l'allure d'un jeton : au moins 16 caractères, des chiffres, et une entropie d'au moins 3,5 bits par
+ * caractère (seuil de la règle générique de gitleaks 8.30.1). Mesure du 2026-10-13 sur les crochets posés du poste :
+ * aucun de leurs 278 mots n'est pris pour un jeton.
+ */
+export function jeton(t) {
+  const c = [...String(t)];
+  if (c.length < 16 || !/\d/.test(t)) return false;
+  const n = new Map(); for (const x of c) n.set(x, (n.get(x) || 0) + 1);
+  let h = 0; for (const k of n.values()) h -= (k / c.length) * Math.log2(k / c.length);
+  return h >= 3.5;
 }
 
 export const mtimeIso = (f) => { try { return fs.statSync(f).mtime.toISOString(); } catch { return null; } };

@@ -4,7 +4,7 @@
 // un argument de commande, une variable d'environnement, un jeton ou le contenu d'une note.
 import fs from 'node:fs';
 import path from 'node:path';
-import { enTete, lireJson, liste, mtimeIso, premiereLigne, slug, urlSure } from './outils.js';
+import { enTete, lireJson, liste, mtimeIso, premiereLigne, slug, urlSure, jeton } from './outils.js';
 import { comptesClaudeCode } from '../config.js';
 import { lienProjet } from '../projets.js';
 
@@ -32,11 +32,14 @@ function agents(dossier, portee, nom, site, p = null) {
   });
 }
 
+// Le nom affiché d'un crochet : le premier mot qui a l'air d'un chemin, sinon le premier mot, jamais un mot qui porte une
+// valeur (`CLE=valeur`) ou qui a l'allure d'un jeton (`jeton`) : ce peut être un secret, qui entrerait au catalogue (X5).
+const net = (t) => t.replace(/^["']+|["';]+$/g, '');
 function hooks(settings, fichier, portee, nom, site, p = null) {
   const h = (settings && settings.hooks) || {};
   return Object.entries(h).flatMap(([evt, groupes]) => (Array.isArray(groupes) ? groupes : []).flatMap((g, i) => (g.hooks || []).map((x, j) => {
-    const cmd = String(x.command || x.type || '');
-    const exe = (cmd.split(/\s+/).find((t) => /[/.]/.test(t) && !t.startsWith('-')) || cmd.split(/\s+/)[0]).replace(/^["']+|["';]+$/g, '');
+    const mots = String(x.command || x.type || '').split(/\s+/).filter((t) => t && !t.includes('=') && !jeton(path.basename(net(t))));
+    const exe = net(mots.find((t) => /[/.]/.test(t) && !t.startsWith('-')) || mots[0] || '');
     return fiche('hook', `${portee}/${nom || 'utilisateur'}/${evt}/${i}/${j}`, `${evt}${g.matcher ? ` · ${g.matcher}` : ''}`, {
       description: `${x.type || 'command'} : ${path.basename(exe || '')}`, location: fichier, site, links: lienProjet(p), attributes: { portee, evenement: evt, matcher: g.matcher || null } });
   })));
@@ -49,7 +52,7 @@ import { cleServeur } from '../commun.js';
 /** Serveurs MCP d'un fichier de configuration (forme `mcpServers`, commune à Claude Code et Claude Desktop). */
 export function mcp(serveurs, fichier, portee, nom, site, source, p = null) {
   return Object.entries(serveurs || {}).map(([serveur, s]) => fiche('connector', `mcp/${portee}/${nom || 'utilisateur'}/${serveur}`, serveur, {
-    description: s.url ? `MCP ${s.type || 'http'} ${urlSure(s.url)}` : `MCP stdio : ${path.basename(String(s.command || '?'))}`,
+    description: s.url ? `MCP ${s.type || 'http'} ${urlSure(s.url, { origine: true })}` : `MCP stdio : ${path.basename(String(s.command || '?'))}`,
     location: fichier, site, links: lienProjet(p), attributes: { portee, transport: s.type || (s.url ? 'http' : 'stdio') } }, source));
 }
 

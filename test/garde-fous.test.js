@@ -1722,3 +1722,23 @@ test('Récolte : une mémoire de retour se lit depuis le dossier des projets du 
     path.join(home, 'projects', 'q', 'memory', 'x.md'), path.join(hote, 'secret.md')].map(fiche);
   assert.deepEqual(memoiresRetour(fiches, { comptes: [{ nom: null, home }] }).map((c) => c.texte), ['vraie.md : Une vraie mémoire.']);
 });
+
+test('X5 : ni un jeton dans le chemin d’une URL de serveur, ni une valeur ou un jeton d’une commande de crochet n’entrent au catalogue', async () => {
+  const { default: inventaireClaudeCode } = await import('../src/inventaire/claude-code.js');
+  const { urlSure, jeton } = await import('../src/inventaire/outils.js');
+  const home = tmp(); const cfg = path.join(tmp(), 'claude.json');
+  fs.writeFileSync(path.join(home, 'settings.json'), JSON.stringify({ hooks: { Stop: [{ hooks: [
+    { type: 'command', command: 'PASSWORD=motdepasse.simple /usr/bin/envoyer' },
+    { type: 'command', command: 'envoyer-rapport 7fQ2.kD9xW4mZ8vB3nL6pR1t https://crochets.exemple.test/recevoir' },
+    { type: 'command', command: 'node "/x/garde.js" --cle=valeur' }] }] } }));
+  fs.writeFileSync(cfg, JSON.stringify({ mcpServers: { z: { type: 'http', url: 'https://mcp.exemple.test/api/s/9hT4wQ7zK2mV5xB8/mcp?k=v#f' } } }));
+  const fiches = inventaireClaudeCode({ home, config: cfg }, { site: 'local', depots: [] });
+  assert.deepEqual(fiches.filter((f) => f.kind === 'hook').map((f) => f.description), ['command : envoyer', 'command : recevoir', 'command : garde.js']);
+  assert.equal(fiches.find((f) => f.kind === 'connector').description, 'MCP http https://mcp.exemple.test');
+  assert.ok(!/motdepasse|7fQ2|9hT4/.test(JSON.stringify(fiches)));
+  // Le chemin d'un remote git (propriétaire et dépôt) reste ; ni identifiants, ni paramètres, ni fragment.
+  assert.equal(urlSure('https://u:p@github.com/o/r.git?x=1#y'), 'https://github.com/o/r.git');
+  assert.equal(urlSure('${URL_MCP}/s/9hT4wQ7zK2mV5xB8', { origine: true }), '${URL_MCP}');
+  // Un jeton : long, avec des chiffres, varié ; pas un nom d'événement, ni une suite répétée, ni un mot court.
+  assert.deepEqual(['7fQ2kD9xW4mZ8vB3', 'UserPromptSubmit', 'a1a1a1a1a1a1a1a1', '7fQ2kD9xW4mZ8vB'].map(jeton), [true, false, false, false]);
+});
