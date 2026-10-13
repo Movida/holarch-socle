@@ -1,5 +1,31 @@
 # Journal de l'arbre
 
+## 2026-10-13
+
+* **Revue des limites, famille Sécurité, points 1 à 8** (environ 210 k tokens pour l'agent, 350 k pour l'instance neuve,
+  soit 44 k par point) : choix de l'auteur en un tour, recommandations suivies : familles Sécurité, Gardes muettes et
+  Chiffres codées, une instance par famille en série ; Veille et outillage, et palliatifs moyens ou forts, plus tard.
+  Envoi de `c90fbc6` et `638572f` sur autorisation (pas d'intégration continue). Huit commits, `74b352c` à `3d573dc`,
+  chaque test rouge sur son parent et ses mutants (36) : récolte lancée d'un dossier vide à elle ; git de gitleaks et
+  d'osv-scanner neutralisé ; outil réglé non exécutable refusé ; configuration gitleaks explicite (un `.gitleaks.toml`
+  ou `gitleaks:allow` du dépôt ne tait plus rien, un `.gitleaksignore` rend le contrôle avant commit indisponible, donc
+  le commit refusé ; 0 de ces fichiers dans les 13 dépôts du poste) ; mémoires de la récolte et inventaire Claude Code
+  d'un dépôt lus sans lien ; jetons écartés du catalogue (URL de serveur réduite à son origine, mots à `=` ou à forte
+  entropie des crochets ; 0 sur 278 mots du poste) ; erreur des crochets de passation gardée datée et dite par l'audit
+  (repli commun avec la veille). 182 tests verts ; copie de service posée (`3d573dc`) ; `regles appliquer` en attente
+  de l'accord de l'auteur. Gestes : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts
+  publics (rien à faire) ; jeton Fly borné : commandes vérifiées (`fly tokens create deploy -a swiper-relay -x 8760h`),
+  non faites ; réseau privé : le téléphone n'y est plus vu depuis le 2026-10-07 et seul le serveur d'un projet privé
+  pouvait encore lire l'interface : publication retirée (`tailscale serve reset`, choix de l'auteur, lancé sur sa
+  demande). Essais sur pièces : le bac à sable applique les refus `Read(...)` aux commandes (documentation), il attend
+  `bubblewrap` et `socat` (installation par l'auteur, `sudo`) ; règle plus fermée que son dépôt : 0 cas sur les six
+  projets, `CLAUDE.local.md` seule voie sans approbation interactive, rien construit. Leçon : déroulé annoncé en cinq
+  temps (relevé, choix, code par famille, pose et journal, passation après une ou deux familles) ; passation après une
+  demi-famille. Ce qui l'a fait dévier : la lecture de reprise (journal et Avancement, environ 1 300 lignes) a porté le
+  contexte près du seuil avant le code ; la question de l'auteur sur Tailscale, tranchée sur mesure. La demande qui y
+  aurait mené : « Sécurité, points 1 à 15, en deux instances en série ; gestes et essais préparés pendant ce temps ;
+  passation à la fin de la famille ».
+
 ## 2026-10-12
 
 * **Session distante absente juste après l'allumage** : l'auteur l'a cherchée depuis le téléphone dans les deux minutes

@@ -1246,6 +1246,11 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   (`arbre/conception/revue-limites.md`, brouillon) : 101 ouvertes (82 à palliatif trivial ou faible), 37 levées depuis,
   29 tranchées par l'auteur. Règle `limite-avec-palliatif` au profil, approuvée par l'auteur (`2a99f55`, `d93c5b4` du
   profil) et écrite au compte. Copie de service posée (`fa5ac8c`), audit réel : 0 apparu, 0 résolu.
+- **Fait (2026-10-13)** : revue des limites, choix de l'auteur par famille (recommandations suivies : Sécurité, Gardes
+  muettes et Chiffres codées, une instance neuve par famille, en série) ; famille Sécurité, points 1 à 8, par une
+  instance neuve relue par l'agent (`74b352c` à `3d573dc`, détail au journal), 182 tests verts, copie de service posée
+  (`3d573dc`). Publication de l'interface sur Tailscale retirée (choix de l'auteur). État des familles et des gestes :
+  `revue-limites.md`, section « Suite du 2026-10-13 ».
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
@@ -1321,7 +1326,10 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      limites (`arbre/conception/revue-limites.md`) : les cinq de tête faites, décision `garde-sans-passage-muet`
      (`8fa5b37` à `f339d3f`, profil `d21191f`) ; les autres, environ 90, par famille au choix de l'auteur (une question
      par famille : palliatifs triviaux et faibles, recommandations suivies, ou le détail) ; le document se retire une
-     fois les choix faits. Non éprouvé par un mutant : `chaines.delete` de l'isolement (limite 5), dont dépend le
+     fois les choix faits. Le 2026-10-13 : Sécurité, Gardes muettes et Chiffres choisies (recommandations suivies),
+     Sécurité 1 à 8 faits ; suite dans l'ordre : `holarch regles appliquer` (accord de l'auteur), Sécurité 9 à 15, essai
+     du bac à sable une fois `bubblewrap` et `socat` installés, Gardes muettes, Chiffres, puis questions des familles
+     Veille et outillage, et palliatifs moyens ou forts (détail dans `revue-limites.md`, « Suite du 2026-10-13 »). Non éprouvé par un mutant : `chaines.delete` de l'isolement (limite 5), dont dépend le
      jugement d'une exception sur un projet en échec (palliatif : un test avec une exception `montage-sensible` sur ce
      projet, faible). (3) Limites
      restées après les palliatifs de C, chacune avec son palliatif : course à la lecture (`O_NOFOLLOW` dans

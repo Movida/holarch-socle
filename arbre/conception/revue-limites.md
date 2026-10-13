@@ -14,6 +14,53 @@ Deux instances neuves en lecture seule, sur HEAD `4ff6364` du socle. Règle prop
 `limite-avec-palliatif` (profil, brouillon). Les limites de la livraison C comblées le même jour en sont exclues.
 Les comptes sont en lignes de tableau ; une ligne peut regrouper des mineurs.
 
+## Suite du 2026-10-13
+
+**Levées depuis la revue** (HEAD `638572f`) : crochet en conteneur (repli gitleaks, `db527e2`), règles bloquantes non
+dérogeables (`4329c47`), `stable` sans approbation (`c35c209`, donc X6), lectures gardées (`4ee6b8a`), manifeste avant
+`settings.json` (`980c2ac`), isolement à l'audit (`46d5d6f`), refus sur contrôle bloquant indisponible (`f9d4bd0`),
+source npm (`423f6a7`), échec de `gh` (`ac2f937`).
+
+**Choix de l'auteur** (un tour, recommandations suivies) : coder les familles Sécurité, Gardes muettes (§ 1, troisième
+tableau, environ 29 points) et Chiffres (§ 1, deuxième tableau, et lignes 238, 239 a, 241, 243 de la seconde table ; V1 :
+ligne « projets retirés » dans la vue Projets ; V2 : état du dépôt lu en direct partout ; V3 : deux champs de tours
+nommés ; reportés : grille de tarifs datée, CI lue par `gh`, I37, trace d'une approbation accordée). Une instance neuve
+par famille, en série (fichiers partagés). Restent à soumettre : Veille et outillage (§ 1, quatrième tableau, et lignes
+245, 246, 253), palliatifs moyens ou forts (§ 2 et seconde table).
+
+**Sécurité** : points 1 à 8 faits (`74b352c` à `3d573dc`) : récolte lancée d'un dossier vide (X4), git de gitleaks et
+d'osv-scanner neutralisé (mineur 7), outil non exécutable (mineur 8), `.gitleaks.toml` et liens sous `gitleaks dir`,
+mémoires de la récolte, fragments de secrets au catalogue (X5), inventaire Claude Code d'un dépôt, crochets de
+passation muets. Restent, pour une instance neuve : 9 `O_NOFOLLOW` dans `lireSansLien` ; 10 dossier remplacé entre
+`mkdir` et `open` (`ecrireSansLien`) ; 11 utilisateur de l'image sans `remoteUser` ni `containerUser` (`docker
+inspect`) ; 12 branche « remoteUser inconnu » testée ; 13 `.meta.json` de `transcription.js` ; 14 contexte illisible dit
+« aucun contexte » (`configAvantProjet`) ; 15 contrôle d'échappement de `app.js`. Vus par l'instance, à joindre : repli
+shell du crochet en conteneur sans la configuration gitleaks explicite ni neutralisation (`garde-git.js:29`, trivial) ;
+`osv-scanner.toml` du dépôt, à vérifier puis `--config` explicite (faible) ; `memoires()` de l'inventaire lue sans garde
+(trivial) ; crochets de HOLARCH affichés « node » au catalogue (trivial) ; écart de passation dit 7 jours après le
+retrait des crochets (trivial) ; `claude -p` de la récolte peut lire un `CLAUDE.md` de `/tmp` (dossier créé sous
+l'accueil HOLARCH plutôt que sous `os.tmpdir()`, trivial). À soumettre à l'auteur : aucune exception possible au
+contrôle des secrets hors `--no-verify` (un `.gitleaksignore` du dépôt rend le contrôle indisponible) ; palliatif : une
+exception `secrets` au profil ou au contexte, lue comme celles de `exceptions-hors-du-depot` (faible). Limite
+laissée : un `.gitleaksignore` est dit, pas neutralisé (gitleaks 8.30.1 n'a pas d'option ; palliatif complet : scanner
+un export de l'index, moyen).
+
+**Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
+aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur
+Tailscale retirée (le téléphone n'y était plus vu depuis le 2026-10-07 ; seul le serveur d'un projet privé, membre,
+pouvait encore la lire) : ligne « tout appareil du réseau privé » levée ; republier : `tailscale serve --bg 4280`, et
+étiqueter alors le nœud du serveur. Jeton Fly : commandes vérifiées, non faites (flyctl absent ; installation par
+`curl -L https://fly.io/install.sh | sh`, qui ajoute des lignes au fichier rc), puis
+`flyctl tokens create deploy -a swiper-relay -x 8760h | gh secret set FLY_API_TOKEN -R Movida/swiper-storage`, et
+`flyctl tokens list -a swiper-relay` puis `flyctl tokens revoke <id>` pour l'ancien.
+
+**Essais sur pièces** : bac à sable, la documentation dit qu'il applique les refus `Read(...)` aux commandes (et pas à
+l'outil de lecture) ; il attend `bubblewrap` et `socat` (absents, `sudo apt-get install -y bubblewrap socat` par
+l'auteur) ; il borne aussi le réseau et les écritures : un essai unique, à blanc, avant toute pose. Règle plus fermée
+que son dépôt : 0 cas sur les six projets ; `CLAUDE.local.md` se charge sans approbation (à mettre au `.gitignore`), un
+import `@~/…` demande une approbation interactive, impossible en session distante ; `claudeMdExcludes` exclut un
+fichier de `~/.claude/rules/` pour une dérogation ; rien construit tant qu'aucune règle n'en a l'usage.
+
 ## Limites déclarées puis laissées : décisions, conception, contrats, fondations
 
 Revue rétroactive en lecture seule, le 2026-10-11, sur HEAD `4ff6364` de `holarch-socle`. Périmètre :
