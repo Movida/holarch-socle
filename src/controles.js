@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
-import { gitLu, neutralisation, trouverOutil, lireJson, ecrireJson, dedans, cheminSansLien, lireSansLien, hacher } from './commun.js';
+import { gitLu, neutralisation, trouverOutil, lireJson, ecrireJson, dedans, lireSansLien, hacher } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
@@ -181,15 +181,22 @@ function garde(ctx, nom, empreinte, calcul) {
 
 const VERROUS = /(^|\/)(package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|uv\.lock|poetry\.lock|Pipfile\.lock|requirements[^/]*\.txt|go\.sum|Cargo\.lock|Gemfile\.lock|composer\.lock)$/;
 const GRAVITE_DECLAREE = { CRITICAL: 9, HIGH: 7, MODERATE: 4, MEDIUM: 4, LOW: 1 };
+// Mesure du 2026-10-13 : 13 fichiers de verrouillage sur le poste, le plus gros de 0,8 Mo.
+const VERROU_MAX = 32 * 2 ** 20;
+const present = (f) => { try { fs.lstatSync(f); return true; } catch { return false; } };
 
 function dependancesVulnerables(ctx) {
   if (!ctx.osv) return { indisponible: 'osv-scanner absent (réglage controles.osv_scanner, PATH ou ~/.local/bin)' };
   const r = gitLu(ctx.depot, ['ls-files', '-z']);
   if (r.status !== 0) return { indisponible: 'pas un dépôt git' };
   // Un fichier de verrouillage qui est un lien symbolique (ou sous un dossier qui en est un) n'est ni lu ni passé à
-  // osv-scanner, qui le suivrait vers un fichier de l'hôte : le contrôle le dit.
-  const nonLus = [];
-  const verrous = listeZ(r).filter((f) => { if (!VERROUS.test(f)) return false; try { return fs.existsSync(cheminSansLien(ctx.depot, f, 'lu')); } catch (e) { nonLus.push(e.message); return false; } });
+  // osv-scanner, qui le suivrait vers un fichier de l'hôte ; ni un présent qui n'est pas un fichier (un FIFO bloquerait la
+  // lecture) ou dépasse VERROU_MAX : le contrôle le dit. Lu une fois, par la lecture gardée, pour l'empreinte du résultat.
+  const nonLus = []; const verrous = [];
+  for (const f of listeZ(r).filter((x) => VERROUS.test(x))) {
+    let texte; try { texte = lireSansLien(ctx.depot, f, { max: VERROU_MAX }); } catch (e) { nonLus.push(e.message); continue; }
+    if (texte !== null) verrous.push({ f, texte }); else if (present(path.join(ctx.depot, f))) nonLus.push(`${f} : pas un fichier, ou plus de ${VERROU_MAX / 2 ** 20} Mio, non lu`);
+  }
   const resultat = verrousVulnerables(ctx, verrous);
   return nonLus.length ? { ...resultat, indisponible: [resultat.indisponible, ...nonLus].filter(Boolean).join(' ; ') } : resultat;
 }
@@ -197,13 +204,13 @@ function dependancesVulnerables(ctx) {
 function verrousVulnerables(ctx, verrous) {
   if (!verrous.length) return { ecarts: [] };
   const seuil = +(ctx.config?.dependances?.seuil_cvss ?? 7);
-  const empreinte = hacher(seuil, ...verrous.map((f) => `${f}:${fs.readFileSync(path.join(ctx.depot, f)).length}:${hacher(fs.readFileSync(path.join(ctx.depot, f), 'utf8'))}`));
+  const empreinte = hacher(seuil, ...verrous.map(({ f, texte }) => `${f}:${Buffer.byteLength(texte)}:${hacher(texte)}`));
   return garde(ctx, `osv-${hacher(ctx.depot)}`, empreinte, () => {
     // osv-scanner 2.6.0 lit le dépôt par une bibliothèque, sans lancer git (essayé) ; un git qu'il lancerait ne ferait rien
     // exécuter de la configuration du dépôt (`neutralisation`), comme celui de gitleaks. Sa configuration, toujours
     // explicite et vide (`--config /dev/null`) : essayé en 2.6.0, un `osv-scanner.toml` posé à côté d'un verrou en taisait
     // les paquets (`PackageOverrides`) ou les failles (`IgnoredVulns`) ; le dépôt contrôlé n'allège jamais le contrôle.
-    const o = spawnSync(ctx.osv, ['scan', 'source', '--config', '/dev/null', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'],
+    const o = spawnSync(ctx.osv, ['scan', 'source', '--config', '/dev/null', ...verrous.flatMap(({ f }) => ['-L', f]), '--format', 'json'],
       { cwd: ctx.depot, env: neutralisation(ctx.depot, process.env), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: reglage(ctx, 'delai_osv_s', 300) * 1e3 });
     if (o.status === 128) return { ecarts: [] };
     let d; try { if (o.status === 0 || o.status === 1) d = JSON.parse(o.stdout); } catch { /* sortie illisible */ }
@@ -584,7 +591,7 @@ function initialisationHorsAttente(c, depot, maison, env, admis) {
 function crochetsDuDepot(depot) {
   return ['.claude/settings.json', '.claude/settings.local.json'].flatMap((f) => {
     let t; try { t = lireSansLien(depot, f); } catch (e) { return [{ f, erreur: e.message }]; }
-    if (t === null) { try { fs.lstatSync(path.join(depot, f)); } catch { return []; } return [{ f, erreur: `${f} illisible` }]; }
+    if (t === null) return present(path.join(depot, f)) ? [{ f, erreur: `${f} illisible` }] : [];
     let j; try { j = JSON.parse(t); } catch (e) { return [{ f, erreur: `${f} illisible : ${e.message}` }]; }
     return j?.hooks && typeof j.hooks === 'object' && Object.keys(j.hooks).length ? [{ f, evenements: Object.keys(j.hooks) }] : [];
   });

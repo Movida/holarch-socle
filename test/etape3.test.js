@@ -2250,3 +2250,25 @@ test('Création : un ajout des règles refusé par git se dit en échec, pas « 
     assert.deepEqual([fs.readdirSync(path.join(d, '.claude', 'rules', 'holarch')), git(d, 'ls-files', '--', '.claude')], [['tests-verts.md'], ''], 'écrites, non commitées');
   }, `[core]\n\texcludesFile = ${exclus}\n`);
 });
+
+// verrousVulnerables, voisin de la famille Gardes muettes : l'empreinte des verrous les lisait en entier, deux fois, sans
+// garde ; un FIFO posé à la place d'un verrou suivi bloquait l'audit. Lus une fois par la lecture gardée et bornée : ce
+// qui n'est pas un fichier, ou dépasse la borne, n'est ni lu ni passé à osv-scanner, et le contrôle le dit.
+test('Dépendances vulnérables : un verrou remplacé par un FIFO ou démesuré n’est ni lu ni scanné, et rien ne bloque', () => {
+  const { d, g } = depotGit();
+  for (const f of ['package-lock.json', 'go.sum', 'Cargo.lock', path.join('web', 'uv.lock')]) ecrire(path.join(d, f), 'v1\n');
+  g('add', '.'); g('commit', '-qm', 'verrous');
+  fs.rmSync(path.join(d, 'Cargo.lock'));  // suivi, retiré de la copie de travail : rien à lire, rien à dire
+  fs.rmSync(path.join(d, 'package-lock.json')); assert.equal(spawnSync('mkfifo', [path.join(d, 'package-lock.json')]).status, 0);
+  fs.truncateSync(path.join(d, 'go.sum'), 32 * 2 ** 20 + 1);  // creux : rien n'occupe le disque
+  const osv = path.join(tmp(), 'osv-scanner'); const appels = `${osv}.appels`;
+  ecrire(osv, `#!/bin/sh\necho "$@" >> '${appels}'\necho '{"results":[]}'\n`); fs.chmodSync(osv, 0o755);
+  // Dans un processus à part, borné dans le temps : un FIFO ouvert en lecture bloquerait le processus entier.
+  const script = `import { executer } from ${JSON.stringify(new URL('../src/controles.js', import.meta.url).href)};
+    console.log(JSON.stringify(executer('dependances-vulnerables', { depot: ${JSON.stringify(d)}, osv: ${JSON.stringify(osv)}, cache: null, config: {} }, 'audit')));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), { ecarts: [], indisponible: 'go.sum : pas un fichier, ou plus de 32 Mio, non lu ; package-lock.json : pas un fichier, ou plus de 32 Mio, non lu' });
+  assert.equal(fs.readFileSync(appels, 'utf8'), 'scan source --config /dev/null -L web/uv.lock --format json\n', 'seul le verrou lu est scanné');
+});
