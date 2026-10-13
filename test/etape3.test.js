@@ -2381,3 +2381,19 @@ test('Retrait d’une unité modifiée à la main : copiée en .bak à côté, r
   assert.deepEqual(i.desactiver(), { unite: 'holarch-interface.service', copie: u('holarch-interface.service.bak') });
   assert.ok(!fs.existsSync(u('holarch-veille.service')) && !fs.existsSync(u('holarch-interface.service')));
 });
+
+// Liste des projets sans filtre de site (risque faible à la clôture) : l'index porte les catalogues de tous les sites
+// qui partagent les données ; le projet d'un autre site entrait dans la vue Projets, rendait ambigu le nom d'un projet
+// d'ici et rattachait la reprise de son chemin. Une seule liste, celle des projets du site.
+import { Catalogue } from '../src/stockage/catalogue.js';
+test('Projets du site : la vue, le nom, la reprise et le tableau de bord ne prennent pas le projet d’un autre site', () => {
+  const donnees = tmp(); const ici = tmp(); const ailleurs = tmp();
+  const projet = (id, location, site) => ({ id, kind: 'project', name: 'demo', status: 'active', location, site, provenance: { source: 't' }, attributes: { fichiers_modifies: 1 } });
+  new Catalogue(donnees, 'hote').remplacer([projet('holarch:project:b', ailleurs, 'hote')]);
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([projet('holarch:project:a', ici, 'local'), { ...projet('holarch:project:c', tmp()), name: 'sans-site' }]); s.indexer();
+  assert.deepEqual(s.projets().projets.map((p) => p.id).sort(), ['holarch:project:a', 'holarch:project:c'], 'une fiche sans site vaut partout');
+  assert.equal(s.projetDe('demo'), 'holarch:project:a', 'le nom n’est pas ambigu');
+  assert.deepEqual([resume(s, ailleurs), /reprise du projet demo/.test(resume(s, ici))], [null, true]);
+  assert.deepEqual(s.etat().projets_sales.map((p) => p.name).sort(), ['demo', 'sans-site']);
+});

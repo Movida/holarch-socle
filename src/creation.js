@@ -218,7 +218,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   // commit. Un inventaire passé avant ce commit l'a identifié par son chemin : cet identifiant périmé n'est ni déclaré ni
   // commité dans le profil, l'inventaire est refait d'abord.
   const premier = racine(dossier);
-  const projetIci = () => socle.fiches({ kind: 'project' }).find((p) => p.location === dossier && tireDuCommit(p.id, premier)) || null;
+  const projetIci = () => socle.projetsDuSite().find((p) => p.location === dossier && tireDuCommit(p.id, premier)) || null;
   // À blanc, rien ne s'écrit, pas même le catalogue : un projet que l'inventaire n'a pas encore vu s'arrête là, et dit ce
   // qu'il attend : le dépôt, son premier commit (l'identifiant en vient), ou l'inventaire.
   const attente = !estGit ? 'après la création du dépôt' : !premier ? 'après le premier commit (étape fichiers)' : 'après l’inventaire';
@@ -365,7 +365,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     else if (k.status !== 0) noter('cle', 'echec', `clés de ${o}/${n} non lues : gh api : ${erreur(k)}`);
     else {
       const cles = k.stdout.split('\n').filter((x) => x.trim()).map(corpsCle);
-      const lues = clesDesConteneurs(docker, projetsDe(socle.fiches({ kind: 'project' })), projet.id, gen?.conteneur?.remoteUser);
+      const lues = clesDesConteneurs(docker, projetsDe(socle.projetsDuSite()), projet.id, gen?.conteneur?.remoteUser);
       const enregistre = lues.conteneurs?.find((c) => c.cle && cles.includes(c.cle));
       const dire = (c) => (c.cle ? `${c.id}, clé non enregistrée` : `${c.id}, pas de clé lisible (${c.fichier ? `${c.fichier} : ` : ''}${c.erreur})`);
       if (enregistre) noter('cle', 'deja', `la clé du conteneur ${enregistre.id} est enregistrée sur ${o}/${n}`);

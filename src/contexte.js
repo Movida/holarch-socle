@@ -93,7 +93,7 @@ const court = (t, n) => { const x = String(t || '').replace(/\s+/g, ' ').trim();
 
 // Le projet du dossier de travail. Le catalogue date du dernier inventaire : un worktree, ou un dépôt déplacé depuis, se
 // rattache par son worktree principal ou son premier commit (`projetDuDepot`, comme la garde avant commit).
-const projetDuDossier = (s, dossier) => projetDuDepot(projetsDe(s.fiches({ kind: 'project' })), path.resolve(dossier));
+const projetDuDossier = (s, dossier) => projetDuDepot(projetsDe(s.projetsDuSite()), path.resolve(dossier));
 
 /** Règle effective du dossier de travail : celle de son projet, sinon ce qui vaut au compte. */
 export function reglesDuDossier(s, dossier) {

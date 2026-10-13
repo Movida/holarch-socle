@@ -144,7 +144,7 @@ export class Socle {
       evenements: q('SELECT COUNT(*) n FROM evenements')[0].n,
       // Mémoires identiques (même nom et même description) dans plusieurs projets : copie oubliée ou savoir à remonter.
       memoires_doubles: q("SELECT name, COUNT(*) n, group_concat(coalesce((SELECT p.name FROM fiches p WHERE p.id=json_extract(m.json,'$.links.project[0]')), json_extract(m.json,'$.attributes.projet_claude')), ', ') projets FROM fiches m WHERE kind='memory' GROUP BY name, coalesce(description,'') HAVING n>1 ORDER BY n DESC"),
-      projets_sales: q("SELECT name, json_extract(json,'$.attributes.fichiers_modifies') n FROM fiches WHERE kind='project' AND n>0 ORDER BY n DESC"),
+      projets_sales: q("SELECT name, json_extract(json,'$.attributes.fichiers_modifies') n FROM fiches WHERE kind='project' AND (site IS NULL OR site=?) AND n>0 ORDER BY n DESC", this.config.site),
       contexte: this.contexte(),
     };
   }
@@ -172,6 +172,12 @@ export class Socle {
     return r;
   }
 
+  // Les projets de ce site, seule liste des projets pour les vues et les décisions : l'index porte les instantanés de
+  // tous les sites qui partagent les données (décision sources de l'hôte), et un projet n'a de chemin que sur le site
+  // qui l'a inventorié ; ailleurs, son nom rendrait ambigu celui d'un projet d'ici, et son chemin pourrait rattacher une
+  // session. Une fiche sans site (ce qui vit dans Git, contrat fiche) vaut partout.
+  projetsDuSite() { return this.fiches({ kind: 'project' }).filter((f) => !f.site || f.site === this.config.site); }
+
   fiches({ kind = null, q = null } = {}) {
     let sql = 'SELECT json FROM fiches WHERE 1=1'; const p = [];
     if (kind) { sql += ' AND kind=?'; p.push(kind); }
@@ -196,7 +202,7 @@ export class Socle {
   // fin de chaque corrélation qui en porte, complément compris) ; sans projet touché, celui du répertoire de départ
   // (`repli`) ; sinon aucun (« hors projet »).
   attribution() {
-    const projets = projetsDe(this.fiches({ kind: 'project' }));
+    const projets = projetsDe(this.projetsDuSite());
     const noms = new Map(projets.map((p) => [p.id, p.nom]));
     const lieu = localiserProjet(projets);
     const touches = new Map(); const departs = new Map(); const vues = new Set();
@@ -219,7 +225,7 @@ export class Socle {
   // Une référence de projet donnée par une personne ou un agent (identifiant, nom, chemin ; `aucun` : hors projet).
   projetDe(ref) {
     if (!ref || ref === 'aucun') return ref || null;
-    const p = resoudreProjet(projetsDe(this.fiches({ kind: 'project' })), ref);
+    const p = resoudreProjet(projetsDe(this.projetsDuSite()), ref);
     if (!p) throw new Error(`projet inconnu : ${ref}`);
     return p.id;
   }
@@ -250,7 +256,7 @@ export class Socle {
   // Vue Projets (étape 3, tranche 2) : par projet, où il en est d'après son arbre, ce qui l'attend, son activité et
   // l'état technique de son dépôt. Le coût d'une session se partage entre ses projets, au prorata des appels.
   projets() {
-    const fiches = this.fiches({ kind: 'project' });
+    const fiches = this.projetsDuSite();
     const noeuds = this.fiches({ kind: 'node' });
     // Sessions comptées par projet ; coût et tokens repris de `consommation` (coûts datés dans la période) : la vue et le
     // tableau de bord donnent le même chiffre.
@@ -369,7 +375,7 @@ export class Socle {
     const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
     // Les couches lues par les contrôles (`couches`) restent dans le socle : la vue garde la configuration fusionnée.
     const portees = ({ couches, ...r }, classificationDepot) => ({ ...r, regles: r.regles.map((e) => ({ ...e, claude_code: destination(e, { classificationDepot }) })) });
-    const projets = this.fiches({ kind: 'project' });
+    const projets = this.projetsDuSite();
     const ouverts = this.ecartsOuverts();
     if (projet) {
       const id = this.projetDe(projet); const r = regleEffective(fiches, id, { profil: this.profil() });
@@ -401,7 +407,7 @@ export class Socle {
       .map((r) => [r.name, { id: r.name, enonce: r.attributes.enonce, statut: r.attributes.statut }])).values()];
     const o = this.config.import?.['claude-code-transcriptions'] || {};
     const reglages = this.config.controles || {};
-    const r = recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.fiches({ kind: 'project' })), regles,
+    const r = recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.projetsDuSite()), regles,
       gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: binaireClaude(this.config), config: this.config, modele, budget }),
       depuis, jusqua, seuil, aBlanc });
     if (!proposer || !r.redites) return r;
@@ -414,7 +420,7 @@ export class Socle {
   proposerRegles(redites, { at = new Date().toISOString().slice(0, 10) } = {}) {
     const t = trier(redites);
     const a = arbresDe(this.fiches(), { profil: this.profil() });
-    const projets = new Map(this.fiches({ kind: 'project' }).map((p) => [p.id, p]));
+    const projets = new Map(this.projetsDuSite().map((p) => [p.id, p]));
     const parFichier = new Map(); const sans = [];
     for (const g of t.proposees) {
       let fichier = null; let depot = null;
@@ -443,7 +449,7 @@ export class Socle {
   }
 
   arbre() {
-    const noms = new Map(projetsDe(this.fiches({ kind: 'project' })).map((p) => [p.id, p.nom]));
+    const noms = new Map(projetsDe(this.projetsDuSite()).map((p) => [p.id, p.nom]));
     return this.fiches({ kind: 'node' }).map((f) => ({ id: f.id, chemin: f.node, titre: f.name, description: f.description, type: f.attributes?.type, statut: f.attributes?.statut, version: f.version,
       projet: f.links?.project?.[0] ? { id: f.links.project[0], nom: noms.get(f.links.project[0]) ?? null } : null, parent: (f.links?.derives_from || [])[0] || null, approuve: f.attributes?.approuve || null }));
   }

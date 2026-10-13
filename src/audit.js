@@ -36,7 +36,7 @@ export function contexteControle(s, projet, r, depot = projet.location, arbre = 
   // porte le type depot-public) ; une seule notion avec la commande de création.
   const publique = (id) => noeuds.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public')
     || regleEffective(arbre, id, { profil: s.profil() }).config?.creation?.visibilite === 'public';
-  const projetsPrives = s.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
+  const projetsPrives = s.projetsDuSite().filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
   const config = r.config || {}; const couches = r.couches || []; const reglages = s.config.controles || {};
   return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, couches, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),
     holarch: [s.config.accueil || accueil(), s.config.donnees], profil: s.profil(),
@@ -73,7 +73,7 @@ function controler(r, ctx, moment, niveaux, portee = 'projet', seuls = null) {
  * indexés. { projet, refus: [{regle, enonce, ecarts}], indisponibles }.
  */
 export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journaliser = false } = {}) {
-  const projets = s.fiches({ kind: 'project' });
+  const projets = s.projetsDuSite();
   // Le catalogue date du dernier inventaire : un dépôt déplacé depuis, ou un worktree, se rattache par son worktree
   // principal ou son premier commit. Rattaché à rien alors que le crochet y est posé, le commit n'est pas contrôlé : c'est dit.
   const p = projetDuDepot(projetsDe(projets), path.resolve(depot));
@@ -264,7 +264,7 @@ function perimees(sorties, faits, couverts, chaines) {
  */
 export function audit(s, { projet = null, journaliser = false } = {}) {
   const fiches = [...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })];
-  const projets = s.fiches({ kind: 'project' }); const memoires = s.fiches({ kind: 'memory' });
+  const projets = s.projetsDuSite(); const memoires = s.fiches({ kind: 'memory' });
   const faits = new Set(); const sorties = [];
 
   // Compte : ce qui vaut pour tous les projets du site.
