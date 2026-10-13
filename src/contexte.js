@@ -3,8 +3,8 @@
 // session, l'état du projet du dossier de travail, court, tiré des mêmes lectures que la vue Projets.
 import fs from 'node:fs';
 import path from 'node:path';
-import { projetsDe, localiserProjet } from './projets.js';
-import { etatDepot, integrationContinue } from './inventaire/depots-git.js';
+import { projetsDe } from './projets.js';
+import { etatDepot, integrationContinue, projetDuDepot } from './inventaire/depots-git.js';
 import { copieEnService, retard } from './service.js';
 import { aApprouver } from './regles.js';
 import { finDeTranscription, evenements } from './transcription.js';
@@ -88,15 +88,19 @@ export function alerte({ transcription, seuil, regles = () => [] }) {
 
 const court = (t, n) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > n ? `${x.slice(0, n - 1)}…` : x; };
 
+// Le projet du dossier de travail. Le catalogue date du dernier inventaire : un worktree, ou un dépôt déplacé depuis, se
+// rattache par son worktree principal ou son premier commit (`projetDuDepot`, comme la garde avant commit).
+const projetDuDossier = (s, dossier) => projetDuDepot(projetsDe(s.fiches({ kind: 'project' })), path.resolve(dossier));
+
 /** Règle effective du dossier de travail : celle de son projet, sinon ce qui vaut au compte. */
 export function reglesDuDossier(s, dossier) {
-  const p = localiserProjet(projetsDe(s.fiches({ kind: 'project' })))(path.resolve(dossier));
+  const p = projetDuDossier(s, dossier);
   return p ? s.regles({ projet: p.id }).regles : s.regles().compte.regles;
 }
 
 /** Résumé de reprise du projet d'un dossier (crochet `SessionStart`), `max` caractères au plus ; null hors projet. */
 export function resume(s, dossier, { max = 1500, transcription = null, maintenant = Date.now() } = {}) {
-  const p = localiserProjet(projetsDe(s.fiches({ kind: 'project' })))(path.resolve(dossier));
+  const p = projetDuDossier(s, dossier);
   if (!p) return null;
   const v = s.projets().projets.find((x) => x.id === p.id);
   if (!v) return null;

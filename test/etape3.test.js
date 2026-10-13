@@ -1943,3 +1943,26 @@ test('R4 : un fichier de base ignoré par git ne bloque plus les rejeux ; un ges
   }
   assert.deepEqual([fs.existsSync(path.join(d, 'CLAUDE.md')), git(d, 'rev-parse', 'HEAD'), git(d, 'status', '--porcelain')], [false, tete, ''], 'ni écrit ni commité');
 }));
+
+// Voisin du lot 1 : la règle et le résumé de reprise du dossier de travail le rattachaient par son seul chemin ; un
+// worktree, ou un dépôt déplacé depuis l'inventaire, n'avait ni résumé de reprise ni règles de projet jusqu'à l'inventaire
+// suivant. Il se rattache comme à la garde avant commit (`projetDuDepot`).
+import { reglesDuDossier } from '../src/contexte.js';
+test('Reprise : un worktree et un dépôt déplacé se rattachent à leur projet sans attendre l’inventaire', () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: du-projet\n  statement: Propre au projet.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  const id = `holarch:project:${premierCommit(d)}`;
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [d], projetDe: () => ({ id }) }), { id, kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const rattache = (dossier) => [reglesDuDossier(s, dossier).some((e) => e.id === 'du-projet'), /^HOLARCH — reprise du projet depot /.test(resume(s, dossier) ?? '')];
+  assert.deepEqual(rattache(d), [true, true]);
+  const wt = path.join(r, 'branche'); g('worktree', 'add', '-q', '--detach', wt);
+  assert.deepEqual(rattache(wt), [true, true], 'un worktree, par son worktree principal');
+  g('worktree', 'remove', wt);
+  const ailleurs = path.join(r, 'deplace'); fs.renameSync(d, ailleurs);
+  assert.deepEqual(rattache(ailleurs), [true, true], 'un dépôt déplacé, par son premier commit');
+  assert.deepEqual(rattache(tmp()), [false, false], 'hors projet : rien');
+});
