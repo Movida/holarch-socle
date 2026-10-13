@@ -2314,3 +2314,33 @@ test('C1 : la garde reconnaît un worktree et un dépôt déplacé ; un dépôt 
   catalogue([[base, d]]);
   assert.deepEqual(garde(ailleurs), [base, ['rien-de-personnel']], 'déplacé, par son premier commit');
 });
+
+// C4 : la garde relisait les règles si l'arbre avait changé depuis l'inventaire, mais tirait la liste privée (projets
+// déclarés et non publics) du catalogue : un projet privé déclaré depuis n'y entrait qu'à l'inventaire suivant, et son
+// nom passait dans un commit. La liste privée se tire des mêmes nœuds relus que les règles.
+test('C4 : la garde tire la liste privée de l’arbre relu, comme les règles', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const g = (x, ...a) => { const y = spawnSync('git', ['-C', x, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' }); assert.equal(y.status, 0, y.stderr); };
+  const r = tmp(); const accueil = tmp(); const profil = path.join(r, 'profil'); const d = path.join(r, 'vitrine'); const prive = path.join(r, 'zetaprive');
+  fs.mkdirSync(d); fs.mkdirSync(prive); g(d, 'init', '-q'); ecrireF(path.join(d, 'note.md'), 'propre\n'); g(d, 'add', '.'); g(d, 'commit', '-qm', 'départ');
+  const contexte = path.join(profil, 'arbre', 'contextes', 'perso.md');
+  const declarer = (ids) => ecrireF(contexte, `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [${ids.join(', ')}]\n---\n`);
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(profil, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  declarer(['holarch:project:vitrine']);
+  const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [profil] } } });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [profil], projetDe: () => null }),
+    ...[['vitrine', d], ['zetaprive', prive]].map(([n, location]) => ({ id: `holarch:project:${n}`, kind: 'project', name: n, status: 'active', location, provenance: { source: 't' } }))]);
+  s.indexer();
+  ecrireF(path.join(d, 'note.md'), 'voir zetaprive\n'); g(d, 'add', 'note.md');
+  assert.deepEqual(s.garde({ depot: d }).refus, [], 'non déclaré, le projet n’est pas privé');
+  // Déclaré après l'inventaire : la garde le voit au commit suivant.
+  const plusTard = (f, n) => { const t = new Date(Date.now() + n * 1000); fs.utimesSync(f, t, t); };
+  declarer(['holarch:project:vitrine', 'holarch:project:zetaprive']); plusTard(contexte, 2);
+  assert.deepEqual(s.garde({ depot: d }).refus.map((x) => [x.regle, x.ecarts.map((e) => `${e.fichier}:${e.ligne}`)]), [['rien-de-personnel', ['note.md:1']]]);
+  // Passé depuis dans un contexte qui le rend public : son nom n'est plus privé, tout de suite aussi.
+  const publics = path.join(profil, 'arbre', 'contextes', 'publics.md');
+  ecrireF(publics, '---\ntype: context\ntitle: Publics\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:zetaprive]\nconfig:\n  creation: { visibilite: public }\n---\n');
+  declarer(['holarch:project:vitrine']); plusTard(contexte, 3); plusTard(publics, 3);
+  assert.deepEqual(s.garde({ depot: d }).refus, []);
+});

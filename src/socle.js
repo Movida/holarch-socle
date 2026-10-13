@@ -383,7 +383,7 @@ export class Socle {
   }
 
   // ---------- contrôles et audit (étape 3, tranches 4 et 5) : module audit ----------
-  contexteControle(projet, r, depot) { return contexteControle(this, projet, r, depot); }
+  contexteControle(projet, r, depot, arbre) { return contexteControle(this, projet, r, depot, arbre); }
   garde(o) { return garde(this, o); }
   ecartsOuverts() { return ecartsOuverts(this); }
   audit(o) { return audit(this, o); }

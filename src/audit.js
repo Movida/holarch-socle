@@ -24,15 +24,18 @@ const faitDe = (projet, d) => `${projet ?? ''}|${d.controle}${!projet && String(
 const donneesEcart = (x) => ({ regle: x.regle, controle: x.controle, cle: x.cle, ...(x.fichier && { fichier: x.fichier }), ...(x.ligne && { ligne: x.ligne }), ...(x.n && { n: x.n }), ...(x.message && { message: x.message }) });
 const comptesDe = (s) => comptesClaudeCode(s.config, s.config.inventaire?.['claude-code'] || {});
 
-/** Ce qu'un contrôle reçoit pour un projet : son dépôt, la racine de son arbre, ses réglages, la liste privée, les outils. */
-export function contexteControle(s, projet, r, depot = projet.location) {
-  const noeuds = s.fiches({ kind: 'node' });
+/**
+ * Ce qu'un contrôle reçoit pour un projet : son dépôt, la racine de son arbre, ses réglages, la liste privée, les outils.
+ * `arbre` : les nœuds et règles d'où la règle effective `r` est tirée (la garde les relit s'ils ont changé), sinon ceux du
+ * catalogue ; la liste privée (projets déclarés et non publics) se tire des mêmes, jamais d'un catalogue plus ancien.
+ */
+export function contexteControle(s, projet, r, depot = projet.location, arbre = [...s.fiches({ kind: 'node' }), ...s.fiches({ kind: 'rule' })]) {
+  const noeuds = arbre.filter((f) => f.kind === 'node');
   const declares = projetsDeclares(noeuds, { profil: s.profil() });
   // Public : la racine de son arbre se classe `public`, ou ses couches le déclarent public (`creation.visibilite`, que
   // porte le type depot-public) ; une seule notion avec la commande de création.
-  const fiches = [...noeuds, ...s.fiches({ kind: 'rule' })];
   const publique = (id) => noeuds.some((n) => n.attributes?.racine && n.links?.project?.includes(id) && n.classification === 'public')
-    || regleEffective(fiches, id, { profil: s.profil() }).config?.creation?.visibilite === 'public';
+    || regleEffective(arbre, id, { profil: s.profil() }).config?.creation?.visibilite === 'public';
   const projetsPrives = s.fiches({ kind: 'project' }).filter((x) => declares.has(x.id) && !publique(x.id)).map((x) => x.name);
   const config = r.config || {}; const couches = r.couches || []; const reglages = s.config.controles || {};
   return { depot, arbre: depot ? racineArbre(depot)?.dossier : null, config, couches, declare: Boolean(r.declare), reglages, cache: path.join(s.config.donnees, 'cache'),
@@ -78,13 +81,15 @@ export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journ
     return { projet: null, refus: [], indisponibles: [], avertissement: `${path.resolve(depot)} n’est rattaché à aucun projet du catalogue (ni par son chemin, ni par son worktree principal, ni par son premier commit, seul à le porter) : commit non contrôlé ; holarch inventaire le rattache s’il est sous les racines de l’inventaire` };
   }
   const fiche = projets.find((x) => x.id === p.id);
-  // L'arbre relu s'il a changé : une exception ajoutée vaut au commit suivant, pas une heure plus tard.
-  const r = regleEffective(s.arbreFrais(), p.id, { profil: s.profil() });
+  // L'arbre relu s'il a changé : une exception ajoutée vaut au commit suivant, pas une heure plus tard ; un projet
+  // déclaré entre aussi tout de suite dans la liste privée.
+  const frais = s.arbreFrais();
+  const r = regleEffective(frais, p.id, { profil: s.profil() });
   // Règles illisibles : une règle bloquante peut manquer ; le commit est refusé plutôt que dit conforme, et journalisé
   // comme tout refus.
   const enonce = 'les règles du projet ne se lisent pas toutes : la garde ne peut pas dire ce commit conforme';
   const { ecarts, controles } = r.illisibles.length ? { ecarts: ecartsIllisibles(r).map((x) => ({ ...x, enonce })), controles: [] }
-    : controler(r, contexteControle(s, fiche, r, path.resolve(depot)), moment, ['blocking']);
+    : controler(r, contexteControle(s, fiche, r, path.resolve(depot), frais), moment, ['blocking']);
   // Un contrôle d'une règle bloquante non disponible (décision garde-sans-passage-muet) : ce qu'il devait voir n'est pas
   // vu, le commit est refusé comme pour des règles illisibles ; `--no-verify` reste le passage explicite, que l'audit voit.
   for (const c of controles.filter((x) => x.etat === 'indisponible')) {
