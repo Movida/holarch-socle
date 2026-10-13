@@ -2385,3 +2385,21 @@ test('Crochets d’un dépôt à conteneur : un réglage présent mais illisible
   assert.equal(spawnSync('mkfifo', [path.join(d, '.claude', 'settings.local.json')]).status, 0);
   assert.deepEqual(lire(), { ecarts: [], indisponible: '.claude/settings.local.json illisible' });
 });
+
+// Début d'une transcription, voisin de la famille Gardes muettes : l'inventaire lit le répertoire de travail d'un dossier
+// de projet dans le début d'une de ses transcriptions (`repertoireDe`), que le conteneur écrit. Il l'ouvrait en `'r'` : un
+// lien posé après le listage était suivi, un FIFO bloquait l'inventaire. Mêmes drapeaux que la fin, par une lecture commune.
+test('debutDeTranscription : ni un lien ni un FIFO à la place d’une transcription ne se lisent, et rien ne bloque', () => {
+  const d = tmp(); const hote = path.join(tmp(), 'hote.jsonl'); fs.writeFileSync(hote, '{"cwd":"/hote/secret"}\n');
+  fs.symlinkSync(hote, path.join(d, 'lien.jsonl')); assert.equal(spawnSync('mkfifo', [path.join(d, 'fifo.jsonl')]).status, 0);
+  fs.writeFileSync(path.join(d, 'vraie.jsonl'), '{"cwd":"/ws/demo"}\n{"b":2}\n');
+  // Dans un processus à part, borné dans le temps : un FIFO ouvert en lecture bloquerait le processus entier.
+  const src = JSON.stringify(new URL('../src/transcription.js', import.meta.url).href);
+  const script = `import { debutDeTranscription, finDeTranscription } from ${src};
+    const f = (n) => ${JSON.stringify(d)} + '/' + n + '.jsonl';
+    console.log(JSON.stringify([...['lien', 'fifo', 'vraie'].map((n) => debutDeTranscription(f(n), 19)), finDeTranscription(f('vraie'), 8), finDeTranscription(f('fifo'), 8)]));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), ['', '', '{"cwd":"/ws/demo"}\n', ['', '{"b":2}'], []], 'le début de la vraie, ses 19 premiers octets ; la fin inchangée');
+});

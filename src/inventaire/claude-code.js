@@ -8,6 +8,7 @@ import { enTete, lireJson, liste, mtimeIso, premiereLigne, slug, urlSure, jeton 
 import { comptesClaudeCode } from '../config.js';
 import { lienProjet } from '../projets.js';
 import { cheminSansLien, lireSansLien } from '../commun.js';
+import { debutDeTranscription } from '../transcription.js';
 
 // Un élément d'aucun projet n'a pas de lien `project` (contrat fiche 0.4.0) : `links` vide disparaît.
 const fiche = (kind, cle, name, { links, ...extra }, source = 'inventaire:claude-code') => ({
@@ -77,11 +78,11 @@ function consignes(f, portee, nom, site, p = null, depot = null) {
 }
 
 // Le dossier d'un projet Claude Code encode son répertoire de travail (`/` devient `-`), ce qui ne se décode pas sans
-// ambiguïté : le vrai répertoire se lit dans une transcription du même dossier.
+// ambiguïté : le vrai répertoire se lit dans une transcription du même dossier, que le conteneur écrit (sans suivre de
+// lien posé après le listage, ni attendre sur un FIFO : `debutDeTranscription`).
 function repertoireDe(dossier) {
   for (const x of liste(dossier, (e) => e.isFile() && e.name.endsWith('.jsonl'))) {
-    let t = ''; try { const fd = fs.openSync(path.join(dossier, x.name), 'r'); const b = Buffer.alloc(65536); t = b.toString('utf8', 0, fs.readSync(fd, b, 0, b.length, 0)); fs.closeSync(fd); } catch { continue; }
-    const m = t.match(/"cwd":"((?:[^"\\]|\\.)*)"/);
+    const m = debutDeTranscription(path.join(dossier, x.name), 65536).match(/"cwd":"((?:[^"\\]|\\.)*)"/);
     if (m) return JSON.parse(`"${m[1]}"`);
   }
   return null;

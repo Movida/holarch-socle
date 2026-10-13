@@ -1,6 +1,6 @@
 // Transcriptions de Claude Code (JSON Lines) : où elles vivent, parcours partagé par l'import et la veille retardée ;
 // lecture de leur fin, partagée par l'économie du contexte (taille, sessions coupées) et la veille (session qui attend
-// l'auteur) : une transcription peut peser des mégaoctets, seule sa fin est lue.
+// l'auteur) : une transcription peut peser des mégaoctets, seule sa fin est lue ; de leur début, par l'inventaire.
 import fs from 'node:fs';
 import path from 'node:path';
 import { dedans, lireSansLien } from './commun.js';
@@ -42,21 +42,29 @@ export function transcriptions(home) {
 }
 
 /**
- * Lignes JSON de la fin d'une transcription (les `octets` derniers), de la plus récente à la plus ancienne. Le conteneur
- * écrit les transcriptions de son projet : un lien posé à la place de celle listée n'est pas suivi (`O_NOFOLLOW`), un FIFO
- * ne bloque pas (`O_NONBLOCK`) ; ce qui n'est pas un fichier ne rend aucune ligne.
+ * Texte des `octets` premiers (`debut`) ou derniers d'une transcription, null si elle ne se lit pas. Le conteneur écrit
+ * les transcriptions de son projet : un lien posé à la place de celle listée n'est pas suivi (`O_NOFOLLOW`), un FIFO ne
+ * bloque pas (`O_NONBLOCK`) ; ce qui n'est pas un fichier ne se lit pas.
  */
-export function finDeTranscription(transcription, octets) {
+function partieDeTranscription(transcription, octets, { debut = false } = {}) {
   let fd;
   try {
     const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fs.constants;
     fd = fs.openSync(transcription, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
-    const s = fs.fstatSync(fd); if (!s.isFile()) return [];
+    const s = fs.fstatSync(fd); if (!s.isFile()) return null;
     const taille = s.size; const n = Math.min(taille, octets);
-    const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, taille - n);
-    return b.toString('utf8').split('\n').reverse();
-  } catch { return []; } finally { if (fd !== undefined) fs.closeSync(fd); }
+    const b = Buffer.alloc(n); const lus = fs.readSync(fd, b, 0, n, debut ? 0 : taille - n);
+    return b.toString('utf8', 0, lus);
+  } catch { return null; } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
+
+/** Lignes JSON de la fin d'une transcription (les `octets` derniers), de la plus récente à la plus ancienne. */
+export function finDeTranscription(transcription, octets) {
+  return partieDeTranscription(transcription, octets)?.split('\n').reverse() ?? [];
+}
+
+/** Texte du début d'une transcription (ses `octets` premiers), '' si elle ne se lit pas. */
+export const debutDeTranscription = (transcription, octets) => partieDeTranscription(transcription, octets, { debut: true }) ?? '';
 
 /** Événements lisibles parmi des lignes, ceux qui contiennent `filtre` ; une ligne coupée est sautée. */
 export const evenements = function* (lignes, filtre = '') {
