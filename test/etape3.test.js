@@ -2246,19 +2246,22 @@ test('M5 : une identité de commit retirée à la main est reposée, et dite ; p
   assert.deepEqual([poserIdentite(d, null).etat, note()], ['note-retiree', '']);
 }));
 
-// `git add -A` des règles non vérifié (famille Gardes muettes, écarts mineurs) : refusé (ici, `.claude/` ignoré par le
-// compte), l'étape disait les règles faites alors que rien n'était commité. L'échec se dit, avec le message de git.
-test('Création : un ajout des règles refusé par git se dit en échec, pas « fait »', () => {
-  const exclus = path.join(tmp(), 'exclus'); fs.writeFileSync(exclus, '.claude/\n');
-  return gitIsole(async () => {
-    const { r, s, git } = await bancCreation();
-    const d = path.join(r, 'neuf'); const p = await creerProjet(s, { nom: 'neuf', types: ['methode'] });
-    const e = p.etapes.find((x) => x.etape === 'regles');
-    assert.deepEqual([e?.etat, e?.detail], ['echec', 'règles écrites, non ajoutées à git : The following paths are ignored by one of your .gitignore files:'], JSON.stringify(p.etapes, null, 1));
-    assert.equal(p.etapes.at(-1), e, 'la suite attend un rejeu, comme après un commit refusé');
-    assert.deepEqual([fs.readdirSync(path.join(d, '.claude', 'rules', 'holarch')), git(d, 'ls-files', '--', '.claude')], [['tests-verts.md'], ''], 'écrites, non commitées');
-  }, `[core]\n\texcludesFile = ${exclus}\n`);
-});
+// `git add -A` des règles non vérifié (famille Gardes muettes, écarts mineurs) : refusé (ici, un verrou de l'index laissé
+// par un autre git ; un dossier ignoré est un geste depuis le lot 5), l'étape disait les règles faites alors que rien
+// n'était commité. L'échec se dit, avec le message de git.
+test('Création : un ajout des règles refusé par git se dit en échec, pas « fait »', () => gitIsole(async () => {
+  const { r, s, git, toucher } = await bancCreation();
+  const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  await creer();
+  const source = path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'rules.yaml');
+  fs.writeFileSync(source, fs.readFileSync(source, 'utf8').replace('Les tests passent', 'Tous les tests passent')); toucher(source);
+  fs.writeFileSync(path.join(d, '.git', 'index.lock'), '');
+  const p = await creer(); const e = p.etapes.find((x) => x.etape === 'regles');
+  assert.equal(e?.etat, 'echec', JSON.stringify(p.etapes, null, 1));
+  assert.match(e.detail, /^règles écrites, non ajoutées à git : fatal: Unable to create '.*index\.lock': File exists\.$/);
+  assert.equal(p.etapes.at(-1), e, 'la suite attend un rejeu, comme après un commit refusé');
+  assert.deepEqual([/^Tous les tests/m.test(fs.readFileSync(path.join(d, '.claude', 'rules', 'holarch', 'tests-verts.md'), 'utf8')), /^Les tests/m.test(git(d, 'show', 'HEAD:.claude/rules/holarch/tests-verts.md'))], [true, true], 'écrite, non commitée');
+}));
 
 // verrousVulnerables, voisin de la famille Gardes muettes : l'empreinte des verrous les lisait en entier, deux fois, sans
 // garde ; un FIFO posé à la place d'un verrou suivi bloquait l'audit. Lus une fois par la lecture gardée et bornée : ce
@@ -2679,4 +2682,43 @@ test('M3 : holarch service montre l’entrée MCP de chaque compte, et le geste 
   assert.equal(texte[texte.indexOf(`serveur MCP holarch du compte ailleurs (${path.join(home, '.claude.json')}) : lance node --no-warnings /opt/autre-holarch/bin/holarch.js mcp ; réglée ailleurs : laissée`) + 2], `    ${geste('ailleurs')}`);
   assert.ok(texte.includes(`serveur MCP holarch du compte socle (${path.join(comptes[1].home, '.claude.json')}) : lance node ${socle} mcp ; socle`));
   assert.ok(texte.includes(`serveur MCP holarch du compte absente (${path.join(comptes[6].home, '.claude.json')}) : absente`));
+});
+
+// `.claude/` ignoré par git (lot 5, voisin de R4) : `git add -A` sur le dossier des règles échouait, en indexant quand même
+// les règles déjà suivies. Ignoré dès la création (ici par le fichier d'exclusions du compte), l'étape échouait, puis les
+// rejeux la disaient « déjà là » sans rien de commité ; ignoré après coup, une règle suivie modifiée faisait échouer
+// chaque rejeu. Les règles ignorées sont écrites mais ni ajoutées ni commitées, un geste le dit avec la commande qui
+// montre la règle, les suivies se commitent, et la suite de la création continue.
+test('Création : un dossier de règles ignoré par git ne bloque plus les rejeux ; un geste le dit', async () => {
+  const exclusions = path.join(tmp(), 'exclusions'); fs.writeFileSync(exclusions, '.claude/\n');
+  await gitIsole(async () => {
+    const { r, s, etats, git } = await bancCreation();
+    const d = path.join(r, 'neuf'); const creer = (aBlanc = false) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc });
+    const regle = path.join('.claude', 'rules', 'holarch', 'tests-verts.md');
+    const tete = () => git(d, 'rev-parse', 'HEAD');
+    for (const aBlanc of [false, true, false]) {
+      const p = await creer(aBlanc); const e = p.etapes.find((x) => x.etape === 'regles');
+      assert.deepEqual([e.etat, e.detail.endsWith('; tests-verts.md : ignorée(s) par git, ni ajoutée(s) ni commitée(s)'), e.geste?.commande], ['geste', true, `git -C ${d} check-ignore -v -- ${regle}`], JSON.stringify(p.etapes, null, 1));
+      assert.equal(etats(p).audit, aBlanc ? 'a-faire' : 'faite', 'la suite se fait');
+    }
+    assert.deepEqual([fs.existsSync(path.join(d, regle)), git(d, 'ls-files', '--', '.claude'), git(d, 'status', '--porcelain')], [true, '', ''], 'écrite, ni ajoutée ni commitée');
+    const commande = spawnSync('/bin/sh', ['-c', (await creer()).etapes.find((x) => x.etape === 'regles').geste.commande], { encoding: 'utf8' });
+    assert.equal(commande.stdout, `${exclusions}:1:.claude/\t${regle}\n`, 'la commande montre la règle');
+  }, `[core]\n\texcludesFile = ${exclusions}\n`);
+  // Ignoré après coup : la règle suivie, modifiée, se commite ; aucun geste (un fichier suivi n'est jamais ignoré).
+  await gitIsole(async () => {
+    const { r, s, etats, git, toucher } = await bancCreation();
+    const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
+    const regle = path.join(d, '.claude', 'rules', 'holarch', 'tests-verts.md');
+    assert.equal(etats(await creer()).regles, 'faite');
+    fs.appendFileSync(path.join(d, '.gitignore'), '.claude/\n'); git(d, 'commit', '-qam', 'Ignorer .claude');
+    const source = path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'rules.yaml');
+    fs.writeFileSync(source, fs.readFileSync(source, 'utf8').replace('Les tests passent', 'Tous les tests passent')); toucher(source);
+    for (const attendu of ['faite', 'deja']) {
+      const p = await creer(); const e = p.etapes.find((x) => x.etape === 'regles');
+      assert.deepEqual([e.etat, e.geste, etats(p).audit], [attendu, undefined, 'faite'], JSON.stringify(p.etapes, null, 1));
+    }
+    assert.deepEqual([git(d, 'status', '--porcelain'), git(d, 'log', '-1', '--format=%s')], ['', 'Appliquer les règles HOLARCH']);
+    assert.match(git(d, 'show', 'HEAD:.claude/rules/holarch/tests-verts.md'), /^Tous les tests passent/m, 'la règle suivie, modifiée, est commitée');
+  });
 });

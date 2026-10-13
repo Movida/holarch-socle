@@ -261,15 +261,30 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     // Des règles écrites mais pas commitées (commit refusé à un passage précédent) restent à commiter.
     const dossierRegles = path.join('.claude', 'rules', 'holarch');
     const enAttente = (g('status', '--porcelain', '--', dossierRegles).stdout || '').trim() !== '';
-    if (!changes && !enAttente && ['inchange', 'absent'].includes(m.crochet.etat)) noter('regles', 'deja', detail);
-    else if (aBlanc) noter('regles', 'a-faire', detail);
+    // Des règles que git ignore (le dossier `.claude/`, ou un motif d'un .gitignore du dépôt ou du compte) : `git add` les
+    // refusait, en indexant quand même les fichiers déjà suivis, et chaque rejeu s'arrêtait là (comme R4). Écrites quand
+    // même (Claude Code les lit dans ce clone), elles ne se commitent pas, et un geste le dit avec la commande qui montre la
+    // règle ; la suite continue (rien après ne lit les règles commitées). Un fichier déjà suivi n'est jamais ignoré.
+    const prevus = m.plan.fichiers.map((f) => path.join(dossierRegles, f.fichier));
+    const ci = g('check-ignore', '--', ...prevus); // sans chemin : code 128, rien d'ignoré
+    const ignorees = ci.status === 0 ? ci.stdout.split('\n').filter(Boolean) : [];
+    const fin = (etat, d) => (ignorees.length
+      ? noter('regles', 'geste', `${d} ; ${ignorees.map((f) => path.basename(f)).join(', ')} : ignorée(s) par git, ni ajoutée(s) ni commitée(s)`,
+        { quoi: 'retirer la règle qui les ignore (la commande la montre), puis relancer ; ou les laisser hors du dépôt (Claude Code les lit dans ce clone)', commande: `git -C ${dossier} check-ignore -v -- ${ignorees.join(' ')}` })
+      : noter('regles', etat, d));
+    if (!changes && !enAttente && ['inchange', 'absent'].includes(m.crochet.etat)) fin('deja', detail);
+    else if (aBlanc) fin('a-faire', detail);
     else {
-      // Refusé (un verrou de l'index, le dossier ignoré par git), rien ne serait commité : l'étape le dit.
-      const a = g('add', '-A', '--', dossierRegles); if (a.status !== 0) { noter('regles', 'echec', `règles écrites, non ajoutées à git : ${erreur(a)}`); return r; }
+      // Les fichiers suivis (modifiés, retirés), puis les nouveaux que git n'ignore pas : `add -A` sur le dossier ignoré
+      // échouerait. Refusé (un verrou de l'index), rien ne serait commité : l'étape le dit.
+      const u = g('add', '-u', '--', dossierRegles);
+      const nouveaux = (g('ls-files', '-z', '--others', '--exclude-standard', '--', dossierRegles).stdout || '').split('\0').filter(Boolean);
+      const a = u.status !== 0 || !nouveaux.length ? u : g('add', '--', ...nouveaux);
+      if (a.status !== 0) { noter('regles', 'echec', `règles écrites, non ajoutées à git : ${erreur(a)}`); return r; }
       if (g('diff', '--cached', '--quiet', '--', dossierRegles).status !== 0) {
         try { commiter('Appliquer les règles HOLARCH', [dossierRegles]); } catch (e) { noter('regles', 'echec', e.message); return r; }
       }
-      noter('regles', 'faite', detail);
+      fin('faite', detail);
     }
   }
 
