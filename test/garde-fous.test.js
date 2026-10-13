@@ -2371,3 +2371,17 @@ test('C5 : la garde voit une règle écrite pendant l’inventaire, et le catalo
   s.catalogue.remplacer(inventaireArbre({ depots: [profil] }, { profil, projetDe: () => null }));
   assert.deepEqual(ids(), ['a', 'b', 'c'], 'le catalogue à jour, pas l’index d’avant lui');
 });
+
+// Lecture non stricte des crochets (famille Gardes muettes, écarts mineurs) : un réglage Claude Code du dépôt présent mais
+// illisible (JSON invalide, FIFO) se lisait sans crochet, et le contrôle se disait fait. Il est indisponible, et dit pourquoi.
+test('Crochets d’un dépôt à conteneur : un réglage présent mais illisible rend le contrôle indisponible, pas conforme', () => {
+  const { d, config, lire } = conteneurEssai();
+  config({}); fs.mkdirSync(path.join(d, '.claude'));
+  assert.deepEqual(lire(), { ecarts: [] }, 'absents : rien à lire');
+  fs.writeFileSync(path.join(d, '.claude', 'settings.json'), '{ "hooks": { "SessionStart": [] }, }');
+  const invalide = lire();
+  assert.deepEqual(invalide.ecarts, []); assert.match(invalide.indisponible, /^\.claude\/settings\.json illisible : /);
+  fs.writeFileSync(path.join(d, '.claude', 'settings.json'), '{}');
+  assert.equal(spawnSync('mkfifo', [path.join(d, '.claude', 'settings.local.json')]).status, 0);
+  assert.deepEqual(lire(), { ecarts: [], indisponible: '.claude/settings.local.json illisible' });
+});

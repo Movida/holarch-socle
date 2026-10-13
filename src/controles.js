@@ -579,11 +579,13 @@ function initialisationHorsAttente(c, depot, maison, env, admis) {
 
 // Les crochets des réglages Claude Code d'un dépôt à conteneur : le conteneur écrit le dépôt, et les sessions de l'hôte
 // ouvertes dans ce dossier les exécutent (le surveillant de fichiers les reprend). Un fichier de réglages qui est un lien
-// symbolique n'est pas lu (`lireSansLien`) : { f, erreur }.
+// symbolique n'est pas lu (`lireSansLien`), ni un présent qui ne se lit pas (pas un fichier, JSON invalide) : { f, erreur },
+// le contrôle est indisponible (lu sans crochet, il se disait fait).
 function crochetsDuDepot(depot) {
   return ['.claude/settings.json', '.claude/settings.local.json'].flatMap((f) => {
     let t; try { t = lireSansLien(depot, f); } catch (e) { return [{ f, erreur: e.message }]; }
-    let j = null; try { j = JSON.parse(t); } catch { /* illisible : aucun crochet lu */ }
+    if (t === null) { try { fs.lstatSync(path.join(depot, f)); } catch { return []; } return [{ f, erreur: `${f} illisible` }]; }
+    let j; try { j = JSON.parse(t); } catch (e) { return [{ f, erreur: `${f} illisible : ${e.message}` }]; }
     return j?.hooks && typeof j.hooks === 'object' && Object.keys(j.hooks).length ? [{ f, evenements: Object.keys(j.hooks) }] : [];
   });
 }
