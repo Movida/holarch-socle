@@ -67,8 +67,16 @@ pouvait encore la lire) : ligne « tout appareil du réseau privé » levée ; r
 `flyctl tokens list -a swiper-relay` puis `flyctl tokens revoke <id>` pour l'ancien.
 
 **Essais sur pièces** : bac à sable, la documentation dit qu'il applique les refus `Read(...)` aux commandes (et pas à
-l'outil de lecture) ; il attend `bubblewrap` et `socat` (absents, `sudo apt-get install -y bubblewrap socat` par
-l'auteur) ; il borne aussi le réseau et les écritures : un essai unique, à blanc, avant toute pose. Règle plus fermée
+l'outil de lecture). `bubblewrap` 0.9.0 et `socat` 1.8.0.0 extraits sans `sudo` des paquets Ubuntu (empreintes conformes
+à l'index apt) dans `~/.local/bin`, `socat` derrière un script qui charge `libwrap.so.0` (`~/.local/lib/socat`) : choix
+de l'auteur, hors de son poste ; à retirer une fois installés par apt (`~/.local/bin` passe en tête du `PATH`). Essai
+unique le 2026-10-13, à blanc (`claude -p --restricted --tools Bash`, réglages par `--settings`, Haiku, 0,0033 $) :
+`cat`, `grep -r` et `python3` refusés sur un `.env` interdit par `Read(**/.env)`, par le système (aucun refus de la
+couche de permissions) ; témoin lisible ; `touch ~/…` en système de fichiers en lecture seule ; `curl --noproxy '*'`
+sans résolution de nom. Seul reste : un dossier vide `.claude/.cc-writes`. Pose rangée avec les palliatifs moyens
+(choix de l'auteur) : sur 30 jours (188 transcriptions, 15 927 commandes), environ 9 % sortent des limites par défaut
+(envois git 2,9 %, `holarch` qui écrit hors du dépôt 1,6 %, `curl` 1,5 %, `docker` 1,3 %, `systemctl` 1,0 %, `gh`
+0,6 %) ; il faut des listes tirées de la mesure (domaines, écritures sans `~/.local/bin`, commandes exclues). Règle plus fermée
 que son dépôt : 0 cas sur les six projets ; `CLAUDE.local.md` se charge sans approbation (à mettre au `.gitignore`), un
 import `@~/…` demande une approbation interactive, impossible en session distante ; `claudeMdExcludes` exclut un
 fichier de `~/.claude/rules/` pour une dérogation ; rien construit tant qu'aucune règle n'en a l'usage.
@@ -104,7 +112,6 @@ tranchées par l'auteur : 17.
 | `etape-3-regles-projets.md:266-267` ; `src/garde-git.js:18-20` | Le crochet `pre-commit` fige les chemins de node et de HOLARCH. Dans un conteneur, où ils n'existent pas, il laisse passer le commit et le dit seulement. Or 209 des 305 sessions tournent en conteneur (l. 959). Leurs commits ne sont contrôlés qu'à l'audit suivant : données personnelles, secrets, identité, y compris dans le dépôt public. | non | Un crochet qui refuse quand HOLARCH est injoignable, au moins dans un dépôt `depot-public`. `--no-verify` reste possible et l'audit le trace déjà. Autre voie : un repli sur `gitleaks git --pre-commit`, s'il est dans l'image. | faible |
 | `etape-3-regles-projets.md:1267` | « Hors périmètre » : la racine d'un projet redéfinit toute règle dérogeable (25 des 26 du profil). Cette racine est dans le dépôt que le conteneur écrit. Une redéfinition de `rien-de-personnel` ou de `identite-de-commit` en simple rappel retire donc la garde. Mesuré : 1 `derogable: false` sur 27 règles au profil. | non | `derogable: false` sur les règles bloquantes du profil (`rien-de-personnel`, `secrets-hors-contexte`, `identite-de-commit`), sur approbation de l'auteur. Autre voie : un écart à l'audit quand une couche de projet redéfinit une règle du profil. | trivial |
 | `etape-3-regles-projets.md:893-894` (X1), `:1329-1331` ; `modules-et-palliatifs.md:42` ; `src/regles.js:205` | Une règle `stable` s'applique sans `approved` (`applicable = statut === 'stable' && !derogee`). Les parties « contexte tiers » et « type tiers » de X1 sont levées, pas celle-ci. | oui (palliatif 5, décision en brouillon : la correction change une contrainte) | Exiger `approved` dans `applicable`, ou faire la garde avant commit du palliatif 5. | faible, plus une décision |
-| `etape-3-regles-projets.md:262-265` | Une lecture refusée (`permissions.deny`) ne couvre pas `grep -r` ni un script. Une session en mode `auto` peut donc lire un `.env`. | oui (« le bac à sable de Claude Code le ferait ») | Réglage `sandbox` du compte, posé par la section `claude_code` du profil (mécanisme de la tranche 7). Le nom est dans le binaire 2.1.296 ; son effet sous WSL est à vérifier. Rien de posé aujourd'hui (`~/.claude/settings.json` sans `sandbox`). | faible |
 | `etape-3-regles-projets.md:265` ; `controles-de-regles.md:41` | Un commit fait hors du clone (édition sur GitHub) n'est vu qu'à l'audit. | en partie (« contrôle côté serveur », sans le nommer) | Analyse des secrets, protection à l'envoi et Dependabot de GitHub, désactivés (`revue-page-blanche.md:33-35`). Un réglage du dépôt, geste de l'auteur. Couvre les secrets, pas la liste privée. | trivial |
 | `etape-3-regles-projets.md:897-898` (X4) ; `src/recolte.js:114-118` | La récolte lance `claude -p` depuis `os.tmpdir()` avec `--setting-sources project` : elle lit `/tmp/.claude/settings.json`, que tout utilisateur local peut écrire (crochets compris). | non | Dossier vide créé par `mkdtemp`, ou aucune source de réglages. | trivial |
 | `etape-3-regles-projets.md:1311-1313` | Limites de la garde contre les liens symboliques, « à dire à l'auteur » : des lectures ne sont pas gardées (`ecartsConteneur`, `lire()` de l'étape 5, `lireJson` des réglages). | non | `cheminSansLien` avant ces lectures, comme avant les écritures. | faible |
@@ -204,6 +211,7 @@ tranchées par l'auteur : 17.
 | `revue-page-blanche.md:33-34` ; `modules-et-palliatifs.md:51` | Les coûts sont lus dans un format privé de Claude Code : `[À COMPLÉTER : à vérifier dans la doc]`. | oui (palliatif 8 : un seul lecteur, module OpenTelemetry) | Seconde source par la télémétrie native. | moyen |
 | `etape-3-regles-projets.md:1329-1330` ; `modules-et-palliatifs.md` (palliatif 6) | Écart du code avec le texte : `context` n'est jamais rempli sur un événement, et aucune lecture n'est filtrée par classification (MCP, interface). | oui pour `context` (palliatif 6) ; non pour le filtre | Remplir `context` à l'import ; filtrer les sorties au-dessus d'une classification. | moyen |
 | `etape-3-regles-projets.md:196` | Les autres agents d'un projet (hors Claude Code) ne reçoivent aucune règle. | en partie (le second projet garde son `CLAUDE.md`) | Un adaptateur par agent. | moyen |
+| `etape-3-regles-projets.md:262-265` | Une lecture refusée (`permissions.deny`) ne couvre pas `grep -r` ni un script. Une session en mode `auto` peut donc lire un `.env`. | oui (essai du 2026-10-13 : le bac à sable refuse `cat`, `grep -r` et `python3` sous WSL2) | Réglage `sandbox` du compte, posé par la section `claude_code` du profil, avec des listes tirées de la mesure de 30 jours (domaines, écritures, commandes exclues ; environ 9 % des commandes sortent des limites par défaut). Rien de posé (choix de l'auteur du 2026-10-13). | moyen |
 
 ### 3. Ouvertes, sans palliatif
 
