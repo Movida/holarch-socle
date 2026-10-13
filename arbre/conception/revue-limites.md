@@ -92,7 +92,9 @@ antérieur à 2.6 : le repli du crochet refuse le commit ; arrêté côté `neut
 `--name-only` et neutralise encore sous git 2.0 à 2.5 ; une levée viderait le catalogue, `gitInventaire` sans `try` par
 dépôt : proposition, ne rien lever ; alternative, lever avec un `try` par dépôt, moyen). 250 tests verts ; copie de
 service posée (`3a951ba`) ; crochet de commit des cinq projets qui le portent réécrit ; audit réel : socle et compte
-conformes. Voisins vus, à soumettre : `.devcontainer/` ignoré fait échouer l'étape conteneur à chaque rejeu (même
+conformes. Envoi de `3792cb1` sur autorisation (pas d'intégration continue). Choix de l'auteur, recommandations
+suivies : `neutralisation()` ne lève rien ; à coder à la session suivante, les trois premiers voisins ci-après, pas le
+quatrième. Voisins vus : `.devcontainer/` ignoré fait échouer l'étape conteneur à chaque rejeu (même
 traitement, faible) ; `service poser` dit « réglé ailleurs » sans la commande (renvoi, trivial) ; `--reposer` d'une clé
 changée à la main (trivial, mais remplacerait une valeur posée à la main, contre la décision) ; `--reposer` d'un nom
 inconnu sort en 0 (sortir en 1, trivial). Limites laissées : crochet changé à la main puis autre seuil, les deux tournent
