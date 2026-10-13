@@ -182,6 +182,19 @@ function migrerEtat(etat) {
   return anciens;
 }
 
+// Une transcription dont un événement est refusé par le journal n'avance pas : elle garde sa taille et sa version d'avant
+// (relue au passage suivant, ses événements acceptés reviennent avec le même identifiant et sont ignorés, le refusé se
+// redit au lieu de se perdre). Ses cumuls de coût avancent pour chaque modèle dont le coût est accepté : un coût se compte
+// en écart aux cumuls, et une transcription qui grandit d'ici là le compterait deux fois.
+function remettre(etat, refuses, transcriptionDe, avant) {
+  for (const { evenement: e } of refuses) {
+    const cle = transcriptionDe.get(e.id);
+    const prec = avant.get(cle);
+    etat[cle] = { ...prec, cumuls: { ...etat[cle].cumuls } };
+    if (e.kind === 'cost.recorded') { const m = e.cost.model; if (prec?.cumuls?.[m]) etat[cle].cumuls[m] = prec.cumuls[m]; else delete etat[cle].cumuls[m]; }
+  }
+}
+
 export default function importerTranscriptions(options, { journal, donnees, passerelles = [], comptes = null, projets = [] }) {
   const projetDe = localiserProjet(projets);
   const viaPasserelle = new Set(passerelles.map(cleServeur));
@@ -190,6 +203,8 @@ export default function importerTranscriptions(options, { journal, donnees, pass
   const anciens = migrerEtat(etat);
   const calme = (options.calme_minutes ?? 10) * 60e3;
   const evenements = []; let lus = 0; let enCours = 0; let illisibles = 0; let tropGrands = 0;
+  // La transcription de chaque événement émis, et l'état qu'elle avait avant ce passage (`remettre`).
+  const transcriptionDe = new Map(); const avant = new Map();
   const plafond = (options.taille_max_mo ?? TAILLE_MAX_MO) * 2 ** 20;
   // Plusieurs comptes (un répertoire chacun) : chaque événement porte le compte qui a produit la session.
   const sources = (comptes || [{ nom: null, home: options.home }]).flatMap((c) => transcriptions(c.home).map((f) => [f, c.nom, c.home]));
@@ -215,6 +230,7 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     if (!a.session || !a.debut) { etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: {}, session: false }; continue; }
     const principal = Object.entries(a.modeles).sort((x, y) => y[1].out - x[1].out)[0]?.[0] || 'inconnu';
     const actor = `agent:claude-code/${principal}`;
+    const premier = evenements.length; avant.set(cle, prec);
     const projet = conteneur ? (permis ? path.basename(permis.location) : null) : a.cwd ? path.basename(a.cwd) : null;
     const corr = a.sousAgent ? `${a.session}:${path.basename(f, '.jsonl')}` : a.session;
     const base = { actor, correlation: corr, classification: 'internal' };
@@ -256,8 +272,10 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     // prennent la dernière fin d'une session pour son répertoire et ses projets).
     else if (v < 6 && a.tests.lances) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:tests:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, projets: touches, complement: 'tests' } });
     etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
+    for (const e of evenements.slice(premier)) transcriptionDe.set(e.id, cle);
   }
   const r = journal.ajouter(evenements);
+  remettre(etat, r.refuses, transcriptionDe, avant);
   ecrireJson(etatF, etat, { indent: 0 });
   return { fichiers_lus: lus, en_cours_ignores: enCours, ...(illisibles && { illisibles }), ...(tropGrands && { trop_grands: tropGrands }), ...r, refuses: r.refuses.length, premiers_refus: r.refuses.slice(0, 3).map((x) => x.erreur) };
 }

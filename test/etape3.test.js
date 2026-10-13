@@ -1992,3 +1992,42 @@ test('Reprise : un worktree et un dépôt déplacé se rattachent à leur projet
   assert.deepEqual(rattache(ailleurs), [true, true], 'un dépôt déplacé, par son premier commit');
   assert.deepEqual(rattache(tmp()), [false, false], 'hors projet : rien');
 });
+
+// Import, mineur (banc de rejeu) : l'état d'import avançait malgré des événements refusés par le journal, qui étaient
+// perdus (la transcription, inchangée, n'était plus relue). Une transcription dont un événement est refusé garde son état ;
+// ses cumuls de coût avancent pour ce qui est accepté, sans quoi une transcription qui grandit compterait deux fois.
+test('Import : une transcription dont un événement est refusé est relue, sans compter deux fois son coût', () => {
+  const home = tmp(); const donnees = tmp(); const vrai = new Journal(donnees, 'local');
+  const f = path.join(home, 'projects', '-ws-demo', 's1.jsonl');
+  const msg = (id, out, ts) => JSON.stringify({ type: 'assistant', sessionId: 's1', cwd: '/ws/demo', timestamp: ts, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', usage: { input_tokens: 1, output_tokens: out } } });
+  ecrire(f, [JSON.stringify({ type: 'user', sessionId: 's1', cwd: '/ws/demo', timestamp: '2026-10-01T10:00:00Z', message: { content: 'bonjour' } }), msg(1, 5, '2026-10-01T10:00:05Z')].join('\n') + '\n'); vieillir(f);
+  // Un journal qui refuse les événements d'une sorte, comme le ferait sa validation.
+  let refusee = null;
+  const journal = { ajouter: (evs) => {
+    const non = evs.filter((e) => e.kind === refusee); const r = vrai.ajouter(evs.filter((e) => e.kind !== refusee));
+    return { ...r, refuses: [...r.refuses, ...non.map((e) => ({ evenement: e, erreur: `${e.kind} refusé pour l’essai` }))] };
+  } };
+  const importer = () => importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees });
+  const lu = () => [...vrai.lire()];
+  const sortie = () => lu().filter((e) => e.kind === 'cost.recorded').reduce((n, e) => n + e.cost.tokens.out, 0);
+  refusee = 'session.finished';
+  assert.deepEqual([importer().refuses, lu().map((e) => e.kind).sort()], [1, ['cost.recorded', 'session.started']]);
+  refusee = null;
+  const r2 = importer();
+  assert.deepEqual([r2.fichiers_lus, r2.ajoutes, lu().filter((e) => e.kind === 'session.finished').length, sortie()], [1, 1, 1, 5], 'inchangée, relue : la fin refusée se redit, le reste est déjà connu');
+  assert.equal(importer().fichiers_lus, 0, 'tout accepté : l’état avance');
+  // Fin refusée, coût accepté, puis la transcription grandit : seul l'ajout se compte.
+  fs.appendFileSync(f, msg(2, 7, '2026-10-01T10:01:00Z') + '\n'); vieillir(f);
+  refusee = 'session.finished'; importer();
+  fs.appendFileSync(f, msg(3, 4, '2026-10-01T10:02:00Z') + '\n'); vieillir(f);
+  refusee = null; importer();
+  assert.equal(sortie(), 16, 'chaque token compté une fois');
+  // Coût refusé : il se recompte en entier au passage suivant.
+  fs.appendFileSync(f, msg(4, 2, '2026-10-01T10:03:00Z') + '\n'); vieillir(f);
+  refusee = 'cost.recorded'; importer(); assert.equal(sortie(), 16);
+  refusee = null; importer(); assert.equal(sortie(), 18);
+  // Une transcription neuve dont le coût est refusé à sa première lecture : compté en entier ensuite.
+  const f2 = path.join(home, 'projects', '-ws-demo', 's2.jsonl'); ecrire(f2, msg(9, 3, '2026-10-01T11:00:00Z').replace(/"s1"/, '"s2"') + '\n'); vieillir(f2);
+  refusee = 'cost.recorded'; importer(); assert.equal(sortie(), 18);
+  refusee = null; importer(); assert.equal(sortie(), 21);
+});
