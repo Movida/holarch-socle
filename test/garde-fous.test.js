@@ -1707,3 +1707,18 @@ printf '[{"RuleID":"cle-fictive","File":"%s","StartLine":1}]' "$f"; exit 1
   assert.match(vus('avant-commit').indisponible, /^\.gitleaksignore du dépôt : gitleaks le suit/, 'avant commit, il se dit');
   assert.deepEqual([vus('audit').ecarts.map((e) => e.fichier), vus('audit').indisponible], [['conf.txt'], undefined], 'à l’audit, il ne tait rien');
 });
+
+test('Récolte : une mémoire de retour se lit depuis le dossier des projets du compte, jamais à travers un lien symbolique', async () => {
+  const { memoiresRetour } = await import('../src/recolte.js');
+  const home = tmp(); const hote = tmp();
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  ecrireF(path.join(hote, 'secret.md'), '---\ntype: feedback\n---\nCONTENU DE L’HÔTE\n'); ecrireF(path.join(hote, 'memoire', 'x.md'), 'CONTENU DE L’HÔTE\n');
+  ecrireF(path.join(home, 'projects', 'p', 'memory', 'vraie.md'), '---\ntype: feedback\n---\nUne vraie mémoire.\n');
+  // Ce qu'un conteneur peut poser dans la mémoire de son projet, après l'inventaire : un fichier ou un dossier en lien.
+  fs.symlinkSync(path.join(hote, 'secret.md'), path.join(home, 'projects', 'p', 'memory', 'lien.md'));
+  fs.mkdirSync(path.join(home, 'projects', 'q')); fs.symlinkSync(path.join(hote, 'memoire'), path.join(home, 'projects', 'q', 'memory'));
+  const fiche = (location) => ({ id: location, kind: 'memory', name: path.basename(location), location, attributes: { type: 'feedback', modifie: '2026-10-03T00:00:00Z' } });
+  const fiches = [path.join(home, 'projects', 'p', 'memory', 'vraie.md'), path.join(home, 'projects', 'p', 'memory', 'lien.md'),
+    path.join(home, 'projects', 'q', 'memory', 'x.md'), path.join(hote, 'secret.md')].map(fiche);
+  assert.deepEqual(memoiresRetour(fiches, { comptes: [{ nom: null, home }] }).map((c) => c.texte), ['vraie.md : Une vraie mémoire.']);
+});

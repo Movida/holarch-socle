@@ -12,7 +12,7 @@ import YAML from 'yaml';
 import { transcriptions } from './transcription.js';
 import { localiserProjet } from './projets.js';
 import { gitleaks } from './controles.js';
-import { claudeIntrouvable, ecrireSansLien, cheminSansLien } from './commun.js';
+import { claudeIntrouvable, ecrireSansLien, cheminSansLien, lireSansLien, dedans } from './commun.js';
 
 // Un message de l'auteur trop court est un acquiescement ou une relance (« oui », « reprends ») ; trop long, un collage.
 const MIN = 25; const MAX = 2000;
@@ -50,10 +50,17 @@ export function messagesAuteur(comptes, { depuis = null, jusqua = null, projetDe
   return out.sort((a, b) => a.at.localeCompare(b.at));
 }
 
-/** Mémoires `feedback` du catalogue modifiées dans la période : leur corps, sans l'en-tête. */
-export function memoiresRetour(fiches, { depuis = null, jusqua = null, noms = new Map() } = {}) {
+/**
+ * Mémoires `feedback` du catalogue modifiées dans la période : leur corps, sans l'en-tête. Lues depuis le dossier des
+ * projets d'un compte (`<home>/projects`), sans suivre de lien symbolique (`lireSansLien`) : un conteneur écrit la mémoire
+ * de son projet, un lien y ferait envoyer un fichier de l'hôte. Une mémoire hors de ces dossiers n'est pas lue.
+ */
+export function memoiresRetour(fiches, { comptes = [], depuis = null, jusqua = null, noms = new Map() } = {}) {
+  const dossiers = comptes.filter((c) => c.home).map((c) => path.join(c.home, 'projects'));
   return fiches.filter((f) => f.kind === 'memory' && f.attributes?.type === 'feedback' && dansPeriode(f.attributes?.modifie, depuis, jusqua)).flatMap((f) => {
-    let t; try { t = fs.readFileSync(f.location, 'utf8'); } catch { return []; }
+    const d = f.location && dossiers.find((x) => dedans(f.location, x));
+    let t; try { t = d ? lireSansLien(d, path.relative(d, f.location)) : null; } catch { return []; }
+    if (t === null) return [];
     t = t.replace(/^---\n[\s\S]*?\n---\n/, '').trim().slice(0, MAX);
     const id = f.links?.project?.[0] || null;
     return t ? [{ type: 'memoire', session: null, memoire: f.id, projet: id ? { id, nom: noms.get(id) ?? null } : null, at: f.attributes.modifie, texte: `${f.name} : ${t}` }] : [];
@@ -194,7 +201,7 @@ export function ajouterRegles(racine, fichier, regles) {
  */
 export function recolter({ comptes, fiches, projets, regles, gitleaksBin, regroupeur, depuis = null, jusqua = null, seuil = 2, aBlanc = false }) {
   const noms = new Map(projets.map((p) => [p.id, p.nom]));
-  const tous = [...messagesAuteur(comptes, { depuis, jusqua, projetDe: localiserProjet(projets) }), ...memoiresRetour(fiches, { depuis, jusqua, noms })];
+  const tous = [...messagesAuteur(comptes, { depuis, jusqua, projetDe: localiserProjet(projets) }), ...memoiresRetour(fiches, { comptes, depuis, jusqua, noms })];
   const stats = (l) => ({ messages: l.filter((c) => c.type === 'message').length, memoires: l.filter((c) => c.type === 'memoire').length,
     sessions: new Set(l.map((c) => c.session).filter(Boolean)).size, projets: new Set(l.map((c) => c.projet?.id).filter(Boolean)).size,
     caracteres: l.reduce((t, c) => t + c.texte.length, 0) });
