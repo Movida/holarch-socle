@@ -2,7 +2,7 @@
 // veille-securite-versions). Le socle n'en garde que l'entrée : ces fonctions reçoivent le socle et lisent par lui.
 import fs from 'node:fs';
 import path from 'node:path';
-import { comptesClaudeCode, accueil } from './config.js';
+import { comptesDuSite, accueil } from './config.js';
 import { projetsDe, localiserProjet } from './projets.js';
 import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts, declarationsDe } from './regles.js';
 import { listePrivee, executer, CONTROLES } from './controles.js';
@@ -22,7 +22,7 @@ const cleEcart = (projet, d) => [projet ?? '', d.regle, d.controle, d.cle].join(
 // distincts pour un même contrôle (le dépôt du profil passe par montage-sensible, comme les exceptions de ce contrôle).
 const faitDe = (projet, d) => `${projet ?? ''}|${d.controle}${!projet && String(d.cle).startsWith('exception-perimee:') ? '|exceptions' : ''}`;
 const donneesEcart = (x) => ({ regle: x.regle, controle: x.controle, cle: x.cle, ...(x.fichier && { fichier: x.fichier }), ...(x.ligne && { ligne: x.ligne }), ...(x.n && { n: x.n }), ...(x.message && { message: x.message }) });
-const comptesDe = (s) => comptesClaudeCode(s.config, s.config.inventaire?.['claude-code'] || {});
+const comptesDe = (s) => comptesDuSite(s.config);
 
 /**
  * Ce qu'un contrôle reçoit pour un projet : son dépôt, la racine de son arbre, ses réglages, la liste privée, les outils.

@@ -1,7 +1,7 @@
 // Le socle d'un site : configuration, journal, catalogue, index, et les opérations de l'étape 1. Les fonctions de
 // lecture sont celles que l'interface web et, à l'étape 2, le hub MCP exposent.
 import path from 'node:path';
-import { chargerConfig, comptesClaudeCode, profilDuSite } from './config.js';
+import { chargerConfig, comptesDuSite, profilDuSite } from './config.js';
 import { Journal } from './stockage/journal.js';
 import { Catalogue } from './stockage/catalogue.js';
 import { Index } from './stockage/index.js';
@@ -80,7 +80,7 @@ export class Socle {
     for (const [nom, imp] of Object.entries(IMPORTS)) {
       const o = this.config.import?.[nom];
       if (!o || o.actif === false) continue;
-      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles, comptes: comptesClaudeCode(this.config, o), projets });
+      r[nom] = imp(o, { journal: this.journal, donnees: this.config.donnees, passerelles, comptes: comptesDuSite(this.config, { journal: true }), projets });
     }
     return r;
   }
@@ -405,9 +405,8 @@ export class Socle {
     const garde = (r) => (jusqua ? r.attributes?.statut === 'stable' && String(r.attributes?.approuve?.at ?? '').slice(0, 10) < jusqua.slice(0, 10) : true);
     const regles = [...new Map(this.fiches({ kind: 'rule' }).filter(garde)
       .map((r) => [r.name, { id: r.name, enonce: r.attributes.enonce, statut: r.attributes.statut }])).values()];
-    const o = this.config.import?.['claude-code-transcriptions'] || {};
     const reglages = this.config.controles || {};
-    const r = recolter({ comptes: comptesClaudeCode(this.config, o), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.projetsDuSite()), regles,
+    const r = recolter({ comptes: comptesDuSite(this.config, { journal: true }), fiches: this.fiches({ kind: 'memory' }), projets: projetsDe(this.projetsDuSite()), regles,
       gitleaksBin: trouverOutil('gitleaks', reglages.gitleaks), regroupeur: regroupeur || regroupeurClaude({ claude: binaireClaude(this.config), config: this.config, modele, budget }),
       depuis, jusqua, seuil, aBlanc });
     if (!proposer || !r.redites) return r;

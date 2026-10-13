@@ -29,7 +29,9 @@ const DEFAUTS = () => ({
     'claude-desktop': { actif: true, config: null },
   },
   import: {
-    'claude-code-transcriptions': { actif: true, home: path.join(os.homedir(), '.claude'), calme_minutes: 10 },
+    // Le compte lu est celui de `inventaire.claude-code` (`comptesDuSite`) ; `home`, posé ici, le remplace pour l'import,
+    // la récolte et le rapport d'un sous-agent.
+    'claude-code-transcriptions': { actif: true, calme_minutes: 10 },
     // Journal JSON d'une passerelle agentgateway (site qui fédère des serveurs) : `fichier`, et `nom`, le nom sous
     // lequel les clients la connaissent (leurs appels à ce serveur ne sont alors pas repris des transcriptions).
     agentgateway: { actif: false, fichier: null, nom: 'hub' },
@@ -96,6 +98,17 @@ export function comptesClaudeCode(config, opts = {}) {
   if (!liste.length) return [{ nom: null, home: opts.home, config: opts.config }];
   return liste.map((c) => ({ nom: String(c.nom || path.basename(c.home).replace(/^\.claude-?/, '') || 'defaut'), home: c.home,
     config: c.config || configClaude(c.home) }));
+}
+
+/**
+ * Les comptes Claude Code du site, une seule lecture pour tous (inventaire, audit, règles, copie de service, import,
+ * récolte, rapport d'un sous-agent) : ceux de `comptes_claude_code`, sinon le compte de `inventaire.claude-code` (`home`,
+ * `config`). `journal` : pour lire les transcriptions, où `import.claude-code-transcriptions.home`, posé à la main,
+ * l'emporte ; absent, elles suivent le compte de l'inventaire (posé seul, il laissait l'import lire `~/.claude`).
+ */
+export function comptesDuSite(config, { journal = false } = {}) {
+  const cc = config.inventaire?.['claude-code'] || {}; const propre = journal ? config.import?.['claude-code-transcriptions']?.home : null;
+  return comptesClaudeCode(config, propre ? { home: propre } : { home: cc.home, config: cc.config });
 }
 
 // Répertoires de compte Claude Code présents sur le poste (`~/.claude`, `~/.claude-<nom>`, avec des transcriptions) que

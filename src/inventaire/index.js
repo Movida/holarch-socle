@@ -8,7 +8,7 @@ import docker from './docker.js';
 import claudeDesktop from './claude-desktop.js';
 import { SourceAbsente } from './source.js';
 import { ulid } from '../ulid.js';
-import { comptesClaudeCode, comptesNonLus, profilDuSite } from '../config.js';
+import { comptesDuSite, comptesNonLus, profilDuSite } from '../config.js';
 
 export const ADAPTATEURS = { 'depots-git': depotsGit, 'claude-code': claudeCode, arbre, docker, 'claude-desktop': claudeDesktop };
 
@@ -25,7 +25,7 @@ export async function inventorier(config, { catalogue, journal }) {
     appelsMcp.set(e.data.serveur, u);
   }
   const cc = config.inventaire['claude-code'];
-  const comptes = comptesClaudeCode(config, cc || {});
+  const comptes = comptesDuSite(config);
   const ctx = { site: config.site, depots: [], projets: [], projetDe: () => null, appelsMcp, comptes, profil: profilDuSite(config) };
   const fiches = []; const erreurs = []; const absentes = [];
   // Un compte Claude Code présent sur le poste mais non lu rend l'inventaire et l'import incomplets, sans erreur : le dire.

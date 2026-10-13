@@ -2397,3 +2397,30 @@ test('Projets du site : la vue, le nom, la reprise et le tableau de bord ne pren
   assert.deepEqual([resume(s, ailleurs), /reprise du projet demo/.test(resume(s, ici))], [null, true]);
   assert.deepEqual(s.etat().projets_sales.map((p) => p.name).sort(), ['demo', 'sans-site']);
 });
+
+// Compte Claude Code réglé à deux endroits (risque faible à la clôture ; constat 1 de l'essai du site de travail) :
+// `inventaire.claude-code.home` posé seul, l'import, la récolte et le rapport d'un sous-agent lisaient encore `~/.claude`,
+// défaut de leur propre clé. Une seule lecture des comptes du site ; la clé de l'import, posée à la main, reste lue.
+test('Compte Claude Code : posé à l’inventaire seul, l’import et la récolte le lisent ; la clé de l’import posée à la main l’emporte', async () => {
+  const { chargerConfig, comptesDuSite } = await import('../src/config.js');
+  const compte = path.join(tmp(), '.claude-pro'); const autre = path.join(tmp(), '.claude-autre'); const d = tmp(); const f = path.join(d, 'config.yaml');
+  for (const [home, id] of [[compte, 's1'], [autre, 's2']]) {
+    const t = path.join(home, 'projects', '-ws-demo', `${id}.jsonl`);
+    ecrire(t, [JSON.stringify({ type: 'user', sessionId: id, cwd: '/ws/demo', timestamp: '2026-10-01T10:00:00Z', message: { content: id === 's1' ? 'Toujours répondre en français.' : 'Toujours répondre en français, en phrases courtes.' } }),
+      JSON.stringify({ type: 'assistant', sessionId: id, cwd: '/ws/demo', timestamp: '2026-10-01T10:00:05Z', requestId: 'r', message: { id: 'm', model: 'modele-x', usage: { input_tokens: 1, output_tokens: 2 } } })].join('\n') + '\n');
+    vieillir(t);
+  }
+  // Le défaut `~` vaut un dossier personnel fictif, vide : rien n'est lu du vrai compte.
+  const lire = (texte) => { ecrire(f, texte); const h = process.env.HOME; process.env.HOME = tmp(); try { return chargerConfig(f, 'local'); } finally { process.env.HOME = h; } };
+  const sessions = (config) => {
+    const s = new Socle({ ...config, donnees: tmp() }); s.importer(); s.indexer();
+    const c = s.recolte({ aBlanc: true, regroupeur: () => { throw new Error('rien n’est envoyé'); } }).candidats;
+    return [s.sessions({ jours: 3650 }).map((x) => x.session), c.messages, c.caracteres];
+  };
+  const seul = lire(`site: local\ninventaire:\n  claude-code: { home: ${JSON.stringify(compte)} }\n`);
+  assert.deepEqual(sessions(seul), [['s1'], 1, 30], 'l’import et la récolte lisent le compte de l’inventaire');
+  assert.deepEqual([comptesDuSite(seul), comptesDuSite(seul, { journal: true })].map((c) => c.map((x) => x.home)), [[compte], [compte]]);
+  const deux = lire(`site: local\ninventaire:\n  claude-code: { home: ${JSON.stringify(compte)} }\nimport:\n  claude-code-transcriptions: { home: ${JSON.stringify(autre)} }\n`);
+  assert.deepEqual(sessions(deux), [['s2'], 1, 50], 'la clé de l’import, posée à la main, l’emporte pour le journal');
+  assert.deepEqual(comptesDuSite(deux).map((x) => x.home), [compte], 'l’inventaire garde le sien');
+});

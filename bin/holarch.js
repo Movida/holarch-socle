@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Ligne de commande HOLARCH (étape 1) : inventaire, importer, indexer, etat, voir.
 import { Socle } from '../src/socle.js';
-import { chargerConfig, ecrireConfigExemple, accueil, comptesClaudeCode } from '../src/config.js';
+import { chargerConfig, ecrireConfigExemple, accueil, comptesDuSite } from '../src/config.js';
 import { creerServeur } from '../src/web/serveur.js';
 import { servirStdio } from '../src/mcp/serveur.js';
 import { lancerPont } from '../src/pont.js';
@@ -103,7 +103,7 @@ switch (cmd) {
   case 'rapport': {
     const c = chargerConfig();
     try {
-      const r = rapportSousAgent(comptesClaudeCode(c, c.import?.['claude-code-transcriptions'] || {}).map((x) => x.home), args.find((a) => !a.startsWith('-')));
+      const r = rapportSousAgent(comptesDuSite(c, { journal: true }).map((x) => x.home), args.find((a) => !a.startsWith('-')));
       if (json) afficher(r);
       else console.log(`# ${r.id}${r.description ? ` — ${r.description}` : ''}\n${r.transcription}${r.copies.length ? `\n(copie la plus récente ; ${r.copies.length} plus ancienne(s) : ${r.copies.join(', ')})` : ''}\n\n${r.rapport}`);
     } catch (e) { console.error(`holarch rapport : ${e.message}`); process.exitCode = 1; }
@@ -153,7 +153,7 @@ switch (cmd) {
   case 'service': {
     const config = chargerConfig(); const [action, ref] = args.filter((a) => !a.startsWith('--'));
     // La règle de veille se lit au moment de poser le gardien : illisible, elle se dit sur sa ligne, après le reste.
-    const sv = creerService({ accueil: config.accueil, comptes: comptesClaudeCode(config, config.inventaire['claude-code'] || {}), veille: () => veilleDuCompte(),
+    const sv = creerService({ accueil: config.accueil, comptes: comptesDuSite(config), veille: () => veilleDuCompte(),
       gitleaks: trouverOutil('gitleaks', config.controles?.gitleaks) });
     try {
       if (action === 'poser') { const r = sv.poser(ref); afficher(json ? r : affichage.posee(r)); if (r.points.some((p) => p.etat === 'erreur')) process.exit(1); }
@@ -165,7 +165,7 @@ switch (cmd) {
     const s = socle(); await s.arbreAJour(); s.indexer(); const [action, ...refs] = args.filter((a) => !a.startsWith('--'));
     try {
       if (action === 'appliquer') {
-        const { comptes, projets } = appliquerRegles(s, refs, comptesClaudeCode(s.config, s.config.inventaire['claude-code'] || {}));
+        const { comptes, projets } = appliquerRegles(s, refs, comptesDuSite(s.config));
         // Le gardien de veille suit la règle, comme les crochets ; posé, il n'est pas relancé pour autant. Son erreur
         // (systemctl, règle illisible) se dit sur sa ligne, après ce qui est écrit, et la commande échoue.
         const gardien = creerReveil({ holarch: binaireService(s.config.accueil), accueil: s.config.accueil }).gardien({ veille: () => veilleDuCompte(s), relancer: false });
