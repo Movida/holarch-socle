@@ -2,6 +2,22 @@
 
 ## 2026-10-13
 
+* **Revue des limites, famille Sécurité close** (environ 160 k tokens pour l'agent ; instances neuves en série : 268 k
+  et 319 k, soit 35 k par point) : points 9 à 14 (`dc17bdc` à `0d6d006`) et dix voisins (`cb67eaa` à `b4e9723`), un
+  commit et un test chacun, rouge sur son parent et ses mutants (un mutant vert, dit dans la revue) ; détail dans
+  `revue-limites.md`. 200 tests verts ; copie de service posée (`b4e9723`) ; crochet de commit des six projets réécrit
+  (repli shell lancé comme le contrôle des secrets) ; audit réel : socle conforme, compte à un écart déjà ouvert
+  (osv-scanner 2.7.0 publié). Choix de l'auteur, recommandations suivies, en deux tours : exception `secrets` attendue
+  d'un premier cas ; point 15 (échappement de l'interface : 309 interpolations refusées sur 483) rangé avec les
+  palliatifs moyens ; contexte à préciser quand un illisible côtoie un lisible ; `modele-choisi-sur-classements`
+  approuvée et écrite au compte, `ssh-windows-et-wsl` retirée (profil `e5654da`, propositions de la récolte du
+  2026-10-12 restées non commitées, puis `a75c15b`). Q33 ouverte. Vérifié : `regles appliquer` du 2026-10-13 déjà
+  fait (à blanc, rien à changer). Leçon : déroulé annoncé en cinq temps (9 à 15, six voisins, choix, pose, Gardes
+  muettes ou passation) ; tenus les quatre premiers, le 5 en passation. Ce qui l'a fait dévier : le point 15, arrêté
+  sur mesure ; quatre voisins de plus, vus par la première instance ; les propositions non commitées du profil, deux
+  choix de plus. La demande qui y aurait mené : « Sécurité 9 à 15 et ses voisins, en deux instances en série ; les
+  règles à approuver et les choix des instances soumis au fil ; passation à la fin de la famille ».
+
 * **Revue des limites, famille Sécurité, points 1 à 8** (environ 210 k tokens pour l'agent, 350 k pour l'instance neuve,
   soit 44 k par point) : choix de l'auteur en un tour, recommandations suivies : familles Sécurité, Gardes muettes et
   Chiffres codées, une instance par famille en série ; Veille et outillage, et palliatifs moyens ou forts, plus tard.

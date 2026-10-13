@@ -28,22 +28,34 @@ nommés ; reportés : grille de tarifs datée, CI lue par `gh`, I37, trace d'une
 par famille, en série (fichiers partagés). Restent à soumettre : Veille et outillage (§ 1, quatrième tableau, et lignes
 245, 246, 253), palliatifs moyens ou forts (§ 2 et seconde table).
 
-**Sécurité** : points 1 à 8 faits (`74b352c` à `3d573dc`) : récolte lancée d'un dossier vide (X4), git de gitleaks et
-d'osv-scanner neutralisé (mineur 7), outil non exécutable (mineur 8), `.gitleaks.toml` et liens sous `gitleaks dir`,
-mémoires de la récolte, fragments de secrets au catalogue (X5), inventaire Claude Code d'un dépôt, crochets de
-passation muets. Restent, pour une instance neuve : 9 `O_NOFOLLOW` dans `lireSansLien` ; 10 dossier remplacé entre
-`mkdir` et `open` (`ecrireSansLien`) ; 11 utilisateur de l'image sans `remoteUser` ni `containerUser` (`docker
-inspect`) ; 12 branche « remoteUser inconnu » testée ; 13 `.meta.json` de `transcription.js` ; 14 contexte illisible dit
-« aucun contexte » (`configAvantProjet`) ; 15 contrôle d'échappement de `app.js`. Vus par l'instance, à joindre : repli
-shell du crochet en conteneur sans la configuration gitleaks explicite ni neutralisation (`garde-git.js:29`, trivial) ;
-`osv-scanner.toml` du dépôt, à vérifier puis `--config` explicite (faible) ; `memoires()` de l'inventaire lue sans garde
-(trivial) ; crochets de HOLARCH affichés « node » au catalogue (trivial) ; écart de passation dit 7 jours après le
-retrait des crochets (trivial) ; `claude -p` de la récolte peut lire un `CLAUDE.md` de `/tmp` (dossier créé sous
-l'accueil HOLARCH plutôt que sous `os.tmpdir()`, trivial). À soumettre à l'auteur : aucune exception possible au
-contrôle des secrets hors `--no-verify` (un `.gitleaksignore` du dépôt rend le contrôle indisponible) ; palliatif : une
-exception `secrets` au profil ou au contexte, lue comme celles de `exceptions-hors-du-depot` (faible). Limite
-laissée : un `.gitleaksignore` est dit, pas neutralisé (gitleaks 8.30.1 n'a pas d'option ; palliatif complet : scanner
-un export de l'index, moyen).
+**Sécurité** : famille close le 2026-10-13. Points 1 à 8 (`74b352c` à `3d573dc`) : récolte lancée d'un dossier vide
+(X4), git de gitleaks et d'osv-scanner neutralisé (mineur 7), outil non exécutable (mineur 8), `.gitleaks.toml` et liens
+sous `gitleaks dir`, mémoires de la récolte, fragments de secrets au catalogue (X5), inventaire Claude Code d'un dépôt,
+crochets de passation muets. Points 9 à 14 (`dc17bdc` à `0d6d006`) : `O_NOFOLLOW` à la lecture ; dossier remplacé
+pendant l'ouverture (`ouvrirSansLien`, commune à la lecture et à l'écriture, inodes comparés, troncature après) ;
+utilisateur du conteneur lu par `docker inspect` quand l'étiquette n'en nomme aucun (ordre du CLI 0.89.0) ; branche
+« remoteUser inconnu » testée ; `.meta.json` lu par `lireSansLien` (sans FIFO, borné à 64 Kio) ; contexte illisible dit
+avec sa raison. Voisins (`cb67eaa` à `b4e9723`) : repli shell du crochet lancé comme le contrôle des secrets (même
+neutralisation, configuration par défaut, `.gitleaksignore` refusé) ; `--config /dev/null` pour osv-scanner (un
+`osv-scanner.toml` du dépôt taisait un paquet, essayé hors réseau ; 0 sur le poste) ; `memoires()` gardée ; script
+d'un crochet montré au catalogue au lieu de « node » ; écart de passation dit seulement si le crochet est voulu ;
+regroupement lancé sous l'accueil HOLARCH ; FIFO refusé à l'écriture et à la fin d'une transcription ; trois lecteurs
+par `lireSansLien` bornée ; contexte à préciser quand un illisible côtoie un lisible (choix de l'auteur). Choix de
+l'auteur : exception `secrets` au profil, attendre un premier faux positif (palliatif écrit : environ 20 lignes et un
+test) ; point 15, échappement de l'interface, rangé avec les palliatifs moyens (309 interpolations sur 483 refusées
+par la règle prévue, 106 après les cas sûrs évidents, aucune fuite ; palliatif : gabarit `html` qui échappe par défaut,
+environ 180 gabarits et le test visuel dans le conteneur ; alternative faible et fragile : liste de 14 aides et
+d'environ 25 variables sûres). Limites laissées : `ouvrirSansLien` sans `openat` (un dossier remplacé, remis, puis
+remplacé de nouveau ; ce que l'ouverture crée au bout du lien ; palliatifs : `python3` et `dir_fd`, moyen, ou
+`readlink /proc/self/fd/N`, faible et partiel) ; `.gitleaksignore` dit, pas neutralisé (export de l'index, moyen) ;
+`~/.claude/rules/` peut-être lu par le regroupement (Q33). Défauts voisins vus, palliatif trivial ou faible, pour la
+famille Gardes muettes : `repertoireDe` (`inventaire/claude-code.js:83`) et `debutDeTranscription` (`contexte.js:59`)
+ouvrent en `'r'` (drapeaux de `finDeTranscription`) ; `racineArbre` (`inventaire/arbre.js:69`) sans dépôt
+(`enTete(o, depot)`) ; `poserCrochet` (`garde-git.js:92,101`) lit et écrit sans garde (`lireSansLien`,
+`ecrireSansLien`) ; `verrousVulnerables` (`controles.js:202`, `lireSansLien` bornée pour l'empreinte ; copies privées
+pour osv-scanner, moyen) ; `lireEnTete` du compte bloque sur un FIFO (`O_NONBLOCK` et `fstat`) ; repli shell sous git
+antérieur à 2.26 sans `--show-scope` (repli `--name-only`) ; mutant M10 de `73143ea` vert (repli « ne se lit pas »,
+atteint par une course seulement).
 
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur

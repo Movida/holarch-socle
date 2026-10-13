@@ -1327,8 +1327,9 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
      (`8fa5b37` à `f339d3f`, profil `d21191f`) ; les autres, environ 90, par famille au choix de l'auteur (une question
      par famille : palliatifs triviaux et faibles, recommandations suivies, ou le détail) ; le document se retire une
      fois les choix faits. Le 2026-10-13 : Sécurité, Gardes muettes et Chiffres choisies (recommandations suivies),
-     Sécurité 1 à 8 faits ; suite dans l'ordre : `holarch regles appliquer` (accord de l'auteur), Sécurité 9 à 15, essai
-     du bac à sable une fois `bubblewrap` et `socat` installés, Gardes muettes, Chiffres, puis questions des familles
+     famille Sécurité close (1 à 14 et dix voisins, `74b352c` à `b4e9723` ; 15 rangé avec les palliatifs moyens) ; suite
+     dans l'ordre : essai du bac à sable une fois `bubblewrap` et `socat` installés, Gardes muettes (avec les défauts
+     voisins vus en Sécurité), Chiffres, puis questions des familles
      Veille et outillage, et palliatifs moyens ou forts (détail dans `revue-limites.md`, « Suite du 2026-10-13 »). Non éprouvé par un mutant : `chaines.delete` de l'isolement (limite 5), dont dépend le
      jugement d'une exception sur un projet en échec (palliatif : un test avec une exception `montage-sensible` sur ce
      projet, faible). (3) Limites
