@@ -95,13 +95,14 @@ export function ecrireJson(f, o, { indent = 2, racine = null } = {}) {
 }
 
 /**
- * Chemin d'un outil : réglage explicite, sinon le PATH, sinon ~/.local/bin ; null s'il est absent. Un nom d'outil peut
- * venir d'un réglage de l'arbre : il ne passe jamais par un shell, et ne contient pas de chemin.
+ * Chemin d'un outil : réglage explicite, sinon le PATH, sinon ~/.local/bin ; null s'il est absent ou n'est pas un fichier
+ * exécutable (un réglage qui vise un dossier compris). Un nom d'outil peut venir d'un réglage de l'arbre : il ne passe
+ * jamais par un shell, et ne contient pas de chemin.
  */
 export function trouverOutil(nom, reglage = null) {
-  if (reglage) return fs.existsSync(reglage) ? reglage : null;
-  if (!/^[A-Za-z0-9._+-]+$/.test(String(nom))) return null;
   const executable = (f) => { try { fs.accessSync(f, fs.constants.X_OK); return fs.statSync(f).isFile(); } catch { return false; } };
+  if (reglage) return executable(reglage) ? reglage : null;
+  if (!/^[A-Za-z0-9._+-]+$/.test(String(nom))) return null;
   // Seules les entrées absolues du PATH : un `.` ferait exécuter un binaire du dossier courant (un projet).
   const dossiers = [...(process.env.PATH || '').split(path.delimiter).filter((d) => path.isAbsolute(d)), path.join(os.homedir(), '.local', 'bin')];
   return dossiers.map((d) => path.join(d, nom)).find(executable) || null;
@@ -114,7 +115,7 @@ export function trouverOutil(nom, reglage = null) {
 export const binaireClaude = (config) => trouverOutil('claude', config?.acces_distant?.claude || null);
 /** Ce que dit tout appelant quand `binaireClaude` ne trouve rien : le réglage quand il est posé, sinon où il a cherché. */
 export const claudeIntrouvable = (config) => (config?.acces_distant?.claude
-  ? `claude introuvable : acces_distant.claude (${config.acces_distant.claude}) n'existe pas`
+  ? `claude introuvable : acces_distant.claude (${config.acces_distant.claude}) n'existe pas ou n'est pas un fichier exécutable`
   : 'claude introuvable dans le PATH ni ~/.local/bin (acces_distant.claude pour le préciser)');
 
 /**

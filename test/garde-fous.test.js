@@ -1662,3 +1662,13 @@ test('Mineur 7 : gitleaks avant commit et osv-scanner lancent git sans rien exé
   // Contre-épreuve : le même git, sans la neutralisation, exécute les pièges.
   spawnSync('git', ['-C', d, 'diff', '--staged', '-U0', '.']); assert.notEqual(execute(), '');
 });
+
+test('Mineur 8 : un outil réglé qui n’est pas un fichier exécutable (un dossier, un fichier sans droit d’exécution) n’est pas retenu', async () => {
+  const { trouverOutil, binaireClaude, claudeIntrouvable } = await import('../src/commun.js');
+  const dossier = tmp(); const texte = path.join(tmp(), 'gitleaks'); const outil = path.join(tmp(), 'gitleaks');
+  fs.writeFileSync(texte, '#!/bin/sh\n', { mode: 0o644 }); fs.writeFileSync(outil, '#!/bin/sh\n', { mode: 0o755 });
+  assert.deepEqual([trouverOutil('gitleaks', dossier), trouverOutil('gitleaks', texte), trouverOutil('gitleaks', outil)], [null, null, outil]);
+  const config = { acces_distant: { claude: dossier } };
+  assert.equal(binaireClaude(config), null);
+  assert.match(claudeIntrouvable(config), /n'existe pas ou n'est pas un fichier exécutable/);
+});
