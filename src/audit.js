@@ -11,7 +11,7 @@ import { erreurRecente } from './veille.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { materialiserCompte, materialiserProjet } from './materialisation.js';
 import { ulid } from './ulid.js';
-import { crochetVoulu } from './regles-claude-code.js';
+import { crochetVoulu, passationVoulue } from './regles-claude-code.js';
 import { genererConteneur, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
 
 // Un écart se reconnaît d'un audit à l'autre par son projet, sa règle, son contrôle et sa clé (jamais par son contenu).
@@ -163,11 +163,13 @@ const ecartsPermissions = (m) => (m.permissions.ajoutees || []).map((x) => { con
   return { regle: e.fiche, regle_id: e.id, controle: 'permissions-posees', cle: x, fichier: 'settings.json', message: 'lecture non refusée' }; });
 
 // Les crochets de passation (alerte, reprise) en erreur, gardée datée par eux comme celle de la veille (famille
-// `passation`) : l'avis ou le résumé n'arrivent pas, et rien d'autre ne le dirait. Daté et nommé par son événement ; le
-// message, qui peut citer un chemin, reste dans le fichier.
-function ecartPassation(accueilHolarch) {
+// `passation`) : l'avis ou le résumé n'arrivent pas, et rien d'autre ne le dirait. Dite tant que le crochet de son
+// événement est voulu au compte (`passationVoulue`), comme celle de la veille tant que la veille l'est : un crochet
+// retiré ne laisse pas d'écart une semaine. Daté et nommé par son événement ; le message, qui peut citer un chemin, reste
+// dans le fichier.
+function ecartPassation(accueilHolarch, voulue) {
   const e = erreurRecente(accueilHolarch, 'passation');
-  return e ? [{ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle: 'crochet:passation:erreur', fichier: 'settings.json',
+  return e && voulue[e.evenement] === true ? [{ regle: 'claude_code', regle_id: 'claude_code', controle: 'reglages-poses', cle: 'crochet:passation:erreur', fichier: 'settings.json',
     message: `crochet de passation en erreur le ${heureLocale(e.at)} (${e.evenement}) : l'avis de passation ou le résumé de reprise peuvent ne pas arriver ; détail dans passation-erreur.json de l'accueil HOLARCH` }] : [];
 }
 
@@ -270,7 +272,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
       if (m.reglages.erreur) rc.controles.push({ id: 'reglages-poses', etat: 'indisponible', raison: m.reglages.erreur });
       else rc.ecarts.push(...ecartsReglages(compte.regles, m));
     }
-    if (!incomplet) rc.ecarts.push(...remplacees(compte.regles, memoires), ...ecartPassation(s.config.accueil || accueil()));
+    if (!incomplet) rc.ecarts.push(...remplacees(compte.regles, memoires), ...ecartPassation(s.config.accueil || accueil(), passationVoulue(compte.config || {})));
     for (const c of ['regles-a-jour', 'permissions-posees', 'reglages-poses', 'memoire-remplacee']) if (!rc.controles.some((x) => x.id === c)) faits.add(`|${c}`);
     // Contrôles de portée site (le poste lui-même), une fois, avec les réglages du compte.
     const site = controler(compte, { config: compte.config || {}, reglages: s.config.controles || {}, cache: path.join(s.config.donnees, 'cache'), accueil: s.config.accueil || accueil() }, 'audit', ['blocking', 'verified'], 'site');

@@ -1789,7 +1789,7 @@ test('Crochets de passation : une erreur ne bloque aucun message, mais se garde 
   lancer(reprise);
   // L'audit la dit au compte (réglages posés), datée et nommée par son événement, sans chemin ; plus d'une semaine, plus.
   const r = tmp(); const ecrireF = (x, t) => { fs.mkdirSync(path.dirname(x), { recursive: true }); fs.writeFileSync(x, t); };
-  ecrireF(path.join(r, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n---\n');
+  ecrireF(path.join(r, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  claude_code: { passation: { seuil_tokens: 150000, reprise: true } }\n---\n');
   ecrireF(path.join(r, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
   const s = new Socle({ site: 'local', profil: r, donnees: tmp(), accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
   s.catalogue.remplacer(inventaireArbre({}, { depots: [r], projetDe: () => null })); s.indexer();
@@ -2010,4 +2010,26 @@ test('Crochets au catalogue : le script lancé par un interpréteur se montre à
     ...['Stop', 'StopFailure', 'PermissionRequest', 'Elicitation', 'SessionEnd'].map((e) => `${e} : command : veille-noter.js`),
     ...['prevenir.py', 'outil.mjs', 'bash', 'node', 'garde.js'].map((x) => `Notification : command : ${x}`)]);
   assert.doesNotMatch(JSON.stringify(vus), /7fQ2|valeur/);
+});
+
+// Écart de passation, voisin de la famille « Sécurité et intégrité » (suite de la garde datée de l'erreur) : l'erreur
+// d'un crochet de passation se dit tant que le crochet de son événement est voulu au compte (`claude_code.passation`),
+// comme celle de la veille tant que la veille l'est ; retiré, il ne laisse pas d'écart jusqu'à sept jours.
+test('Écart de passation : l’erreur d’un crochet ne se dit que si ce crochet est voulu au compte', async () => {
+  const { noterErreur } = await import('../src/veille.js');
+  const r = tmp(); const accueil = tmp(); const ecrireF = (x, t) => { fs.mkdirSync(path.dirname(x), { recursive: true }); fs.writeFileSync(x, t); };
+  ecrireF(path.join(r, 'arbre', 'rules.yaml'), '- id: rappel\n  statement: Un rappel.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  const s = new Socle({ site: 'local', profil: r, donnees: tmp(), accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const dite = (passation, evenement) => {
+    ecrireF(path.join(r, 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\n${passation ? `config:\n  claude_code: { passation: ${passation} }\n` : ''}---\n`);
+    s.catalogue.remplacer(inventaireArbre({}, { depots: [r], projetDe: () => null })); s.indexer();
+    noterErreur(accueil, evenement, new Error('en panne'), { famille: 'passation' });
+    return s.audit().cibles.find((c) => c.projet === null).ecarts.filter((e) => e.cle === 'crochet:passation:erreur').map((e) => e.message.match(/\((\w+)\)/)[1]);
+  };
+  assert.deepEqual(dite(null, 'SessionStart'), [], 'aucun crochet de passation voulu');
+  assert.deepEqual(dite('{ reprise: true }', 'SessionStart'), ['SessionStart']);
+  assert.deepEqual(dite('{ reprise: true }', 'UserPromptSubmit'), [], 'l’alerte n’est plus voulue');
+  assert.deepEqual(dite('{ seuil_tokens: 150000 }', 'UserPromptSubmit'), ['UserPromptSubmit']);
+  assert.deepEqual(dite('{ seuil_tokens: 0, reprise: false }', 'UserPromptSubmit'), []);
+  assert.deepEqual(dite('{ seuil_tokens: 150000 }', 'constructor'), [], 'un événement inconnu');
 });

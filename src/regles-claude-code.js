@@ -85,6 +85,16 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
 }
 
 /**
+ * Les crochets de passation que veut la configuration effective du compte (`claude_code.passation`), par l'événement qui
+ * les lance : l'avis au seuil de tokens (`UserPromptSubmit`), le résumé de reprise (`SessionStart`). Une seule lecture,
+ * pour les poser et pour dire leur erreur (module audit).
+ */
+export function passationVoulue(config = {}) {
+  const p = config.claude_code?.passation || {};
+  return { UserPromptSubmit: +p.seuil_tokens > 0, SessionStart: Boolean(p.reprise) };
+}
+
+/**
  * Réglages de Claude Code voulus par la configuration effective du compte (section `claude_code`, registre de
  * configuration) : des clés de `settings.json` et, pour la passation, deux crochets qui appellent `holarch contexte`.
  * `veille` (une règle applicable désigne le contrôle `veille-retardee`) : un crochet par événement qui change l'état
@@ -96,13 +106,13 @@ export function appliquerPermissions(home, entrees, { ecrire = true } = {}) {
  * HOLARCH injoignable (autre montage, conteneur), l'erreur ne s'écrit pas non plus : l'accueil n'y est pas.
  */
 export function reglagesVoulus(config = {}, { node = process.execPath, holarch, accueil, veille = false }) {
-  const cc = config.claude_code || {}; const p = cc.passation || {};
+  const cc = config.claude_code || {}; const p = cc.passation || {}; const voulue = passationVoulue(config);
   const lancer = (bin, args) => `HOLARCH_HOME=${shell(accueil)} ${shell(node)} --no-warnings ${shell(bin)} ${args.join(' ')} 2>/dev/null`;
   const passation = (ev, ...args) => `{ ${lancer(holarch, args)} || ${repliShell(accueil, 'passation', ev, 'holarch contexte')}; } 2>/dev/null || true`;
   const noter = (ev) => `${DISTANTE_SHELL} && { ${lancer(path.join(path.dirname(holarch), 'veille-noter.js'), [ev])} || ${repliShell(accueil, 'veille', ev, 'point d’entrée de veille')}; } 2>/dev/null || true`;
   const crochets = [];
-  if (+p.seuil_tokens > 0) crochets.push({ evenement: 'UserPromptSubmit', command: passation('UserPromptSubmit', 'contexte', 'alerte', '--seuil', String(+p.seuil_tokens)) });
-  if (p.reprise) crochets.push({ evenement: 'SessionStart', matcher: 'startup|clear|compact', command: passation('SessionStart', 'contexte', 'debut') });
+  if (voulue.UserPromptSubmit) crochets.push({ evenement: 'UserPromptSubmit', command: passation('UserPromptSubmit', 'contexte', 'alerte', '--seuil', String(+p.seuil_tokens)) });
+  if (voulue.SessionStart) crochets.push({ evenement: 'SessionStart', matcher: 'startup|clear|compact', command: passation('SessionStart', 'contexte', 'debut') });
   if (veille) for (const ev of EVENEMENTS_VEILLE) crochets.push({ evenement: ev, command: noter(ev) });
   return { cles: { ...(cc.reglages || {}) }, crochets };
 }
