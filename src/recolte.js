@@ -182,14 +182,20 @@ export function regleProposee(g, at) {
     harvest: { at, sessions: g.sessions, ...(g.projets.length && { projects: g.projets }), first: g.premiere?.slice(0, 10) ?? null, last: g.derniere?.slice(0, 10) ?? null, refs: g.sources } };
 }
 
+// Un `rules.yaml` : mesure du 2026-10-13, 11 fichiers sous l'accueil de l'auteur, le plus gros de 19 584 octets.
+const REGLES_MAX = 1024 * 1024;
+
 /**
  * Ajoute des règles à la fin d'un `rules.yaml` sans réécrire ce qui y est (commentaires compris) ; un `id` déjà présent
  * n'est pas repris. `racine` : le dépôt du fichier, où rien ne se lit ni ne s'écrit à travers un lien symbolique
  * (`cheminSansLien`, `ecrireSansLien`) : l'erreur d'un fichier de l'hôte lu par un lien en citerait une ligne.
  */
 export function ajouterRegles(racine, fichier, regles) {
-  const p = cheminSansLien(racine, path.relative(racine, fichier));
-  const avant = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+  const relatif = path.relative(racine, fichier); const p = cheminSansLien(racine, relatif);
+  // Lu par `lireSansLien` (un lien posé après la vérification, un FIFO qui bloquerait) ; ce qui ne se lit pas n'est pas
+  // pris pour un fichier vide, que l'ajout écraserait.
+  const avant = fs.existsSync(p) ? lireSansLien(racine, relatif, { max: REGLES_MAX }) : '';
+  if (avant === null) throw new Error(`${relatif} ne se lit pas (pas un fichier, ou plus de ${REGLES_MAX} octets) : rien n’est ajouté`);
   const pris = new Set([].concat(YAML.parse(avant) || []).map((x) => x?.id));
   const neuves = regles.filter((x) => !pris.has(x.id));
   // La provenance d'une règle tient sur une ligne, comme `approved` : elle se lit sans masquer la règle.

@@ -2092,3 +2092,55 @@ test('finDeTranscription : ni un lien ni un FIFO à la place d’une transcripti
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(JSON.parse(r.stdout), [[], [], ['', '{"b":2}', '{"a":1}']]);
 });
+
+// Lecteurs qui vérifiaient puis lisaient, voisins de la famille « Sécurité et intégrité » : même course, même FIFO. Ils
+// lisent par `lireSansLien`, avec la borne de chacun ; un FIFO bloquait le processus entier, d'où un processus à part,
+// borné dans le temps.
+const enfant = (script) => {
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué'); assert.equal(r.status, 0, r.stderr);
+  return JSON.parse(r.stdout);
+};
+const srcDe = (f) => JSON.stringify(new URL(`../src/${f}`, import.meta.url).href);
+
+test('Données personnelles à l’audit : un FIFO à la place d’un fichier suivi ne bloque pas, la borne tient, un lien se dit', () => {
+  const d = tmp(); const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' });
+  g('init', '-q');
+  for (const [f, t] of [['a.md', 'note du Projet Zeta\n'], ['fifo.md', 'x\n'], ['lien.md', 'x\n'], ['gros.md', `Projet Zeta ${'x'.repeat(200)}\n`]]) fs.writeFileSync(path.join(d, f), t);
+  g('add', '.'); g('commit', '-qm', 'x');
+  const hote = path.join(tmp(), 'hote.md'); fs.writeFileSync(hote, 'Projet Zeta de l’hôte\n');
+  fs.rmSync(path.join(d, 'fifo.md')); assert.equal(spawnSync('mkfifo', [path.join(d, 'fifo.md')]).status, 0);
+  fs.rmSync(path.join(d, 'lien.md')); fs.symlinkSync(hote, path.join(d, 'lien.md'));
+  const r = enfant(`import { executer } from ${srcDe('controles.js')};
+    const r = executer('donnees-personnelles', { depot: ${JSON.stringify(d)}, termes: ['Projet Zeta'], reglages: { taille_max_mo: 100 / 1024 / 1024 } }, 'audit');
+    console.log(JSON.stringify({ fichiers: r.ecarts.map((e) => e.fichier), indisponible: r.indisponible }));`);
+  assert.deepEqual(r, { fichiers: ['a.md'], indisponible: 'lien.md est un lien symbolique : rien n’est lu' }, 'ni le FIFO, ni le fichier au-delà de la borne');
+});
+
+test('Règles ajoutées par la récolte : un rules.yaml qui ne se lit pas (FIFO, au-delà de la borne) n’est ni bloquant ni écrasé', () => {
+  const d = tmp(); fs.mkdirSync(path.join(d, 'arbre'));
+  const fifo = path.join(d, 'arbre', 'fifo.yaml'); assert.equal(spawnSync('mkfifo', [fifo]).status, 0);
+  const gros = path.join(d, 'arbre', 'gros.yaml'); const texte = `# ${'x'.repeat(1024 * 1024)}\n`; fs.writeFileSync(gros, texte);
+  fs.writeFileSync(path.join(d, 'arbre', 'rules.yaml'), '- id: deja\n  statement: Déjà là.\n');
+  const r = enfant(`import { ajouterRegles } from ${srcDe('recolte.js')};
+    const regle = { id: 'neuve', statement: 'Une règle neuve.', status: 'draft' };
+    const essai = (f) => { try { return ajouterRegles(${JSON.stringify(d)}, ${JSON.stringify(d)} + '/arbre/' + f, [regle]); } catch (e) { return e.message; } };
+    console.log(JSON.stringify(['fifo.yaml', 'gros.yaml', 'rules.yaml'].map(essai)));`);
+  assert.deepEqual(r, ['arbre/fifo.yaml ne se lit pas (pas un fichier, ou plus de 1048576 octets) : rien n’est ajouté',
+    'arbre/gros.yaml ne se lit pas (pas un fichier, ou plus de 1048576 octets) : rien n’est ajouté', { ecrites: ['neuve'], deja: [] }]);
+  assert.deepEqual([fs.lstatSync(fifo).isFIFO(), fs.readFileSync(gros, 'utf8') === texte], [true, true], 'rien n’est écrasé');
+  assert.match(fs.readFileSync(path.join(d, 'arbre', 'rules.yaml'), 'utf8'), /^- id: deja\n {2}statement: Déjà là\.\n- id: neuve\n/);
+});
+
+test('En-tête d’un fichier d’un dépôt : un FIFO ne bloque pas, la borne tient, et l’erreur dit pourquoi le fichier est illisible', () => {
+  const d = tmp(); fs.mkdirSync(path.join(d, 'arbre'));
+  assert.equal(spawnSync('mkfifo', [path.join(d, 'arbre', 'fifo.md')]).status, 0);
+  fs.writeFileSync(path.join(d, 'arbre', 'gros.md'), `---\ntype: note\n---\n${'x'.repeat(4 * 1024 * 1024)}`);
+  fs.writeFileSync(path.join(d, 'arbre', 'ferme.md'), '---\ntype: note\n---\n', { mode: 0o000 });
+  fs.writeFileSync(path.join(d, 'arbre', 'sain.md'), '---\ntype: note\ntitle: Sain\n---\n');
+  const r = enfant(`import { lireEnTete } from ${srcDe('inventaire/outils.js')};
+    console.log(JSON.stringify(['fifo', 'gros', 'ferme', 'absent', 'sain'].map((n) => lireEnTete(${JSON.stringify(d)} + '/arbre/' + n + '.md', ${JSON.stringify(d)}))));`);
+  const ferme = process.getuid?.() === 0 ? { entete: { type: 'note' }, erreur: null } : { entete: {}, erreur: 'fichier illisible : EACCES' };
+  assert.deepEqual(r, [{ entete: {}, erreur: 'fichier illisible : pas un fichier' }, { entete: {}, erreur: 'fichier illisible : plus de 4194304 octets' }, ferme,
+    { entete: {}, erreur: 'fichier illisible : ENOENT' }, { entete: { type: 'note', title: 'Sain' }, erreur: null }]);
+});

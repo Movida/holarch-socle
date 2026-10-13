@@ -93,9 +93,10 @@ function donneesPersonnelles(ctx, moment) {
     for (const f of listeZ(r).filter((x) => !exclu.has(x))) {
       if (trouve(f)) trouves.push({ fichier: f, ligne: null });
       // Un fichier suivi (ou un dossier de son chemin) qui est un lien symbolique : il ferait lire un fichier de l'hôte.
-      let p; try { p = cheminSansLien(ctx.depot, f, 'lu'); } catch (e) { nonLus.push(e.message); continue; }
-      let texte; try { if (fs.statSync(p).size > reglage(ctx, 'taille_max_mo', 2) * 1024 * 1024) continue; texte = fs.readFileSync(p, 'utf8'); } catch { continue; }
-      if (texte.includes('\0')) continue;
+      // Lu par `lireSansLien` : ni un lien posé après la vérification, ni ce qui n'est pas un fichier (un FIFO bloquerait
+      // l'audit), ni au-delà de la borne.
+      let texte; try { texte = lireSansLien(ctx.depot, f, { max: reglage(ctx, 'taille_max_mo', 2) * 1024 * 1024 }); } catch (e) { nonLus.push(e.message); continue; }
+      if (texte === null || texte.includes('\0')) continue;
       texte.split('\n').forEach((l, i) => { if (trouve(l)) trouves.push({ fichier: f, ligne: i + 1 }); });
     }
   }
