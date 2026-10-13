@@ -2075,3 +2075,20 @@ test('ecrireSansLien : un FIFO à la place du fichier lève une erreur sans bloq
   assert.deepEqual(JSON.parse(r.stdout), { sans: 'x/seul.fifo n’est pas un fichier : rien n’est écrit', avec: 'lu.fifo n’est pas un fichier : rien n’est écrit', lu: 0, fichier: 'écrit' });
   assert.deepEqual([fs.lstatSync(path.join(d, 'x', 'seul.fifo')).isFIFO(), fs.lstatSync(path.join(d, 'lu.fifo')).isFIFO(), fs.readFileSync(path.join(d, 'x', 'f.txt'), 'utf8')], [true, true, 'contenu\n']);
 });
+
+// Fin d'une transcription, voisin de la famille « Sécurité et intégrité » : le conteneur écrit les transcriptions de son
+// projet. Un lien posé à la place de celle listée n'est pas suivi (rien de l'hôte ne se lit), un FIFO ne bloque pas la
+// lecture (veille, passation, rapport d'un sous-agent) : ni l'un ni l'autre ne rend de ligne ; un fichier se lit.
+test('finDeTranscription : ni un lien ni un FIFO à la place d’une transcription ne se lisent, et rien ne bloque', () => {
+  const d = tmp(); const hote = path.join(tmp(), 'hote.jsonl'); fs.writeFileSync(hote, '{"secret":"de l’hôte"}\n');
+  fs.symlinkSync(hote, path.join(d, 'lien.jsonl')); assert.equal(spawnSync('mkfifo', [path.join(d, 'fifo.jsonl')]).status, 0);
+  fs.writeFileSync(path.join(d, 'vraie.jsonl'), '{"a":1}\n{"b":2}\n');
+  // Dans un processus à part, borné dans le temps : un FIFO ouvert en lecture bloquerait le processus entier.
+  const src = JSON.stringify(new URL('../src/transcription.js', import.meta.url).href);
+  const script = `import { finDeTranscription } from ${src};
+    console.log(JSON.stringify(['lien', 'fifo', 'vraie'].map((n) => finDeTranscription(${JSON.stringify(d)} + '/' + n + '.jsonl', 1024))));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), [[], [], ['', '{"b":2}', '{"a":1}']]);
+});

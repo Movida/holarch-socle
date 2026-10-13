@@ -41,12 +41,18 @@ export function transcriptions(home) {
   return out;
 }
 
-/** Lignes JSON de la fin d'une transcription (les `octets` derniers), de la plus récente à la plus ancienne. */
+/**
+ * Lignes JSON de la fin d'une transcription (les `octets` derniers), de la plus récente à la plus ancienne. Le conteneur
+ * écrit les transcriptions de son projet : un lien posé à la place de celle listée n'est pas suivi (`O_NOFOLLOW`), un FIFO
+ * ne bloque pas (`O_NONBLOCK`) ; ce qui n'est pas un fichier ne rend aucune ligne.
+ */
 export function finDeTranscription(transcription, octets) {
   let fd;
   try {
-    fd = fs.openSync(transcription, 'r');
-    const taille = fs.fstatSync(fd).size; const n = Math.min(taille, octets);
+    const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fs.constants;
+    fd = fs.openSync(transcription, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
+    const s = fs.fstatSync(fd); if (!s.isFile()) return [];
+    const taille = s.size; const n = Math.min(taille, octets);
     const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, taille - n);
     return b.toString('utf8').split('\n').reverse();
   } catch { return []; } finally { if (fd !== undefined) fs.closeSync(fd); }
