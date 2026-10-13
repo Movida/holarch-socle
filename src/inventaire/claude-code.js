@@ -7,6 +7,7 @@ import path from 'node:path';
 import { enTete, lireJson, liste, mtimeIso, premiereLigne, slug, urlSure, jeton } from './outils.js';
 import { comptesClaudeCode } from '../config.js';
 import { lienProjet } from '../projets.js';
+import { cheminSansLien, lireSansLien } from '../commun.js';
 
 // Un élément d'aucun projet n'a pas de lien `project` (contrat fiche 0.4.0) : `links` vide disparaît.
 const fiche = (kind, cle, name, { links, ...extra }, source = 'inventaire:claude-code') => ({
@@ -14,19 +15,26 @@ const fiche = (kind, cle, name, { links, ...extra }, source = 'inventaire:claude
   provenance: { source }, classification: 'internal', ...extra, ...(links && Object.keys(links).length && { links }),
 });
 
-function skills(dossier, portee, nom, site, p = null) {
+// Dans un dépôt, que le conteneur écrit, rien ne se lit à travers un lien symbolique (`cheminSansLien` depuis sa racine,
+// comme toute lecture dont le contenu sort) : un lien ferait entrer au catalogue un fichier ou un dossier de l'hôte (un
+// `.claude` vers le `~/.claude` de l'hôte, par exemple). `depot` null : le compte, que seul l'hôte écrit.
+const sansLien = (depot, f) => { if (!depot) return true; try { cheminSansLien(depot, path.relative(depot, f), 'lu'); return true; } catch { return false; } };
+const jsonDe = (depot, f) => { try { return JSON.parse(lireSansLien(depot, path.relative(depot, f))); } catch { return null; } };
+
+function skills(dossier, portee, nom, site, p = null, depot = null) {
   return liste(dossier, (d) => d.isDirectory()).flatMap((d) => {
     const f = path.join(dossier, d.name, 'SKILL.md');
-    if (!fs.existsSync(f)) return [];
+    if (!fs.existsSync(f) || !sansLien(depot, f)) return [];
     const h = enTete(f);
     return [fiche('skill', `${portee}/${nom || 'utilisateur'}/${d.name}`, h.name || d.name, {
       description: premiereLigne(h.description, 240), location: f, site, links: lienProjet(p), attributes: { portee, modifie: mtimeIso(f) } })];
   });
 }
 
-function agents(dossier, portee, nom, site, p = null) {
-  return liste(dossier, (d) => d.isFile() && d.name.endsWith('.md')).map((d) => {
-    const f = path.join(dossier, d.name); const h = enTete(f);
+function agents(dossier, portee, nom, site, p = null, depot = null) {
+  return liste(dossier, (d) => d.isFile() && d.name.endsWith('.md')).flatMap((d) => {
+    const f = path.join(dossier, d.name); if (!sansLien(depot, f)) return [];
+    const h = enTete(f);
     return fiche('agent_profile', `${portee}/${nom || 'utilisateur'}/${d.name}`, h.name || d.name.replace(/\.md$/, ''), {
       description: premiereLigne(h.description, 240), location: f, site, links: lienProjet(p), attributes: { portee, modele: h.model || null, outils: h.tools || null } });
   });
@@ -56,9 +64,10 @@ export function mcp(serveurs, fichier, portee, nom, site, source, p = null) {
     location: fichier, site, links: lienProjet(p), attributes: { portee, transport: s.type || (s.url ? 'http' : 'stdio') } }, source));
 }
 
-function consignes(f, portee, nom, site, p = null) {
-  if (!fs.existsSync(f)) return [];
-  const lignes = fs.readFileSync(f, 'utf8').split('\n').length;
+function consignes(f, portee, nom, site, p = null, depot = null) {
+  let t; try { t = depot ? lireSansLien(depot, path.relative(depot, f)) : fs.readFileSync(f, 'utf8'); } catch { return []; }
+  if (t === null) return [];
+  const lignes = t.split('\n').length;
   return [fiche('instructions', `${portee}/${nom || 'utilisateur'}/${path.basename(f)}`, `${path.basename(f)}${nom ? ` · ${nom}` : ''}`, {
     description: `${lignes} lignes`, location: f, site, links: lienProjet(p), attributes: { portee, lignes, modifie: mtimeIso(f) } })];
 }
@@ -132,12 +141,12 @@ export default function inventaireClaudeCode(options, ctx) {
   for (const c of ctx.comptes || comptesClaudeCode({}, options)) out.push(...compte(c, site, projetDe));
   for (const depot of ctx.depots || []) {
     const nom = path.basename(depot); const p = projetDe(depot);
-    out.push(...skills(path.join(depot, '.claude', 'skills'), 'projet', nom, site, p));
-    out.push(...agents(path.join(depot, '.claude', 'agents'), 'projet', nom, site, p));
+    out.push(...skills(path.join(depot, '.claude', 'skills'), 'projet', nom, site, p, depot));
+    out.push(...agents(path.join(depot, '.claude', 'agents'), 'projet', nom, site, p, depot));
     const s = path.join(depot, '.claude', 'settings.json');
-    out.push(...hooks(lireJson(s), s, 'projet', nom, site, p));
-    out.push(...mcp(lireJson(path.join(depot, '.mcp.json'))?.mcpServers, path.join(depot, '.mcp.json'), 'projet', nom, site, undefined, p));
-    out.push(...consignes(path.join(depot, 'CLAUDE.md'), 'projet', nom, site, p));
+    out.push(...hooks(jsonDe(depot, s), s, 'projet', nom, site, p));
+    out.push(...mcp(jsonDe(depot, path.join(depot, '.mcp.json'))?.mcpServers, path.join(depot, '.mcp.json'), 'projet', nom, site, undefined, p));
+    out.push(...consignes(path.join(depot, 'CLAUDE.md'), 'projet', nom, site, p, depot));
   }
   const appels = ctx.appelsMcp || new Map();
   const vus = new Set();

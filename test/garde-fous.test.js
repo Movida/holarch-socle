@@ -1742,3 +1742,26 @@ test('X5 : ni un jeton dans le chemin d’une URL de serveur, ni une valeur ou u
   // Un jeton : long, avec des chiffres, varié ; pas un nom d'événement, ni une suite répétée, ni un mot court.
   assert.deepEqual(['7fQ2kD9xW4mZ8vB3', 'UserPromptSubmit', 'a1a1a1a1a1a1a1a1', '7fQ2kD9xW4mZ8vB'].map(jeton), [true, false, false, false]);
 });
+
+test('Inventaire Claude Code d’un dépôt : rien ne s’y lit à travers un lien symbolique (skills, agents, réglages, MCP, CLAUDE.md)', async () => {
+  const { default: inventaireClaudeCode } = await import('../src/inventaire/claude-code.js');
+  const hote = tmp(); const a = tmp(); const b = tmp();
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  // Ce que l'hôte garde : ses skills, agents, crochets, serveurs MCP et consignes.
+  ecrireF(path.join(hote, '.claude', 'skills', 'h', 'SKILL.md'), '---\nname: hote\ndescription: HÔTE\n---\n');
+  ecrireF(path.join(hote, '.claude', 'agents', 'h.md'), '---\nname: hote\ndescription: HÔTE\n---\n');
+  ecrireF(path.join(hote, '.claude', 'settings.json'), JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: '/hote/crochet.sh' }] }] } }));
+  ecrireF(path.join(hote, 'mcp.json'), JSON.stringify({ mcpServers: { hote: { command: '/hote/serveur' } } }));
+  ecrireF(path.join(hote, 'CLAUDE.md'), 'HÔTE\n');
+  // Ce qu'un conteneur peut poser dans le dépôt qu'il écrit : `.claude` entier en lien (a), ou un fichier, un dossier (b).
+  fs.symlinkSync(path.join(hote, '.claude'), path.join(a, '.claude'));
+  fs.symlinkSync(path.join(hote, 'mcp.json'), path.join(a, '.mcp.json')); fs.symlinkSync(path.join(hote, 'CLAUDE.md'), path.join(a, 'CLAUDE.md'));
+  ecrireF(path.join(b, '.claude', 'skills', 'vraie', 'SKILL.md'), '---\nname: vraie\ndescription: Une vraie skill.\n---\n');
+  fs.mkdirSync(path.join(b, '.claude', 'skills', 's')); fs.symlinkSync(path.join(hote, '.claude', 'skills', 'h', 'SKILL.md'), path.join(b, '.claude', 'skills', 's', 'SKILL.md'));
+  fs.symlinkSync(path.join(hote, '.claude', 'agents'), path.join(b, '.claude', 'agents'));
+  fs.symlinkSync(path.join(hote, '.claude', 'settings.json'), path.join(b, '.claude', 'settings.json'));
+  // Le compte, que seul l'hôte écrit, se lit comme avant.
+  const home = tmp(); ecrireF(path.join(home, 'skills', 'u', 'SKILL.md'), '---\nname: du-compte\ndescription: Du compte.\n---\n'); ecrireF(path.join(home, 'CLAUDE.md'), 'a\nb\n');
+  const fiches = inventaireClaudeCode({}, { site: 'local', comptes: [{ nom: null, home }], depots: [a, b] });
+  assert.deepEqual(fiches.map((f) => [f.kind, f.name, f.description]), [['skill', 'du-compte', 'Du compte.'], ['instructions', 'CLAUDE.md', '3 lignes'], ['skill', 'vraie', 'Une vraie skill.']]);
+});
