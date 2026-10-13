@@ -218,12 +218,17 @@ export const NEUTRE = {
  * lance git lui-même dans un dépôt (gitleaks avant commit) le reçoit dans son environnement, que git hérite.
  */
 export function neutralisation(depot, env) {
-  const r = spawnSync('git', ['-C', depot, 'config', '--show-scope', '-z', '--get-regexp', NEUTRE.pilotes], { encoding: 'utf8', timeout: 10e3 });
-  const pilotes = new Set();
-  const champs = (r.stdout || '').split('\0'); // portée, puis clé et valeur séparées par une fin de ligne
-  for (let i = 0; i + 1 < champs.length; i += 2) {
-    const m = champs[i + 1].split('\n')[0].match(/^(filter|diff)\.(.+)\.[^.]+$/);
-    if (m && (champs[i] === 'local' || champs[i] === 'worktree')) pilotes.add(`${m[1]}.${m[2]}`);
+  const lister = (...o) => spawnSync('git', ['-C', depot, 'config', ...o, '-z', '--get-regexp', NEUTRE.pilotes], { encoding: 'utf8', timeout: 10e3 });
+  const pilotes = new Set(); const ajouter = (cle) => { const m = cle.match(/^(filter|diff)\.(.+)\.[^.]+$/); if (m) pilotes.add(`${m[1]}.${m[2]}`); };
+  // Clé et valeur séparées par une fin de ligne, chaque entrée finie par un octet nul ; `--show-scope` la précède de sa portée.
+  const r = lister('--show-scope');
+  if (r.status === 0 || r.status === 1) {
+    const champs = (r.stdout || '').split('\0');
+    for (let i = 0; i + 1 < champs.length; i += 2) if (champs[i] === 'local' || champs[i] === 'worktree') ajouter(champs[i + 1].split('\n')[0]);
+  } else {
+    // Un git antérieur à 2.26 (celui d'un conteneur) n'a pas `--show-scope` (code 129) : comme au repli du crochet de
+    // commit, tous les pilotes déclarés, de toute portée, sont neutralisés (ceux du compte aussi), plutôt qu'aucun.
+    for (const x of (lister().stdout || '').split('\0')) if (x) ajouter(x.split('\n')[0]);
   }
   const cles = [...NEUTRE.cles];
   for (const p of pilotes) cles.push(...NEUTRE[p.startsWith('filter.') ? 'filter' : 'diff'].map(([v, x]) => [`${p}.${v}`, x]));

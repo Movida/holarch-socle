@@ -2472,3 +2472,29 @@ test('ecrireJson : un renommage en échec ne laisse pas le fichier temporaire, e
   assert.throws(() => ecrireJson(path.join(d, 'etat.json'), { a: 1 }, { racine: d }), { code: 'EISDIR' });
   assert.deepEqual(fs.readdirSync(d), ['etat.json'], 'avec une racine aussi');
 });
+
+// `neutralisation()` en JS sous un git antérieur à 2.26 (voisin vu par les lots 1 à 3, suite de eb3317c) : `git config
+// --show-scope` y est inconnu (code 129), la liste des pilotes revenait vide et une lecture de l'inventaire ou de l'audit
+// exécutait ceux du dépôt. Même repli que le crochet : tous les pilotes déclarés, de toute portée, sont neutralisés.
+test('neutralisation sous git antérieur à 2.26 : sans --show-scope, les pilotes du dépôt sont neutralisés quand même', () => {
+  const d = tmp(); const temoin = path.join(tmp(), 'execute'); const ancien = tmp();
+  const vrai = spawnSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  fs.writeFileSync(path.join(ancien, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = --show-scope ] && { echo "error: unknown option show-scope" >&2; exit 129; }; done\nexec '${vrai}' "$@"\n`, { mode: 0o755 });
+  const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', ...a], { encoding: 'utf8' });
+  g('init', '-q');
+  const piege = path.join(d, '.git', 'piege.sh'); fs.writeFileSync(piege, `#!/bin/sh\necho "$0 $*" >> '${temoin}'\ncat "$@" 2>/dev/null\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(d, '.gitattributes'), '* diff=piege\n'); fs.writeFileSync(path.join(d, 'conf.txt'), 'a\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  for (const [k, v] of [['diff.piege.textconv', piege], ['filter.a b=c.clean', piege]]) g('config', k, v);
+  fs.writeFileSync(path.join(d, 'conf.txt'), 'b\n');
+  const compte = path.join(tmp(), 'gitconfig'); fs.writeFileSync(compte, '[diff "compte"]\n\ttextconv = cat\n');
+  const script = `import { neutralisation, gitLu } from ${JSON.stringify(new URL('../src/commun.js', import.meta.url).href)};
+    const e = neutralisation(${JSON.stringify(d)}, process.env); const diff = gitLu(${JSON.stringify(d)}, ['diff', '--', 'conf.txt']);
+    console.log(JSON.stringify({ cles: Object.entries(e).filter(([k]) => k.startsWith('GIT_CONFIG_KEY_')).map(([, v]) => v), diff: diff.status }));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 30e3, env: { ...process.env, PATH: `${ancien}:/usr/bin:/bin`, GIT_CONFIG_GLOBAL: compte, GIT_CONFIG_NOSYSTEM: '1' } });
+  assert.equal(r.status, 0, r.stderr);
+  const { cles, diff } = JSON.parse(r.stdout);
+  assert.equal(diff, 0);
+  assert.equal(fs.existsSync(temoin) ? fs.readFileSync(temoin, 'utf8') : '', '', 'rien de la configuration du dépôt ne s’exécute');
+  assert.deepEqual(['diff.piege.textconv', 'filter.a b=c.clean', 'diff.compte.textconv'].filter((x) => !cles.includes(x)), [], cles.join(' | '));
+});
