@@ -2444,3 +2444,19 @@ test('Seuil de passation : sans seuil au profil, aucune session lourde ; réglé
   for (const x of ['0', '-1']) assert.deepEqual(contexte(`{ seuil_tokens: ${x} }`), [null, 0, 200000], 'un seuil qui ne pose pas d’alerte : aucun non plus');
   assert.deepEqual(contexte('{ seuil_tokens: 100000 }'), [100000, 1, 200000]);
 });
+
+// Lecture de l'amont et de `git config` recopiées (risque faible à la clôture) : la création refaisait la lecture de
+// l'amont que fait `etatDepot`, et la liste privée, le contrôle et la pose de l'identité lisaient chacun une clé git à
+// leur façon. Une seule lecture de chaque : `etatDepot` et `configGit`, partagées ; aucune copie ne reste.
+test('Lecture de l’amont et d’une clé git : une seule fonction de chaque, aucune copie dans les modules', () => gitIsole(async () => {
+  const { configGit } = await import('../src/commun.js');
+  const { d, g } = depotGit(); g('config', '--unset', 'user.email');
+  assert.deepEqual([configGit(d, 'user.name', '--local'), configGit(d, 'user.email', '--local'), configGit(d, 'user.email'), configGit(d, 'user.name')],
+    ['Alice Exemple', '', 'compte@exemple.invalid', 'Alice Exemple'], 'une portée, ou la valeur effective');
+  const src = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'src');
+  const copies = fs.readdirSync(src, { recursive: true }).filter((f) => f.endsWith('.js')).flatMap((f) => {
+    const t = fs.readFileSync(path.join(src, f), 'utf8');
+    return [[/'config',[^\]\n]*'--get'/, 'commun.js'], [/'--symbolic-full-name', '@\{upstream\}'/, path.join('inventaire', 'depots-git.js')]].filter(([m, seul]) => f !== seul && m.test(t)).map(([m]) => `${f} : ${m}`);
+  });
+  assert.deepEqual(copies, []);
+}, '[user]\n\tname = Compte Fictif\n\temail = compte@exemple.invalid\n'));

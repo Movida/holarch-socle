@@ -237,6 +237,12 @@ export function gitLu(depot, args, o = {}) {
   return git(depot, ['--no-optional-locks', ...a], { ...o, env: neutralisation(depot, o.env || process.env) });
 }
 
+/**
+ * Valeur d'une clé de la configuration git d'un dépôt (`options` : `--local`… pour une seule portée), '' si elle n'est
+ * pas posée. Seule lecture d'une clé : par `gitLu`, rien de ce que la configuration du dépôt déclare ne s'exécute.
+ */
+export const configGit = (depot, cle, ...options) => (gitLu(depot, ['config', ...options, '--get', cle]).stdout || '').trim();
+
 /** Fichier de configuration de Claude Code d'un compte : `~/.claude.json` pour `~/.claude`, sinon `<home>/.claude.json`. */
 export const configClaude = (home) => (path.resolve(home) === path.join(os.homedir(), '.claude') ? path.join(os.homedir(), '.claude.json') : path.join(home, '.claude.json'));
 

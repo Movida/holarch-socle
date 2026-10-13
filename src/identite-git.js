@@ -3,7 +3,7 @@
 // posé est noté dans le même réglage local (`holarch.identite`) : un réglage local posé à la main n'est jamais remplacé
 // ni retiré, il est dit. La note restée sans réglage local dit un retrait à la main : l'identité n'est pas reposée (dit
 // aussi) tant que la note reste ; la retirer (`NOTE_IDENTITE`) la fait reposer.
-import { git } from './commun.js';
+import { git, configGit } from './commun.js';
 import { memeIdentite } from './controles.js';
 
 export const NOTE_IDENTITE = 'holarch.identite';
@@ -16,7 +16,7 @@ const texte = (i) => `${i.nom} <${i.email}>`;
  */
 export function poserIdentite(depot, voulue, { ecrire = true } = {}) {
   if (git(depot, ['rev-parse', '--git-dir']).status !== 0) return { etat: 'hors-git' };
-  const lire = (cle, ...o) => (git(depot, ['config', ...o, '--get', cle]).stdout || '').trim();
+  const lire = (cle, ...o) => configGit(depot, cle, ...o);
   const locale = { nom: lire('user.name', '--local'), email: lire('user.email', '--local') };
   const effective = { nom: lire('user.name'), email: lire('user.email') };
   const note = lire(NOTE_IDENTITE, '--local');

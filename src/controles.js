@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
-import { gitLu, neutralisation, trouverOutil, lireJson, ecrireJson, dedans, lireSansLien, hacher } from './commun.js';
+import { gitLu, configGit, neutralisation, trouverOutil, lireJson, ecrireJson, dedans, lireSansLien, hacher } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
@@ -29,10 +29,9 @@ const reglage = (ctx, cle, defaut) => ctx.reglages?.[cle] ?? defaut;
  * lui-même n'en fait jamais partie.
  */
 export function listePrivee({ depot, config = {}, couches = [], comptes = [], projetsPrives = [], nomProjet = null }) {
-  const lireGit = (cle) => (gitLu(depot, ['config', '--get', cle]).stdout || '').trim();
   const valeur = (x) => String(typeof x === 'object' && x ? x.terme ?? '' : x ?? '').trim();
   const reglage = config.donnees_personnelles || {};
-  const termes = [lireGit('user.name'), lireGit('user.email'), os.userInfo().username, os.homedir(),
+  const termes = [configGit(depot, 'user.name'), configGit(depot, 'user.email'), os.userInfo().username, os.homedir(),
     ...comptes.map((c) => c.home).filter(Boolean), ...projetsPrives, ...[].concat(reglage.termes || []).map(valeur)];
   const exclus = new Set([nomProjet, ...exceptions(couches, 'donnees_personnelles', 'terme', { depot }).map((x) => x.valeur)].filter(Boolean).map((t) => t.toLowerCase()));
   return [...new Set(termes.map((t) => t.trim()).filter((t) => t.length >= 3 && !exclus.has(t.toLowerCase())))];
@@ -297,8 +296,7 @@ function identiteDeCommit(ctx, moment) {
     if (r.status !== 0 || !m) return { indisponible: 'auteur du commit illisible' };
     vue = { nom: m[1].trim(), email: m[2].trim() }; ou = 'auteur du commit';
   } else {
-    const lire = (cle) => (gitLu(ctx.depot, ['config', '--get', cle]).stdout || '').trim();
-    vue = { nom: lire('user.name'), email: lire('user.email') }; ou = 'identité git du dépôt';
+    vue = { nom: configGit(ctx.depot, 'user.name'), email: configGit(ctx.depot, 'user.email') }; ou = 'identité git du dépôt';
   }
   if (memeIdentite(vue, voulue)) return { ecarts: [] };
   const quoi = [vue.nom !== voulue.nom && 'nom', vue.email.toLowerCase() !== voulue.email.toLowerCase() && 'adresse'].filter(Boolean).join(' et ');
