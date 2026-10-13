@@ -26,7 +26,7 @@ function skills(dossier, portee, nom, site, p = null, depot = null) {
   return liste(dossier, (d) => d.isDirectory()).flatMap((d) => {
     const f = path.join(dossier, d.name, 'SKILL.md');
     if (!fs.existsSync(f) || !sansLien(depot, f)) return [];
-    const h = enTete(f);
+    const h = enTete(f, depot);
     return [fiche('skill', `${portee}/${nom || 'utilisateur'}/${d.name}`, h.name || d.name, {
       description: premiereLigne(h.description, 240), location: f, site, links: lienProjet(p), attributes: { portee, modifie: mtimeIso(f) } })];
   });
@@ -35,7 +35,7 @@ function skills(dossier, portee, nom, site, p = null, depot = null) {
 function agents(dossier, portee, nom, site, p = null, depot = null) {
   return liste(dossier, (d) => d.isFile() && d.name.endsWith('.md')).flatMap((d) => {
     const f = path.join(dossier, d.name); if (!sansLien(depot, f)) return [];
-    const h = enTete(f);
+    const h = enTete(f, depot);
     return fiche('agent_profile', `${portee}/${nom || 'utilisateur'}/${d.name}`, h.name || d.name.replace(/\.md$/, ''), {
       description: premiereLigne(h.description, 240), location: f, site, links: lienProjet(p), attributes: { portee, modele: h.model || null, outils: h.tools || null } });
   });

@@ -2,16 +2,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
-import { gitLu, lireSansLien } from '../commun.js';
+import { gitLu, lireSansLien, lireFichier } from '../commun.js';
 
 // Un fichier à en-tête (nœud d'arbre, skill, agent, mémoire) : mesure du 2026-10-13, 416 fichiers sous l'accueil de
 // l'auteur, le plus gros de 152 430 octets (une spécification d'étape).
 const EN_TETE_MAX = 4 * 1024 * 1024;
 
-// Ce que `lireSansLien` ne dit pas quand il ne rend rien : le code de l'erreur, sinon ce qu'est le fichier.
-function illisible(p) {
+// Ce que `lireSansLien` ou `lireFichier` (`suivre` : un lien se suit) ne dit pas quand il ne rend rien : le code de
+// l'erreur, sinon ce qu'est le fichier.
+function illisible(p, suivre) {
   try {
-    const s = fs.lstatSync(p);
+    const s = suivre ? fs.statSync(p) : fs.lstatSync(p);
     if (!s.isFile()) return 'pas un fichier';
     if (s.size > EN_TETE_MAX) return `plus de ${EN_TETE_MAX} octets`;
     fs.accessSync(p, fs.constants.R_OK); return 'ne se lit pas';
@@ -24,12 +25,12 @@ function illisible(p) {
  * `indices` lus ligne à ligne (`type`, `id`) : ce que le nœud pouvait être. `depot` : le dépôt du fichier, d'où il se lit
  * par `lireSansLien` : un lien symbolique sur son chemin n'est pas suivi, même posé après la vérification, ni ce qui
  * n'est pas un fichier (un FIFO bloquerait l'inventaire), ni au-delà de EN_TETE_MAX ; le fichier est dit illisible,
- * avec la raison. Ne lève jamais.
+ * avec la raison. Sans `depot` (le compte), un lien se suit (`lireFichier`), le reste est pareil. Ne lève jamais.
  */
 export function lireEnTete(fichier, depot = null) {
   let t;
-  try { t = depot ? lireSansLien(depot, path.relative(depot, fichier), { max: EN_TETE_MAX }) : fs.readFileSync(fichier, 'utf8'); } catch (e) { return { entete: {}, erreur: `fichier illisible : ${e.code || e.message}` }; }
-  if (t === null) return { entete: {}, erreur: `fichier illisible : ${illisible(fichier)}` };
+  try { t = depot ? lireSansLien(depot, path.relative(depot, fichier), { max: EN_TETE_MAX }) : lireFichier(fichier, { max: EN_TETE_MAX }); } catch (e) { return { entete: {}, erreur: `fichier illisible : ${e.code || e.message}` }; }
+  if (t === null) return { entete: {}, erreur: `fichier illisible : ${illisible(fichier, !depot)}` };
   const m = t.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!m) return { entete: {}, erreur: null };
   try {

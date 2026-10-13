@@ -2403,3 +2403,27 @@ test('debutDeTranscription : ni un lien ni un FIFO à la place d’une transcrip
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(JSON.parse(r.stdout), ['', '', '{"cwd":"/ws/demo"}\n', ['', '{"b":2}'], []], 'le début de la vraie, ses 19 premiers octets ; la fin inchangée');
 });
+
+// `lireEnTete` du compte, voisin de la famille Gardes muettes : sans dépôt, l'en-tête se lisait par `readFileSync`, qui
+// bloque sur un FIFO (une skill du compte, ou d'un dépôt dont la skill se lisait sans son dépôt). Le compte se lit
+// désormais comme un dépôt (fichier seulement, sans attendre, borné), un lien y restant suivi : il est celui de l'auteur.
+test('lireEnTete : un FIFO à la place d’une skill du compte ou d’un dépôt ne bloque pas l’inventaire ; un lien du compte se suit', () => {
+  const home = tmp(); const depot = tmp(); const ailleurs = tmp();
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const fifo = (f) => { fs.mkdirSync(path.dirname(f), { recursive: true }); assert.equal(spawnSync('mkfifo', [f]).status, 0); };
+  ecrireF(path.join(ailleurs, 'SKILL.md'), '---\nname: du-lien\ndescription: Rangée ailleurs par l’auteur.\n---\n');
+  fs.mkdirSync(path.join(home, 'skills', 'liee'), { recursive: true }); fs.symlinkSync(path.join(ailleurs, 'SKILL.md'), path.join(home, 'skills', 'liee', 'SKILL.md'));
+  fifo(path.join(home, 'skills', 'fifo', 'SKILL.md')); fifo(path.join(depot, '.claude', 'skills', 'fifo-projet', 'SKILL.md'));
+  ecrireF(path.join(depot, '.claude', 'skills', 'vraie', 'SKILL.md'), '---\nname: vraie\ndescription: Une vraie skill.\n---\n');
+  fs.writeFileSync(path.join(ailleurs, 'enorme.md'), ''); fs.truncateSync(path.join(ailleurs, 'enorme.md'), 4 * 2 ** 20 + 1); fs.symlinkSync(path.join(ailleurs, 'enorme.md'), path.join(home, 'enorme.md'));
+  // Dans un processus à part, borné dans le temps : un FIFO ouvert en lecture bloquerait le processus entier.
+  const src = (f) => JSON.stringify(new URL(`../src/${f}`, import.meta.url).href);
+  const script = `import inventaire from ${src('inventaire/claude-code.js')}; import { lireEnTete } from ${src('inventaire/outils.js')};
+    const fiches = inventaire({}, { site: 'local', comptes: [{ nom: null, home: ${JSON.stringify(home)} }], depots: [${JSON.stringify(depot)}] });
+    console.log(JSON.stringify({ fiches: fiches.map((f) => [f.name, f.description]).sort(), erreurs: ['skills/fifo/SKILL.md', 'enorme.md'].map((f) => lireEnTete(${JSON.stringify(home)} + '/' + f).erreur) }));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), { fiches: [['du-lien', 'Rangée ailleurs par l’auteur.'], ['fifo', null], ['fifo-projet', null], ['vraie', 'Une vraie skill.']],
+    erreurs: ['fichier illisible : pas un fichier', 'fichier illisible : plus de 4194304 octets'] });
+});

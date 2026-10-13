@@ -59,6 +59,19 @@ function ouvrirSansLien(racine, relatif, drapeaux, verbe, mode) {
 export function lireSansLien(racine, relatif, { max = Infinity } = {}) {
   const { O_RDONLY, O_NONBLOCK } = fs.constants;
   let fd; try { fd = ouvrirSansLien(racine, relatif, O_RDONLY | O_NONBLOCK, 'lu'); } catch (e) { if (e.code) return null; throw e; }
+  return lireOuvert(fd, max);
+}
+
+/**
+ * Le texte d'un fichier hors d'un dépôt (le compte, que seul l'hôte écrit : un lien y est celui de l'auteur, et se suit),
+ * null s'il manque ou ne se lit pas ; comme `lireSansLien`, ce qui n'est pas un fichier (un FIFO, ouvert sans attendre
+ * d'écrivain) ou dépasse `max` octets ne se lit pas.
+ */
+export function lireFichier(f, { max = Infinity } = {}) {
+  let fd; try { fd = fs.openSync(f, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK); } catch { return null; }
+  return lireOuvert(fd, max);
+}
+function lireOuvert(fd, max) {
   try { const s = fs.fstatSync(fd); return s.isFile() && s.size <= max ? fs.readFileSync(fd, 'utf8') : null; } catch { return null; } finally { fs.closeSync(fd); }
 }
 
