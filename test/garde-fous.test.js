@@ -1639,3 +1639,26 @@ test('X4 : la récolte lance claude -p d’un dossier vide à elle, retiré ensu
   assert.deepEqual(reste, [], 'un dossier vide, sans réglages');
   assert.equal(fs.existsSync(dossier), false, 'retiré après le regroupement');
 });
+
+test('Mineur 7 : gitleaks avant commit et osv-scanner lancent git sans rien exécuter de la configuration du dépôt', () => {
+  const d = tmp(); const temoin = path.join(tmp(), 'execute');
+  const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' });
+  g('init', '-q');
+  const piege = path.join(d, '.git', 'piege.sh');
+  fs.writeFileSync(piege, `#!/bin/sh\necho "$0 $*" >> '${temoin}'\ncat "$@" 2>/dev/null\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(d, '.gitattributes'), '* diff=piege\n'); fs.writeFileSync(path.join(d, 'package-lock.json'), '{}\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  g('config', 'core.fsmonitor', piege); g('config', 'diff.piege.textconv', piege);
+  fs.writeFileSync(path.join(d, 'package-lock.json'), '{"a":1}\n'); g('-c', 'core.fsmonitor=false', 'add', 'package-lock.json');
+  // Des outils fictifs qui lancent git dans le dépôt comme gitleaks avant commit (essayé en 8.30.1 : `git diff` des
+  // changements indexés) ; leur git hérite de leur environnement.
+  const outil = (nom, sortie) => { const f = path.join(tmp(), nom);
+    fs.writeFileSync(f, `#!/bin/sh\ngit -C '${d}' diff --staged -U0 . > /dev/null 2>&1\ngit -C '${d}' status > /dev/null 2>&1\necho '${sortie}'\n`, { mode: 0o755 }); return f; };
+  const execute = () => (fs.existsSync(temoin) ? fs.readFileSync(temoin, 'utf8') : '');
+  assert.deepEqual(executer('secrets', { depot: d, gitleaks: outil('gitleaks', '[]') }, 'avant-commit'), { ecarts: [] });
+  assert.equal(execute(), '', 'gitleaks');
+  assert.deepEqual(executer('dependances-vulnerables', { depot: d, osv: outil('osv-scanner', '{"results":[]}'), cache: null, config: {} }, 'audit'), { ecarts: [] });
+  assert.equal(execute(), '', 'osv-scanner');
+  // Contre-épreuve : le même git, sans la neutralisation, exécute les pièges.
+  spawnSync('git', ['-C', d, 'diff', '--staged', '-U0', '.']); assert.notEqual(execute(), '');
+});

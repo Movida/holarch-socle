@@ -8,7 +8,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { parse as parseJsonc, parseTree, findNodeAtLocation } from 'jsonc-parser';
-import { gitLu, trouverOutil, lireJson, ecrireJson, dedans, cheminSansLien, lireSansLien } from './commun.js';
+import { gitLu, neutralisation, trouverOutil, lireJson, ecrireJson, dedans, cheminSansLien, lireSansLien } from './commun.js';
 import { etatDepot } from './inventaire/depots-git.js';
 import { mecanisme, etatGardien } from './veille.js';
 import { etatVeille, accesDistants, GARDIEN_ILLISIBLE } from './distant.js';
@@ -108,8 +108,14 @@ function donneesPersonnelles(ctx, moment) {
 
 export { trouverOutil } from './commun.js';
 
-export function gitleaks(bin, args) {
-  const r = spawnSync(bin, [...args, '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+/**
+ * gitleaks, sortie JSON. `depot` : le dépôt où il lance git lui-même (`git --pre-commit` ; essayé en 8.30.1, le
+ * `core.fsmonitor` et les pilotes de diff du dépôt s'y exécutaient) : rien de ce que déclare sa configuration ne s'exécute
+ * (`neutralisation`, comme `gitLu`), git héritant de l'environnement de gitleaks.
+ */
+export function gitleaks(bin, args, { depot = null } = {}) {
+  const r = spawnSync(bin, [...args, '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: depot ? neutralisation(depot, process.env) : process.env });
   // 0 : rien trouvé ; 1 : des fuites, listées en JSON. Tout le reste est une panne, jamais un « rien trouvé ».
   if (r.status === 0 || r.status === 1) {
     try { const l = JSON.parse(r.stdout || (r.status === 0 ? '[]' : '')); if (Array.isArray(l) && (r.status === 0 || l.length)) return { trouves: l }; } catch { /* sortie illisible */ }
@@ -120,7 +126,7 @@ export function gitleaks(bin, args) {
 function secrets(ctx, moment) {
   if (!ctx.gitleaks) return { indisponible: 'gitleaks absent (réglage controles.gitleaks, PATH ou ~/.local/bin)' };
   let r; let base = '';
-  if (moment === 'avant-commit') r = gitleaks(ctx.gitleaks, ['git', '--pre-commit', '--staged', ctx.depot]);
+  if (moment === 'avant-commit') r = gitleaks(ctx.gitleaks, ['git', '--pre-commit', '--staged', ctx.depot], { depot: ctx.depot });
   else {
     // Le contenu suivi au dernier commit, exporté : ni les fichiers ignorés, ni l'historique. Un dépôt que git ne lit
     // pas (dossier sans dépôt, dépôt abîmé, git absent) n'est pas contrôlé ; seul un dépôt sans commit n'a rien à lire.
@@ -175,7 +181,10 @@ function verrousVulnerables(ctx, verrous) {
   const seuil = +(ctx.config?.dependances?.seuil_cvss ?? 7);
   const empreinte = hacher(seuil, ...verrous.map((f) => `${f}:${fs.readFileSync(path.join(ctx.depot, f)).length}:${hacher(fs.readFileSync(path.join(ctx.depot, f), 'utf8'))}`));
   return garde(ctx, `osv-${hacher(ctx.depot)}`, empreinte, () => {
-    const o = spawnSync(ctx.osv, ['scan', 'source', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'], { cwd: ctx.depot, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: reglage(ctx, 'delai_osv_s', 300) * 1e3 });
+    // osv-scanner 2.6.0 lit le dépôt par une bibliothèque, sans lancer git (essayé) ; un git qu'il lancerait ne ferait rien
+    // exécuter de la configuration du dépôt (`neutralisation`), comme celui de gitleaks.
+    const o = spawnSync(ctx.osv, ['scan', 'source', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'],
+      { cwd: ctx.depot, env: neutralisation(ctx.depot, process.env), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: reglage(ctx, 'delai_osv_s', 300) * 1e3 });
     if (o.status === 128) return { ecarts: [] };
     let d; try { if (o.status === 0 || o.status === 1) d = JSON.parse(o.stdout); } catch { /* sortie illisible */ }
     if (!d) return { indisponible: `osv-scanner en échec : ${(o.stderr || o.error?.message || `code ${o.status}`).trim().split('\n').at(-1)}` };

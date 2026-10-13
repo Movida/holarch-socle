@@ -132,9 +132,10 @@ export function git(depot, args, o = {}) {
  * vérification des signatures (qu'un `export-subst` d'`archive` appelle), tout transport (`GIT_ALLOW_PROTOCOL` réduit à un protocole qui n'existe pas :
  * un clone partiel irait chercher un objet manquant par son `uploadpack` ou son `sshCommand`), et chaque pilote qu'elle déclare (`filter.<x>` vidé, `diff.<x>.textconv` remplacé par `cat`, qui ne
  * change rien : une valeur vide ferait lancer un programme vide). Passé par `GIT_CONFIG_COUNT`, qui garde un nom de
- * pilote contenant `=` (`-c` le couperait). Les pilotes du compte (git-lfs installé normalement) restent.
+ * pilote contenant `=` (`-c` le couperait). Les pilotes du compte (git-lfs installé normalement) restent. Un outil qui
+ * lance git lui-même dans un dépôt (gitleaks avant commit) le reçoit dans son environnement, que git hérite.
  */
-function neutralisation(depot, env) {
+export function neutralisation(depot, env) {
   const r = spawnSync('git', ['-C', depot, 'config', '--show-scope', '-z', '--get-regexp', '^(filter|diff)\\..+\\.'], { encoding: 'utf8', timeout: 10e3 });
   const pilotes = new Set();
   const champs = (r.stdout || '').split('\0'); // portée, puis clé et valeur séparées par une fin de ligne
