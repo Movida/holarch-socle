@@ -60,10 +60,12 @@ export class Socle {
 
   // Nœuds et règles pour une décision immédiate (garde avant commit) : ceux du catalogue, ou, si un arbre a changé depuis,
   // relus des fichiers, en mémoire. Ni git ni écriture : la garde tourne dans un crochet de git, où `GIT_INDEX_FILE` fausserait
-  // la lecture des autres dépôts par un inventaire complet.
+  // la lecture des autres dépôts par un inventaire complet. Ce qui est rendu vient du catalogue dont la date a décidé, pas
+  // de l'index, qui peut dater d'avant lui (reconstruit après l'inventaire) ; sans inventaire de l'arbre, de l'index.
   arbreFrais() {
     const a = this.#arbreChange();
-    if (!a?.change) return [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
+    if (!a) return [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
+    if (!a.change) return a.fiches.filter((f) => f.kind === 'node' || f.kind === 'rule');
     return inventaireArbre(a.options, { depots: [...a.depots], profil: this.profil(), projetDe: localiserProjet(projetsDe(a.fiches.filter((f) => f.kind === 'project'))) });
   }
 

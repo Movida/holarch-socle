@@ -11,7 +11,8 @@ export class Catalogue {
     this.site = site;
   }
 
-  remplacer(fiches) {
+  // `at` : la date de l'instantané, le début de l'inventaire qui le produit (maintenant par défaut).
+  remplacer(fiches, { at = new Date().toISOString() } = {}) {
     const valides = []; const refusees = []; const doublons = [];
     // Une fiche de même identifiant n'est gardée qu'une fois ; venue d'ailleurs, elle se dit (`doublons`) : deux éléments
     // qui prennent le même identifiant ne s'effacent pas l'un l'autre en silence.
@@ -28,7 +29,7 @@ export class Catalogue {
     const lu = lireJson(fichier, null);
     const illisible = fs.existsSync(fichier) && !Array.isArray(lu?.fiches);
     const precedent = illisible ? valides : lu?.fiches || [];
-    ecrireJson(fichier, { site: this.site, at: new Date().toISOString(), fiches: valides }, { indent: 1 });
+    ecrireJson(fichier, { site: this.site, at, fiches: valides }, { indent: 1 });
     // Un élément qui change d'emplacement garde son identifiant : c'est un déplacement, pas une disparition suivie d'une
     // création. Un identifiant qui disparaît pendant qu'un autre apparaît au même emplacement, pour le même kind **et sous
     // le même nom**, est le même élément ré-identifié (migration d'un schéma d'identifiants). Les deux deviennent

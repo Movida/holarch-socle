@@ -13,6 +13,9 @@ import { comptesClaudeCode, comptesNonLus, profilDuSite } from '../config.js';
 export const ADAPTATEURS = { 'depots-git': depotsGit, 'claude-code': claudeCode, arbre, docker, 'claude-desktop': claudeDesktop };
 
 export async function inventorier(config, { catalogue, journal }) {
+  // L'instantané est daté du début de l'inventaire : un fichier modifié pendant qu'il tourne, après sa lecture, est plus
+  // récent que le catalogue, et une lecture qui compare les dates le relit (`arbreFrais`).
+  const debut = new Date().toISOString();
   // Usage des serveurs MCP, tiré des appels au journal : les adaptateurs le portent sur les fiches des connecteurs.
   const appelsMcp = new Map();
   for (const e of journal.lire()) {
@@ -32,7 +35,7 @@ export async function inventorier(config, { catalogue, journal }) {
     if (!opts || opts.actif === false) continue;
     try { fiches.push(...await adaptateur(opts, ctx)); } catch (e) { (e instanceof SourceAbsente ? absentes : erreurs).push(`${nom} : ${e.message}`); }
   }
-  const r = catalogue.remplacer(fiches);
+  const r = catalogue.remplacer(fiches, { at: debut });
   erreurs.push(...r.doublons.map((x) => `catalogue : fiche en double écartée, ${x.id} (gardée : ${x.garde ?? 'sans emplacement'} ; écartée : ${x.ecarte ?? 'sans emplacement'})`));
   const maintenant = Date.now(); const at = new Date(maintenant).toISOString();
   const ev = (kind, subject) => ({ id: ulid(maintenant), at, kind, actor: 'system:inventaire', subject, data: {}, classification: 'internal' });

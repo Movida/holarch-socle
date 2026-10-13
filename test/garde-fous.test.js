@@ -2344,3 +2344,30 @@ test('C4 : la garde tire la liste privée de l’arbre relu, comme les règles',
   declarer(['holarch:project:vitrine']); plusTard(contexte, 3); plusTard(publics, 3);
   assert.deepEqual(s.garde({ depot: d }).refus, []);
 });
+
+// C5 : le catalogue était daté de la fin de l'inventaire, et `arbreFrais` rendait l'index quand la date disait le
+// catalogue à jour. Une règle écrite pendant l'inventaire, après la lecture de son fichier, restait invisible de la garde
+// jusqu'à l'inventaire suivant ; un catalogue refait avant l'index aussi. Daté du début, et rendu depuis le catalogue.
+test('C5 : la garde voit une règle écrite pendant l’inventaire, et le catalogue plutôt qu’un index plus ancien', async () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const regle = (id) => `- id: ${id}\n  statement: Règle ${id}.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n`;
+  const attendre = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  const profil = path.join(tmp(), 'profil'); const accueil = tmp(); const regles = path.join(profil, 'arbre', 'rules.yaml');
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(regles, regle('a'));
+  const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [profil] } } });
+  const ids = () => regleDuCompte(s.arbreFrais(), { profil }).regles.map((e) => e.id).sort();
+  // L'auteur ajoute une règle pendant l'inventaire, juste après que l'inventaire a lu le fichier.
+  const ouvrir = fs.openSync; const fermer = fs.closeSync; let lu = null; let ecrit = false;
+  fs.openSync = (p, ...a) => { const fd = ouvrir(p, ...a); if (!ecrit && p === regles) lu = fd; return fd; };
+  fs.closeSync = (fd) => { fermer(fd); if (fd === lu && !ecrit) { ecrit = true; attendre(10); fs.writeFileSync(regles, regle('a') + regle('b')); attendre(20); } };
+  try { await s.inventaire(); } finally { fs.openSync = ouvrir; fs.closeSync = fermer; }
+  s.indexer();
+  assert.ok(ecrit, 'le fichier des règles a été lu par l’inventaire');
+  assert.deepEqual(ids(), ['a', 'b'], 'la règle écrite pendant l’inventaire vaut tout de suite');
+  // Un catalogue refait sans que l'index le soit (inventaire en cours de rafraîchissement) : ce qu'il dit vaut.
+  ecrireF(regles, regle('a') + regle('b') + regle('c'));
+  const avant = new Date(Date.now() - 60e3); fs.utimesSync(regles, avant, avant);
+  s.catalogue.remplacer(inventaireArbre({ depots: [profil] }, { profil, projetDe: () => null }));
+  assert.deepEqual(ids(), ['a', 'b', 'c'], 'le catalogue à jour, pas l’index d’avant lui');
+});
