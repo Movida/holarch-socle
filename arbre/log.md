@@ -6,8 +6,9 @@
   et 319 k, soit 35 k par point) : points 9 à 14 (`dc17bdc` à `0d6d006`) et dix voisins (`cb67eaa` à `b4e9723`), un
   commit et un test chacun, rouge sur son parent et ses mutants (un mutant vert, dit dans la revue) ; détail dans
   `revue-limites.md`. 200 tests verts ; copie de service posée (`b4e9723`) ; crochet de commit des six projets réécrit
-  (repli shell lancé comme le contrôle des secrets) ; audit réel : socle conforme, compte à un écart déjà ouvert
-  (osv-scanner 2.7.0 publié). Choix de l'auteur, recommandations suivies, en deux tours : exception `secrets` attendue
+  (repli shell lancé comme le contrôle des secrets) ; audit réel : socle et compte conformes, après osv-scanner passé
+  de 2.6.0 à 2.7.0 (binaire de la publication, empreinte SHA256 vérifiée, l'ancien gardé en `~/.local/bin/osv-scanner.2.6.0`).
+  `bubblewrap` et `socat` : `sudo` demande un mot de passe, installation par l'auteur. Choix de l'auteur, recommandations suivies, en deux tours : exception `secrets` attendue
   d'un premier cas ; point 15 (échappement de l'interface : 309 interpolations refusées sur 483) rangé avec les
   palliatifs moyens ; contexte à préciser quand un illisible côtoie un lisible ; `modele-choisi-sur-classements`
   approuvée et écrite au compte, `ssh-windows-et-wsl` retirée (profil `e5654da`, propositions de la récolte du
