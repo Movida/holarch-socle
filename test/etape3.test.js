@@ -984,7 +984,7 @@ test('création de projet : étapes faites puis, rejouées, déjà là ; gestes 
       if (args[0] === 'exec' && c?.cle) return { status: 0, stdout: `${c.cle} devcontainer deploy key — alice/${NOM}\n` };
       return { status: 1, stdout: '', stderr: `cat: ${args.at(-1)}: No such file or directory` };
     };
-    const distant = { liste: () => actifs, activer: (id) => { actifs.push({ projet: id }); return { unite: 'holarch-distant-neuf.service' }; } };
+    const distant = { liste: () => actifs, activer: (id) => { actifs.push({ projet: id, actif: true }); return { unite: 'holarch-distant-neuf.service' }; } };
     const outils = { gh, docker, distant, urlDepot: (o, n) => path.join(github, o, n) };
     const etats = (x) => Object.fromEntries(x.etapes.map((e) => [e.etape, e.etat]));
 
@@ -1893,4 +1893,23 @@ test('R1 : rejouée, la création dit les commits non poussés au lieu de « git
   assert.equal(git(nu, 'rev-parse', 'main'), envoye, 'rien n’est envoyé');
   git(d, 'push', '-q');
   assert.equal(etats(await creer()).github, 'deja');
+}));
+
+// R2 : rejouée, la création disait « accès distant : service actif » dès que l'unité existait, arrêtée comprise. Elle lit
+// l'état (`actif`, que rend `liste`) ; un service arrêté est rallumé, à blanc il est dit à rallumer.
+test('R2 : rejouée, la création ne dit l’accès distant déjà là que s’il est actif ; arrêté, elle le rallume', () => gitIsole(async () => {
+  const { s } = await bancCreation({ creation: { etapes: { github: false, conteneur: false, distant: true } } });
+  const poses = []; const activations = [];
+  const distant = { liste: () => poses, activer: (id) => {
+    activations.push(id); const p = poses.find((x) => x.projet === id);
+    if (p) p.actif = true; else poses.push({ nom: 'neuf', chemin: null, projet: id, actif: true });
+    return { unite: 'holarch-distant-neuf.service' };
+  } };
+  const etape = async (aBlanc = false) => { const e = (await creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc }, { distant })).etapes.find((x) => x.etape === 'distant'); return [e.etat, e.detail]; };
+  assert.deepEqual(await etape(), ['faite', 'service holarch-distant-neuf.service']);
+  assert.deepEqual(await etape(), ['deja', 'service actif']);
+  poses[0].actif = false;
+  assert.deepEqual([await etape(true), activations.length], [['a-faire', 'service neuf arrêté : à rallumer'], 1], 'à blanc, rien n’est rallumé');
+  assert.deepEqual([await etape(), activations.length], [['faite', 'service holarch-distant-neuf.service rallumé (il était arrêté)'], 2]);
+  assert.deepEqual(await etape(), ['deja', 'service actif']);
 }));

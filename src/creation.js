@@ -362,14 +362,16 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     }
   }
 
-  // 8. Accès distant par projet.
+  // 8. Accès distant par projet. Un service posé mais arrêté (en échec, arrêté, pose interrompue) n'est pas « déjà là » :
+  // il est reposé et rallumé, comme le ferait `distant activer`.
   if (!cfg.etapes.distant) noter('distant', 'desactivee', 'creation.etapes.distant');
   else {
     try {
       const d = distant || creerDistant(socle.config);
-      if (d.liste().some((x) => x.projet === projet.id || x.chemin === dossier)) noter('distant', 'deja', 'service actif');
-      else if (aBlanc) noter('distant', 'a-faire', 'service Remote Control du projet');
-      else { const a = d.activer(projet.id); noter('distant', 'faite', `service ${a.unite}`); }
+      const pose = d.liste().find((x) => x.projet === projet.id || x.chemin === dossier);
+      if (pose?.actif) noter('distant', 'deja', 'service actif');
+      else if (aBlanc) noter('distant', 'a-faire', pose ? `service ${pose.nom} arrêté : à rallumer` : 'service Remote Control du projet');
+      else { const a = d.activer(projet.id); noter('distant', 'faite', pose ? `service ${a.unite} rallumé (il était arrêté)` : `service ${a.unite}`); }
     } catch (e) { noter('distant', 'echec', e.message); }
   }
 
