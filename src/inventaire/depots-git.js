@@ -60,6 +60,19 @@ function identifiants(depots) {
 /** L'identifiant `id` est-il tiré du premier commit `r` (`identifiants`) : lui seul, ou suivi du chemin d'un des clones ? */
 export const tireDuCommit = (id, r) => id === `${PREFIXE}${r}` || String(id).startsWith(`${PREFIXE}${r}:`);
 
+/**
+ * Le projet d'un dépôt pour une décision immédiate (garde avant commit), quand le catalogue date d'avant un déplacement
+ * ou ne connaît pas ce worktree : par son chemin (`localiserProjet`) ; sinon par son worktree principal, le premier que
+ * liste git ; sinon par son premier commit, s'il ne désigne qu'un projet (deux clones du même dépôt ne se départagent
+ * que par leur chemin). null s'il reste inconnu. `projets` : ceux de `projetsDe`.
+ */
+export function projetDuDepot(projets, depot) {
+  const lieu = localiserProjet(projets);
+  const principal = () => lieu((gitInventaire(depot, ['worktree', 'list', '--porcelain', '-z']) || '').split('\0')[0].replace(/^worktree /, ''));
+  const parCommit = () => { const r = racine(depot); const memes = projets.filter((p) => tireDuCommit(p.id, r)); return memes.length === 1 ? memes[0] : null; };
+  return lieu(depot) || principal() || parCommit();
+}
+
 export default function inventaireDepots(options, ctx) {
   const depots = trouverDepots(options);
   ctx.depots = depots;

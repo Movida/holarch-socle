@@ -9,6 +9,7 @@ import { listePrivee, executer, CONTROLES } from './controles.js';
 import { trouverOutil, porteMarque, lireSansLien, heureLocale } from './commun.js';
 import { erreurRecente } from './veille.js';
 import { racineArbre } from './inventaire/arbre.js';
+import { projetDuDepot } from './inventaire/depots-git.js';
 import { materialiserCompte, materialiserProjet } from './materialisation.js';
 import { ulid } from './ulid.js';
 import { crochetVoulu, passationVoulue } from './regles-claude-code.js';
@@ -70,8 +71,12 @@ function controler(r, ctx, moment, niveaux, portee = 'projet', seuls = null) {
  */
 export function garde(s, { depot = process.cwd(), moment = 'avant-commit', journaliser = false } = {}) {
   const projets = s.fiches({ kind: 'project' });
-  const p = localiserProjet(projetsDe(projets))(path.resolve(depot));
-  if (!p) return { projet: null, refus: [], indisponibles: [] };
+  // Le catalogue date du dernier inventaire : un dépôt déplacé depuis, ou un worktree, se rattache par son worktree
+  // principal ou son premier commit. Rattaché à rien alors que le crochet y est posé, le commit n'est pas contrôlé : c'est dit.
+  const p = projetDuDepot(projetsDe(projets), path.resolve(depot));
+  if (!p) {
+    return { projet: null, refus: [], indisponibles: [], avertissement: `${path.resolve(depot)} n’est rattaché à aucun projet du catalogue (ni par son chemin, ni par son worktree principal, ni par son premier commit, seul à le porter) : commit non contrôlé ; holarch inventaire le rattache s’il est sous les racines de l’inventaire` };
+  }
   const fiche = projets.find((x) => x.id === p.id);
   // L'arbre relu s'il a changé : une exception ajoutée vaut au commit suivant, pas une heure plus tard.
   const r = regleEffective(s.arbreFrais(), p.id, { profil: s.profil() });

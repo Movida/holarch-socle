@@ -242,6 +242,7 @@ switch (cmd) {
   case 'garde': {
     try {
       const r = socle().garde({ depot: process.cwd(), moment: args[0] || 'avant-commit', journaliser: true });
+      if (r.avertissement) console.error(`HOLARCH : ${r.avertissement}`);
       if (r.refus.length) {
         if (r.journal_erreur) console.error(`HOLARCH : refus non écrit au journal (${r.journal_erreur})`);
         for (const x of r.refus) console.error(`HOLARCH : commit refusé par la règle ${x.regle} — ${x.enonce}\n${x.ecarts.map((e) => `  ${e.fichier ? `${e.fichier}${e.ligne ? `:${e.ligne}` : ''} : ` : ''}${e.message}`).join('\n')}`);

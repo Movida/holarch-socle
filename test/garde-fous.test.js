@@ -2277,3 +2277,40 @@ test('C3 : regles appliquer refuse le chemin absent d’un dépôt déplacé au 
   assert.ok(!fs.existsSync(d), 'l’ancien dossier n’est pas recréé');
   assert.ok(!fs.existsSync(path.join(r, 'ailleurs', '.claude')), 'ni le dépôt déplacé écrit');
 });
+
+// C1 : la garde rattachait le dépôt à son projet par le seul chemin du catalogue ; un dépôt déplacé depuis l'inventaire,
+// ou un worktree, n'était rattaché à rien, et le commit passait sans contrôle ni message jusqu'à l'inventaire suivant (un
+// worktree hors des racines, jamais). Repli par le worktree principal, puis par le premier commit s'il ne désigne qu'un
+// projet ; rattaché à rien, la garde et la ligne de commande le disent.
+test('C1 : la garde reconnaît un worktree et un dépôt déplacé ; un dépôt qu’elle ne rattache à rien est dit', () => {
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const g = (x, ...a) => { const y = spawnSync('git', ['-C', x, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' }); assert.equal(y.status, 0, y.stderr); return y.stdout.trim(); };
+  const r = tmp(); const accueil = tmp(); const profil = path.join(r, 'profil'); const d = path.join(r, 'depot'); const clone = path.join(r, 'clone');
+  fs.mkdirSync(d); g(d, 'init', '-q'); ecrireF(path.join(d, 'note.md'), 'propre\n'); g(d, 'add', '.'); g(d, 'commit', '-qm', 'départ');
+  g(r, 'clone', '-q', d, clone);
+  const base = `holarch:project:${racine(d)}`;
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  donnees_personnelles:\n    termes: [Projet Zeta]\n---\n');
+  ecrireF(path.join(profil, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'perso.md'), `---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [${base}, ${base}:depot, ${base}:clone]\n---\n`);
+  ecrireF(path.join(accueil, 'config.yaml'), `site: local\nprofil: ${JSON.stringify(profil)}\ninventaire: { claude-code: { actif: false }, depots-git: { actif: false }, arbre: { actif: false }, docker: { actif: false }, claude-desktop: { actif: false } }\n`);
+  const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: {} });
+  const catalogue = (projets) => { s.catalogue.remplacer([...inventaireArbre({}, { depots: [profil], projetDe: () => null }), ...projets.map(([id, location]) => ({ id, kind: 'project', name: path.basename(location), status: 'active', location, provenance: { source: 't' } }))]); s.indexer(); };
+  const garde = (x) => { const y = s.garde({ depot: x }); return [y.projet, y.refus.map((e) => e.regle)]; };
+  const fautif = (x) => { ecrireF(path.join(x, 'note.md'), 'note du projet zeta\n'); g(x, 'add', 'note.md'); };
+  // Deux clones du même dépôt au catalogue : le premier commit ne les départage pas, le worktree principal si (par son
+  // chemin, pas par son nom : un projet homonyme ailleurs ne le prend pas).
+  const homonyme = path.join(r, 'un-dossier-au-chemin-plus-long', 'depot'); fs.mkdirSync(homonyme, { recursive: true });
+  catalogue([[`${base}:depot`, d], [`${base}:clone`, clone], ['holarch:project:homonyme', homonyme]]);
+  fautif(d); assert.deepEqual(garde(d), [`${base}:depot`, ['rien-de-personnel']], 'en place');
+  const wt = path.join(r, 'essai'); g(d, 'worktree', 'add', '-q', wt); fautif(wt);
+  assert.deepEqual(garde(wt), [`${base}:depot`, ['rien-de-personnel']], 'un worktree, par son worktree principal');
+  const ailleurs = path.join(r, 'range', 'depot2'); fs.mkdirSync(path.dirname(ailleurs)); fs.renameSync(d, ailleurs);
+  const inconnu = s.garde({ depot: ailleurs });
+  assert.deepEqual([inconnu.projet, inconnu.refus], [null, []], 'déplacé, ses deux clones possibles : rattaché à rien plutôt qu’au hasard');
+  assert.equal(inconnu.avertissement, `${ailleurs} n’est rattaché à aucun projet du catalogue (ni par son chemin, ni par son worktree principal, ni par son premier commit, seul à le porter) : commit non contrôlé ; holarch inventaire le rattache s’il est sous les racines de l’inventaire`);
+  const cli = spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), 'garde', 'avant-commit'], { cwd: ailleurs, encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: accueil } });
+  assert.deepEqual([cli.status, cli.stderr], [0, `HOLARCH : ${inconnu.avertissement}\n`], 'la ligne de commande le dit et laisse passer');
+  // Un seul projet porte ce premier commit : le dépôt déplacé s'y rattache.
+  catalogue([[base, d]]);
+  assert.deepEqual(garde(ailleurs), [base, ['rien-de-personnel']], 'déplacé, par son premier commit');
+});
