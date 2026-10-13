@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { git, trouverOutil, porteMarque, ecrireSansLien, lireSansLien } from './commun.js';
 import { configAvantProjet, fusionnerConfig } from './regles.js';
 import { identiteDeclaree } from './controles.js';
-import { poserIdentite } from './identite-git.js';
+import { poserIdentite, NOTE_IDENTITE } from './identite-git.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { racine, tireDuCommit, etatDepot } from './inventaire/depots-git.js';
 import { materialiserProjet } from './materialisation.js';
@@ -168,8 +168,10 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   if (!identite) noter('identite', 'geste', 'aucune identité de commit déclarée pour ce contexte', { quoi: 'déclarer `identite: {nom, email}` dans le profil ou le contexte, puis relancer' });
   else if (!estGit && aBlanc) noter('identite', 'a-faire', 'identité du contexte en réglage local');
   else {
-    const e = poserIdentite(dossier, identite, { ecrire: !aBlanc }).etat;
-    if (e === 'ignore') noter('identite', 'geste', 'un réglage local posé à la main diffère de l’identité déclarée', { quoi: 'le retirer', commande: `git -C ${dossier} config --local --unset user.name && git -C ${dossier} config --local --unset user.email` });
+    const { etat: e, note } = poserIdentite(dossier, identite, { ecrire: !aBlanc });
+    const sansNote = `git -C ${dossier} config --local --unset ${NOTE_IDENTITE}`;
+    if (e === 'ignore') noter('identite', 'geste', 'un réglage local posé à la main diffère de l’identité déclarée', { quoi: 'le retirer', commande: `git -C ${dossier} config --local --unset user.name && git -C ${dossier} config --local --unset user.email${note ? ` && ${sansNote}` : ''}` });
+    else if (e === 'retire-a-la-main') noter('identite', 'geste', 'l’identité du contexte, posée en réglage local, a été retirée à la main : laissée', { quoi: 'la laisser (git prend alors l’identité du compte), ou retirer la note de HOLARCH pour qu’il la repose, puis relancer', commande: sansNote });
     else noter('identite', e === 'inchange' ? 'deja' : aBlanc ? 'a-faire' : 'faite', 'identité du contexte en réglage local');
   }
 

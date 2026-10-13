@@ -43,7 +43,8 @@ export function appliquer({ comptes, projets }) {
     else if (c.etat === 'ignore' && c.demande) sortie.push(`  ATTENTION un crochet pre-commit non marqué existe (${c.fichier}) : la garde n'est pas posée`);
     else if (c.etat !== 'absent' && c.etat !== 'ignore') sortie.push(`  crochet de git : ${c.etat}${c.raison ? ` (${c.raison})` : ''}`);
     const i = m.identite.etat;
-    if (i === 'ignore') sortie.push('  ATTENTION identité de commit posée à la main dans ce dépôt, différente de la déclarée : laissée (git config --local --unset user.name, puis user.email, pour la retirer)');
+    if (i === 'ignore') sortie.push(`  ATTENTION identité de commit posée à la main dans ce dépôt, différente de la déclarée : laissée (git config --local --unset user.name, puis user.email${m.identite.note ? ', puis holarch.identite' : ''}, pour la retirer)`);
+    else if (i === 'retire-a-la-main') sortie.push('  ATTENTION identité de commit posée par HOLARCH, retirée à la main dans ce dépôt : laissée (git config --local --unset holarch.identite pour qu’il la repose)');
     else if (['pose', 'modifie', 'retire'].includes(i)) sortie.push(`  identité de commit : ${i === 'pose' ? 'posée' : i === 'modifie' ? 'mise à jour' : 'retirée'} en réglage local`);
   }
   return sortie.join('\n');

@@ -2207,3 +2207,32 @@ test('M3 : service poser ne repointe le serveur MCP holarch que s’il lance une
     ['relatif', 'réglé ailleurs (bin/holarch.js) : laissé', args.relatif],
     ['source', pose, bin], ['socle', pose, bin], ['ancienne', pose, bin]]);
 });
+
+// M5 (famille Gardes muettes) : l'identité de commit que HOLARCH avait posée en réglage local, retirée à la main, était
+// reposée au passage suivant. Sa note restée sans réglage local dit le retrait : laissée, et dite avec la commande qui la
+// fait reposer. Le geste d'une identité changée à la main retire aussi la note, sans quoi il mènerait à ce retrait.
+test('M5 : une identité de commit retirée à la main n’est pas reposée ; la création et la pose le disent', () => gitIsole(async () => {
+  const { r, s, etats, git } = await bancCreation();
+  const d = path.join(r, 'neuf'); const creer = (aBlanc = false) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc });
+  const voulue = { nom: 'Alice Exemple', email: 'alice@noreply.test' }; const locale = () => git(d, 'config', '--local', '--get', 'user.email');
+  const ligne = () => affichage.appliquer({ comptes: [], projets: [{ nom: 'neuf', m: { fichiers: { dossier: d, crees: [], modifies: [], retires: [], inchanges: [], ignores: [] }, plan: { signaux: [] }, crochet: { etat: 'absent' }, identite: poserIdentite(d, voulue, { ecrire: false }) } }] }).split('\n')[1];
+  const identite = (p) => p.etapes.find((e) => e.etape === 'identite');
+  assert.deepEqual([etats(await creer()).identite, locale()], ['faite', voulue.email]);
+  git(d, 'config', '--local', '--unset', 'user.name'); git(d, 'config', '--local', '--unset', 'user.email');
+  for (const aBlanc of [true, false]) {
+    const e = identite(await creer(aBlanc));
+    assert.deepEqual([e.etat, e.detail, e.geste.commande, locale()], ['geste', 'l’identité du contexte, posée en réglage local, a été retirée à la main : laissée', `git -C ${d} config --local --unset holarch.identite`, '']);
+  }
+  assert.deepEqual([poserIdentite(d, voulue).etat, locale()], ['retire-a-la-main', ''], 'la pose des règles la laisse aussi');
+  assert.equal(ligne(), '  ATTENTION identité de commit posée par HOLARCH, retirée à la main dans ce dépôt : laissée (git config --local --unset holarch.identite pour qu’il la repose)');
+  // Le geste fait : reposée.
+  assert.equal(spawnSync('/bin/sh', ['-c', identite(await creer()).geste.commande]).status, 0);
+  assert.deepEqual([etats(await creer()).identite, locale()], ['faite', voulue.email]);
+  // Changée à la main : le geste qui la retire retire aussi la note ; fait, l'identité est reposée.
+  git(d, 'config', '--local', 'user.email', 'autre@exemple.test');
+  const e = identite(await creer());
+  assert.deepEqual([e.etat, e.geste.commande], ['geste', `git -C ${d} config --local --unset user.name && git -C ${d} config --local --unset user.email && git -C ${d} config --local --unset holarch.identite`]);
+  assert.match(ligne(), /, puis user\.email, puis holarch\.identite, pour la retirer\)$/);
+  assert.equal(spawnSync('/bin/sh', ['-c', e.geste.commande]).status, 0);
+  assert.deepEqual([etats(await creer()).identite, locale()], ['faite', voulue.email]);
+}));
