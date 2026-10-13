@@ -108,14 +108,24 @@ function donneesPersonnelles(ctx, moment) {
 
 export { trouverOutil } from './commun.js';
 
+// Configuration de gitleaks, toujours explicite : ses règles par défaut. Un dépôt contrôlé, que le conteneur écrit,
+// n'allège jamais le contrôle (comme une exception, décision exceptions-hors-du-depot) ; essayé en 8.30.1, sans
+// configuration explicite, un `[allowlist]` de son `.gitleaks.toml` taisait tout, et un commentaire `gitleaks:allow` sa
+// ligne. Ni le `.gitleaksignore` du dossier courant (`--gitleaks-ignore-path`). `gitleaks dir` ne suit pas un lien
+// symbolique hors de la cible (son défaut, essayé ; `--follow-symlinks` n'est jamais passé).
+const CONFIG_GITLEAKS = '[extend]\nuseDefault = true\n';
+
 /**
- * gitleaks, sortie JSON. `depot` : le dépôt où il lance git lui-même (`git --pre-commit` ; essayé en 8.30.1, le
- * `core.fsmonitor` et les pilotes de diff du dépôt s'y exécutaient) : rien de ce que déclare sa configuration ne s'exécute
- * (`neutralisation`, comme `gitLu`), git héritant de l'environnement de gitleaks.
+ * gitleaks, sortie JSON, avec sa configuration par défaut (`CONFIG_GITLEAKS`, qui l'emporte sur celle de la cible ; la
+ * variable `GITLEAKS_CONFIG`, qui l'emporterait sur elle, est retirée). `depot` : le dépôt où il lance git lui-même
+ * (`git --pre-commit` ; essayé en 8.30.1, le `core.fsmonitor` et les pilotes de diff du dépôt s'y exécutaient) : rien de
+ * ce que déclare sa configuration ne s'exécute (`neutralisation`, comme `gitLu`), git héritant de l'environnement de gitleaks.
  */
 export function gitleaks(bin, args, { depot = null } = {}) {
-  const r = spawnSync(bin, [...args, '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'],
-    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: depot ? neutralisation(depot, process.env) : process.env });
+  const env = { ...(depot ? neutralisation(depot, process.env) : process.env), GITLEAKS_CONFIG_TOML: CONFIG_GITLEAKS };
+  delete env.GITLEAKS_CONFIG;
+  const r = spawnSync(bin, [...args, '--gitleaks-ignore-path', '/dev/null', '--ignore-gitleaks-allow', '--redact', '--no-banner', '--log-level', 'error', '--report-format', 'json', '--report-path', '-'],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env });
   // 0 : rien trouvé ; 1 : des fuites, listées en JSON. Tout le reste est une panne, jamais un « rien trouvé ».
   if (r.status === 0 || r.status === 1) {
     try { const l = JSON.parse(r.stdout || (r.status === 0 ? '[]' : '')); if (Array.isArray(l) && (r.status === 0 || l.length)) return { trouves: l }; } catch { /* sortie illisible */ }
@@ -125,9 +135,14 @@ export function gitleaks(bin, args, { depot = null } = {}) {
 
 function secrets(ctx, moment) {
   if (!ctx.gitleaks) return { indisponible: 'gitleaks absent (réglage controles.gitleaks, PATH ou ~/.local/bin)' };
-  let r; let base = '';
-  if (moment === 'avant-commit') r = gitleaks(ctx.gitleaks, ['git', '--pre-commit', '--staged', ctx.depot], { depot: ctx.depot });
-  else {
+  let r; let base = ''; let ignore = null;
+  if (moment === 'avant-commit') {
+    r = gitleaks(ctx.gitleaks, ['git', '--pre-commit', '--staged', ctx.depot], { depot: ctx.depot });
+    // Le `.gitleaksignore` de la cible, gitleaks le lit toujours (aucune option ne l'écarte) : dans le dépôt, il peut taire
+    // un secret, le contrôle n'a pas tout vu. Exporté à l'audit, il ne tait rien : ses empreintes ne peuvent pas nommer le
+    // dossier temporaire.
+    if (fs.existsSync(path.join(ctx.depot, '.gitleaksignore'))) ignore = '.gitleaksignore du dépôt : gitleaks le suit, un secret peut y être tu ; non vérifié tant qu’il est là';
+  } else {
     // Le contenu suivi au dernier commit, exporté : ni les fichiers ignorés, ni l'historique. Un dépôt que git ne lit
     // pas (dossier sans dépôt, dépôt abîmé, git absent) n'est pas contrôlé ; seul un dépôt sans commit n'a rien à lire.
     const depot = gitLu(ctx.depot, ['rev-parse', '--git-dir']);
@@ -144,7 +159,7 @@ function secrets(ctx, moment) {
   return { ecarts: r.trouves.map((t) => {
     const fichier = base ? path.relative(base, t.File) : t.File;
     return { fichier, ligne: t.StartLine ?? null, cle: `${fichier}:${t.RuleID}`, n: 1, message: `secret possible (${t.RuleID})` };
-  }) };
+  }), ...(ignore && { indisponible: ignore }) };
 }
 
 // ---------- résultats gardés une journée (sources réseau interrogées une fois par jour) ----------

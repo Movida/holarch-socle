@@ -1672,3 +1672,38 @@ test('Mineur 8 : un outil réglé qui n’est pas un fichier exécutable (un dos
   assert.equal(binaireClaude(config), null);
   assert.match(claudeIntrouvable(config), /n'existe pas ou n'est pas un fichier exécutable/);
 });
+
+test('Configuration gitleaks du dépôt : ni son .gitleaks.toml, ni gitleaks:allow, ni un .gitleaksignore n’allègent le contrôle des secrets', () => {
+  const d = tmp(); const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' });
+  g('init', '-q'); fs.writeFileSync(path.join(d, 'conf.txt'), 'cle = SECRET\n'); g('add', '.'); g('commit', '-qm', 'x');
+  // Un gitleaks fictif qui se comporte comme le 8.30.1 essayé : sans configuration explicite, celle de la cible (ici, un
+  // `[allowlist]` qui tait tout) ; `gitleaks:allow` tait sa ligne ; le `.gitleaksignore` du dossier courant (sauf
+  // `--gitleaks-ignore-path`) et, avant commit, celui de la cible (à l'audit, ses empreintes ne nomment pas le dossier
+  // temporaire de l'export).
+  const faux = path.join(tmp(), 'gitleaks');
+  fs.writeFileSync(faux, `#!/bin/sh
+if [ "$1" = dir ]; then c="$2"; f="$2/conf.txt"; else c="$4"; f=conf.txt; fi
+taire() { echo '[]'; exit 0; }
+if [ -n "$GITLEAKS_CONFIG" ]; then grep -q allowlist "$GITLEAKS_CONFIG" && taire
+elif [ -z "$GITLEAKS_CONFIG_TOML" ] && [ -f "$c/.gitleaks.toml" ]; then taire; fi
+case " $* " in *" --ignore-gitleaks-allow "*) ;; *) grep -q gitleaks:allow "$c/conf.txt" && taire;; esac
+case " $* " in *" --gitleaks-ignore-path /dev/null "*) ;; *) [ -f .gitleaksignore ] && taire;; esac
+[ "$1" != dir ] && [ -f "$c/.gitleaksignore" ] && taire
+printf '[{"RuleID":"cle-fictive","File":"%s","StartLine":1}]' "$f"; exit 1
+`, { mode: 0o755 });
+  const vus = (moment) => executer('secrets', { depot: d, gitleaks: faux }, moment);
+  const ecarts = () => ['avant-commit', 'audit'].map((m) => vus(m).ecarts.map((e) => e.fichier));
+  fs.writeFileSync(path.join(d, '.gitleaks.toml'), "[allowlist]\npaths = ['''.*''']\n"); g('add', '.'); g('commit', '-qm', 'config');
+  assert.deepEqual(ecarts(), [['conf.txt'], ['conf.txt']], 'le .gitleaks.toml du dépôt');
+  const permissive = path.join(tmp(), 'gitleaks.toml'); fs.writeFileSync(permissive, "[allowlist]\npaths = ['''.*''']\n");
+  process.env.GITLEAKS_CONFIG = permissive;
+  try { assert.deepEqual(ecarts(), [['conf.txt'], ['conf.txt']], 'GITLEAKS_CONFIG de l’environnement'); } finally { delete process.env.GITLEAKS_CONFIG; }
+  fs.writeFileSync(path.join(d, 'conf.txt'), 'cle = SECRET # gitleaks:allow\n'); g('add', '.'); g('commit', '-qm', 'allow');
+  assert.deepEqual(ecarts(), [['conf.txt'], ['conf.txt']], 'un commentaire gitleaks:allow');
+  const ailleurs = tmp(); fs.writeFileSync(path.join(ailleurs, '.gitleaksignore'), 'conf.txt:cle-fictive:1\n');
+  const avant = process.cwd(); process.chdir(ailleurs);
+  try { assert.deepEqual(ecarts(), [['conf.txt'], ['conf.txt']], 'le .gitleaksignore du dossier courant'); } finally { process.chdir(avant); }
+  fs.writeFileSync(path.join(d, '.gitleaksignore'), 'conf.txt:cle-fictive:1\n');
+  assert.match(vus('avant-commit').indisponible, /^\.gitleaksignore du dépôt : gitleaks le suit/, 'avant commit, il se dit');
+  assert.deepEqual([vus('audit').ecarts.map((e) => e.fichier), vus('audit').indisponible], [['conf.txt'], undefined], 'à l’audit, il ne tait rien');
+});
