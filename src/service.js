@@ -39,6 +39,18 @@ export function retard(copie) {
   return r.status === 0 ? Number(sortie(r)) : null;
 }
 
+// Ce que laisse une pose arrêtée net (le processus tué pendant `npm ci`, une panne) : `<nom>.pose-<pid>`, copie, lien ou
+// fichier temporaire, jamais renommé ni retiré. La pose suivante retire ceux dont le processus est mort ; un processus
+// vivant (une pose en cours, ou son numéro repris par un autre) garde le sien. Les chemins retirés.
+const vivant = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+function retirerOrphelines(d) {
+  let noms = []; try { noms = fs.readdirSync(d); } catch { return []; }
+  return noms.filter((n) => { const m = n.match(/\.pose-(\d+)$/); return m && !vivant(Number(m[1])); }).map((n) => {
+    const f = path.join(d, n); fs.rmSync(f, { recursive: true, force: true }); return f;
+  });
+}
+const gitleaksDesConteneurs = (maison) => path.join(maison, OUTILS.hote, 'gitleaks');
+
 /**
  * Le gitleaks de l'hôte (`bin`), copié dans le dossier que les conteneurs générés montent en lecture (décision
  * garde-sans-passage-muet) : leur crochet de commit, où HOLARCH est injoignable, vérifie au moins les secrets. Copié
@@ -46,7 +58,7 @@ export function retard(copie) {
  */
 export function copierGitleaks(bin, maison = os.homedir()) {
   if (!bin) return { etat: 'absent de l’hôte : le crochet d’un conteneur laisse passer et le dit' };
-  const f = path.join(maison, OUTILS.hote, 'gitleaks'); const contenu = fs.readFileSync(bin);
+  const f = gitleaksDesConteneurs(maison); const contenu = fs.readFileSync(bin);
   let actuel = null; try { actuel = fs.readFileSync(f); } catch { /* absent */ }
   if (actuel?.equals(contenu)) return { etat: 'inchangé' };
   fs.mkdirSync(path.dirname(f), { recursive: true });
@@ -118,6 +130,7 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
      * verts ; une copie déjà présente se repose sans condition (retour arrière). Garde la copie posée et la précédente.
      */
     poser(ref = 'HEAD') {
+      const orphelines = [dossier(accueil), path.dirname(gitleaksDesConteneurs(maison))].flatMap(retirerOrphelines);
       const src = sourceDe();
       if (!src) throw new Error('aucun dépôt source : lancer depuis la copie de travail du socle');
       const rev = (x) => { const r = git(src, ['rev-parse', '--short=12', '--verify', `${x}^{commit}`]); return r.status === 0 ? sortie(r) : null; };
@@ -143,7 +156,7 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
       const garder = new Set([commit, precedent]);
       const supprimees = precedent === commit ? [] : fs.readdirSync(dossier(accueil)).filter((d) => COMMIT.test(d) && !garder.has(d));
       for (const d of supprimees) fs.rmSync(path.join(dossier(accueil), d), { recursive: true, force: true });
-      return { commit, source: src, nouvelle, precedent: precedent === commit ? null : precedent, supprimees, points: pointsDEntree(src) };
+      return { commit, source: src, nouvelle, precedent: precedent === commit ? null : precedent, supprimees, orphelines, points: pointsDEntree(src) };
     },
   };
 }

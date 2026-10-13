@@ -2471,3 +2471,27 @@ test('Récolte sans gitleaks : rien n’est envoyé, et la commande sort en code
   assert.match(r.stdout, /rien n'est envoyé : gitleaks absent/);
   assert.equal(r.status, 1, r.stderr);
 });
+
+// Copies `*.pose-<pid>` interrompues jamais retirées (risque faible à la clôture) : une pose arrêtée net (le processus tué
+// pendant `npm ci`) laissait sa copie, son lien ou son gitleaks temporaire pour toujours. La pose suivante retire ceux
+// dont le processus est mort ; celui d'un processus vivant reste.
+test('Copies de pose interrompues : retirées à la pose suivante si leur processus est mort, gardées sinon', () => {
+  const src = tmp(); const accueil = tmp(); const unites = tmp(); const maison = tmp();
+  const g = (...a) => { const r = spawnSync('git', ['-C', src, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+  g('init', '-q'); fs.mkdirSync(path.join(src, 'bin')); fs.writeFileSync(path.join(src, 'bin', 'holarch.js'), 'console.log(1);\n'); fs.writeFileSync(path.join(src, 'package.json'), '{}\n');
+  g('add', '-A'); g('commit', '-qm', 'v1');
+  const lancer = (cmd, args, o) => { if (cmd !== 'npm') return spawnSync(cmd, args, o); if (args[0] === 'ci') fs.mkdirSync(path.join(o.cwd, 'node_modules')); return { status: 0, stdout: '', stderr: '' }; };
+  const systemctl = (args) => ({ status: 0, stdout: { 'is-enabled': 'enabled\n', 'is-active': 'active\n', 'is-system-running': 'running\n' }[args[0]] ?? '', stderr: '' });
+  const mort = spawnSync(process.execPath, ['-e', '0']).pid; const vivant = process.ppid;
+  const service = path.join(accueil, 'service'); const outils = path.join(maison, '.local', 'share', 'holarch', 'outils');
+  fs.mkdirSync(path.join(service, `0123456789ab.pose-${mort}`, 'node_modules'), { recursive: true }); fs.mkdirSync(path.join(service, `0123456789ab.pose-${vivant}`)); fs.mkdirSync(path.join(service, 'courant.pose-1'));
+  fs.symlinkSync('0123456789ab', path.join(service, `courant.pose-${mort}`));
+  fs.mkdirSync(outils, { recursive: true }); fs.writeFileSync(path.join(outils, `gitleaks.pose-${mort}`), 'moitié');
+  const bin = path.join(tmp(), 'gitleaks'); fs.writeFileSync(bin, '#!/bin/sh\n', { mode: 0o755 });
+  const sv = creerService({ accueil, gitleaks: bin, maison }, { source: src, unites, systemctl, npm: 'npm', lancer, node: '/opt/node/bin/node' });
+  const r = sv.poser();
+  assert.deepEqual(r.orphelines.sort(), [path.join(service, `0123456789ab.pose-${mort}`), path.join(service, `courant.pose-${mort}`), path.join(outils, `gitleaks.pose-${mort}`)].sort());
+  assert.deepEqual(fs.readdirSync(service).filter((n) => n.includes('.pose-')).sort(), [`0123456789ab.pose-${vivant}`, 'courant.pose-1'].sort(), 'celle d’un processus vivant reste, d’un autre utilisateur comprise (pid 1)');
+  assert.deepEqual(fs.readdirSync(outils), ['gitleaks']);
+  assert.match(affichage.posee(r).split('\n')[0], new RegExp(`pose\\(s\\) interrompue\\(s\\) retirée\\(s\\) : .*gitleaks\\.pose-${mort}`));
+});

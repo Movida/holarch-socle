@@ -69,7 +69,7 @@ export const service = (e) => (e.copie
   : `aucune copie de service : les points d'entrée lancent ${e.binaire} (holarch service poser)`)
   + `\nroutines : ${e.routines.map((r) => `${r.unite} ${r.etat}`).join(' · ')}${e.routines.some((r) => r.etat === 'coupée') ? ' (une routine coupée reste coupée : systemctl --user enable --now <unité> pour la rallumer)' : ''}`;
 
-export const posee = (r) => [`copie en service : ${r.commit}${r.nouvelle ? ' (nouvelle : tests verts, export, npm ci)' : ' (déjà présente : lien basculé)'}${r.precedent ? ` ; précédente gardée : ${r.precedent}` : ''}${r.supprimees.length ? ` ; supprimée(s) : ${r.supprimees.join(', ')}` : ''}`,
+export const posee = (r) => [`copie en service : ${r.commit}${r.nouvelle ? ' (nouvelle : tests verts, export, npm ci)' : ' (déjà présente : lien basculé)'}${r.precedent ? ` ; précédente gardée : ${r.precedent}` : ''}${r.supprimees.length ? ` ; supprimée(s) : ${r.supprimees.join(', ')}` : ''}${r.orphelines?.length ? ` ; pose(s) interrompue(s) retirée(s) : ${r.orphelines.join(', ')}` : ''}`,
   ...r.points.map((p) => `  ${p.point} : ${p.etat}${p.message ? ` — ${p.message}` : ''}`),
   'garde avant commit et crochets de Claude Code : holarch regles appliquer (l\'audit signale ceux restés sur la copie de travail)'].join('\n');
 
