@@ -201,8 +201,10 @@ function verrousVulnerables(ctx, verrous) {
   const empreinte = hacher(seuil, ...verrous.map((f) => `${f}:${fs.readFileSync(path.join(ctx.depot, f)).length}:${hacher(fs.readFileSync(path.join(ctx.depot, f), 'utf8'))}`));
   return garde(ctx, `osv-${hacher(ctx.depot)}`, empreinte, () => {
     // osv-scanner 2.6.0 lit le dépôt par une bibliothèque, sans lancer git (essayé) ; un git qu'il lancerait ne ferait rien
-    // exécuter de la configuration du dépôt (`neutralisation`), comme celui de gitleaks.
-    const o = spawnSync(ctx.osv, ['scan', 'source', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'],
+    // exécuter de la configuration du dépôt (`neutralisation`), comme celui de gitleaks. Sa configuration, toujours
+    // explicite et vide (`--config /dev/null`) : essayé en 2.6.0, un `osv-scanner.toml` posé à côté d'un verrou en taisait
+    // les paquets (`PackageOverrides`) ou les failles (`IgnoredVulns`) ; le dépôt contrôlé n'allège jamais le contrôle.
+    const o = spawnSync(ctx.osv, ['scan', 'source', '--config', '/dev/null', ...verrous.flatMap((f) => ['-L', f]), '--format', 'json'],
       { cwd: ctx.depot, env: neutralisation(ctx.depot, process.env), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: reglage(ctx, 'delai_osv_s', 300) * 1e3 });
     if (o.status === 128) return { ecarts: [] };
     let d; try { if (o.status === 0 || o.status === 1) d = JSON.parse(o.stdout); } catch { /* sortie illisible */ }

@@ -1950,3 +1950,28 @@ console.log('[]');
   fs.writeFileSync(path.join(d, '.gitleaksignore'), 'conf.txt:cle:1\n');
   assert.deepEqual(lancer(), [1, 'HOLARCH injoignable : commit refusé, le .gitleaksignore du dépôt peut taire un secret ; git commit --no-verify pour passer, l\'audit le verra']);
 });
+
+// `osv-scanner.toml` du dépôt, voisin de la famille « Sécurité et intégrité » : essayé en 2.6.0 (hors réseau, `--offline
+// --all-packages`), celui du dossier d'un verrou en tait les paquets ou les failles ; `--config /dev/null` l'écarte dans
+// tous les dossiers. Le contrôle passe toujours sa configuration explicite et vide, comme pour gitleaks.
+test('Configuration osv-scanner du dépôt : un osv-scanner.toml à côté d’un verrou n’allège pas le contrôle des dépendances', () => {
+  const d = tmp(); const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', ...a], { encoding: 'utf8' });
+  g('init', '-q');
+  const taire = "[[PackageOverrides]]\nname = 'paquet-a'\nignore = true\n\n[[IgnoredVulns]]\nid = 'GHSA-aaaa'\n";
+  for (const f of ['package-lock.json', 'web/package-lock.json']) { fs.mkdirSync(path.join(d, path.dirname(f)), { recursive: true }); fs.writeFileSync(path.join(d, f), '{}\n'); }
+  for (const f of ['osv-scanner.toml', 'web/osv-scanner.toml']) fs.writeFileSync(path.join(d, f), taire);
+  g('add', '.'); g('commit', '-qm', 'x');
+  // Un osv-scanner fictif qui se comporte comme le 2.6.0 essayé : la configuration passée (`--config`), sinon celle du
+  // dossier de chaque verrou ; une configuration qui ignore tait le verrou.
+  const faux = path.join(tmp(), 'osv-scanner');
+  fs.writeFileSync(faux, `#!${process.execPath}
+const fs = require('node:fs'); const path = require('node:path'); const a = process.argv.slice(2);
+const lire = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } };
+const config = a.includes('--config') ? lire(a[a.indexOf('--config') + 1]) : null;
+const results = a.flatMap((x, i) => (a[i - 1] === '-L' ? [x] : [])).filter((f) => !/ignore|Ignored/.test(config ?? lire(path.join(path.dirname(f), 'osv-scanner.toml'))))
+  .map((f) => ({ source: { path: path.resolve(f) }, packages: [{ package: { name: 'paquet-a', version: '1.0.0' }, groups: [{ ids: ['GHSA-aaaa'], max_severity: '9.8' }], vulnerabilities: [] }] }));
+console.log(JSON.stringify({ results })); process.exit(results.length ? 1 : 0);
+`, { mode: 0o755 });
+  const r = executer('dependances-vulnerables', { depot: d, osv: faux, cache: null, config: {} }, 'audit');
+  assert.deepEqual(r.ecarts.map((e) => e.cle), ['package-lock.json:paquet-a@1.0.0', 'web/package-lock.json:paquet-a@1.0.0'], 'ni à la racine, ni dans un sous-dossier');
+});
