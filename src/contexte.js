@@ -4,7 +4,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { projetsDe } from './projets.js';
-import { etatDepot, integrationContinue, projetDuDepot } from './inventaire/depots-git.js';
+import { etatDepot, integrationContinue, projetDuDepot, racine, tireDuCommit } from './inventaire/depots-git.js';
+import { gitInventaire } from './inventaire/outils.js';
 import { copieEnService, retard } from './service.js';
 import { aApprouver } from './regles.js';
 import { finDeTranscription, evenements } from './transcription.js';
@@ -129,16 +130,20 @@ export function resume(s, dossier, { max = 1500, transcription = null, maintenan
   // Règles proposées (récolte, décision recolte) que ce projet recevrait : celles de son nœud et de ses couches.
   const proposees = s.regles({ projet: p.id }).regles.filter(aApprouver);
   if (proposees.length) l.push(`Règles à approuver : ${proposees.length} (${proposees.slice(0, 4).map((e) => e.id).join(', ')}${proposees.length > 4 ? '…' : ''}), page « Règles ».`);
-  // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente.
+  // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente. Il se lit dans le dépôt du
+  // dossier de travail (`--show-toplevel`) quand c'est celui du projet (même premier commit) : le chemin du catalogue est
+  // l'ancien pour un dépôt déplacé, le worktree principal pour un worktree ; un dépôt imbriqué étranger ne parle pas pour lui.
   const direct = v.chemin && fs.existsSync(v.chemin);
-  const t = direct ? etatDepot(v.chemin) : v.technique;
+  const ici = gitInventaire(path.resolve(dossier), ['rev-parse', '--show-toplevel']);
+  const depot = ici && tireDuCommit(p.id, racine(ici)) ? ici : direct ? v.chemin : null;
+  const t = depot ? etatDepot(depot) : v.technique;
   if (t.fichiers_modifies || t.en_avance) l.push(`Dépôt : ${t.fichiers_modifies} fichier(s) non commité(s), ${t.en_avance || 0} commit(s) non poussé(s).`);
   // La copie que lancent les services, quand ce projet en est la source (décision copie-de-service).
   const copie = s.config?.accueil ? copieEnService(s.config.accueil) : null;
   if (direct && copie?.source && path.resolve(copie.source) === path.resolve(v.chemin)) {
     const n = retard(copie); if (n) l.push(`Copie de service : ${n} commit(s) de retard sur HEAD (\`holarch service poser\`).`);
   }
-  const ci = direct ? integrationContinue(v.chemin) : v.technique.integration_continue;
+  const ci = depot ? integrationContinue(depot) : v.technique.integration_continue;
   if (ci) l.push(ci.length ? `Intégration continue : ${ci.join(', ')} (lire son résultat après un envoi).` : 'Intégration continue : aucune (rien à lire après un envoi).');
   const texte = l.join('\n');
   return texte.length > max ? `${texte.slice(0, max - 1)}…` : texte;

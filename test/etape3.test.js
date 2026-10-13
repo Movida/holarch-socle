@@ -2512,3 +2512,27 @@ test('Inventaire : un worktree lié n’est pas un projet de plus, et l’identi
   const r2 = tmp(); spawnSync('git', ['-C', nu, 'worktree', 'add', '-q', '--detach', path.join(r2, 'travail')]);
   assert.deepEqual(inventaireDepots({ racines: [r2], profondeur: 2 }, { site: 'local' }).map((f) => [f.id, f.location]), [[id, path.join(r2, 'travail')]]);
 });
+
+// Reprise d'un dépôt déplacé ou d'un worktree (voisin vu par les lots 1 à 3) : le projet se rattachait, mais l'état du
+// dépôt se lisait au chemin du catalogue (le worktree principal), ou, déplacé, se prenait dans l'inventaire de l'heure.
+// Il se lit dans le dépôt du dossier de travail quand c'est celui du projet ; un dépôt imbriqué étranger ne parle pas pour lui.
+test('Reprise : l’état du dépôt se lit dans le worktree ou au nouveau chemin du dossier de travail', () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n'); g('add', '.'); g('commit', '-qm', 'x');
+  const id = `holarch:project:${premierCommit(d)}`;
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [d], projetDe: () => ({ id }) }), { id, kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const etat = (dossier) => (resume(s, dossier) ?? '').split('\n').find((l) => l.startsWith('Dépôt :')) ?? null;
+  const wt = path.join(r, 'branche'); g('worktree', 'add', '-q', '--detach', wt); fs.writeFileSync(path.join(wt, 'b.txt'), 'b\n');
+  assert.deepEqual([etat(d), etat(wt)], [null, 'Dépôt : 1 fichier(s) non commité(s), 0 commit(s) non poussé(s).'], 'le worktree, pas le principal');
+  g('worktree', 'remove', '--force', wt);
+  // Un dépôt imbriqué étranger (non inventorié) : l'état est celui du projet, qui le voit comme un dossier non suivi.
+  const imbrique = path.join(d, 'imbrique'); fs.mkdirSync(imbrique); depotGit(imbrique);
+  for (const f of ['e', 'f', 'g', 'h', 'i']) fs.writeFileSync(path.join(imbrique, f), 'x\n');
+  assert.equal(etat(imbrique), 'Dépôt : 1 fichier(s) non commité(s), 0 commit(s) non poussé(s).', 'le dossier imbriqué, pas ses cinq fichiers');
+  fs.rmSync(imbrique, { recursive: true });
+  const ailleurs = path.join(r, 'deplace'); fs.renameSync(d, ailleurs);
+  for (const f of ['c.txt', 'd.txt']) fs.writeFileSync(path.join(ailleurs, f), 'x\n');
+  assert.equal(etat(ailleurs), 'Dépôt : 2 fichier(s) non commité(s), 0 commit(s) non poussé(s).', 'au nouveau chemin, en direct');
+});
