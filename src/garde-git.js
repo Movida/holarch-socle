@@ -79,7 +79,8 @@ export function fichierCrochet(depot) {
 
 /**
  * Pose, met à jour ou retire le crochet selon `voulu` (son texte, ou null) : { etat, fichier } avec `etat` parmi
- * pose · modifie · inchange · retire · absent · ignore (crochet non marqué) · hors-git · erreur (emplacement non inscriptible,
+ * pose · modifie (texte périmé, ou sans bit d'exécution : `raison` le dit) · inchange · retire · absent · ignore (crochet
+ * non marqué) · hors-git · erreur (emplacement non inscriptible,
  * par exemple un `core.hooksPath` qui vise un chemin d'un autre montage, ou un lien symbolique dans le dépôt sur son
  * chemin : `raison` le dit). `ecrire: false` : dit seulement.
  */
@@ -101,10 +102,13 @@ export function poserCrochet(depot, voulu, { ecrire = true } = {}) {
     if (ecrire) fs.unlinkSync(fichier);
     return { etat: 'retire', fichier };
   }
-  if (present === voulu) return { etat: 'inchange', fichier };
+  // Un crochet sans bit d'exécution, git ne le lance pas : à jour par son texte, il est remis exécutable et dit modifié.
+  const enPlace = present === voulu && accessible(fichier, fs.constants.X_OK);
+  if (enPlace) return { etat: 'inchange', fichier };
   if (ecrire) { try { ecrireSansLien(racine, relatif, voulu, 0o755); } catch (e) { return erreur(e.code || e.message); } }
-  return { etat: present == null ? 'pose' : 'modifie', fichier };
+  return { etat: present == null ? 'pose' : 'modifie', fichier, ...(present === voulu && { raison: 'sans bit d’exécution' }) };
 }
 
 // Quelque chose est à ce chemin, un lien cassé compris.
 const existe = (f) => { try { fs.lstatSync(f); return true; } catch { return false; } };
+const accessible = (f, mode) => { try { fs.accessSync(f, mode); return true; } catch { return false; } };

@@ -2208,3 +2208,30 @@ test('Crochet de git : lu et écrit par la garde commune, sans bloquer sur un FI
   assert.ok(fs.lstatSync(path.join(crochets, 'pre-commit')).isSymbolicLink(), 'le lien reste');
   assert.equal(fs.statSync(path.join(sain, '.git', 'hooks', 'pre-commit')).mode & 0o777, 0o755, 'le crochet posé est exécutable');
 });
+
+// Banc de rejeu, mineur : un crochet au bon texte mais sans bit d'exécution (git ne le lance pas, la garde se tait) était
+// dit en place. Il est remis exécutable et dit modifié ; à blanc, l'audit le voit.
+test('Crochet de git : à jour mais sans bit d’exécution, il est remis exécutable et l’audit le dit', async () => {
+  const { appliquerRegles } = await import('../src/materialisation.js');
+  const affichage = await import('../bin/affichage.js');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const d = path.join(r, 'depot'); const profil = path.join(r, 'profil');
+  fs.mkdirSync(d); assert.equal(spawnSync('git', ['init', '-q', d]).status, 0);
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(profil, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [profil], projetDe: () => null }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const pose = () => appliquerRegles(s, ['holarch:project:depot'], []).projets[0];
+  const crochet = path.join(d, '.git', 'hooks', 'pre-commit');
+  assert.equal(pose().m.crochet.etat, 'pose');
+  fs.chmodSync(crochet, 0o644);
+  const ecarts = () => s.audit({ projet: 'holarch:project:depot' }).cibles.find((c) => c.projet === 'holarch:project:depot').ecarts.filter((e) => e.controle === 'crochet-pose').map((e) => e.message);
+  assert.deepEqual(ecarts(), ['crochet de git sans bit d’exécution : git ne le lance pas']);
+  assert.equal(fs.statSync(crochet).mode & 0o777, 0o644, 'rien n’est écrit à blanc');
+  const p = pose();
+  assert.deepEqual([p.m.crochet.etat, p.m.crochet.raison, fs.statSync(crochet).mode & 0o777], ['modifie', 'sans bit d’exécution', 0o755]);
+  assert.match(affichage.appliquer({ comptes: [], projets: [p] }), /^ {2}crochet de git : modifie \(sans bit d’exécution\)$/m);
+  assert.deepEqual([pose().m.crochet.etat, ecarts()], ['inchange', []]);
+});
