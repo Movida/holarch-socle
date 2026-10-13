@@ -66,7 +66,8 @@ export function racineArbre(depot) {
   const a = path.join(depot, 'arbre', 'index.md');
   if (fs.existsSync(a)) return { fichier: a, dossier: path.dirname(a), okf: false };
   const o = path.join(depot, 'index.md');
-  return fs.existsSync(o) && enTete(o).okf_version != null ? { fichier: o, dossier: depot, okf: true } : null;
+  // Lu depuis le dépôt (`enTete` gardée) : un lien posé à la place de `index.md` ne se suit pas, un FIFO ne bloque pas.
+  return fs.existsSync(o) && enTete(o, depot).okf_version != null ? { fichier: o, dossier: depot, okf: true } : null;
 }
 
 /** L'arbre d'un dépôt a-t-il changé après `ms` (fichier modifié, ajouté ou retiré) ? Dates seules, rien n'est parsé. */

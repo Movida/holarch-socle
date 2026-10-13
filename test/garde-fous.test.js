@@ -2164,3 +2164,18 @@ test('Création : un contexte illisible à côté d’un seul lisible fait préc
   fs.rmSync(path.join(profil, 'arbre', 'contextes', 'perso.md'));
   assert.equal(choix({}), 'pro', 'un seul contexte, lisible : pris sans être nommé, comme avant');
 });
+
+// ---- Famille Gardes muettes, rejeux, réglages posés à la main (revue des limites, choix de l'auteur du 2026-10-13).
+
+// `racineArbre`, voisin de la famille : l'en-tête d'un `index.md` à la racine d'un dépôt (bundle OKF) se lit par la
+// lecture gardée commune, depuis ce dépôt : un lien posé à sa place ne se suit pas, un FIFO ne bloque pas l'inventaire.
+test('Racine de l’arbre : l’index.md d’un bundle à la racine ne se lit ni à travers un lien, ni dans un FIFO', () => {
+  const okf = '---\nokf_version: 1\ntitle: Bundle fictif\n---\n';
+  const hote = path.join(tmp(), 'index.md'); fs.writeFileSync(hote, okf);
+  const lien = tmp(); fs.symlinkSync(hote, path.join(lien, 'index.md'));
+  const fifo = tmp(); assert.equal(spawnSync('mkfifo', [path.join(fifo, 'index.md')]).status, 0);
+  const sain = tmp(); fs.writeFileSync(path.join(sain, 'index.md'), okf);
+  const r = enfant(`import { racineArbre } from ${srcDe('inventaire/arbre.js')};
+    console.log(JSON.stringify(${JSON.stringify([lien, fifo, sain])}.map((d) => racineArbre(d)?.okf ?? null)));`);
+  assert.deepEqual(r, [null, null, true], 'seul le bundle sain est une racine');
+});
