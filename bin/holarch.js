@@ -16,7 +16,6 @@ import { creerProjet } from '../src/creation.js';
 import { creerService, binaireService } from '../src/service.js';
 import { trouverOutil } from '../src/commun.js';
 import { rapportSousAgent } from '../src/transcription.js';
-import { readFileSync as lire } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
 const [cmd = 'aide', ...args] = process.argv.slice(2);
@@ -188,7 +187,7 @@ switch (cmd) {
   case 'contexte': {
     const evenement = { alerte: 'UserPromptSubmit', debut: 'SessionStart' }[args[0]] || args[0];
     try {
-      const entree = JSON.parse(lire(0, 'utf8') || '{}');
+      const entree = JSON.parse(readFileSync(0, 'utf8') || '{}');
       if (args[0] === 'alerte') {
         const i = args.indexOf('--seuil'); const a = alerte({ transcription: entree.transcript_path, seuil: +args[i + 1], regles: () => reglesDuDossier(socle(), entree.cwd || process.cwd()) });
         if (a) console.log(JSON.stringify({ systemMessage: a.auteur, hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: a.agent } }));
