@@ -1841,3 +1841,30 @@ test('Clé du conteneur : ni l’étiquette, ni le conteneur, ni la configuratio
     { conteneurs: [{ id: 'b1', erreur: 'remoteUser inconnu' }, { id: 'b2', erreur: 'remoteUser inconnu' }] });
   assert.deepEqual(appels.filter((a) => !a.startsWith('ps')), ['inspect --type container --format {{json .Config.User}} b1', 'inspect --type container --format {{json .Config.User}} b2']);
 });
+
+// `.meta.json` d'un sous-agent, limite de C : le conteneur écrit le dossier des transcriptions de son projet. Sa
+// description se lit depuis le dossier des projets du compte par la lecture gardée commune (`lireSansLien`, bornée) : un
+// lien, un fichier qui n'en est pas un (un FIFO, qui bloquerait la lecture) ou énorme la laissent null ; le rapport se lit.
+test('Rapport d’un sous-agent : sa description ne se lit ni à travers un lien, ni dans un FIFO, ni dans un fichier énorme', () => {
+  const home = tmp(); const sa = path.join(home, 'projects', '-dossier', 'session-1', 'subagents'); fs.mkdirSync(sa, { recursive: true });
+  const hote = path.join(tmp(), 'hote.json'); fs.writeFileSync(hote, JSON.stringify({ description: 'SECRET DE L’HÔTE' }));
+  const agent = (id, meta) => {
+    fs.writeFileSync(path.join(sa, `agent-${id}.jsonl`), `${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: `Rapport de ${id}` }] } })}\n`);
+    meta(path.join(sa, `agent-${id}.meta.json`));
+  };
+  agent('lien', (m) => fs.symlinkSync(hote, m));
+  agent('fifo', (m) => assert.equal(spawnSync('mkfifo', [m]).status, 0));
+  agent('enorme', (m) => fs.writeFileSync(m, JSON.stringify({ description: 'Énorme', bourre: 'x'.repeat(1 << 20) })));
+  agent('sain', (m) => fs.writeFileSync(m, JSON.stringify({ description: 'Une description' })));
+  // Dans un processus à part, borné dans le temps : un FIFO ouvert en lecture bloquerait le processus entier.
+  const src = (f) => JSON.stringify(new URL(`../src/${f}`, import.meta.url).href);
+  const script = `import { rapportSousAgent } from ${src('transcription.js')}; import { lireSansLien } from ${src('commun.js')};
+    const sa = ${JSON.stringify(sa)};
+    console.log(JSON.stringify({ rapports: ['lien', 'fifo', 'enorme', 'sain'].map((id) => { const r = rapportSousAgent([${JSON.stringify(home)}], id); return [r.description, r.rapport]; }),
+      lus: [lireSansLien(sa, 'agent-fifo.meta.json'), lireSansLien(sa, 'agent-enorme.meta.json', { max: 1024 }), lireSansLien(sa, 'agent-sain.meta.json', { max: 1024 })] }));`;
+  const r = spawnSync(process.execPath, ['--no-warnings', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 15e3 });
+  assert.equal(r.signal, null, 'la lecture a bloqué');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), { rapports: [[null, 'Rapport de lien'], [null, 'Rapport de fifo'], [null, 'Rapport de enorme'], ['Une description', 'Rapport de sain']],
+    lus: [null, null, '{"description":"Une description"}'] }, 'un FIFO ne se lit pas (null, pas un texte vide), un fichier au-delà de la borne non plus');
+});

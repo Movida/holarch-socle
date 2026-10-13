@@ -3,6 +3,7 @@
 // l'auteur) : une transcription peut peser des mégaoctets, seule sa fin est lue.
 import fs from 'node:fs';
 import path from 'node:path';
+import { dedans, lireSansLien } from './commun.js';
 
 // Sous `<home>/projects/<projet>/` : la conversation principale `<session>.jsonl`, et ses sous-agents à tout niveau sous
 // `<session>/subagents/` (ceux d'un workflow dans `workflows/wf_<id>/`). Le journal d'un workflow (`wf_<id>/journal.jsonl`,
@@ -61,6 +62,8 @@ export const evenements = function* (lignes, filtre = '') {
 
 // Un rapport se lit dans la fin de la transcription du sous-agent : sa remise est son dernier geste.
 const FIN_RAPPORT = 4 * 1024 * 1024;
+// Le `.meta.json` d'un sous-agent (sa description) : mesure du 2026-10-13, 414 fichiers de 160 à 243 octets.
+const META_MAX = 64 * 1024;
 // Un outil de travail : tout outil autre que la remise. Ce qui s'écrit après le dernier est la fin du travail.
 const travail = (b) => b.type === 'tool_use' && b.name !== 'SubagentHandback';
 
@@ -86,8 +89,11 @@ export function rapportSousAgent(homes, id) {
   if (noms.length > 1) throw new Error(`identifiant ambigu, ${noms.length} sous-agents : ${noms.join(', ')}`);
   const date = (f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
   const [f, ...copies] = trouves.sort((a, b) => date(b) - date(a)); const nom = noms[0];
+  // Sa description, dans le fichier voisin, que le conteneur écrit aussi : lue depuis le dossier des projets du compte,
+  // sans lien, ni fichier qui n'en est pas un, ni au-delà de la borne (`lireSansLien`) ; illisible, elle reste null.
+  const projets = homes.map((h) => path.join(h, 'projects')).find((d) => dedans(f, d));
   let description = null;
-  try { description = JSON.parse(fs.readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8')).description ?? null; } catch { /* sans méta */ }
+  try { const t = lireSansLien(projets, path.relative(projets, f.replace(/\.jsonl$/, '.meta.json')), { max: META_MAX }); description = t === null ? null : JSON.parse(t).description ?? null; } catch { /* sans méta */ }
   // De la fin vers le début : les messages jusqu'au dernier outil de travail (ce qui le suit dans son tour compris).
   const messages = []; let fin = false;
   for (const e of evenements(finDeTranscription(f, FIN_RAPPORT), '"assistant"')) {

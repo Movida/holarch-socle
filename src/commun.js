@@ -52,10 +52,13 @@ function ouvrirSansLien(racine, relatif, drapeaux, verbe, mode) {
 /**
  * Le texte de `relatif` sous `racine` (un dépôt), null s'il manque ou ne se lit pas, sans suivre de lien symbolique
  * (`cheminSansLien` : un lien lève une erreur ; `ouvrirSansLien` pour la course entre la vérification et la lecture).
+ * Ce qui n'est pas un fichier (un FIFO, ouvert sans attendre d'écrivain : `O_NONBLOCK`), ou qui dépasse `max` octets,
+ * ne se lit pas.
  */
-export function lireSansLien(racine, relatif) {
-  let fd; try { fd = ouvrirSansLien(racine, relatif, fs.constants.O_RDONLY, 'lu'); } catch (e) { if (e.code) return null; throw e; }
-  try { return fs.readFileSync(fd, 'utf8'); } catch { return null; } finally { fs.closeSync(fd); }
+export function lireSansLien(racine, relatif, { max = Infinity } = {}) {
+  const { O_RDONLY, O_NONBLOCK } = fs.constants;
+  let fd; try { fd = ouvrirSansLien(racine, relatif, O_RDONLY | O_NONBLOCK, 'lu'); } catch (e) { if (e.code) return null; throw e; }
+  try { const s = fs.fstatSync(fd); return s.isFile() && s.size <= max ? fs.readFileSync(fd, 'utf8') : null; } catch { return null; } finally { fs.closeSync(fd); }
 }
 
 /**
