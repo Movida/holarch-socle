@@ -1975,3 +1975,19 @@ console.log(JSON.stringify({ results })); process.exit(results.length ? 1 : 0);
   const r = executer('dependances-vulnerables', { depot: d, osv: faux, cache: null, config: {} }, 'audit');
   assert.deepEqual(r.ecarts.map((e) => e.cle), ['package-lock.json:paquet-a@1.0.0', 'web/package-lock.json:paquet-a@1.0.0'], 'ni à la racine, ni dans un sous-dossier');
 });
+
+// Mémoires de l'inventaire, voisin de la famille « Sécurité et intégrité » : le conteneur écrit la mémoire de son projet.
+// Le listage écarte un lien ; un lien posé à la place d'une mémoire juste après lui n'est pas suivi non plus : l'en-tête
+// se lit depuis le dossier des projets du compte (`enTete` avec sa racine), la mémoire reste, sans rien de l'hôte.
+test('Mémoires de l’inventaire : un lien posé à la place d’une mémoire après le listage n’est pas suivi', async () => {
+  const { default: inventaireClaudeCode } = await import('../src/inventaire/claude-code.js');
+  const home = tmp(); const m = path.join(home, 'projects', '-dossier', 'memory'); fs.mkdirSync(m, { recursive: true });
+  const hote = path.join(tmp(), 'hote.md'); fs.writeFileSync(hote, '---\nname: SECRET DE L’HÔTE\ndescription: SECRET\n---\n');
+  fs.writeFileSync(path.join(m, 'note.md'), '---\nname: Note\ndescription: Une note\n---\n');
+  fs.writeFileSync(path.join(m, 'saine.md'), '---\nname: Saine\ndescription: Une saine\n---\n');
+  const lister = fs.readdirSync;
+  fs.readdirSync = (d, ...a) => { const r = lister(d, ...a); if (d === m) { fs.readdirSync = lister; fs.rmSync(path.join(m, 'note.md')); fs.symlinkSync(hote, path.join(m, 'note.md')); } return r; };
+  let fiches; try { fiches = inventaireClaudeCode({ home, config: path.join(home, 'absent.json') }, { site: 'local', depots: [] }); } finally { fs.readdirSync = lister; }
+  assert.deepEqual(fiches.filter((f) => f.kind === 'memory').map((f) => [f.name, f.description]).sort(), [['Saine', 'Une saine'], ['note', null]]);
+  assert.doesNotMatch(JSON.stringify(fiches), /SECRET/);
+});

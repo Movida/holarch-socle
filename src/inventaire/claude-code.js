@@ -91,8 +91,10 @@ function memoires(home, site, projetDe) {
     // vraie place : le compter deux fois créerait de faux doublons.
     try { if (fs.lstatSync(m).isSymbolicLink()) return []; } catch { return []; }
     const cwd = repertoireDe(path.join(projets, d.name));
+    // Le conteneur écrit la mémoire de son projet : le listage écarte les liens, la lecture se garde aussi depuis le
+    // dossier des projets du compte (`enTete` avec sa racine) contre un lien ou un FIFO posé après lui.
     return liste(m, (x) => x.isFile() && x.name.endsWith('.md') && x.name !== 'MEMORY.md').map((x) => {
-      const f = path.join(m, x.name); const h = enTete(f);
+      const f = path.join(m, x.name); const h = enTete(f, projets);
       const type = h.type || h.metadata?.type || null;
       return fiche('memory', `${d.name}/${x.name}`, h.name || x.name.replace(/\.md$/, ''), {
         description: premiereLigne(h.description, 240), location: f, site, links: lienProjet(projetDe(cwd)),
