@@ -185,16 +185,22 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     ...(typee && !arbreExistant ? [['arbre/index.md', () => racineIndex({ nom, description, types, journal: cfg.journal })],
       ...(cfg.journal ? [[cfg.journal, () => `# Journal de l'arbre\n\n## ${maintenant.toISOString().slice(0, 10)}\n\n* **Création** : projet créé par \`holarch projet creer\`.\n`]] : [])] : []),
   ];
-  const manquants = fichiers.filter(([f]) => !fs.existsSync(path.join(dossier, f)));
   // Un fichier présent mais jamais commité (commit refusé à un passage précédent) n'est pas réécrit : il est commité.
   const commite = (f) => g('cat-file', '-e', `HEAD:${f}`).status === 0;
-  const aCommiter = fichiers.filter(([f]) => !fs.existsSync(path.join(dossier, f)) || (fs.existsSync(path.join(dossier, '.git')) && !commite(f)));
+  const depotLa = fs.existsSync(path.join(dossier, '.git'));
+  // Un fichier de base que git ignore (un .gitignore du dépôt, ou celui du compte) ne s'ajoute pas : `git add` le refuse,
+  // et chaque rejeu s'arrêtait là. Il n'est ni écrit ni commité ; un geste le dit, avec la commande qui montre la règle.
+  const ignores = fichiers.filter(([f]) => depotLa && !commite(f) && g('check-ignore', '-q', '--', f).status === 0).map(([f]) => f);
+  const suivis = fichiers.filter(([f]) => !ignores.includes(f));
+  const manquants = suivis.filter(([f]) => !fs.existsSync(path.join(dossier, f)));
+  const aCommiter = suivis.filter(([f]) => !fs.existsSync(path.join(dossier, f)) || (depotLa && !commite(f)));
+  if (ignores.length) noter('ignores', 'geste', `${ignores.join(', ')} : ignoré(s) par git, ni écrit(s) ni commité(s)`, { quoi: 'retirer la règle qui les ignore (la commande la montre), puis relancer ; ou les laisser hors du dépôt', commande: `git -C ${dossier} check-ignore -v -- ${ignores.join(' ')}` });
   if (typee && arbreExistant) {
     const declares = [].concat(noeuds().find((n) => n.location === arbreExistant.fichier)?.attributes?.types || []);
     const absents = types.filter((t) => !declares.includes(t));
     if (absents.length) noter('types', 'geste', `la racine de l'arbre existe (${path.relative(dossier, arbreExistant.fichier)}) sans déclarer ${absents.join(', ')}`, { quoi: `ajouter ${absents.join(', ')} à sa liste \`types\`, puis relancer` });
   }
-  if (!aCommiter.length) noter('fichiers', 'deja', fichiers.map(([f]) => f).join(', '));
+  if (!aCommiter.length) noter('fichiers', 'deja', suivis.map(([f]) => f).join(', '));
   else if (aBlanc) noter('fichiers', 'a-faire', aCommiter.map(([f]) => f).join(', '));
   else {
     const premier = g('rev-parse', '--verify', '-q', 'HEAD').status !== 0;

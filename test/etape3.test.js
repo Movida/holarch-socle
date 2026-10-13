@@ -1925,3 +1925,21 @@ test('Création à blanc : sur un dépôt sans commit, la suite attend le premie
   assert.deepEqual(await attentes(), ['a-faire', ['après le premier commit (étape fichiers)']], 'l’inventaire passé, rien ne change');
   assert.equal(spawnSync('git', ['-C', d, 'rev-parse', '--verify', '-q', 'HEAD']).status, 1, 'à blanc, aucun commit');
 }));
+
+// R4 : un fichier de base ignoré par git (ici par le .gitignore du dépôt) faisait refuser le `git add` : l'étape fichiers
+// échouait et chaque rejeu s'arrêtait là. Il n'est ni écrit ni commité, un geste le dit avec la commande qui montre la
+// règle, et la suite se fait.
+test('R4 : un fichier de base ignoré par git ne bloque plus les rejeux ; un geste le dit', () => gitIsole(async () => {
+  const { r, s, etats, git } = await bancCreation();
+  const d = path.join(r, 'neuf'); const creer = (aBlanc = false) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc });
+  assert.equal(etats(await creer()).fichiers, 'faite');
+  git(d, 'rm', '-q', 'CLAUDE.md'); fs.appendFileSync(path.join(d, '.gitignore'), 'CLAUDE.md\n'); git(d, 'commit', '-qam', 'Garder CLAUDE.md hors du dépôt');
+  const tete = git(d, 'rev-parse', 'HEAD');
+  for (const aBlanc of [true, false]) {
+    const p = await creer(aBlanc); const geste = p.etapes.find((e) => e.etape === 'ignores');
+    assert.deepEqual([etats(p).fichiers, geste?.etat, geste?.detail, geste?.geste.commande], ['deja', 'geste', 'CLAUDE.md : ignoré(s) par git, ni écrit(s) ni commité(s)', `git -C ${d} check-ignore -v -- CLAUDE.md`], JSON.stringify(p.etapes, null, 1));
+    assert.ok(!p.etapes.find((e) => e.etape === 'fichiers').detail.includes('CLAUDE.md'));
+    assert.deepEqual([etats(p).declaration, etats(p).regles], ['deja', 'deja'], 'la suite se fait');
+  }
+  assert.deepEqual([fs.existsSync(path.join(d, 'CLAUDE.md')), git(d, 'rev-parse', 'HEAD'), git(d, 'status', '--porcelain')], [false, tete, ''], 'ni écrit ni commité');
+}));
