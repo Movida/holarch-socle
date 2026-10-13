@@ -2258,3 +2258,22 @@ test('M6 : sans racine, ecrireJson réécrit le fichier que vise un lien, garde 
   assert.throws(() => ecrireJson(casse, { c: 1 }), /casse\.json est un lien vers un fichier absent \(ENOENT\) : rien n’est écrit/);
   assert.ok(fs.lstatSync(casse).isSymbolicLink()); assert.ok(!fs.existsSync(path.join(d, 'absent')));
 });
+
+// C3 : `regles appliquer` lit le chemin d'un projet dans le catalogue ; pour un dépôt déplacé depuis l'inventaire, il
+// recréait l'ancien dossier pour y écrire les règles. Un chemin absent est refusé, avant toute écriture, et c'est dit.
+test('C3 : regles appliquer refuse le chemin absent d’un dépôt déplacé au lieu de le recréer', async () => {
+  const { appliquerRegles } = await import('../src/materialisation.js');
+  const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
+  const r = tmp(); const accueil = tmp(); const d = path.join(r, 'depot'); const profil = path.join(r, 'profil');
+  fs.mkdirSync(d); assert.equal(spawnSync('git', ['init', '-q', d]).status, 0);
+  ecrireF(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+  ecrireF(path.join(profil, 'arbre', 'rules.yaml'), '- id: francais\n  statement: Répondre en français.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrireF(path.join(profil, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [profil], projetDe: () => null }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  fs.renameSync(d, path.join(r, 'ailleurs'));
+  assert.throws(() => appliquerRegles(s, ['holarch:project:depot'], []), new RegExp(`projet holarch:project:depot : ${d} n'existe plus \\(dépôt déplacé ou retiré depuis l'inventaire ; holarch inventaire le retrouve sous ses racines\\), rien n'est écrit`));
+  assert.ok(!fs.existsSync(d), 'l’ancien dossier n’est pas recréé');
+  assert.ok(!fs.existsSync(path.join(r, 'ailleurs', '.claude')), 'ni le dépôt déplacé écrit');
+});

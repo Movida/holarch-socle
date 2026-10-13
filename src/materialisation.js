@@ -1,6 +1,7 @@
 // Matérialisation de la règle effective (contrat règle §2 ; décisions arbre-des-regles et controles-de-regles) : ce qui
 // s'écrit pour Claude Code et pour git, au compte et par projet. Une seule définition : `holarch regles appliquer`
 // l'exécute (`ecrire: true`), l'audit la lit à blanc (`ecrire: false`) et en tire ses écarts.
+import fs from 'node:fs';
 import { planifier, appliquer, dossierCompte, dossierProjet, lecturesRefusees, avantCommit, appliquerPermissions, reglagesVoulus, appliquerReglages } from './regles-claude-code.js';
 import { crochetDe, poserCrochet } from './garde-git.js';
 import { poserIdentite } from './identite-git.js';
@@ -9,6 +10,8 @@ import { binaireService } from './service.js';
 
 // La ligne de commande qu'appellent le crochet de git et ceux de Claude Code : la copie de service posée dans l'accueil
 // de la configuration (`binaireService`), sinon le code qui s'exécute.
+
+const dossier = (c) => { try { return fs.statSync(c).isDirectory(); } catch { return false; } };
 
 // Une règle effective incomplète (source de règles illisible) ne s'écrit pas : elle retirerait les fichiers, le crochet
 // et les lectures refusées des règles qu'elle ne voit plus. De même pour un compte sans profil (non désigné par le
@@ -25,7 +28,13 @@ function lisible(r) {
  * quoi le compte serait déjà réécrit quand l'erreur d'un projet arrête la commande.
  */
 export function appliquerRegles(s, refs, comptes) {
-  const effectives = refs.map((ref) => { const r = s.regles({ projet: ref }); if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`); return r; });
+  // Un dépôt déplacé depuis l'inventaire : son ancien chemin, absent, n'est pas recréé pour y écrire les règles.
+  const effectives = refs.map((ref) => {
+    const r = s.regles({ projet: ref });
+    if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`);
+    if (!dossier(r.chemin)) throw new Error(`projet ${ref} : ${r.chemin} n'existe plus (dépôt déplacé ou retiré depuis l'inventaire ; holarch inventaire le retrouve sous ses racines), rien n'est écrit`);
+    return r;
+  });
   const compte = s.regles().compte;
   const illisibles = [...new Set([compte, ...effectives].flatMap((r) => r.illisibles || []))];
   if (illisibles.length) throw new Error(`règles illisibles, rien n'est écrit : ${illisibles.join(' ; ')}`);
