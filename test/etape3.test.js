@@ -1863,3 +1863,34 @@ test('C2 : la création ne déclare pas l’identifiant de chemin qu’un invent
   assert.deepEqual([['holarch:project:abc', 'abc'], ['holarch:project:abc:/a/neuf', 'abc'], ['holarch:project:abcd', 'abc'], ['holarch:project:/a/abc', 'abc'], ['holarch:project:abc', null]]
     .map(([x, c]) => tireDuCommit(x, c)), [true, true, false, false, false]);
 }));
+
+// ---- Famille « Gardes muettes, rejeux, réglages posés à la main », lot 2 (rejeu et accès distant ; choix de l'auteur du
+// 2026-10-13). « GitHub » : des dépôts nus sous un dossier `github.com`, créés par un faux gh, comme plus haut.
+function ghFictif(github) {
+  return (args) => {
+    if (args[0] === 'api' && args[1] === 'user') return { status: 0, stdout: 'alice\n' };
+    if (args[0] === 'repo' && args[1] === 'view') return { status: fs.existsSync(path.join(github, args[2])) ? 0 : 1, stdout: '' };
+    if (args[0] === 'repo' && args[1] === 'create') { spawnSync('git', ['init', '-q', '--bare', path.join(github, args[2])]); return { status: 0, stdout: '' }; }
+    return { status: 0, stdout: '' };
+  };
+}
+
+// R1 : rejouée, la création disait « github : déjà là » sur une branche suivie mais en avance sur son amont. Les commits
+// non poussés se comptent et se disent ; ils ne sont pas envoyés (l'envoi revient à l'auteur) : un geste, avec la commande.
+test('R1 : rejouée, la création dit les commits non poussés au lieu de « github : déjà là », sans les envoyer', () => gitIsole(async () => {
+  const github = path.join(tmp(), 'github.com');
+  const { r, s, etats, git } = await bancCreation({ creation: { etapes: { github: true, conteneur: false, distant: false } } });
+  const d = path.join(r, 'neuf'); const nu = path.join(github, 'alice', 'neuf');
+  const creer = (aBlanc = false) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc }, { gh: ghFictif(github), urlDepot: (o, n) => path.join(github, o, n) });
+  const p1 = await creer();
+  assert.equal(etats(p1).github, 'faite', JSON.stringify(p1.etapes, null, 1));
+  const envoye = git(nu, 'rev-parse', 'main');
+  ecrire(path.join(d, 'note.md'), 'en cours\n'); git(d, 'add', 'note.md'); git(d, 'commit', '-qm', 'Travail en cours');
+  for (const aBlanc of [true, false]) {
+    const e = (await creer(aBlanc)).etapes.find((x) => x.etape === 'github');
+    assert.deepEqual([e.etat, e.detail, e.geste?.commande], ['geste', `${nu} : 1 commit(s) non poussé(s)`, `git -C ${d} push`], JSON.stringify(e));
+  }
+  assert.equal(git(nu, 'rev-parse', 'main'), envoye, 'rien n’est envoyé');
+  git(d, 'push', '-q');
+  assert.equal(etats(await creer()).github, 'deja');
+}));

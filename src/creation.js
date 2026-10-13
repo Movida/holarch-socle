@@ -13,7 +13,7 @@ import { configAvantProjet, fusionnerConfig } from './regles.js';
 import { identiteDeclaree } from './controles.js';
 import { poserIdentite } from './identite-git.js';
 import { racineArbre } from './inventaire/arbre.js';
-import { racine, tireDuCommit } from './inventaire/depots-git.js';
+import { racine, tireDuCommit, etatDepot } from './inventaire/depots-git.js';
 import { materialiserProjet } from './materialisation.js';
 import { creerDistant } from './distant.js';
 import { genererConteneur, maisonDe, NOM_UTILISATEUR, FICHIER as CONTENEUR, MARQUE as MARQUE_CONTENEUR } from './conteneur.js';
@@ -301,13 +301,18 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     } catch (e) { noter('conteneur', 'echec', e.message); }
   }
 
-  // 6. Dépôt GitHub, remote `origin` en SSH, premier envoi de la branche.
+  // 6. Dépôt GitHub, remote `origin` en SSH, premier envoi de la branche. Une branche déjà suivie mais en avance sur son
+  // amont n'est pas « déjà là » : ses commits non poussés (lus comme ceux de la reprise, `etatDepot`) se disent, sans être
+  // envoyés (ils peuvent être le travail de l'auteur, dont l'envoi lui revient).
   let distantGithub = depuisGithub(g('remote', 'get-url', 'origin').stdout?.trim());
   const amont = () => g('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}').status === 0;
   const envoyer = () => { const p = g('push', '-q', '-u', 'origin', BRANCHE); if (p.status !== 0) throw new Error(`envoi refusé : ${erreur(p)}`); };
   if (!cfg.etapes.github) noter('github', 'desactivee', 'creation.etapes.github');
   else if (g('remote', 'get-url', 'origin').status === 0) {
-    if (amont()) noter('github', 'deja', g('remote', 'get-url', 'origin').stdout.trim());
+    const url = g('remote', 'get-url', 'origin').stdout.trim();
+    const nonPousses = amont() ? etatDepot(dossier).en_avance : 0;
+    if (nonPousses) noter('github', 'geste', `${url} : ${nonPousses} commit(s) non poussé(s)`, { quoi: 'relire les commits non poussés, puis les envoyer', commande: `git -C ${dossier} push` });
+    else if (amont()) noter('github', 'deja', url);
     else if (aBlanc) noter('github', 'a-faire', `premier envoi de ${BRANCHE}`);
     else { try { envoyer(); noter('github', 'faite', `premier envoi de ${BRANCHE}`); } catch (e) { noter('github', 'echec', e.message); } }
   } else if (gh(['auth', 'status']).status !== 0) {
