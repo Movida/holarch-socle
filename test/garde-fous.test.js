@@ -2179,3 +2179,32 @@ test('Racine de l’arbre : l’index.md d’un bundle à la racine ne se lit ni
     console.log(JSON.stringify(${JSON.stringify([lien, fifo, sain])}.map((d) => racineArbre(d)?.okf ?? null)));`);
   assert.deepEqual(r, [null, null, true], 'seul le bundle sain est une racine');
 });
+
+// `poserCrochet`, voisin de la famille : le crochet se lisait et s'écrivait sans la garde commune. Un FIFO à sa place
+// bloquait `regles appliquer` et l'audit ; hors du dépôt (`core.hooksPath` qui en sort, dossier commun d'un worktree), un
+// lien posé à sa place faisait écrire à travers. Lu et écrit par `lireSansLien` et `ecrireSansLien`, depuis le dépôt ou
+// depuis le dossier des crochets : rien n'est touché, et c'est dit.
+test('Crochet de git : lu et écrit par la garde commune, sans bloquer sur un FIFO ni écrire à travers un lien hors du dépôt', () => {
+  const depot = () => { const d = tmp(); assert.equal(spawnSync('git', ['init', '-q', d]).status, 0); return d; };
+  const fifo = depot(); fs.mkdirSync(path.join(fifo, '.git', 'hooks'), { recursive: true });
+  assert.equal(spawnSync('mkfifo', [path.join(fifo, '.git', 'hooks', 'pre-commit')]).status, 0);
+  // Hors du dépôt : un crochet marqué d'une version précédente, vers lequel pointe un lien posé à la place du crochet.
+  const dehors = depot(); const crochets = tmp(); const cible = path.join(tmp(), 'cible');
+  assert.equal(spawnSync('git', ['-C', dehors, 'config', 'core.hooksPath', crochets]).status, 0);
+  // Sain : le dossier des crochets manque (il se crée), ou est hors du dépôt.
+  const sain = depot(); fs.rmSync(path.join(sain, '.git', 'hooks'), { recursive: true, force: true });
+  const sainDehors = depot(); assert.equal(spawnSync('git', ['-C', sainDehors, 'config', 'core.hooksPath', tmp()]).status, 0);
+  const r = enfant(`import { crochetDe, poserCrochet, MARQUE } from ${srcDe('garde-git.js')}; import fs from 'node:fs';
+    const texte = crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant' });
+    fs.writeFileSync(${JSON.stringify(cible)}, '#!/bin/sh\\n' + MARQUE + '\\nexit 0\\n'); fs.symlinkSync(${JSON.stringify(cible)}, ${JSON.stringify(path.join(crochets, 'pre-commit'))});
+    const etat = (d, v = texte) => { const c = poserCrochet(d, v); return [c.etat, c.raison ?? null]; };
+    console.log(JSON.stringify({ fifo: [etat(${JSON.stringify(fifo)}), etat(${JSON.stringify(fifo)}, null)], dehors: [etat(${JSON.stringify(dehors)}), etat(${JSON.stringify(dehors)}, null)],
+      cible: fs.readFileSync(${JSON.stringify(cible)}, 'utf8'), sain: [etat(${JSON.stringify(sain)}), etat(${JSON.stringify(sain)}), etat(${JSON.stringify(sainDehors)}), etat(${JSON.stringify(sainDehors)}, null)] }));`);
+  const LIEN = 'pre-commit est un lien symbolique : rien n’est écrit';
+  assert.deepEqual(r, { fifo: [['erreur', '.git/hooks/pre-commit ne se lit pas comme un fichier : rien n’est touché'], ['erreur', '.git/hooks/pre-commit ne se lit pas comme un fichier : rien n’est touché']],
+    dehors: [['erreur', LIEN], ['erreur', LIEN]], cible: '#!/bin/sh\n# Généré par HOLARCH (holarch regles appliquer) : garde avant commit.\nexit 0\n',
+    sain: [['pose', null], ['inchange', null], ['pose', null], ['retire', null]] }, 'rien n’est écrit à travers le lien, ni retiré');
+  assert.ok(fs.lstatSync(path.join(fifo, '.git', 'hooks', 'pre-commit')).isFIFO(), 'le FIFO reste');
+  assert.ok(fs.lstatSync(path.join(crochets, 'pre-commit')).isSymbolicLink(), 'le lien reste');
+  assert.equal(fs.statSync(path.join(sain, '.git', 'hooks', 'pre-commit')).mode & 0o777, 0o755, 'le crochet posé est exécutable');
+});

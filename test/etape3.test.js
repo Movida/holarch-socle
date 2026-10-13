@@ -1373,7 +1373,7 @@ test('Écritures dans un dépôt (M-2) : un lien symbolique n’y détourne vers
   }
 
   // Crochet de git (`poserCrochet`) : `.git/hooks` ou le crochet qui est un lien, état erreur, rien n'est écrit ni retiré
-  // dehors, à blanc non plus ; un `core.hooksPath` hors du dépôt n'est pas gardé (risque accepté jusqu'à D).
+  // dehors, à blanc non plus ; hors du dépôt (`core.hooksPath`), seul le crochet lui-même est gardé (risque accepté jusqu'à D).
   const texte = crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant' });
   const autre = crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/ailleurs' });
   for (const seg of ['.git/hooks', '.git/hooks/pre-commit']) {

@@ -8,7 +8,7 @@
 // n'exécute rien de la configuration du dépôt (`neutralisation`, écrite en shell).
 import fs from 'node:fs';
 import path from 'node:path';
-import { shell as sh, porteMarque, git, dedans, cheminSansLien, NEUTRE } from './commun.js';
+import { shell as sh, porteMarque, git, dedans, cheminSansLien, lireSansLien, ecrireSansLien, NEUTRE } from './commun.js';
 import { OUTILS } from './conteneur.js';
 import { CONFIG_GITLEAKS, GITLEAKS_SANS_CIBLE, IGNORE_CIBLE } from './controles.js';
 
@@ -86,10 +86,15 @@ export function fichierCrochet(depot) {
 export function poserCrochet(depot, voulu, { ecrire = true } = {}) {
   const fichier = fichierCrochet(depot);
   if (!fichier) return { etat: 'hors-git', fichier: null };
-  // Dans le dépôt, que le conteneur écrit, rien ne se lit, ne s'écrit ni ne se retire à travers un lien symbolique ; un
-  // `core.hooksPath` qui en sort relève du risque accepté jusqu'à D (décision veille-et-conteneur-precisions).
-  if (dedans(fichier, depot)) { try { cheminSansLien(depot, path.relative(depot, fichier)); } catch (e) { return { etat: 'erreur', fichier, raison: e.message }; } }
-  const present = fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : null;
+  const erreur = (raison) => ({ etat: 'erreur', fichier, raison });
+  // Dans le dépôt, que le conteneur écrit, rien ne se lit, ne s'écrit ni ne se retire à travers un lien symbolique : le
+  // crochet se lit et s'écrit par la garde commune depuis le dépôt. Hors du dépôt (`core.hooksPath` qui en sort, dossier
+  // commun d'un worktree), depuis le dossier des crochets : le fichier lui-même est gardé, ses dossiers relèvent du risque
+  // accepté jusqu'à D (décision veille-et-conteneur-precisions). Ce qui n'est pas un fichier (un FIFO bloquerait la
+  // commande) ou ne se lit pas n'est pas pris pour absent : rien n'est touché.
+  const racine = dedans(fichier, depot) ? depot : path.dirname(fichier); const relatif = path.relative(racine, fichier);
+  let present; try { cheminSansLien(racine, relatif); present = lireSansLien(racine, relatif); } catch (e) { return erreur(e.message); }
+  if (present === null && existe(fichier)) return erreur(`${relatif} ne se lit pas comme un fichier : rien n’est touché`);
   if (present != null && !porteMarque(present, MARQUE)) return { etat: 'ignore', fichier };
   if (!voulu) {
     if (present == null) return { etat: 'absent', fichier };
@@ -97,8 +102,9 @@ export function poserCrochet(depot, voulu, { ecrire = true } = {}) {
     return { etat: 'retire', fichier };
   }
   if (present === voulu) return { etat: 'inchange', fichier };
-  if (ecrire) {
-    try { fs.mkdirSync(path.dirname(fichier), { recursive: true }); fs.writeFileSync(fichier, voulu, { mode: 0o755 }); fs.chmodSync(fichier, 0o755); } catch (e) { return { etat: 'erreur', fichier, raison: e.code || e.message }; }
-  }
+  if (ecrire) { try { ecrireSansLien(racine, relatif, voulu, 0o755); } catch (e) { return erreur(e.code || e.message); } }
   return { etat: present == null ? 'pose' : 'modifie', fichier };
 }
+
+// Quelque chose est à ce chemin, un lien cassé compris.
+const existe = (f) => { try { fs.lstatSync(f); return true; } catch { return false; } };
