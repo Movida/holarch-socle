@@ -2060,7 +2060,7 @@ test('Accès distant : un systemctl sans réponse ne se lit ni « arrêté » ni
   assert.equal(routine(), 'illisible (systemctl --user is-enabled holarch-reveil.timer : Unit file holarch-reveil.timer is broken)');
   // Sans systemd, rien ne tourne ni n'a été coupé.
   panne = 'Failed to connect to bus: No medium found'; sousSystemd = false;
-  assert.deepEqual([d.liste().map((x) => x.actif), routine()], [[false], 'activée']);
+  assert.deepEqual([d.liste().map((x) => x.actif), routine()], [[false], 'impossible sans systemd utilisateur']);
 });
 
 // M1 (famille Gardes muettes) : `distant activer` rallumait le minuteur de reprise après une veille coupé à la main (trou de
@@ -2300,4 +2300,20 @@ test('Passerelle : une ligne dont l’événement est refusé est relue au passa
   fs.appendFileSync(f, `${ligne('2026-10-01T10:00:03Z', 'd')}\n`);
   const r2 = importer();
   assert.deepEqual([r2.ajoutes, r2.ignores, outils()], [1, 0, ['c', 'd', 'refusé', 'àé']], 'tout accepté : la position est allée au bout');
+});
+
+import { etatVeille } from '../src/distant.js';
+// `etatRoutines` sans systemd, voisin de la famille Gardes muettes : une routine posée se disait « activée » sur un poste
+// sans systemd utilisateur (WSL sans systemd, conteneur), où rien ne tourne. Comme `etatVeille`, systemd se lit d'abord.
+test('Routines : sans systemd utilisateur, aucune ne se dit activée ; elles se disent impossibles, comme le gardien de veille', () => {
+  const unites = tmp(); let sousSystemd = true;
+  // Le faux systemctl des images Dev Containers : il répond 0 à tout, avec un texte.
+  const systemctl = (args) => ({ status: 0, stdout: sousSystemd ? { 'is-enabled': 'enabled\n', 'is-active': 'active\n', 'is-system-running': 'running\n' }[args[0]] ?? '' : 'systemctl n’est pas disponible ici\n', stderr: '' });
+  const o = { unites, systemctl, sousSystemd: () => sousSystemd };
+  creerRecolte({ holarch: '/v1/holarch.js', accueil: '/a' }, o).poser();
+  const etats = () => Object.fromEntries(etatRoutines(o).map((r) => [r.unite, r.etat]));
+  assert.deepEqual([etats()['holarch-recolte.timer'], etats()['holarch-import.timer']], ['activée', 'absente']);
+  sousSystemd = false;
+  assert.deepEqual(new Set(Object.values(etats())), new Set(['impossible sans systemd utilisateur']));
+  assert.equal(etatVeille(o).gardien, 'impossible sans systemd utilisateur', 'la même phrase que le gardien');
 });

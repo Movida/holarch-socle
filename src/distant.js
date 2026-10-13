@@ -412,12 +412,16 @@ WantedBy=default.target
 
 /**
  * État des routines que pose la copie de service : absente, activée, coupée (à la main), pose interrompue (la pose
- * suivante l'active), écrite ou modifiée à la main, ou illisible (systemctl ne répond pas : son message).
+ * suivante l'active), écrite ou modifiée à la main, illisible (systemctl ne répond pas : son message), ou impossible sans
+ * systemd utilisateur.
  */
 export function etatRoutines({ unites = UNITES, systemctl = SYSTEMCTL, sousSystemd = SOUS_SYSTEMD } = {}) {
   const sv = services({ unites, systemctl, sousSystemd });
+  // systemd d'abord, comme `etatVeille` : sans lui, une unité posée avant ne tourne pas (« activée » le laissait croire).
+  const sans = sv.systemd().etat === 'absent';
   return [UNITE_INTERFACE, `${UNITE_IMPORT}.timer`, `${UNITE_RECOLTE}.timer`, `${UNITE_REVEIL}.timer`, UNITE_VEILLE].map((unite) => {
     const f = path.join(unites, unite);
+    if (sans) return { unite, etat: 'impossible sans systemd utilisateur' };
     try { return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.modifiee(f) ? 'modifiée à la main' : sv.interrompue(f) ? 'pose interrompue' : sv.coupee(f) ? 'coupée' : 'activée' }; } catch (e) { return { unite, etat: `illisible (${e.message})` }; }
   });
 }
