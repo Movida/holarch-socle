@@ -2427,3 +2427,37 @@ test('lireEnTete : un FIFO à la place d’une skill du compte ou d’un dépôt
   assert.deepEqual(JSON.parse(r.stdout), { fiches: [['du-lien', 'Rangée ailleurs par l’auteur.'], ['fifo', null], ['fifo-projet', null], ['vraie', 'Une vraie skill.']],
     erreurs: ['fichier illisible : pas un fichier', 'fichier illisible : plus de 4194304 octets'] });
 });
+
+// Repli du crochet de commit sous un git antérieur à 2.26 (voisin de la famille Gardes muettes) : `git config
+// --show-scope` y est inconnu (code 129), la liste des pilotes revenait vide et aucun n'était neutralisé : le git que lance
+// gitleaks exécutait ceux du dépôt. Repli : `--name-only` sans portée, tous les pilotes neutralisés (ceux du compte aussi).
+test('Repli du crochet de commit sous git antérieur à 2.26 : sans --show-scope, les pilotes du dépôt sont neutralisés quand même', async () => {
+  const { crochetDe } = await import('../src/garde-git.js');
+  const d = tmp(); const temoin = path.join(tmp(), 'execute'); const appels = path.join(tmp(), 'appels'); const outils = tmp(); const ancien = tmp();
+  // Un git qui refuse --show-scope comme un git antérieur à 2.26, sinon le vrai.
+  const vrai = spawnSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  fs.writeFileSync(path.join(ancien, 'git'), `#!/bin/sh\nfor a in "$@"; do [ "$a" = --show-scope ] && { echo "error: unknown option show-scope" >&2; exit 129; }; done\nexec '${vrai}' "$@"\n`, { mode: 0o755 });
+  const g = (...a) => spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', ...a], { encoding: 'utf8' });
+  g('init', '-q');
+  const piege = path.join(d, '.git', 'piege.sh');
+  fs.writeFileSync(piege, `#!/bin/sh\necho "$0 $*" >> '${temoin}'\ncat "$@" 2>/dev/null\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(d, '.gitattributes'), '* diff=piege\n'); fs.writeFileSync(path.join(d, 'conf.txt'), 'a\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  for (const [k, v] of [['diff.piege.textconv', piege], ['filter.a b=c.clean', piege]]) g('config', k, v);
+  const compte = path.join(tmp(), 'gitconfig'); fs.writeFileSync(compte, '[diff "compte"]\n\ttextconv = cat\n');
+  fs.writeFileSync(path.join(d, 'conf.txt'), 'b\n'); g('add', 'conf.txt');
+  // Un gitleaks fictif qui lance git dans la cible, puis note les clés que son environnement règle.
+  fs.writeFileSync(path.join(outils, 'gitleaks'), `#!${process.execPath}
+const { spawnSync } = require('node:child_process');
+spawnSync('git', ['-C', process.argv.at(-1), 'diff', '--staged', '-U0', '.']);
+require('node:fs').writeFileSync(${JSON.stringify(appels)}, JSON.stringify(Object.entries(process.env).filter(([k]) => k.startsWith('GIT_CONFIG_KEY_')).map(([, v]) => v).sort()));
+console.log('[]');
+`, { mode: 0o755 });
+  const crochet = path.join(d, '.git', 'hooks', 'pre-commit'); fs.mkdirSync(path.dirname(crochet), { recursive: true });
+  fs.writeFileSync(crochet, crochetDe({ node: '/inexistant/node', holarch: '/inexistant/holarch.js', accueil: '/inexistant', outils }), { mode: 0o755 });
+  const r = spawnSync(crochet, { cwd: d, encoding: 'utf8', env: { PATH: `${ancien}:/usr/bin:/bin`, GIT_CONFIG_GLOBAL: compte } });
+  assert.deepEqual([r.status, r.stderr.trim()], [0, 'HOLARCH injoignable : seuls les secrets sont vérifiés (gitleaks), l\'audit verra le reste']);
+  assert.equal(fs.existsSync(temoin) ? fs.readFileSync(temoin, 'utf8') : '', '', 'rien de la configuration du dépôt ne s’exécute');
+  const cles = JSON.parse(fs.readFileSync(appels, 'utf8'));
+  assert.deepEqual(['diff.piege.textconv', 'filter.a b=c.clean', 'diff.compte.textconv'].filter((x) => !cles.includes(x)), [], cles.join(' | '));
+});

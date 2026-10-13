@@ -17,14 +17,18 @@ export const MARQUE = '# Généré par HOLARCH (holarch regles appliquer) : gard
 /**
  * `neutralisation` (commun.js) en shell, pour le git que lance gitleaks : les mêmes clés (`NEUTRE`), dans le même ordre,
  * passées par `GIT_CONFIG_COUNT` ; les pilotes déclarés aux portées `local` et `worktree`, chacun une fois. Un nom de
- * pilote ne contient pas de fin de ligne (git le refuse) : une ligne de `git config --name-only` en est un.
+ * pilote ne contient pas de fin de ligne (git le refuse) : une ligne de `git config --name-only` en est un. Un git
+ * antérieur à 2.26 (celui d'un conteneur) n'a pas `--show-scope` (code 129) : tous les pilotes déclarés, de toute
+ * portée, sont neutralisés (ceux du compte aussi), plutôt qu'aucun. Sans pilote (code 1), la seconde liste est vide aussi.
  */
 function neutralisationShell() {
   const k = (cle, v) => `k ${cle} ${sh(v)}`;
   const pilote = (genre) => NEUTRE[genre].map(([c, v]) => k(`"$p".${sh(c)}`, v)).join('; ');
+  const lister = (o) => `git config ${o}--name-only --get-regexp ${sh(NEUTRE.pilotes)} 2>/dev/null`;
   return `  T=$(printf '\\t'); n=\${GIT_CONFIG_COUNT:-0}; case $n in ''|*[!0-9]*) n=0 ;; esac
   k() { export "GIT_CONFIG_KEY_$n=$1" "GIT_CONFIG_VALUE_$n=$2"; n=$((n + 1)); }
   ${NEUTRE.cles.map(([c, v]) => k(sh(c), v)).join('; ')}
+  pilotes=$(${lister('--show-scope ')}) || pilotes=$(${lister('')} | while IFS= read -r x; do printf 'local%s%s\\n' "$T" "$x"; done)
   vus='
 '
   while IFS= read -r l; do
@@ -36,7 +40,7 @@ $p
 "
     case $p in filter.*) ${pilote('filter')} ;; *) ${pilote('diff')} ;; esac
   done <<FIN
-$(git config --show-scope --name-only --get-regexp ${sh(NEUTRE.pilotes)} 2>/dev/null)
+$pilotes
 FIN
   export GIT_CONFIG_COUNT=$n GIT_ALLOW_PROTOCOL=${sh(NEUTRE.protocole)}`;
 }
