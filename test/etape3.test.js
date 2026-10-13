@@ -54,7 +54,7 @@ test('accès distant : activer écrit un service marqué, déclare la confiance 
   // Avec le premier accès distant, le minuteur de reprise après une veille ; hors de la liste des projets.
   assert.ok(appels.includes('enable --now holarch-reveil.timer'));
   assert.match(fs.readFileSync(path.join(unites, 'holarch-reveil.service'), 'utf8'), /^ExecStart="\/opt\/node\/bin\/node" --no-warnings "\/opt\/holarch\/bin\/holarch.js" distant reveil$/m);
-  assert.deepEqual(d.liste(), [{ nom: 'demo', chemin: path.join(racine, 'demo'), projet: 'holarch:project:demo', actif: true }]);
+  assert.deepEqual(d.liste(), [{ nom: 'demo', chemin: path.join(racine, 'demo'), projet: 'holarch:project:demo', actif: true, coupee: false }]);
   assert.equal(d.activer('holarch:project:demo').projet, 'holarch:project:demo', 'par son identifiant');
   assert.equal(d.activer(path.join(racine, 'demo')).confiance_declaree, false);
   d.desactiver('demo');
@@ -2329,4 +2329,24 @@ test('R1 : rejouée, la création ne dit pas « déjà là » quand l’avance s
   fs.writeFileSync(path.join(d, '.git', 'refs', 'remotes', 'origin', 'main'), `${'0123456789'.repeat(4)}\n`);
   const e = (await creer()).etapes.find((x) => x.etape === 'github');
   assert.deepEqual([e.etat, e.detail], ['echec', `${nu} : avance sur l’amont non lue, commits non poussés inconnus`], JSON.stringify(e));
+}));
+
+// R2 affiné (choix de l'auteur du 2026-10-13) : rejouée, la création rallumait aussi un accès distant coupé à la main
+// (désactivé), comme le minuteur de réveil en M1. Il est laissé et dit, en geste avec la commande explicite qui le
+// rallume ; arrêté sans être coupé (en échec), il se rallume toujours.
+test('R2 affiné : rejouée, la création laisse un accès distant coupé à la main et le dit, avec la commande qui le rallume', () => gitIsole(async () => {
+  const { d: vrai, systemctl } = banc();
+  vrai.activer('demo'); systemctl(['disable', '--now', 'holarch-distant-demo.service']);
+  assert.deepEqual(vrai.liste().map((x) => [x.nom, x.actif, x.coupee]), [['demo', false, true]], 'liste dit l’unité coupée');
+  const { s, r } = await bancCreation({ creation: { etapes: { github: false, conteneur: false, distant: true } } });
+  const poses = [{ nom: 'neuf', chemin: path.join(r, 'neuf'), projet: null, actif: false, coupee: true }]; const activations = [];
+  const distant = { liste: () => poses, activer: (id) => { activations.push(id); Object.assign(poses[0], { actif: true, coupee: false }); return { unite: 'holarch-distant-neuf.service' }; } };
+  const etape = async (aBlanc = false) => (await creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc }, { distant })).etapes.find((x) => x.etape === 'distant');
+  const geste = { etat: 'geste', detail: 'service neuf coupé à la main : laissé', geste: { quoi: 'le rallumer, si l’accès distant est voulu', commande: `holarch distant activer ${path.join(r, 'neuf')}` } };
+  assert.deepEqual(await etape(), { etape: 'distant', ...geste });
+  assert.deepEqual(await etape(true), { etape: 'distant', ...geste }, 'à blanc, le même geste');
+  assert.deepEqual(activations, [], 'jamais rallumé par la création');
+  Object.assign(poses[0], { coupee: false });
+  assert.deepEqual([(await etape()).etat, activations.length], ['faite', 1], 'arrêté sans être coupé : rallumé');
+  assert.equal((await etape()).etat, 'deja');
 }));

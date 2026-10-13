@@ -342,8 +342,13 @@ export function creerDistant(config, {
   const projetDe = localiserProjet(projets);
 
   return {
+    // `coupee` : arrêté et désactivé à la main (`sv.coupee`), à laisser ; arrêté sans l'être (en échec, pose
+    // interrompue), il se rallume.
     liste() {
-      return accesDistants({ unites }).map((a) => ({ ...a, projet: projetDe(a.chemin)?.id ?? null, actif: sv.actif(path.join(unites, `${PREFIXE}${a.nom}.service`)) }));
+      return accesDistants({ unites }).map((a) => {
+        const f = path.join(unites, `${PREFIXE}${a.nom}.service`); const actif = sv.actif(f);
+        return { ...a, projet: projetDe(a.chemin)?.id ?? null, actif, coupee: !actif && sv.coupee(f) };
+      });
     },
     activer(ref) {
       const p = resoudre(ref); const chemin = p.location;

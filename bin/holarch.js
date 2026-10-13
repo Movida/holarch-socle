@@ -123,7 +123,7 @@ switch (cmd) {
         for (const e of r.echecs) console.error(`holarch distant reveil : ${e.nom} non redémarré (${e.message})`);
         if (r.echecs.length) process.exitCode = 1;
       }
-      else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
+      else { const l = d.liste(); afficher(json ? l : l.length ? l.map((p) => `${p.actif ? 'actif  ' : p.coupee ? 'coupé  ' : 'arrêté '} ${p.nom}  ${p.chemin}`).join('\n') : 'aucun accès distant par projet (holarch distant activer <projet>)'); }
     } catch (e) { console.error(`holarch distant : ${e.message}`); process.exit(1); }
     break; }
   // Les crochets de Claude Code notent les sessions par bin/veille-noter.js, point d'entrée léger.
