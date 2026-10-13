@@ -42,12 +42,16 @@ function agents(dossier, portee, nom, site, p = null, depot = null) {
 
 // Le nom affiché d'un crochet : le premier mot qui a l'air d'un chemin, sinon le premier mot, jamais un mot qui porte une
 // valeur (`CLE=valeur`) ou qui a l'allure d'un jeton (`jeton`) : ce peut être un secret, qui entrerait au catalogue (X5).
+// Un interpréteur (`node …/holarch.js`, `/usr/bin/env node …`) cède la place au premier chemin qui n'en est pas un : le
+// script qu'il lance, que tous les crochets de HOLARCH auraient sinon caché derrière « node ».
 const net = (t) => t.replace(/^["']+|["';]+$/g, '');
+const INTERPRETE = /^(env|node|nodejs|bun|deno|python[\d.]*|ruby|perl|php|sh|bash|dash|zsh)$/;
 function hooks(settings, fichier, portee, nom, site, p = null) {
   const h = (settings && settings.hooks) || {};
   return Object.entries(h).flatMap(([evt, groupes]) => (Array.isArray(groupes) ? groupes : []).flatMap((g, i) => (g.hooks || []).map((x, j) => {
     const mots = String(x.command || x.type || '').split(/\s+/).filter((t) => t && !t.includes('=') && !jeton(path.basename(net(t))));
-    const exe = net(mots.find((t) => /[/.]/.test(t) && !t.startsWith('-')) || mots[0] || '');
+    const chemins = mots.filter((t) => /[/.]/.test(t) && !t.startsWith('-')).map(net);
+    const exe = chemins.find((t) => !INTERPRETE.test(path.basename(t))) || chemins[0] || net(mots[0] || '');
     return fiche('hook', `${portee}/${nom || 'utilisateur'}/${evt}/${i}/${j}`, `${evt}${g.matcher ? ` · ${g.matcher}` : ''}`, {
       description: `${x.type || 'command'} : ${path.basename(exe || '')}`, location: fichier, site, links: lienProjet(p), attributes: { portee, evenement: evt, matcher: g.matcher || null } });
   })));

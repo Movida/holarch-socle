@@ -1991,3 +1991,23 @@ test('Mémoires de l’inventaire : un lien posé à la place d’une mémoire a
   assert.deepEqual(fiches.filter((f) => f.kind === 'memory').map((f) => [f.name, f.description]).sort(), [['Saine', 'Une saine'], ['note', null]]);
   assert.doesNotMatch(JSON.stringify(fiches), /SECRET/);
 });
+
+// Crochets au catalogue, voisin de la famille « Sécurité et intégrité » (effet de X5) : un crochet de HOLARCH lance node
+// sur un script ; c'est le script qui se montre (`holarch.js`, `veille-noter.js`), et celui que lance un autre
+// interpréteur. Les règles de X5 tiennent : ni un mot qui porte une valeur, ni un jeton, même derrière un interpréteur.
+test('Crochets au catalogue : le script lancé par un interpréteur se montre à sa place, sans valeur ni jeton', async () => {
+  const { default: inventaireClaudeCode } = await import('../src/inventaire/claude-code.js');
+  const { reglagesVoulus } = await import('../src/regles-claude-code.js');
+  const v = reglagesVoulus({ claude_code: { passation: { seuil_tokens: 150000, reprise: true } } },
+    { node: '/opt/node/bin/node', holarch: '/srv/holarch/service/courant/bin/holarch.js', accueil: '/srv/holarch', veille: true });
+  const home = tmp(); const hooks = {};
+  for (const c of v.crochets) (hooks[c.evenement] ||= []).push({ hooks: [{ type: 'command', command: c.command }] });
+  hooks.Notification = [{ hooks: ['python3 /x/outils/prevenir.py --fort', '/usr/bin/env node ~/bin/outil.mjs', 'exec /bin/bash -c "echo fin"',
+    'node /x/7fQ2kD9xW4mZ8vB3nL6pR1t', '/opt/node/bin/node /x/garde.js --cle=valeur'].map((command) => ({ type: 'command', command })) }];
+  fs.writeFileSync(path.join(home, 'settings.json'), JSON.stringify({ hooks }));
+  const vus = inventaireClaudeCode({ home, config: path.join(home, 'absent.json') }, { site: 'local', depots: [] }).filter((f) => f.kind === 'hook').map((f) => `${f.name} : ${f.description}`);
+  assert.deepEqual(vus, ['UserPromptSubmit : command : holarch.js', 'UserPromptSubmit : command : veille-noter.js', 'SessionStart : command : holarch.js',
+    ...['Stop', 'StopFailure', 'PermissionRequest', 'Elicitation', 'SessionEnd'].map((e) => `${e} : command : veille-noter.js`),
+    ...['prevenir.py', 'outil.mjs', 'bash', 'node', 'garde.js'].map((x) => `Notification : command : ${x}`)]);
+  assert.doesNotMatch(JSON.stringify(vus), /7fQ2|valeur/);
+});
