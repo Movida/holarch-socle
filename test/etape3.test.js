@@ -1644,7 +1644,8 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
     if (args[0] === 'ci') fs.mkdirSync(path.join(o.cwd, 'node_modules'));
     return { status: args[0] === 'test' && !testsVerts ? 1 : 0, stdout: '', stderr: args[0] === 'test' ? '1 test rouge' : '' };
   };
-  const systemctl = (args) => ({ status: 0, stdout: '', stderr: '' });
+  // systemctl répond comme le vrai : une unité activée et active, systemd en marche.
+  const systemctl = (args) => ({ status: 0, stdout: { 'is-enabled': 'enabled\n', 'is-active': 'active\n', 'is-system-running': 'running\n' }[args[0]] ?? '', stderr: '' });
   // La règle de veille se lit à la pose : illisible, la pose continue et le dit sur la ligne du gardien.
   const sv = creerService({ accueil, comptes: [{ nom: 'perso', home }], veille: () => { throw new Error('arbre du profil illisible'); } }, { source: src, unites, systemctl, npm: 'npm', lancer, node: '/opt/node/bin/node' });
 
@@ -2030,4 +2031,32 @@ test('Import : une transcription dont un événement est refusé est relue, sans
   const f2 = path.join(home, 'projects', '-ws-demo', 's2.jsonl'); ecrire(f2, msg(9, 3, '2026-10-01T11:00:00Z').replace(/"s1"/, '"s2"') + '\n'); vieillir(f2);
   refusee = 'cost.recorded'; importer(); assert.equal(sortie(), 18);
   refusee = null; importer(); assert.equal(sortie(), 21);
+});
+
+// Échec de systemctl (famille Gardes muettes, mineur) : `is-active` et `is-enabled` sans réponse (bus injoignable) se
+// lisaient « inactive » et « activée ». La réponse se lit comme un état connu de systemctl ; sinon, comme `etatVeille`,
+// systemd absent : rien ne tourne ; injoignable ou autre erreur : l'échec se dit.
+import { etatRoutines } from '../src/distant.js';
+test('Accès distant : un systemctl sans réponse ne se lit ni « arrêté » ni « activée », l’échec se dit', () => {
+  const racine = tmp(); const unites = tmp(); fs.mkdirSync(path.join(racine, 'demo'));
+  let panne = null; let sousSystemd = true;
+  const systemctl = (args) => {
+    if (panne && args[0] !== 'is-system-running') return { status: 1, stdout: '', stderr: `${panne}\n` };
+    if (panne === 'Failed to connect to bus: No medium found') return { status: 1, stdout: '', stderr: `${panne}\n` };
+    return { status: 0, stdout: { 'is-active': 'active\n', 'is-enabled': 'enabled\n', 'is-system-running': 'running\n' }[args[0]] ?? '', stderr: '' };
+  };
+  const config = { inventaire: { 'claude-code': { config: path.join(tmp(), '.claude.json') } }, acces_distant: {} };
+  const d = creerDistant(config, { unites, systemctl, claude: '/opt/outils/claude', projets: [{ id: 'holarch:project:demo', nom: 'demo', location: path.join(racine, 'demo') }], accueil: tmp(), holarch: '/opt/holarch/bin/holarch.js', node: '/opt/node/bin/node', sousSystemd: () => sousSystemd });
+  d.activer('demo');
+  const routine = () => etatRoutines({ unites, systemctl, sousSystemd: () => sousSystemd }).find((r) => r.unite === 'holarch-reveil.timer').etat;
+  assert.deepEqual([d.liste().map((x) => x.actif), routine()], [[true], 'activée']);
+  panne = 'Failed to connect to bus: No medium found';
+  assert.throws(() => d.liste(), /^Error: systemd utilisateur injoignable : Failed to connect to bus: No medium found$/);
+  assert.equal(routine(), 'illisible (systemd utilisateur injoignable : Failed to connect to bus: No medium found)');
+  // systemd en marche, mais une réponse sans état : l'erreur de systemctl.
+  panne = 'Unit file holarch-reveil.timer is broken';
+  assert.equal(routine(), 'illisible (systemctl --user is-enabled holarch-reveil.timer : Unit file holarch-reveil.timer is broken)');
+  // Sans systemd, rien ne tourne ni n'a été coupé.
+  panne = 'Failed to connect to bus: No medium found'; sousSystemd = false;
+  assert.deepEqual([d.liste().map((x) => x.actif), routine()], [[false], 'activée']);
 });

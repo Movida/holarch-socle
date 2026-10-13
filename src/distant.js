@@ -29,22 +29,33 @@ export const pathService = (...bins) => [...new Set([...bins.map((b) => path.dir
  */
 function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
   const geree = (f) => fichierMarque(f, MARQUE);
-  const lancer = (args) => { const r = systemctl(args); if (r.status !== 0) throw new Error(`systemctl --user ${args.join(' ')} : ${(r.stderr || '').trim() || r.error?.message || `code ${r.status}`}`); return r; };
+  const erreur = (args, r) => `systemctl --user ${args.join(' ')} : ${(r.stderr || '').trim() || r.error?.message || `code ${r.status}`}`;
+  const lancer = (args) => { const r = systemctl(args); if (r.status !== 0) throw new Error(erreur(args, r)); return r; };
+  // Ce que systemctl dit d'une unité : un état qu'il connaît, ou rien. Une réponse sans état n'est pas « inactive » ni
+  // « activée » : sans systemd (absent), rien ne tourne ni n'a été coupé (null) ; injoignable, ou une autre erreur, elle
+  // se dit, comme dans `etatVeille`, au lieu de conclure.
+  function etatUnite(verbe, f, connus) {
+    const args = [verbe, path.basename(f)]; const r = systemctl(args); const v = r.stdout?.trim();
+    if (connus.includes(v)) return v;
+    const s = systemd();
+    if (s.etat === 'absent') return null;
+    throw new Error(s.etat === 'injoignable' ? `systemd utilisateur injoignable : ${s.message}` : erreur(args, r));
+  }
+  // Le gestionnaire systemd utilisateur : `disponible`, `is-system-running` dit son état (aide de systemctl) ; `absent`,
+  // le système n'a pas démarré sous systemd (WSL sans systemd, conteneur, où le faux systemctl des images Dev Containers
+  // répond 0 à tout, avec un texte) ; `injoignable`, systemd tourne mais son instance utilisateur ne répond pas (sans
+  // `XDG_RUNTIME_DIR` ni bus : `sudo -u`, `env -i`), avec le `message` de systemctl.
+  function systemd() {
+    const r = systemctl(['is-system-running']);
+    if (ETATS_SYSTEMD.includes(r.stdout?.trim())) return { etat: 'disponible' };
+    if (!sousSystemd()) return { etat: 'absent' };
+    return { etat: 'injoignable', message: (r.stderr || '').trim().split('\n')[0] || r.error?.message || `code ${r.status}` };
+  }
   return {
-    unites, geree, lancer,
-    // Le gestionnaire systemd utilisateur : `disponible`, `is-system-running` dit son état (aide de systemctl) ; `absent`,
-    // le système n'a pas démarré sous systemd (WSL sans systemd, conteneur, où le faux systemctl des images Dev Containers
-    // répond 0 à tout, avec un texte) ; `injoignable`, systemd tourne mais son instance utilisateur ne répond pas (sans
-    // `XDG_RUNTIME_DIR` ni bus : `sudo -u`, `env -i`), avec le `message` de systemctl.
-    systemd() {
-      const r = systemctl(['is-system-running']);
-      if (ETATS_SYSTEMD.includes(r.stdout?.trim())) return { etat: 'disponible' };
-      if (!sousSystemd()) return { etat: 'absent' };
-      return { etat: 'injoignable', message: (r.stderr || '').trim().split('\n')[0] || r.error?.message || `code ${r.status}` };
-    },
-    actif: (f) => fs.existsSync(f) && systemctl(['is-active', path.basename(f)]).stdout?.trim() === 'active',
+    unites, geree, lancer, systemd,
+    actif: (f) => fs.existsSync(f) && etatUnite('is-active', f, ETATS_ACTIF) === 'active',
     // Coupée à la main (`systemctl --user disable`) : une pose la réécrit sans la rallumer (décision routines-posees).
-    coupee: (f) => fs.existsSync(f) && systemctl(['is-enabled', path.basename(f)]).stdout?.trim() === 'disabled',
+    coupee: (f) => fs.existsSync(f) && etatUnite('is-enabled', f, ETATS_ACTIVATION) === 'disabled',
     // Écrit l'unité et la démarre ; une unité déjà active dont le texte change est redémarrée (`avantRelance` juste avant).
     poser(f, texte, { avantRelance = () => {} } = {}) {
       if (fs.existsSync(f) && !geree(f)) throw new Error(`${f} existe et n'a pas été écrit par HOLARCH : rien n'est modifié`);
@@ -67,6 +78,9 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
   };
 }
 const ETATS_SYSTEMD = ['initializing', 'starting', 'running', 'degraded', 'maintenance', 'stopping'];
+// États d'une unité et de son fichier (`systemctl --state=help`, systemd 255), que disent `is-active` et `is-enabled`.
+const ETATS_ACTIF = ['active', 'reloading', 'inactive', 'failed', 'activating', 'deactivating', 'maintenance'];
+const ETATS_ACTIVATION = ['enabled', 'enabled-runtime', 'linked', 'linked-runtime', 'alias', 'masked', 'masked-runtime', 'static', 'disabled', 'indirect', 'generated', 'transient', 'bad'];
 const UNITES = path.join(os.homedir(), '.config', 'systemd', 'user');
 const SYSTEMCTL = (args) => spawnSync('systemctl', ['--user', ...args], { encoding: 'utf8' });
 // Le système a démarré sous systemd : le dossier `/run/systemd/system/` existe (le test de sd_booted(3)).
@@ -269,9 +283,9 @@ export function creerDistant(config, {
   claude = null,
   projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
   accueil = config.accueil || accueilParDefaut(), holarch = binaireService(accueil), node = process.execPath, maintenant = Date.now,
-  demarrage = idDemarrage,
+  demarrage = idDemarrage, sousSystemd = SOUS_SYSTEMD,
 } = {}) {
-  const sv = services({ unites, systemctl });
+  const sv = services({ unites, systemctl, sousSystemd });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
   const reveil = { service: path.join(unites, `${UNITE_REVEIL}.service`), minuteur: path.join(unites, `${UNITE_REVEIL}.timer`), passage: path.join(accueil, 'distant-reveil') };
   const poserReveil = () => {
@@ -362,12 +376,15 @@ WantedBy=default.target
 `;
 }
 
-/** État des routines que pose la copie de service : absente, activée, coupée (à la main), ou écrite à la main. */
-export function etatRoutines({ unites = UNITES, systemctl = SYSTEMCTL } = {}) {
-  const sv = services({ unites, systemctl });
+/**
+ * État des routines que pose la copie de service : absente, activée, coupée (à la main), écrite à la main, ou illisible
+ * (systemctl ne répond pas : son message).
+ */
+export function etatRoutines({ unites = UNITES, systemctl = SYSTEMCTL, sousSystemd = SOUS_SYSTEMD } = {}) {
+  const sv = services({ unites, systemctl, sousSystemd });
   return [UNITE_INTERFACE, `${UNITE_IMPORT}.timer`, `${UNITE_RECOLTE}.timer`, `${UNITE_REVEIL}.timer`, UNITE_VEILLE].map((unite) => {
     const f = path.join(unites, unite);
-    return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.coupee(f) ? 'coupée' : 'activée' };
+    try { return { unite, etat: !fs.existsSync(f) ? 'absente' : !sv.geree(f) ? 'écrite à la main' : sv.coupee(f) ? 'coupée' : 'activée' }; } catch (e) { return { unite, etat: `illisible (${e.message})` }; }
   });
 }
 
