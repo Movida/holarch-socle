@@ -2191,7 +2191,8 @@ test('M2 : un réglage ou un crochet retiré ou changé à la main n’est ni re
 
 // M3 (famille Gardes muettes) : `service poser` repointait vers la copie de service le serveur MCP `holarch` de chaque
 // compte, même réglé vers une autre copie de HOLARCH. Seul un chemin qui lance une copie de service (sous l'accueil) ou le
-// socle (la copie de travail qui pose, la source) est repointé ; un autre est laissé, et dit.
+// socle (la copie de travail qui pose, la source) est repointé ; un autre est laissé, et dit. Voisin du lot 5 : laissé, il
+// était dit sans la commande qui le repointe, que seul `holarch service` donnait ; la pose donne la même.
 test('M3 : service poser ne repointe le serveur MCP holarch que s’il lance une copie de service ou le socle', () => {
   const src = tmp(); const accueil = tmp(); const unites = tmp();
   const g = (...a) => { const r = spawnSync('git', ['-C', src, '-c', 'user.name=t', '-c', 'user.email=t@exemple.invalid', ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); };
@@ -2201,13 +2202,22 @@ test('M3 : service poser ne repointe le serveur MCP holarch que s’il lance une
   const comptes = Object.keys(args).map((nom) => ({ nom, home: tmp() }));
   const cfg = (c) => path.join(c.home, '.claude.json');
   for (const c of comptes) fs.writeFileSync(cfg(c), JSON.stringify({ mcpServers: { holarch: { command: 'node', args: ['--no-warnings', args[c.nom], 'mcp'] } } }));
+  comptes.push({ nom: 'chemin', home: tmp() }); fs.writeFileSync(cfg(comptes.at(-1)), JSON.stringify({ mcpServers: { holarch: { command: 'holarch', args: ['mcp'] } } }));
   const lancer = (cmd, a, o) => { if (cmd !== 'npm') return spawnSync(cmd, a, o); if (a[0] === 'ci') fs.mkdirSync(path.join(o.cwd, 'node_modules')); return { status: 0, stdout: '', stderr: '' }; };
-  const r = creerService({ accueil, comptes }, { source: src, unites, systemctl: () => ({ status: 0, stdout: '', stderr: '' }), npm: 'npm', lancer, node: '/opt/node/bin/node' }).poser();
+  const service = () => creerService({ accueil, comptes }, { source: src, unites, systemctl: () => ({ status: 0, stdout: '', stderr: '' }), npm: 'npm', lancer, node: '/opt/node/bin/node' });
+  const r = service().poser();
   const bin = binaireService(accueil); const pose = 'posé (effet à la prochaine session de Claude Code)';
-  assert.deepEqual(comptes.map((c) => [c.nom, r.points.find((p) => p.point === `mcp ${c.nom}`).etat, JSON.parse(fs.readFileSync(cfg(c), 'utf8')).mcpServers.holarch.args[1]]), [
+  const point = (nom) => r.points.find((p) => p.point === `mcp ${nom}`);
+  assert.deepEqual(comptes.map((c) => [c.nom, point(c.nom).etat, JSON.parse(fs.readFileSync(cfg(c), 'utf8')).mcpServers.holarch.args[1] ?? null]), [
     ['ailleurs', 'réglé ailleurs (/opt/autre-holarch/bin/holarch.js) : laissé', args.ailleurs],
     ['relatif', 'réglé ailleurs (bin/holarch.js) : laissé', args.relatif],
-    ['source', pose, bin], ['socle', pose, bin], ['ancienne', pose, bin]]);
+    ['source', pose, bin], ['socle', pose, bin], ['ancienne', pose, bin], ['chemin', 'non reconnu', null]]);
+  // Laissé, le point dit la commande qui le repointe : celle que montre `holarch service` ; posé, aucune.
+  const vu = service().etat().mcp; const laisses = ['ailleurs', 'relatif', 'chemin'];
+  assert.deepEqual(laisses.map((n) => point(n).geste), laisses.map((n) => vu.find((m) => m.compte === n).geste));
+  assert.deepEqual([laisses.every((n) => / claude mcp add-json holarch '.*' --scope user$/.test(point(n).geste)), ['source', 'socle', 'ancienne'].map((n) => point(n).geste)], [true, [undefined, undefined, undefined]]);
+  const texte = affichage.posee(r).split('\n'); const i = texte.indexOf('  mcp ailleurs : réglé ailleurs (/opt/autre-holarch/bin/holarch.js) : laissé');
+  assert.deepEqual(texte.slice(i, i + 3), ['  mcp ailleurs : réglé ailleurs (/opt/autre-holarch/bin/holarch.js) : laissé', '    pour le repointer vers la copie de service :', `      ${point('ailleurs').geste}`], texte.join('\n'));
 });
 
 // M5 (famille Gardes muettes ; lot 5, décision geste-a-la-main, revient en partie sur d0540bc) : l'identité de commit que

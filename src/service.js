@@ -126,10 +126,12 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
       essai('veille', () => creerReveil({ holarch, accueil }, o).gardien({ veille })),
       essai('gitleaks des conteneurs', () => copierGitleaks(gitleaks, maison)),
       ...comptes.filter((c) => c.home).map((c) => essai(`mcp ${c.nom || c.home}`, () => {
+        // Laissée (non reconnue, réglée ailleurs), le point dit la commande qui la repointe : celle de `holarch service`.
         const { fichier, cfg, s, i, lance } = entreeMcp(c, src);
         if (!s) return { etat: 'absent' };
-        if (i < 0 || s.args[i] === holarch) return { etat: i < 0 ? 'non reconnu' : 'inchangé' };
-        if (!lance) return { etat: `réglé ailleurs (${s.args[i]}) : laissé` };
+        if (i < 0) return { etat: 'non reconnu', geste: repointer(c, { s, i }) };
+        if (s.args[i] === holarch) return { etat: 'inchangé' };
+        if (!lance) return { etat: `réglé ailleurs (${s.args[i]}) : laissé`, geste: repointer(c, { s, i }) };
         s.args[i] = holarch; ecrireJson(fichier, cfg);
         return { etat: 'posé (effet à la prochaine session de Claude Code)' };
       })),

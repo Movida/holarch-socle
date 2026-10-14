@@ -81,7 +81,7 @@ export const service = (e) => (e.copie
   + (e.mcp || []).map((m) => `\nserveur MCP holarch du compte ${m.compte}${m.fichier ? ` (${m.fichier})` : ''} : ${m.lance ? `lance ${m.lance} ; ` : ''}${m.etat}${m.message ? ` — ${m.message}` : ''}${m.geste ? `\n  pour le repointer vers la copie de service :\n    ${m.geste}` : ''}`).join('');
 
 export const posee = (r) => [`copie en service : ${r.commit}${r.nouvelle ? ' (nouvelle : tests verts, export, npm ci)' : ' (déjà présente : lien basculé)'}${r.precedent ? ` ; précédente gardée : ${r.precedent}` : ''}${r.supprimees.length ? ` ; supprimée(s) : ${r.supprimees.join(', ')}` : ''}${r.orphelines?.length ? ` ; pose(s) interrompue(s) retirée(s) : ${r.orphelines.join(', ')}` : ''}`,
-  ...r.points.map((p) => `  ${p.point} : ${p.etat}${p.message ? ` — ${p.message}` : ''}`),
+  ...r.points.map((p) => `  ${p.point} : ${p.etat}${p.message ? ` — ${p.message}` : ''}${p.geste ? `\n    pour le repointer vers la copie de service :\n      ${p.geste}` : ''}`),
   'garde avant commit et crochets de Claude Code : holarch regles appliquer (l\'audit signale ceux restés sur la copie de travail)'].join('\n');
 
 /** Ce que `holarch recolte` a trouvé (module recolte). */
