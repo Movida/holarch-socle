@@ -12,13 +12,15 @@ import { finDeTranscription, evenements } from './transcription.js';
 import { heureLocale, lireJson, ecrireJson } from './commun.js';
 
 /**
- * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), lu à la fin de
- * la transcription ; null si rien n'est lisible. La transcription s'écrit en différé : un tour de retard est possible.
+ * Taille du contexte d'une session : l'usage de sa dernière réponse (entrée + cache lu + cache écrit), et sa sortie, qui
+ * entre au contexte du tour suivant (sans elle, la taille avait un tour de retard) ; lu à la fin de la transcription,
+ * null si rien n'est lisible. L'invite qui arrive n'est pas estimée (mesure du 2026-10-14 : une sortie fait 452 tokens
+ * par tour en moyenne, 0,3 % du seuil).
  */
 export function tailleContexte(transcription, { octets = 1024 * 1024 } = {}) {
   for (const e of evenements(finDeTranscription(transcription, octets), '"usage"')) {
     const u = e.type === 'assistant' ? e.message?.usage : null;
-    if (u) return (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+    if (u) return (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.output_tokens || 0);
   }
   return null;
 }

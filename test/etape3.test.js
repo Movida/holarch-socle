@@ -781,7 +781,8 @@ test('contexte : taille lue à la fin de la transcription, avis au-delà du seui
   const t = path.join(tmp(), 'session.jsonl');
   const reponse = (cr) => JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 2, cache_read_input_tokens: cr, cache_creation_input_tokens: 1000, output_tokens: 50 } } });
   ecrire(t, ['{"tronqu', reponse(90000), JSON.stringify({ type: 'user', message: { content: 'suite' } }), reponse(199000), JSON.stringify({ type: 'user', message: { content: 'encore' } })].join('\n') + '\n');
-  assert.equal(tailleContexte(t), 200002);
+  // Sa sortie comprise (revue des limites, 2026-10-14) : elle entre au contexte du tour suivant, que l'avis précède.
+  assert.equal(tailleContexte(t), 200052);
   assert.equal(alerte({ transcription: t, seuil: 250000 }), null, 'sous le seuil : rien');
   const a = alerte({ transcription: t, seuil: 150000 });
   assert.match(a.agent, /200 k tokens.*passation.*\/clear/); assert.match(a.auteur, /passation puis \/clear/);
