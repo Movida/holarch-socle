@@ -1263,7 +1263,10 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   poser` ; `--reposer` sans effet en code 1 ; puis un voisin (`9e6e623`, fichier de base sous un dossier ignoré). 252
   tests verts, copie de service posée (`998f515`), audit conforme. Famille Chiffres : relevé en lecture seule et choix de
   l'auteur (`revue-limites.md`, « Chiffres, relevé du 2026-10-14 ») ; suite : lot 1 par une instance neuve, puis la
-  décision « sorties MCP des chiffres » en brouillon, puis le lot 2 (interface, test visuel).
+  décision « sorties MCP des chiffres » en brouillon, puis le lot 2 (interface, test visuel). Test visuel : Chromium
+  headless shell téléchargé le 2026-10-14 sur demande de l'auteur (266 Mo, `~/.cache/ms-playwright`) ; il lui manque
+  `libnss3`, `libnssutil3`, `libnspr4` et `libasound` (`ldd`), que donne `sudo apt install -y libnss3 libasound2t64`,
+  à lancer par l'auteur (`sudo` demande un mot de passe).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
