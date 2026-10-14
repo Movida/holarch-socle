@@ -24,11 +24,19 @@ const IGNORER_MODELES = new Set(['<synthetic>']);
 // v4 : appels MCP ; v5 : projets touchés, en complément pour une transcription inchangée ; v6 : échecs d'outil, tests,
 // refus d'approbation).
 const VERSION_ETAT = 6;
+// Lecture d'une transcription, sans relecture de l'historique (revue des limites, 2026-10-14) : une forme reconnue depuis
+// ne vaut que pour une transcription lue pour la première fois avec elle, et le reste quand elle grandit (`lecture` dans
+// l'état d'import). Une transcription déjà lue garde sa lecture : relue autrement, un échec déjà au journal (`tool.failed`,
+// motif `autre`) se doublerait d'un refus (`tool.denied`). 2 : trois formes d'approbation (19 messages mesurés).
+const LECTURE = 2;
 
 // Refus d'outil : un résultat en erreur dont le texte COMMENCE par l'un de ces messages (décision refus). Un texte qui
 // les cite ailleurs, une recherche par exemple, n'est pas un refus. Le troisième terme est la version de l'état d'import
-// qui a ajouté le motif : une transcription déjà lue n'en reçoit, en complément, que les refus nouveaux.
-// `approbation` : une commande qui demandait une approbation, refusée faute de réponse (décision echecs-au-journal).
+// qui a ajouté le motif : une transcription déjà lue n'en reçoit, en complément, que les refus nouveaux ; le cinquième, la
+// lecture qui l'a ajouté (`LECTURE`, 1 sans lui).
+// `approbation` : une commande qui demandait une approbation, refusée faute de réponse (décision echecs-au-journal), ou
+// bloquée par les vérifications de commande de Claude Code (redirection hors des dossiers de travail, `sleep` suivi d'une
+// commande).
 const REFUS = [
   ['classifieur', /^Permission for this action was denied by the Claude Code auto mode classifier\.(?: Reason: \[([^\]]{1,60})\])?/, 3],
   ['classifieur', /^The server-side auto mode classifier gave no verdict/, 6, 'sans verdict'],
@@ -39,10 +47,11 @@ const REFUS = [
   ['hook', /^\w+:\w+ hook error:/, 3],
   ['hook', /^\[[A-Z]+ · garde-fou [\w-]+\]/, 6],
   ['approbation', /^(?:This (?:Bash )?command (?:contains multiple operations|requires approval|changes directory before)|Contains (?:[a-z]+_[a-z_]+|expansion\b|shell syntax|brace with quote)|\w+ command requires approval|Newline followed by # inside a quoted argument|Parser skipped input between top-level statements|Accesses \/proc\/|Claude requested permissions to \w+ |Commands that change directories and |\w+ in '[^'\n]*' (?:was blocked|needs approval)|Heredoc with unquoted delimiter|Glob patterns are not allowed in write operations|\w+ with '-\w+' executes commands|backtick substitution scan could not be trusted)/, 6],
+  ['approbation', /^(?:<tool_use_error>Blocked: sleep \d+ followed by|This command uses the `&` background operator|Output redirection to '[^'\n]*' (?:was blocked|needs approval))/, 6, null, 2],
 ];
-export function origineRefus(texte) {
+export function origineRefus(texte, lecture = LECTURE) {
   const t = String(texte || '').trimStart();
-  for (const [origine, motif, v, categorie] of REFUS) { const m = t.match(motif); if (m) return { origine, categorie: m[1] || categorie || null, v }; }
+  for (const [origine, motif, v, categorie, l = 1] of REFUS) { if (l > lecture) continue; const m = t.match(motif); if (m) return { origine, categorie: m[1] || categorie || null, v }; }
   return null;
 }
 
@@ -109,7 +118,7 @@ const borne = (t, n) => (typeof t === 'string' ? t.slice(0, n) : t ?? null);
 // Plafond d'une transcription lue d'un bloc (mesure du 2026-10-09 : 152 Mo au plus sur 805 fichiers, médiane 0,75 Mo).
 export const TAILLE_MAX_MO = 400;
 
-function analyser(f, projetDe = () => null) {
+function analyser(f, projetDe = () => null, lecture = LECTURE) {
   const r = { session: null, debut: null, fin: null, cwd: null, branche: null, tours: 0, invites: 0, modeles: {}, refus: [], echecs: [], tests: { lances: 0, rouges: 0 }, appels: new Map(), projets: new Map(), sousAgent: f.includes(`${path.sep}subagents${path.sep}`) };
   const outils = {}; const entrees = {};
   const vus = new Set();
@@ -125,7 +134,7 @@ function analyser(f, projetDe = () => null) {
       for (const x of e.message.content) {
         if (x?.type !== 'tool_result') continue;
         const texte = texteDe(x.content);
-        const o = x.is_error ? origineRefus(texte) : null;
+        const o = x.is_error ? origineRefus(texte, lecture) : null;
         if (o) r.refus.push({ ...o, at: e.timestamp, cle: x.tool_use_id, outil: borne(outils[x.tool_use_id], 100) });
         const commande = entrees[x.tool_use_id]?.command;
         const test = typeof commande === 'string' && TEST.test(commande) && !o;
@@ -220,12 +229,14 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     const conteneur = dossier.startsWith('-workspaces-');
     const permis = conteneur ? projetDuDossierConteneur(projets, dossier) : null;
     let st; let a;
+    // Lue pour la première fois : la lecture courante ; déjà lue, la sienne (1 avant qu'elle soit notée).
+    const lecture = prec?.session ? prec.lecture ?? 1 : LECTURE;
     try {
       st = fs.statSync(f);
       if (prec && prec.taille === st.size && prec.v === VERSION_ETAT) continue;
       if (Date.now() - st.mtimeMs < calme) { enCours++; continue; }
       if (st.size > plafond) { tropGrands++; continue; }
-      a = analyser(f, conteneur ? (c) => { const p = projetDe(c); return p && p.id === permis?.id ? p : null; } : projetDe); lus++;
+      a = analyser(f, conteneur ? (c) => { const p = projetDe(c); return p && p.id === permis?.id ? p : null; } : projetDe, lecture); lus++;
     } catch { illisibles++; continue; }
     if (!a.session || !a.debut) { etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: {}, session: false }; continue; }
     const principal = Object.entries(a.modeles).sort((x, y) => y[1].out - x[1].out)[0]?.[0] || 'inconnu';
@@ -271,7 +282,7 @@ export default function importerTranscriptions(options, { journal, donnees, pass
     // Les tests d'une session lue avant la version 6 s'ajoutent par un complément qui reprend toute la fin (les lectures
     // prennent la dernière fin d'une session pour son répertoire et ses projets).
     else if (v < 6 && a.tests.lances) evenements.push({ ...base, id: ulid(Date.parse(a.fin), `${cle}:tests:${a.fin}`), at: a.fin, kind: 'session.finished', data: { ...fin, projets: touches, complement: 'tests' } });
-    etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true };
+    etat[cle] = { v: VERSION_ETAT, taille: st.size, cumuls: a.modeles, session: true, lecture };
     for (const e of evenements.slice(premier)) transcriptionDe.set(e.id, cle);
   }
   const r = journal.ajouter(evenements);

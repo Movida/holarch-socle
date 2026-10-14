@@ -292,6 +292,36 @@ test('import : refus d’outil repérés par leur message en tête, origine et o
   assert.equal(importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees }).fichiers_lus, 0);
 });
 
+// Formes d'approbation non listées (revue des limites, 2026-10-14 : 19 messages encore comptés comme échecs `autre`) :
+// reconnues dans une transcription lue pour la première fois depuis. Une transcription déjà lue garde sa lecture, même
+// quand elle grandit : un échec déjà au journal ne se double pas d'un refus.
+test('import : trois formes d’approbation reconnues dans une transcription nouvelle ; une déjà lue garde sa lecture, sans double', () => {
+  const home = tmp(); const donnees = tmp();
+  const MESSAGES = ['<tool_use_error>Blocked: sleep 60 followed by: cat /tmp/x. To wait for a condition, use Monitor with an until-loop',
+    'This command uses the `&` background operator, which defers execution past approval-time safety checks. Approve only if you trust it.',
+    "Output redirection to '/tmp/a.log' was blocked. For security, Claude Code may only write to files in the allowed working directories for this session: '/ws'.",
+    "Output redirection to '/tmp/b.log' needs approval. The path is outside the working directories for this session ('/ws')."];
+  const lignes = (s, messages, depuis = 0) => messages.flatMap((m, i) => { const id = depuis + i; const ts = `2026-10-01T10:0${id}:00Z`; return [
+    JSON.stringify({ type: 'assistant', sessionId: s, cwd: '/ws', timestamp: ts, requestId: `r${id}`, message: { id: `m${id}`, model: 'modele-x', content: [{ type: 'tool_use', id: `t${id}`, name: 'Bash', input: { command: 'x' } }], usage: { output_tokens: 1 } } }),
+    JSON.stringify({ type: 'user', sessionId: s, timestamp: ts, message: { content: [{ type: 'tool_result', tool_use_id: `t${id}`, is_error: true, content: m }] } })]; }).join('\n') + '\n';
+  const nouvelle = path.join(home, 'projects', '-ws', 'neuve.jsonl'); ecrire(nouvelle, lignes('neuve', MESSAGES)); vieillir(nouvelle);
+  // Déjà lue avant ces formes : son état ne porte pas de lecture, et son échec est au journal.
+  const ancienne = path.join(home, 'projects', '-ws', 'ancienne.jsonl'); ecrire(ancienne, lignes('ancienne', MESSAGES.slice(1, 2)));
+  const cle = 'projects/-ws/ancienne.jsonl'; const at = '2026-10-01T10:00:00Z';
+  ecrire(path.join(donnees, 'import', 'claude-code-transcriptions.json'), JSON.stringify({ [cle]: { v: 6, taille: fs.statSync(ancienne).size, session: true, cumuls: { 'modele-x': { in: 0, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 1 } } } }));
+  const journal = new Journal(donnees, 'local');
+  journal.ajouter([{ id: ulid(Date.parse(at), `${cle}:echec:t0`), at, kind: 'tool.failed', actor: 'agent:claude-code/modele-x', correlation: 'ancienne', classification: 'internal', data: { projet: 'ws', sous_agent: false, outil: 'Bash', motif: 'autre', code: null, programme: 'x' } }]);
+  fs.appendFileSync(ancienne, lignes('ancienne', MESSAGES.slice(3), 1)); vieillir(ancienne);
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees });
+  const evs = [...journal.lire()]; const de = (s, kind) => evs.filter((e) => e.correlation === s && e.kind === kind);
+  assert.deepEqual([de('neuve', 'tool.denied').map((e) => e.data.origine), de('neuve', 'tool.failed')], [['approbation', 'approbation', 'approbation', 'approbation'], []]);
+  assert.deepEqual([de('ancienne', 'tool.denied'), de('ancienne', 'tool.failed').map((e) => e.data.motif)], [[], ['autre', 'autre']], 'l’ancienne lecture, sans double');
+  // La nouvelle reste à la nouvelle lecture quand elle grandit.
+  fs.appendFileSync(nouvelle, lignes('neuve', MESSAGES.slice(0, 1), 4)); vieillir(nouvelle);
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees });
+  assert.deepEqual([[...journal.lire()].filter((e) => e.correlation === 'neuve' && e.kind === 'tool.denied').length, [...journal.lire()].filter((e) => e.kind === 'tool.failed').length], [5, 2]);
+});
+
 test('import : échecs d’outil par motif, tests rouges derrière un tube, refus d’approbation ; jamais la commande ni la sortie', () => {
   const home = tmp(); const donnees = tmp();
   const f = path.join(home, 'projects', '-ws-demo', 's4.jsonl');
