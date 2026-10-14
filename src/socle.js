@@ -25,6 +25,10 @@ function parts(projets) {
   return total ? projets.map((p) => [p.id, p.n / total, p.nom]) : [[null, 1, null]];
 }
 
+// Le dernier fait d'un avancement : le plus récent par sa date (un fait s'ajoute parfois en tête), le dernier écrit à date
+// égale ; sans aucune date, le dernier écrit. La vue Projets, le MCP et la reprise le lisent ici.
+const dernierFait = (faits) => faits.reduce((d, e) => (e.date && (!d?.date || e.date >= d.date) ? e : d), null) ?? faits.at(-1) ?? null;
+
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions, agentgateway: importerPasserelle };
 
 export class Socle {
@@ -302,7 +306,7 @@ export class Socle {
         dernier_commit: a.dernier_commit ? { at: a.dernier_commit, sujet: a.dernier_sujet ?? null } : null,
         arbre: ns.length > 0,
         etape: courante ? { id: courante.id, numero: courante.attributes.etape, titre: courante.name, close: close(courante), faits: faits.length,
-          dernier_fait: faits.at(-1) || null, reste: av.filter((e) => e.etiquette.startsWith('Reste')).flatMap((e) => (e.sous.length ? e.sous : [e.texte]).filter(Boolean)) } : null,
+          dernier_fait: dernierFait(faits), reste: av.filter((e) => e.etiquette.startsWith('Reste')).flatMap((e) => (e.sous.length ? e.sous : [e.texte]).filter(Boolean)) } : null,
         questions: racine?.attributes?.questions_ouvertes || [],
         // Idées de l'étape en cours : celles dont la phase visée commence par elle (« étape 3, récolte »), ni prises ni écartées.
         idees: courante ? (racine?.attributes?.idees || []).filter((i) => new RegExp(`^étape ${courante.attributes.etape}\\b`, 'i').test(i.phase || '')

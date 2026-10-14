@@ -843,6 +843,30 @@ test('contexte : résumé de reprise du projet du dossier de travail, court ; ri
   assert.equal(resume(s, tmp()), null);
 });
 
+// V8 (revue des limites, 2026-10-14 : 3 restes montrés sur 18, sans le dire) : le reste coupé dit combien il en montre sur
+// combien ; le dernier fait est le plus récent par sa date, pas le dernier écrit (un fait ajouté en tête de l'avancement).
+test('contexte : la reprise dit le reste coupé (3 sur N) et prend le dernier fait par sa date', () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(path.join(d, 'arbre', 'conception', 'etape-2-demo.md'), '---\ntype: specification\ntitle: Étape 2 — démonstration\nstatus: draft\n---\n\n## Avancement\n\n'
+    + '- **Fait (2026-10-05)** : le plus récent, écrit en tête.\n- **Fait (2026-10-01)** : le premier.\n- **Fait** : sans date.\n- **Fait (2026-10-03)** : écrit en dernier.\n'
+    + '- **Reste** :\n  1. Un.\n  2. Deux.\n  3. Trois.\n  4. Quatre.\n  5. Cinq.\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [d], projetDe: () => ({ id: 'holarch:project:depot' }) }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const t = resume(s, d);
+  assert.match(t, /\nDernier fait \(2026-10-05\) : le plus récent, écrit en tête\.\n/);
+  assert.match(t, /\nReste \(3 sur 5\) : Un ; Deux ; Trois\.\n/);
+  // La vue Projets et le MCP lisent le même dernier fait.
+  assert.equal(s.projets().projets[0].etape.dernier_fait.date, '2026-10-05');
+  // Un reste qui tient en entier ne se compte pas.
+  ecrire(path.join(d, 'arbre', 'conception', 'etape-2-demo.md'), '---\ntype: specification\ntitle: Étape 2 — démonstration\nstatus: draft\n---\n\n## Avancement\n\n- **Fait** : sans date.\n- **Reste** :\n  1. Un.\n');
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [d], projetDe: () => ({ id: 'holarch:project:depot' }) }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  assert.match(resume(s, d), /\nDernier fait : sans date\.\nReste : Un\.\n/);
+});
+
 test('contexte : une session arrêtée en route (appel d’outil sans résultat) est annoncée à la reprise', () => {
   const dossier = tmp(); const maintenant = Date.parse('2026-10-08T16:40:00Z');
   const msg = (type, content, extra = {}) => JSON.stringify({ type, timestamp: '2026-10-08T10:20:00.000Z', message: { role: type, content }, ...extra });

@@ -123,7 +123,9 @@ export function resume(s, dossier, { max = 1500, transcription = null, maintenan
   if (v.etape) {
     l.push(`Étape ${v.etape.numero} : ${court(v.etape.titre, 90)}${v.etape.close ? ' (close)' : ''}.`);
     if (v.etape.dernier_fait) l.push(`Dernier fait${v.etape.dernier_fait.date ? ` (${v.etape.dernier_fait.date})` : ''} : ${court(v.etape.dernier_fait.texte, 260)}`);
-    if (v.etape.reste.length) l.push(`Reste : ${v.etape.reste.slice(0, 3).map((x) => court(x, 160).replace(/[.;]+$/, '')).join(' ; ')}.`);
+    // Coupé à trois entrées, le reste le dit : « Reste (3 sur 18) ».
+    const n = v.etape.reste.length;
+    if (n) l.push(`Reste${n > 3 ? ` (3 sur ${n})` : ''} : ${v.etape.reste.slice(0, 3).map((x) => court(x, 160).replace(/[.;]+$/, '')).join(' ; ')}.`);
   }
   if (ecarts.length) l.push(`Écarts ouverts : ${ecarts.length} (${ecarts.slice(0, 3).map((e) => court(e.message, 70)).join(' ; ')}).`);
   if (v.questions.length) l.push(`Questions ouvertes : ${v.questions.map((q) => q.id).join(', ')}.`);
