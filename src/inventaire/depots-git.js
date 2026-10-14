@@ -86,9 +86,16 @@ export function projetDuDepot(projets, depot) {
   return lieu(depot) || principal() || parCommit();
 }
 
+// Ce que les adaptateurs suivants reçoivent des dépôts pour y rattacher leurs éléments (lien `project`) : leurs chemins et
+// leurs projets. Posé par l'adaptateur ; s'il est en erreur, par l'inventaire, depuis les fiches qu'il garde de lui.
+export function amorcer(ctx, fiches) {
+  ctx.depots = fiches.filter((f) => f.kind === 'project' && f.location).map((f) => f.location);
+  ctx.projets = projetsDe(fiches);
+  ctx.projetDe = localiserProjet(ctx.projets);
+}
+
 export default function inventaireDepots(options, ctx) {
   const depots = trouverDepots(options);
-  ctx.depots = depots;
   const ids = identifiants(depots);
   const fiches = depots.map((d) => {
     const remotes = (gitInventaire(d, ['remote', '-v']) || '').split('\n').filter((l) => l.endsWith('(fetch)'))
@@ -105,8 +112,6 @@ export default function inventaireDepots(options, ctx) {
         dernier_sujet: sujet ? sujet.slice(0, 160) : null, dernier_fetch: commun ? mtimeIso(path.join(path.resolve(d, commun), 'FETCH_HEAD')) : null },
     };
   });
-  // Les adaptateurs suivants rattachent leurs éléments à ces projets (lien `project`).
-  ctx.projets = projetsDe(fiches);
-  ctx.projetDe = localiserProjet(ctx.projets);
+  amorcer(ctx, fiches);
   return fiches;
 }

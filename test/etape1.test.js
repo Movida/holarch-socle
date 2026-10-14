@@ -408,6 +408,42 @@ test('verrou : un inventaire ou un import qui trouve le verrou tenu passe son to
   assert.equal((await s.inventaire()).passe, undefined);
 });
 
+// Défaut E4 (revue des limites) : un adaptateur en erreur, ou dont la source ne répond pas (Docker absent au démarrage du
+// poste : 137 des 217 `element.retired` réels), effaçait ses fiches et journalisait de faux retraits ; les dépôts en
+// erreur laissaient en plus les adaptateurs suivants sans dépôts ni projets à rattacher.
+test('inventaire : un adaptateur en erreur, ou dont la source ne répond pas, garde ses fiches sans faux retrait ; les suivants gardent dépôts et liens', async () => {
+  const { inventorier, ADAPTATEURS } = await import('../src/inventaire/index.js');
+  const { spawnSync } = await import('node:child_process');
+  const donnees = tmp(); const racine = tmp(); const depot = path.join(racine, 'demo');
+  const g = (...a) => spawnSync('git', ['-C', depot, '-c', 'user.name=t', '-c', 'user.email=t@exemple.test', ...a], { encoding: 'utf8' });
+  fs.mkdirSync(depot); g('init', '-q'); g('commit', '-q', '--allow-empty', '-m', 'a');
+  const socket = path.join(tmp(), 'docker.sock'); const id = 'a'.repeat(64);
+  const api = { '/containers/json?all=1': [{ Id: id, Names: ['/dev'], Image: 'img', State: 'running', Status: 'Up', Labels: { 'devcontainer.local_folder': depot }, Mounts: [] }],
+    '/volumes': { Volumes: [] }, [`/containers/${id}/json`]: { HostConfig: {}, Mounts: [] } };
+  const srv = http.createServer((req, res) => res.end(JSON.stringify(api[req.url])));
+  await new Promise((ok) => srv.listen(socket, ok));
+  const config = (docker) => ({ site: 'local', donnees, inventaire: { 'depots-git': { racines: [racine], profondeur: 1 }, 'claude-code': { actif: false }, arbre: { actif: false }, docker, 'claude-desktop': { actif: false } } });
+  const catalogue = new Catalogue(donnees, 'local'); const journal = new Journal(donnees, 'local');
+  const retraits = () => [...journal.lire()].filter((e) => e.kind === 'element.retired');
+  const conteneur = () => catalogue.lire().find((f) => f.kind === 'container');
+  try {
+    const r1 = await inventorier(config({ hote: `unix://${socket}` }), { catalogue, journal });
+    const projet = catalogue.lire().find((f) => f.kind === 'project'); const avant = conteneur();
+    assert.equal(r1.fiches, 2); assert.deepEqual(avant.links, { project: [projet.id] });
+    // Docker injoignable : l'adaptateur le dit (source absente) ; ses fiches restent, rien ne se retire.
+    const r2 = await inventorier(config({ hote: `unix://${path.join(tmp(), 'absent.sock')}` }), { catalogue, journal });
+    assert.deepEqual([r2.disparues, r2.erreurs, r2.absentes], [[], [], ['docker : API Docker inaccessible (ENOENT) ; 1 fiche(s) de l’inventaire précédent gardée(s)']]);
+    assert.deepEqual(conteneur(), avant); assert.deepEqual(retraits(), []);
+    // Les dépôts en erreur : leurs fiches restent, et Docker, qui passe après, rattache encore le conteneur au projet.
+    const depots = ADAPTATEURS['depots-git'];
+    ADAPTATEURS['depots-git'] = () => { throw new Error('panne'); };
+    let r3; try { r3 = await inventorier(config({ hote: `unix://${socket}` }), { catalogue, journal }); } finally { ADAPTATEURS['depots-git'] = depots; }
+    assert.deepEqual([r3.disparues, r3.erreurs], [[], ['depots-git : panne ; 1 fiche(s) de l’inventaire précédent gardée(s)']]);
+    assert.deepEqual(catalogue.lire().find((f) => f.kind === 'project'), projet); assert.deepEqual(conteneur().links, avant.links);
+    assert.deepEqual(retraits(), []);
+  } finally { srv.close(); }
+});
+
 test('socle : le coût se calcule à l’indexation depuis la grille, sans réécrire le journal', () => {
   const donnees = tmp();
   const at = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
