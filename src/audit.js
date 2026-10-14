@@ -58,8 +58,9 @@ function controler(r, ctx, moment, niveaux, portee = 'projet', seuls = null) {
       const res = memo.get(c);
       if (res.hors_moment) continue;
       // Les exceptions qu'il a lues se disent avec son état (décision exceptions-hors-du-depot), et la règle qui l'a demandé.
+      // De même le compte de ce qu'il a vu sans le juger (failles sans gravité), qui ne fait pas d'écart.
       const exc = { ...(res.exceptions?.length && { exceptions: res.exceptions.map((x) => ({ ...x, regle: e.fiche, regle_id: e.id })) }),
-        ...(res.exceptions_ignorees?.length && { exceptions_ignorees: res.exceptions_ignorees }) };
+        ...(res.exceptions_ignorees?.length && { exceptions_ignorees: res.exceptions_ignorees }), ...(res.sans_gravite && { sans_gravite: res.sans_gravite }) };
       etats.set(c, res.indisponible ? { id: c, etat: 'indisponible', raison: res.indisponible, ...exc } : { id: c, etat: 'fait', ...exc });
       // Un contrôle lu en partie dit ce qu'il a trouvé ; non disponible, il ne résout rien de ce qu'il n'a pas vu.
       ecarts.push(...(res.ecarts || []).map((x) => ({ regle: e.fiche, regle_id: e.id, enonce: e.enonce, controle: c, ...x })));

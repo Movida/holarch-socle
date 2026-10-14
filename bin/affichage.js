@@ -18,7 +18,7 @@ export const reglesCompte = (r) => [`compte — ${r.compte.regles.length} règle
           ...r.compte.regles.map(ligne), ...r.compte.signaux.map((x) => `ATTENTION ${x}`), '',
           ...(r.projets.length ? r.projets.map((p) => `${p.nom} : ${p.declare ? 'déclaré' : 'non déclaré par un contexte'}, types ${p.types.join(', ') || 'aucun'}, ${p.appliquees} appliquée(s), ${p.proposees} proposée(s)${p.signaux ? `, ${p.signaux} signal(aux)` : ''}`) : ['aucun projet n’a de règles']) ].join('\n');
 
-export const audit = (a) => [...a.cibles.map((c) => [`${c.nom} : ${c.ecarts.length ? `${c.ecarts.length} écart(s)` : 'conforme'}${c.controles.length ? ` ; contrôles : ${c.controles.map((x) => x.etat === 'fait' ? x.id : `${x.id} (non disponible : ${x.raison})`).join(', ')}` : ''}`,
+export const audit = (a) => [...a.cibles.map((c) => [`${c.nom} : ${c.ecarts.length ? `${c.ecarts.length} écart(s)` : 'conforme'}${c.controles.length ? ` ; contrôles : ${c.controles.map((x) => `${x.id}${x.sans_gravite ? ` (${x.sans_gravite} faille(s) sans score ni gravité déclarée, hors seuil)` : ''}${x.etat === 'fait' ? '' : ` (non disponible : ${x.raison})`}`).join(', ')}` : ''}`,
         ...c.ecarts.map((e) => `  [${e.regle_id}] ${e.controle} : ${e.fichier || ''}${e.ligne ? `:${e.ligne}` : ''}${e.n > 1 ? ` (${e.n})` : ''} — ${e.message}`),
         ...c.controles.flatMap((x) => (x.exceptions || []).filter((e) => e.utilisee).map((e) => `  exception ${x.id} : ${e.ecart} — ${e.pourquoi} (${e.provenance})`)),
         ...c.controles.flatMap((x) => (x.exceptions_ignorees || []).map((e) => `  exception ${x.id} ignorée : ${e.ecart || (e.terme && `terme ${e.terme}`) || (e.fichier && `fichier ${e.fichier}`) || '—'} — ${e.raison} (${e.provenance})`))].join('\n')),

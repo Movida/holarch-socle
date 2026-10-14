@@ -214,21 +214,25 @@ function verrousVulnerables(ctx, verrous) {
     if (o.status === 128) return { ecarts: [] };
     let d; try { if (o.status === 0 || o.status === 1) d = JSON.parse(o.stdout); } catch { /* sortie illisible */ }
     if (!d) return { indisponible: `osv-scanner en échec : ${(o.stderr || o.error?.message || `code ${o.status}`).trim().split('\n').at(-1)}` };
-    const ecarts = [];
+    // Une faille sans score ni gravité déclarée (-1) reste hors du seuil (décision veille-securite-versions) ; elle se
+    // compte (`sans_gravite`), que l'audit dit sans en faire un écart.
+    const ecarts = []; let sansGravite = 0;
     for (const res of d.results || []) {
       const fichier = path.relative(ctx.depot, path.resolve(ctx.depot, res.source?.path || ''));
       for (const p of res.packages || []) {
-        const gravites = (p.groups || []).map((g) => {
+        const groupes = (p.groups || []).map((g) => {
           let n = parseFloat(g.max_severity);
           if (Number.isNaN(n)) n = Math.max(-1, ...(p.vulnerabilities || []).filter((v) => g.ids?.includes(v.id)).map((v) => GRAVITE_DECLAREE[String(v.database_specific?.severity || '').toUpperCase()] ?? -1));
           return { id: g.ids?.[0], n };
-        }).filter((g) => g.n >= seuil).sort((a, b) => b.n - a.n);
+        });
+        sansGravite += groupes.filter((g) => g.n < 0).length;
+        const gravites = groupes.filter((g) => g.n >= seuil).sort((a, b) => b.n - a.n);
         if (!gravites.length) continue;
         ecarts.push({ fichier, ligne: null, cle: `${fichier}:${p.package.name}@${p.package.version}`, n: gravites.length,
           message: `${gravites.length} faille(s) de gravité ≥ ${seuil} dans ${p.package.name} ${p.package.version} (pire ${gravites[0].n}, ${gravites[0].id})` });
       }
     }
-    return { ecarts };
+    return { ecarts, ...(sansGravite && { sans_gravite: sansGravite }) };
   });
 }
 

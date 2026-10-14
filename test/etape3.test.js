@@ -730,6 +730,32 @@ test('audit : un contrôle de portée site s’exécute au compte, jamais dans c
   assert.deepEqual(projet.controles, [], 'le projet ne le refait pas');
 });
 
+// Faille sans gravité (revue des limites, 2026-10-14) : sans score ni gravité déclarée, une faille valait -1 et sortait du
+// filtre sans que rien ne le dise. L'audit en dit le compte, sans écart : un écart changerait la décision
+// veille-securite-versions, qui la laisse hors du seuil.
+test('audit : une faille sans score ni gravité déclarée se compte, sans écart', async () => {
+  const affichage = await import('../bin/affichage.js');
+  const r = tmp(); const accueil = tmp();
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nclassification: confidential\n---\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'rules.yaml'), '- id: dependances-saines\n  statement: Pas de faille connue dans les dépendances.\n  level: verified\n  check: [dependances-vulnerables]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\n---\n');
+  fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot'));
+  ecrire(path.join(d, 'package-lock.json'), '{"v":1}\n'); g('add', '.'); g('commit', '-qm', 'x');
+  const sortie = JSON.stringify({ results: [{ source: { path: path.join(d, 'package-lock.json') }, packages: [
+    { package: { name: 'sans-gravite', version: '1.0.0' }, groups: [{ ids: ['GHSA-xxxx'], max_severity: '' }], vulnerabilities: [{ id: 'GHSA-xxxx' }] },
+    { package: { name: 'grave', version: '2.0.0' }, groups: [{ ids: ['GHSA-yyyy'], max_severity: '9.8' }], vulnerabilities: [] }] }] });
+  const faux = path.join(tmp(), 'osv-scanner'); ecrire(`${faux}.json`, sortie);
+  ecrire(faux, `#!/bin/sh\ncat '${faux}.json'\nexit 1\n`); fs.chmodSync(faux, 0o755);
+  const fiches = inventaireArbre({}, { depots: [path.join(r, 'profil')], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) });
+  const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: {}, import: {}, controles: { osv_scanner: faux } });
+  s.catalogue.remplacer([...fiches, { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  s.indexer();
+  const a = s.audit({ journaliser: true }); const projet = a.cibles.find((c) => c.projet === 'holarch:project:depot');
+  assert.deepEqual(projet.ecarts.map((e) => e.cle), ['package-lock.json:grave@2.0.0'], 'la faille sans gravité ne fait pas d’écart');
+  assert.deepEqual(projet.controles, [{ id: 'dependances-vulnerables', etat: 'fait', sans_gravite: 1 }]);
+  assert.match(affichage.audit(a), /contrôles : dependances-vulnerables \(1 faille\(s\) sans score ni gravité déclarée, hors seuil\)/);
+});
+
 // ---- Habitudes : un commit resté local au-delà du délai est un écart.
 test('contrôles : commits non poussés au-delà du délai, branche sans amont non disponible', () => {
   const { d, g } = depotGit(); const nu = tmp();
