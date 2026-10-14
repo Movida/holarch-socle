@@ -200,6 +200,25 @@ une unité systemd qui serait un lien est refusée (aucun cas connu) ; `ecrireCo
 seulement) et `copierGitleaks` (`service.js`, troisième mécanisme d'écriture) hors d'`ecrireSansLien` (trivial
 chacun) ; sessions coupées limitées à 3 sans le dire dans la reprise (même forme « 3 sur N », trivial).
 
+**Voisins du lot 1** (choix de l'auteur du 2026-10-14 : les cinq triviaux codés, les deux faibles laissés écrits ;
+codés par l'agent), un commit et un test chacun, rouge avant son correctif. `de86eba` : `rafraichir` n'audite pas quand
+son inventaire passe son tour. `b40d5e5` : la création dit les règles « à rejouer » quand l'inventaire d'après la
+déclaration passe son tour (au lieu de « projet toujours non déclaré »). `5ffeddc` : `init` et la copie du gitleaks des
+conteneurs passent par `ecrireSansLien` ; `init` refuse un lien cassé posé à la place de la configuration (il écrivait
+au bout), en code 1 ; un test vérifie qu'aucun module n'écrit de fichier hors des fonctions communes (la récolte
+exceptée : dossier privé). `87ca731` : « (3 sur 5, les autres à la reprise suivante) » pour les sessions coupées.
+`fdb4c20` : sans `/proc`, `vivant` et `numeroPris` (copies de pose) lisent le numéro seul par `kill 0` ; avec `/proc`,
+rien ne change. `dcfd200` : régression de `5ffeddc`, vue en codant le suivant : le temporaire `gitleaks.<pid>.holarch`
+d'une pose coupée n'était plus retiré (le nettoyage ne lisait que `.pose-<pid>`) ; il l'est. 263 tests verts ; copie de
+service posée (`dcfd200`). Voisin vu, à soumettre : un temporaire `<fichier>.<pid>.holarch` d'`ecrireSansLien` coupé
+dans un dossier de règles d'un dépôt peut être ajouté par la création (`ajouter`) ; palliatif : retirer les orphelins à
+`regles appliquer`, comme à la pose (faible).
+
+**Décision « sorties MCP des chiffres »** écrite en brouillon le 2026-10-14
+(`arbre/decisions/2026-10-14-sorties-mcp-des-chiffres.md`) sur un relevé en lecture seule : un champ s'ajoute, aucun ne
+se renomme ; `retires` (nom porté par `element.retired`, contrat événement 0.11.0, et, pour le passé, `data.projet` le
+plus fréquent), `technique.lu_a`, `tours_session`, `inconnus`. Soumise à l'auteur avant tout code du lot 2.
+
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur
 Tailscale retirée (le téléphone n'y était plus vu depuis le 2026-10-07 ; seul le serveur d'un projet privé, membre,

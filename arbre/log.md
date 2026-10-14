@@ -2,6 +2,19 @@
 
 ## 2026-10-14
 
+* **Revue des limites, voisins du lot 1 et décision en brouillon** (environ 245 k tokens de contexte pour l'agent ;
+  relevé en lecture seule par une instance) : envoi de `f0baef5` sur autorisation (pas d'intégration continue). Choix de
+  l'auteur, recommandations suivies, en un tour : cinq voisins triviaux codés, deux faibles laissés écrits, décision
+  ensuite. Six commits (`de86eba` à `dcfd200`), chaque test rouge avant son correctif : `rafraichir` sans audit quand
+  l'inventaire passe son tour ; règles « à rejouer » à la création ; `init` et gitleaks par `ecrireSansLien` (`init`
+  écrivait au bout d'un lien cassé) ; sessions coupées « 3 sur N » ; repli sans `/proc` ; puis une régression du
+  troisième (temporaire `.holarch` du gitleaks non retiré à la pose). 263 tests verts ; copie de service posée
+  (`dcfd200`). Décision `sorties-mcp-des-chiffres` en brouillon, soumise. Leçon : déroulé annoncé en trois temps (envoi,
+  cinq voisins, décision en brouillon) ; tenus, avec un commit de plus. Ce qui l'a fait dévier : un nom de temporaire
+  changé par la mise en commun sans chercher qui nettoyait l'ancien, vu en touchant le même nettoyage ; et le contexte,
+  passé au-delà du seuil pendant la décision. La demande qui y aurait mené : « mettre en commun une écriture, et chercher
+  qui lit ou nettoie l'ancien temporaire ».
+
 * **Revue des limites, famille Chiffres, lot 1** (environ 160 k tokens de contexte pour l'agent ; instance neuve :
   391 k, soit 43 k par point) : les neuf points choisis par l'auteur, codés par une instance neuve, relus commit par
   commit par l'agent (diff, appelants, formes réelles des trois messages d'approbation dans les transcriptions, deux
