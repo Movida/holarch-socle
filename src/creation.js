@@ -223,7 +223,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     const premier = g('rev-parse', '--verify', '-q', 'HEAD').status !== 0;
     try {
       for (const [f, contenu, mode] of manquants) ecrireSansLien(dossier, f, contenu(), mode);
-      const a = g('add', '--', ...aCommiter.map(([f]) => f)); if (a.status !== 0) throw new Error(erreur(a));
+      const a = ajouter(...aCommiter.map(([f]) => f)); if (a.status !== 0) throw new Error(erreur(a));
       commiter(premier ? 'Créer le projet' : 'Compléter les fichiers de base du projet', aCommiter.map(([f]) => f));
       noter('fichiers', 'faite', aCommiter.map(([f]) => f).join(', '));
     } catch (e) { noter('fichiers', 'echec', e.message); return r; }

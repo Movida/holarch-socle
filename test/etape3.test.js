@@ -2783,3 +2783,19 @@ test('Création : un dossier .devcontainer ignoré par git ne fait plus échouer
     assert.equal(parseJsonc(git(d, 'show', `HEAD:${fichiers[0]}`)).postCreateCommand, appel, 'la configuration suivie, régénérée, est commitée');
   });
 });
+
+// Voisin des voisins du lot 5 (vu le 2026-10-14) : un fichier de base suivi, retiré à la main sous un dossier ignoré
+// (ici `arbre/`), était réécrit puis refusé par `git add`, qui l'indexe mais sort en 1 : l'étape fichiers échouait une
+// fois, puis le rejeu la disait « déjà là » sans rien commiter. Ajouté comme les règles et le conteneur (`ajouter`).
+test('Création : un fichier de base suivi, retiré à la main sous un dossier ignoré, est réécrit et commité sans échec', () => gitIsole(async () => {
+  const { r, s, etats, git } = await bancCreation();
+  const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'], description: 'Un projet neuf.' });
+  const index = path.join(d, 'arbre', 'index.md');
+  assert.equal(etats(await creer()).fichiers, 'faite');
+  fs.appendFileSync(path.join(d, '.gitignore'), 'arbre/\n'); git(d, 'commit', '-qam', 'Ignorer arbre');
+  const avant = fs.readFileSync(index, 'utf8'); fs.writeFileSync(index, avant.replace('Un projet neuf.', 'Un projet neuf, changé.')); git(d, 'commit', '-qam', 'Changer la racine');
+  fs.rmSync(index);
+  const p = await creer(); const e = p.etapes.find((x) => x.etape === 'fichiers');
+  assert.deepEqual([e.etat, e.detail, git(d, 'status', '--porcelain'), git(d, 'log', '-1', '--format=%s')], ['faite', 'arbre/index.md', '', 'Compléter les fichiers de base du projet'], JSON.stringify(p.etapes, null, 1));
+  assert.equal(git(d, 'show', 'HEAD:arbre/index.md'), avant.trim(), 'réécrit et commité');
+}));
