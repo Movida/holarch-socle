@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import YAML from 'yaml';
-import { configClaude, accueil } from './commun.js';
+import { configClaude, accueil, ecrireSansLien } from './commun.js';
 
 // Défini avec les briques sans dépendance installée : le point d'entrée léger des crochets de veille le lit sans ce module.
 export { accueil };
@@ -122,8 +122,8 @@ export function comptesNonLus(comptes, racine = os.homedir()) {
 
 export function ecrireConfigExemple(fichier = path.join(accueil(), 'config.yaml')) {
   if (fs.existsSync(fichier)) return false;
-  fs.mkdirSync(path.dirname(fichier), { recursive: true });
-  fs.writeFileSync(fichier, `# Configuration HOLARCH de ce site (hors dépôt). Toute clé absente prend sa valeur par défaut.
+  // D'un coup et sans suivre de lien : un lien cassé posé à sa place n'est pas écrit au bout.
+  ecrireSansLien(path.dirname(fichier), path.basename(fichier), `# Configuration HOLARCH de ce site (hors dépôt). Toute clé absente prend sa valeur par défaut.
 site: local
 # profil: ~/<dépôt du profil>   # le seul arbre qui fait profil sur ce site ; sans cette clé, aucun profil
 web: { hote: 127.0.0.1, port: 4280 }

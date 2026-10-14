@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { git, lireJson, ecrireJson, modifierJson, trouverOutil, configClaude, dedans, shell, pourCompte, stat } from './commun.js';
+import { git, lireJson, ecrireJson, ecrireSansLien, modifierJson, trouverOutil, configClaude, dedans, shell, pourCompte, stat } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 import { OUTILS } from './conteneur.js';
 
@@ -54,16 +54,14 @@ const gitleaksDesConteneurs = (maison) => path.join(maison, OUTILS.hote, 'gitlea
 /**
  * Le gitleaks de l'hôte (`bin`), copié dans le dossier que les conteneurs générés montent en lecture (décision
  * garde-sans-passage-muet) : leur crochet de commit, où HOLARCH est injoignable, vérifie au moins les secrets. Copié
- * seulement s'il diffère, d'un coup (un fichier neuf renommé sur l'ancien). { etat }.
+ * seulement s'il diffère, d'un coup (`ecrireSansLien`). { etat }.
  */
 export function copierGitleaks(bin, maison = os.homedir()) {
   if (!bin) return { etat: 'absent de l’hôte : le crochet d’un conteneur laisse passer et le dit' };
   const f = gitleaksDesConteneurs(maison); const contenu = fs.readFileSync(bin);
   let actuel = null; try { actuel = fs.readFileSync(f); } catch { /* absent */ }
   if (actuel?.equals(contenu)) return { etat: 'inchangé' };
-  fs.mkdirSync(path.dirname(f), { recursive: true });
-  const tmp = `${f}.pose-${process.pid}`;
-  fs.writeFileSync(tmp, contenu); fs.chmodSync(tmp, 0o755); fs.renameSync(tmp, f);
+  ecrireSansLien(path.dirname(f), path.basename(f), contenu, 0o755);
   return { etat: `copié (${f})` };
 }
 

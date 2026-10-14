@@ -2946,3 +2946,20 @@ test('Création : un inventaire en cours après la déclaration fait dire aux r�
   assert.equal(etats(p).declaration, 'faite', JSON.stringify(p.etapes, null, 1));
   assert.deepEqual([e.etat, e.detail.replace(/\d+, depuis \d\d:\d\d/, 'N')], ['echec', 'inventaire déjà en cours (processus N) : celui-ci passe son tour : à rejouer']);
 }));
+
+// Voisin de N4 : deux écritures de fichier restaient hors des fonctions communes (`ecrireSansLien`, `ecrireJson`). `init`
+// écrivait la configuration à travers un lien cassé posé à sa place ; le gitleaks des conteneurs avait sa propre copie
+// temporaire, un troisième mécanisme.
+test('Écritures : init n’écrit pas à travers un lien cassé ; aucun fichier ne s’écrit hors des fonctions communes', async () => {
+  const { ecrireConfigExemple } = await import('../src/config.js');
+  const d = tmp(); const ailleurs = path.join(tmp(), 'ailleurs.yaml'); fs.symlinkSync(ailleurs, path.join(d, 'config.yaml'));
+  assert.throws(() => ecrireConfigExemple(path.join(d, 'config.yaml')), /config\.yaml est un lien symbolique : rien n’est écrit/);
+  assert.ok(!fs.existsSync(ailleurs), 'rien n’est écrit au bout du lien');
+  assert.equal(ecrireConfigExemple(path.join(d, 'neuve.yaml')), true); assert.match(fs.readFileSync(path.join(d, 'neuve.yaml'), 'utf8'), /^site: local$/m);
+  assert.equal(ecrireConfigExemple(path.join(d, 'neuve.yaml')), false, 'déjà présente : laissée');
+  // Seules les fonctions communes écrivent un fichier ; la récolte écrit ses candidats dans un dossier privé (`mkdtemp`).
+  const src = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'src');
+  const directes = fs.readdirSync(src, { recursive: true }).filter((f) => f.endsWith('.js') && !['commun.js', 'recolte.js'].includes(f))
+    .filter((f) => /\bwriteFileSync\(/.test(fs.readFileSync(path.join(src, f), 'utf8')));
+  assert.deepEqual(directes, []);
+});

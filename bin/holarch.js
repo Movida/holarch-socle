@@ -111,7 +111,9 @@ switch (cmd) {
       else console.log(`# ${r.id}${r.description ? ` — ${r.description}` : ''}\n${r.transcription}${r.copies.length ? `\n(copie la plus récente ; ${r.copies.length} plus ancienne(s) : ${r.copies.join(', ')})` : ''}\n\n${r.rapport}`);
     } catch (e) { console.error(`holarch rapport : ${e.message}`); process.exitCode = 1; }
     break; }
-  case 'init': console.log(ecrireConfigExemple() ? `configuration écrite : ${accueil()}/config.yaml` : 'configuration déjà présente'); break;
+  case 'init':
+    try { console.log(ecrireConfigExemple() ? `configuration écrite : ${accueil()}/config.yaml` : 'configuration déjà présente'); } catch (e) { console.error(`holarch init : ${e.message}`); process.exitCode = 1; }
+    break;
   case 'inventaire': { const s = socle(); const r = await s.inventaire(); if (r.passe) { afficher(json ? r : r.passe); break; } s.indexer(); const a = s.audit({ journaliser: true }); r.audit = { ouverts: a.cibles.reduce((t, c) => t + c.ecarts.length, 0), ...a.journal }; afficher(json ? r : affichage.inventaire(r)); break; }
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : affichage.importer(r)); break; }
   case 'indexer': afficher(socle().indexer()); break;
