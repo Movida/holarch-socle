@@ -58,7 +58,8 @@ const AIDE = `holarch — socle autour des agents d'IA
                        commiter ; crochet pre-commit de git si une règle bloquante le demande) ; ne touche ni CLAUDE.md
                        ni un fichier non marqué. Un réglage ou un crochet de Claude Code posé par HOLARCH puis retiré
                        ou changé à la main est laissé, et dit ; --reposer le repose : sa clé de settings.json, ou le
-                       rôle du crochet (crochet:alerte, crochet:debut, crochet:veille:<événement>)
+                       rôle du crochet (crochet:alerte, crochet:debut, crochet:veille:<événement>) ; un nom reposé sur
+                       aucun compte (inconnu, ou pas laissé) fait échouer la commande, après le reste
   holarch projet creer <nom> [--contexte <c>] [--type <t>]… [--description <phrase>] [--a-blanc]
                        crée un projet ou complète un projet existant : dépôt et identité, fichiers de base,
                        déclaration au contexte, règles et crochet, dépôt GitHub, clé de déploiement, accès distant,
@@ -180,8 +181,10 @@ switch (cmd) {
         const texte = `${affichage.appliquer({ comptes, projets })}\ngardien de veille : ${gardien.etat}${gardien.message ? ` — ${gardien.message}` : ''}`;
         afficher(json ? texte.split('\n') : texte);
         // Un settings.json illisible n'est jamais réécrit, et la commande échoue (comme avant la consolidation) ; de même
-        // pour des règles arrêtées par un lien symbolique.
-        if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur || m.fichiers.erreur) || projets.some(({ m }) => m.fichiers.erreur) || gardien.etat === 'erreur') process.exit(1);
+        // pour des règles arrêtées par un lien symbolique, et pour un --reposer reposé sur aucun compte (inconnu, ou pas
+        // laissé : dit par compte), après le reste.
+        const sansEffet = reposer.filter((n) => !comptes.some((m) => m.reglages.reposer?.reposes.includes(n)));
+        if (comptes.some((m) => m.permissions.erreur || m.reglages.erreur || m.fichiers.erreur) || projets.some(({ m }) => m.fichiers.erreur) || gardien.etat === 'erreur' || sansEffet.length) process.exit(1);
       } else if (action) {
         const r = s.regles({ projet: action });
         afficher(json ? r : affichage.reglesProjet(r));

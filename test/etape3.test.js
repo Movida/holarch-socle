@@ -2629,8 +2629,10 @@ test('M2 : un retrait à la main ne vaut que pour sa valeur ; un changement de H
 
 // M2, suite : `holarch regles appliquer --reposer <clé ou rôle>` (répétable) passe à la pose ce qu'il nomme ; une valeur
 // absente, ou l'option sans `appliquer`, arrête la commande avant qu'elle n'agisse. Compte, profil et accueil fictifs,
-// `HOME` aussi (le gardien de veille se lit sous lui : aucune unité de la vraie session n'est touchée).
-test('M2 : regles appliquer --reposer repose un crochet laissé ; mal formée, l’option arrête tout avant d’agir', () => {
+// `HOME` aussi (le gardien de veille se lit sous lui : aucune unité de la vraie session n'est touchée). Voisin du lot 5 :
+// un nom inconnu, ou qui n'est pas laissé, sortait en 0 avec un ATTENTION ; reposé sur aucun compte, la commande échoue,
+// après avoir fait le reste.
+test('M2 : regles appliquer --reposer repose un crochet laissé ; mal formée, l’option arrête tout avant d’agir ; sans effet, elle échoue', () => {
   const maison = tmp(); const accueil = tmp(); const profil = tmp(); const home = path.join(maison, '.claude'); const outils = tmp();
   fs.writeFileSync(path.join(outils, 'systemctl'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
   ecrire(path.join(profil, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil\nstatus: draft\nconfig:\n  claude_code: { passation: { seuil_tokens: 150000 } }\n---\n');
@@ -2650,10 +2652,15 @@ test('M2 : regles appliquer --reposer repose un crochet laissé ; mal formée, l
   const r2 = holarch('appliquer'); assert.equal(r2.status, 0, r2.stderr);
   assert.match(r2.stdout, /^  ATTENTION crochet crochet:alerte retiré ou changé à la main : laissé ; holarch regles appliquer --reposer crochet:alerte pour le reposer/m);
   assert.equal(alerte(), 0, 'laissé');
-  const r3 = holarch('appliquer', '--reposer', 'crochet:alerte', '--reposer', 'effortLevel'); assert.equal(r3.status, 0, r3.stderr);
+  const r3 = holarch('appliquer', '--reposer', 'crochet:alerte', '--reposer', 'effortLevel'); assert.equal(r3.status, 1, 'un nom inconnu : la commande échoue');
   assert.match(r3.stdout, /^  reposé\(s\) à la demande \(--reposer\) : crochet:alerte$/m);
   assert.match(r3.stdout, /^  ATTENTION --reposer : effortLevel : ni réglage ni crochet voulu par le profil, rien n'est reposé$/m);
-  assert.equal(alerte(), 1, 'reposé');
+  assert.equal(alerte(), 1, 'reposé : le reste est fait');
+  const r4 = holarch('appliquer', '--reposer', 'crochet:alerte'); assert.equal(r4.status, 1, 'un nom qui n’est pas laissé : la commande échoue');
+  assert.match(r4.stdout, /^  ATTENTION --reposer : crochet:alerte : ni retiré ni changé à la main, rien à reposer$/m);
+  fs.writeFileSync(settings, JSON.stringify(c));
+  const r5 = holarch('appliquer', '--reposer', 'crochet:alerte'); assert.equal(r5.status, 0, r5.stderr);
+  assert.equal(alerte(), 1, 'reposé, sans autre nom : la commande réussit');
 });
 
 // M3, suite (lot 5, décision geste-a-la-main) : l'entrée MCP `holarch` réglée ailleurs était laissée par `service poser`,
