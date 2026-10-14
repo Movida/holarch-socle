@@ -206,6 +206,25 @@ test('projets : une session se rattache aux projets dont ses appels ont touché 
   assert.ok(!tout.includes('x.js') && !tout.includes('git status') && !tout.includes('secret') && !tout.includes('/tmp/z'), 'ni chemin, ni commande, ni argument');
 });
 
+// Chemin relatif (revue des limites, 2026-10-14 : 833 commandes avec `../` en 30 jours, 37 vers un autre projet) : un
+// `../autre-depot/…` ne rattachait pas la session. Résolu depuis le répertoire de la ligne, seulement sans `cd` dans la
+// commande (après un `cd`, faux dans 470 cas sur 833), et pour une transcription lue pour la première fois depuis.
+test('projets : un chemin qui remonte (../) se résout depuis le répertoire de la ligne, sauf après un cd ; transcriptions nouvelles seulement', () => {
+  assert.deepEqual(cheminsAppel({ command: 'cat ../a/x.js | grep -v x/../y && ls ./c' }, '/ws/b'), ['/ws/a/x.js', '/ws/b/y']);
+  assert.deepEqual(cheminsAppel({ command: 'cd /ws/a/sous && cat ../../b/x.js' }, '/ws/b'), ['/ws/a/sous'], 'après un cd : laissé');
+  const home = tmp(); const donnees = tmp(); const journal = new Journal(donnees, 'local');
+  const ligne = (s, n, command) => JSON.stringify({ type: 'assistant', sessionId: s, cwd: '/ws/b', timestamp: `2026-10-01T10:0${n}:00Z`, requestId: `r${n}`,
+    message: { id: `m${n}`, model: 'modele-x', content: [{ type: 'tool_use', id: `t${n}`, name: 'Bash', input: { command } }], usage: { output_tokens: 1 } } });
+  const neuve = path.join(home, 'projects', '-ws-b', 'neuve.jsonl'); ecrire(neuve, `${ligne('neuve', 0, 'cat ../a/x.js')}\n`); vieillir(neuve);
+  // Déjà lue avant cette lecture (son état n'en porte pas), puis grandie : ses projets se lisent comme avant.
+  const ancienne = path.join(home, 'projects', '-ws-b', 'ancienne.jsonl'); ecrire(ancienne, `${ligne('ancienne', 0, 'ls')}\n`);
+  ecrire(path.join(donnees, 'import', 'claude-code-transcriptions.json'), JSON.stringify({ 'projects/-ws-b/ancienne.jsonl': { v: 6, taille: fs.statSync(ancienne).size, session: true, cumuls: {} } }));
+  fs.appendFileSync(ancienne, `${ligne('ancienne', 1, 'cat ../a/x.js')}\n`); vieillir(ancienne);
+  importerTranscriptions({ home, calme_minutes: 10 }, { journal, donnees, projets: PROJETS });
+  const projets = (s) => [...journal.lire()].filter((e) => e.correlation === s && e.kind === 'session.finished').at(-1).data.projets;
+  assert.deepEqual([projets('neuve'), projets('ancienne')], [[{ id: 'holarch:project:a', n: 1 }], [{ id: 'holarch:project:b', n: 2 }]]);
+});
+
 test('projets : une transcription déjà importée reçoit un complément de projets, et rien d’autre', () => {
   const home = tmp(); const donnees = tmp(); const f = transcription(home);
   const journal = new Journal(donnees, 'local');

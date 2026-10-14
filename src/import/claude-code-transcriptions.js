@@ -27,7 +27,8 @@ const VERSION_ETAT = 6;
 // Lecture d'une transcription, sans relecture de l'historique (revue des limites, 2026-10-14) : une forme reconnue depuis
 // ne vaut que pour une transcription lue pour la première fois avec elle, et le reste quand elle grandit (`lecture` dans
 // l'état d'import). Une transcription déjà lue garde sa lecture : relue autrement, un échec déjà au journal (`tool.failed`,
-// motif `autre`) se doublerait d'un refus (`tool.denied`). 2 : trois formes d'approbation (19 messages mesurés).
+// motif `autre`) se doublerait d'un refus (`tool.denied`). 2 : trois formes d'approbation (19 messages mesurés), et les
+// chemins qui remontent (`../`) dans une commande sans `cd`.
 const LECTURE = 2;
 
 // Refus d'outil : un résultat en erreur dont le texte COMMENCE par l'un de ces messages (décision refus). Un texte qui
@@ -96,19 +97,22 @@ export function echecOutil(outil, texte, entree) {
 const texteDe = (c) => (Array.isArray(c) ? c.map((x) => x?.text || '').join(' ') : c);
 
 // Chemins qu'un appel d'outil désigne : arguments de fichier, et, dans une commande shell, les chemins absolus (ou `~/…`)
-// et les cibles de `cd` et de `git -C`, résolus depuis le répertoire courant de la ligne.
+// et les cibles de `cd` et de `git -C`, résolus depuis le répertoire courant de la ligne. Depuis la lecture 2, aussi les
+// mots qui remontent (`../autre-depot/…`), seulement dans une commande sans `cd` : après un `cd`, le répertoire n'est
+// plus celui de la ligne (faux dans 470 cas sur 833 mesurés).
 const CLES_CHEMIN = ['file_path', 'notebook_path', 'path'];
 function resoudre(p, cwd) {
   if (p.startsWith('~/')) return path.join(os.homedir(), p.slice(2));
   if (path.isAbsolute(p)) return path.normalize(p);
   return cwd ? path.resolve(cwd, p) : null;
 }
-export function cheminsAppel(entree, cwd) {
+export function cheminsAppel(entree, cwd, lecture = LECTURE) {
   const i = entree && typeof entree === 'object' ? entree : {};
   const bruts = CLES_CHEMIN.map((k) => i[k]).filter((v) => typeof v === 'string' && v);
   if (typeof i.command === 'string') {
     const mots = i.command.split(/[\s;&|()<>"'`=]+/).filter(Boolean);
-    mots.forEach((m, k) => { if (m.startsWith('/') || m.startsWith('~/') || ((mots[k - 1] === 'cd' || mots[k - 1] === '-C') && !m.startsWith('-'))) bruts.push(m); });
+    const remonte = lecture >= 2 && !mots.includes('cd');
+    mots.forEach((m, k) => { if (m.startsWith('/') || m.startsWith('~/') || ((mots[k - 1] === 'cd' || mots[k - 1] === '-C') && !m.startsWith('-')) || (remonte && m.includes('../'))) bruts.push(m); });
   }
   return bruts.map((p) => resoudre(p, cwd)).filter(Boolean);
 }
@@ -150,7 +154,7 @@ function analyser(f, projetDe = () => null, lecture = LECTURE) {
         if (x?.type !== 'tool_use') continue;
         outils[x.id] = x.name; entrees[x.id] = x.input;
         // Un appel touche les projets dont ses chemins désignent le dépôt ; à défaut, celui de son répertoire courant.
-        let touches = new Set(cheminsAppel(x.input, e.cwd).map(projetDe).filter(Boolean));
+        let touches = new Set(cheminsAppel(x.input, e.cwd, lecture).map(projetDe).filter(Boolean));
         if (!touches.size && e.cwd) touches = new Set([projetDe(e.cwd)].filter(Boolean));
         for (const p of touches) r.projets.set(p.id, (r.projets.get(p.id) || 0) + 1);
         // Un outil MCP se nomme mcp__<serveur>__<outil> : seuls le serveur et l'outil sont gardés.
