@@ -242,6 +242,9 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   const projet = projetIci();
   if (!projet) { noter('declaration', 'echec', inventaire?.passe ? `${inventaire.passe} : à rejouer` : `${dossier} n'entre pas au catalogue : hors des racines de l'inventaire (inventaire.depots-git.racines) ou sans commit`); return r; }
   r.projet = projet.id;
+  // Un inventaire déjà en cours après la déclaration (`passe`) : elle n'est pas encore au catalogue, les règles attendent
+  // un rejeu (et ne se disent pas « non déclaré »).
+  let passe = null;
   const fichierContexte = avant.contexte.fichier;
   const texte = fs.readFileSync(fichierContexte, 'utf8');
   if (texte.includes(projet.id)) noter('declaration', 'deja', `contexte ${avant.contexte.nom}`);
@@ -257,14 +260,14 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
       if (c.status !== 0) { ecrireSansLien(socle.profil(), dansProfil, texte); throw new Error(`commit dans le profil refusé : ${erreur(c)}`); }
     } catch (e) { noter('declaration', 'echec', e.message); return r; }
     noter('declaration', 'faite', `contexte ${avant.contexte.nom}, commit dans le profil`);
-    await socle.inventaire(); socle.indexer();
+    passe = (await socle.inventaire()).passe ?? null; socle.indexer();
   }
 
   // 4. Règles, crochet et identité du projet déclaré (`regles appliquer`), puis commit des fichiers générés. L'arbre écrit
   // plus haut (racine et ses types) entre au catalogue d'abord, sans quoi les règles du type manqueraient.
   if (!aBlanc && await socle.arbreAJour()) socle.indexer();
   const re = socle.regles({ projet: projet.id });
-  if (!re.declare) noter('regles', aBlanc ? 'a-faire' : 'echec', aBlanc ? 'après la déclaration' : 'projet toujours non déclaré après l’inventaire');
+  if (!re.declare) noter('regles', aBlanc ? 'a-faire' : 'echec', aBlanc ? 'après la déclaration' : passe ? `${passe} : à rejouer` : 'projet toujours non déclaré après l’inventaire');
   // Règles illisibles : rien ne s'écrit (materialisation) ; l'étape le dit et la suite attend un rejeu.
   else if (re.illisibles.length) { noter('regles', 'echec', `règles illisibles, rien n'est écrit : ${re.illisibles.join(' ; ')}`); return r; }
   else {

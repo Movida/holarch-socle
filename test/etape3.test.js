@@ -2929,3 +2929,20 @@ test('Création : un fichier de base suivi, retiré à la main sous un dossier i
   assert.deepEqual([e.etat, e.detail, git(d, 'status', '--porcelain'), git(d, 'log', '-1', '--format=%s')], ['faite', 'arbre/index.md', '', 'Compléter les fichiers de base du projet'], JSON.stringify(p.etapes, null, 1));
   assert.equal(git(d, 'show', 'HEAD:arbre/index.md'), avant.trim(), 'réécrit et commité');
 }));
+
+// ---- Famille « Chiffres », voisins du lot 1 (choix de l'auteur du 2026-10-14).
+
+// Voisin de N2 : un inventaire déjà en cours quand la création relit le catalogue, après avoir déclaré le projet, passe son
+// tour ; l'étape des règles disait alors « projet toujours non déclaré après l'inventaire », qui ne s'était pas fait.
+test('Création : un inventaire en cours après la déclaration fait dire aux règles qu’elles sont à rejouer', () => gitIsole(async () => {
+  const { stat } = await import('../src/commun.js');
+  const { r, s, etats } = await bancCreation();
+  const d = path.join(r, 'neuf'); fs.mkdirSync(d); const { g } = depotGit(d);
+  ecrire(path.join(d, 'LISEZMOI.md'), 'Neuf.\n'); g('add', '.'); g('commit', '-qm', 'départ');
+  await s.inventaire(); s.indexer();
+  ecrire(path.join(s.config.donnees, 'inventaire.verrou'), JSON.stringify({ pid: process.pid, debut: stat(process.pid).debut, at: new Date().toISOString() }));
+  const p = await creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  const e = p.etapes.find((x) => x.etape === 'regles');
+  assert.equal(etats(p).declaration, 'faite', JSON.stringify(p.etapes, null, 1));
+  assert.deepEqual([e.etat, e.detail.replace(/\d+, depuis \d\d:\d\d/, 'N')], ['echec', 'inventaire déjà en cours (processus N) : celui-ci passe son tour : à rejouer']);
+}));
