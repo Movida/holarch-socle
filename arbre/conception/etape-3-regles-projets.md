@@ -1279,8 +1279,9 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   la décision « sorties MCP des chiffres » en brouillon, puis le lot 2.
 - **Fait (2026-10-14)** : envoi de `f0baef5` (sur autorisation ; pas d'intégration continue) ; cinq voisins du lot 1
   (choix de l'auteur) et une régression de l'un d'eux (`de86eba` à `dcfd200`), 263 tests verts, copie de service posée
-  (`dcfd200`) ; décision « sorties MCP des chiffres » en brouillon (`2026-10-14-sorties-mcp-des-chiffres.md`). Suite :
-  son approbation par l'auteur, puis le lot 2 (interface, test visuel, paquets à installer par l'auteur).
+  (`dcfd200`) ; décision « sorties MCP des chiffres » écrite puis approuvée (`2026-10-14-sorties-mcp-des-chiffres.md`).
+  Suite : le lot 2 sur cette décision (contrat événement 0.11.0, interface, test visuel, paquets à installer par
+  l'auteur).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

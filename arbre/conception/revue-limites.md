@@ -217,7 +217,8 @@ dans un dossier de règles d'un dépôt peut être ajouté par la création (`aj
 **Décision « sorties MCP des chiffres »** écrite en brouillon le 2026-10-14
 (`arbre/decisions/2026-10-14-sorties-mcp-des-chiffres.md`) sur un relevé en lecture seule : un champ s'ajoute, aucun ne
 se renomme ; `retires` (nom porté par `element.retired`, contrat événement 0.11.0, et, pour le passé, `data.projet` le
-plus fréquent), `technique.lu_a`, `tours_session`, `inconnus`. Soumise à l'auteur avant tout code du lot 2.
+plus fréquent), `technique.lu_a`, `tours_session`, `inconnus`. Approuvée telle quelle le même jour (choix cliquable) ;
+le lot 2 se code dessus.
 
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur

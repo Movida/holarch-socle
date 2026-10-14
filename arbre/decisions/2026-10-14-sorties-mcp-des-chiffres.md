@@ -2,7 +2,8 @@
 type: decision
 title: Sorties MCP des chiffres
 description: "Champs ajoutés aux lectures communes du socle (interface et serveur MCP) pour quatre chiffres de la revue des limites : projets retirés, état du dépôt lu en direct, deux comptes de tours, appels MCP de statut inconnu. Un champ s'ajoute, aucun ne se renomme."
-status: draft
+status: stable
+approved: { by: human:auteur, at: 2026-10-14, ref: "choix cliquable du 2026-10-14 : « Approuver telle quelle »" }
 links:
   derives_from: [/arbre/conception/revue-limites.md, /arbre/conception/etape-3-regles-projets.md]
   modifies: [/arbre/conception/contrats/evenement.md]
@@ -56,6 +57,6 @@ déjà gardé pour l'affichage.
 **Ce qui le ferait changer.** Un lecteur programmé des sorties (skill, routine, autre site) : le contrat versionné
 deviendrait utile. Un nom de dossier de départ trompeur sur un retrait d'avant : le laisser `null`.
 
-**Conséquences.** À l'approbation : contrat événement 0.11.0 (`element.retired` porte `name` et `location`) ; code du
+**Conséquences.** Contrat événement 0.11.0 (`element.retired` porte `name` et `location`) ; code du
 lot 2 pour ces quatre points, un test par point, rouge sur son parent ; test visuel requis (interface) ; spécification
 de l'étape 3 mise à jour (champs ajoutés).

@@ -9,7 +9,8 @@
   l'inventaire passe son tour ; règles « à rejouer » à la création ; `init` et gitleaks par `ecrireSansLien` (`init`
   écrivait au bout d'un lien cassé) ; sessions coupées « 3 sur N » ; repli sans `/proc` ; puis une régression du
   troisième (temporaire `.holarch` du gitleaks non retiré à la pose). 263 tests verts ; copie de service posée
-  (`dcfd200`). Décision `sorties-mcp-des-chiffres` en brouillon, soumise. Leçon : déroulé annoncé en trois temps (envoi,
+  (`dcfd200`). Décision `sorties-mcp-des-chiffres` écrite en brouillon, approuvée telle quelle
+  (choix cliquable) ; envoi de `4a9c0a9` sur autorisation. Leçon : déroulé annoncé en trois temps (envoi,
   cinq voisins, décision en brouillon) ; tenus, avec un commit de plus. Ce qui l'a fait dévier : un nom de temporaire
   changé par la mise en commun sans chercher qui nettoyait l'ancien, vu en touchant le même nettoyage ; et le contexte,
   passé au-delà du seuil pendant la décision. La demande qui y aurait mené : « mettre en commun une écriture, et chercher
