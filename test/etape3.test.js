@@ -2641,12 +2641,14 @@ test('Copies de pose interrompues : retirées à la pose suivante si leur proces
   fs.mkdirSync(path.join(service, `0123456789ab.pose-${mort}`, 'node_modules'), { recursive: true }); fs.mkdirSync(path.join(service, `0123456789ab.pose-${vivant}`)); fs.mkdirSync(path.join(service, 'courant.pose-1'));
   fs.symlinkSync('0123456789ab', path.join(service, `courant.pose-${mort}`));
   fs.mkdirSync(outils, { recursive: true }); fs.writeFileSync(path.join(outils, `gitleaks.pose-${mort}`), 'moitié');
+  // Le temporaire d'`ecrireSansLien`, qui copie le gitleaks depuis le 2026-10-14 : de même.
+  for (const p of [mort, vivant]) fs.writeFileSync(path.join(outils, `gitleaks.${p}.holarch`), 'moitié');
   const bin = path.join(tmp(), 'gitleaks'); fs.writeFileSync(bin, '#!/bin/sh\n', { mode: 0o755 });
   const sv = creerService({ accueil, gitleaks: bin, maison }, { source: src, unites, systemctl, npm: 'npm', lancer, node: '/opt/node/bin/node' });
   const r = sv.poser();
-  assert.deepEqual(r.orphelines.sort(), [path.join(service, `0123456789ab.pose-${mort}`), path.join(service, `courant.pose-${mort}`), path.join(outils, `gitleaks.pose-${mort}`)].sort());
+  assert.deepEqual(r.orphelines.sort(), [path.join(service, `0123456789ab.pose-${mort}`), path.join(service, `courant.pose-${mort}`), path.join(outils, `gitleaks.pose-${mort}`), path.join(outils, `gitleaks.${mort}.holarch`)].sort());
   assert.deepEqual(fs.readdirSync(service).filter((n) => n.includes('.pose-')).sort(), [`0123456789ab.pose-${vivant}`, 'courant.pose-1'].sort(), 'celle d’un processus vivant reste, d’un autre utilisateur comprise (pid 1)');
-  assert.deepEqual(fs.readdirSync(outils), ['gitleaks']);
+  assert.deepEqual(fs.readdirSync(outils).sort(), ['gitleaks', `gitleaks.${vivant}.holarch`]);
   assert.match(affichage.posee(r).split('\n')[0], new RegExp(`pose\\(s\\) interrompue\\(s\\) retirée\\(s\\) : .*gitleaks\\.pose-${mort}`));
 });
 

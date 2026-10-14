@@ -40,12 +40,12 @@ export function retard(copie) {
 }
 
 // Ce que laisse une pose arrêtée net (le processus tué pendant `npm ci`, une panne) : `<nom>.pose-<pid>`, copie, lien ou
-// fichier temporaire, jamais renommé ni retiré. La pose suivante retire ceux dont le processus est mort ; un numéro
-// encore pris (une pose en cours, ou ce numéro repris par un autre : le nom ne porte pas le début) garde le sien. Les
-// chemins retirés.
+// fichier temporaire, ou `<nom>.<pid>.holarch`, le temporaire d'`ecrireSansLien` (le gitleaks des conteneurs), jamais
+// renommé ni retiré. La pose suivante retire ceux dont le processus est mort ; un numéro encore pris (une pose en cours,
+// ou ce numéro repris par un autre : le nom ne porte pas le début) garde le sien. Les chemins retirés.
 function retirerOrphelines(d) {
   let noms = []; try { noms = fs.readdirSync(d); } catch { return []; }
-  return noms.filter((n) => { const m = n.match(/\.pose-(\d+)$/); return m && !numeroPris(Number(m[1])); }).map((n) => {
+  return noms.filter((n) => { const m = n.match(/\.(?:pose-(\d+)|(\d+)\.holarch)$/); return m && !numeroPris(Number(m[1] ?? m[2])); }).map((n) => {
     const f = path.join(d, n); fs.rmSync(f, { recursive: true, force: true }); return f;
   });
 }
