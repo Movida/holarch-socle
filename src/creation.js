@@ -148,6 +148,22 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     const c = g('commit', '-q', '-m', message, '--', ...fichiers);
     if (c.status !== 0) throw new Error(`commit refusé : ${erreur(c)}`);
   };
+  // Les chemins que git ignore (un dossier, ou un motif d'un .gitignore du dépôt ou du compte) : `git add` les refuse, et
+  // chaque rejeu s'arrêtait là (R4, lot 5). Un fichier déjà suivi n'est jamais ignoré. Le geste dit la commande qui montre
+  // la règle ; `lus` dit qui les lit dans ce clone, quand ils y sont écrits quand même.
+  const ignoresParGit = (chemins) => {
+    if (!chemins.length) return [];
+    const ci = g('check-ignore', '--', ...chemins); // rien d'ignoré : code 1
+    return ci.status === 0 ? ci.stdout.split('\n').filter(Boolean) : [];
+  };
+  const gesteIgnores = (ignores, lus) => ({ quoi: `retirer la règle qui les ignore (la commande la montre), puis relancer ; ou les laisser hors du dépôt${lus ? ` (${lus} dans ce clone)` : ''}`, commande: `git -C ${dossier} check-ignore -v -- ${ignores.join(' ')}` });
+  // Les fichiers suivis (modifiés, retirés), puis les nouveaux que git n'ignore pas : un `git add` qui nomme un chemin
+  // ignoré échoue, même en indexant les fichiers suivis qu'il couvre.
+  const ajouter = (...chemins) => {
+    const u = g('add', '-u', '--', ...chemins);
+    const nouveaux = (g('ls-files', '-z', '--others', '--exclude-standard', '--', ...chemins).stdout || '').split('\0').filter(Boolean);
+    return u.status !== 0 || !nouveaux.length ? u : g('add', '--', ...nouveaux);
+  };
 
   // Une licence sans modèle arrête tout avant le premier geste : rien n'est créé.
   if (cfg.licence && (!/^[A-Za-z0-9.-]+$/.test(String(cfg.licence)) || !fs.existsSync(path.join(MODELES, 'licences', String(cfg.licence))))) { noter('fichiers', 'echec', `licence sans modèle : ${cfg.licence}`); return r; }
@@ -189,13 +205,13 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   // Un fichier présent mais jamais commité (commit refusé à un passage précédent) n'est pas réécrit : il est commité.
   const commite = (f) => g('cat-file', '-e', `HEAD:${f}`).status === 0;
   const depotLa = fs.existsSync(path.join(dossier, '.git'));
-  // Un fichier de base que git ignore (un .gitignore du dépôt, ou celui du compte) ne s'ajoute pas : `git add` le refuse,
-  // et chaque rejeu s'arrêtait là. Il n'est ni écrit ni commité ; un geste le dit, avec la commande qui montre la règle.
-  const ignores = fichiers.filter(([f]) => depotLa && !commite(f) && g('check-ignore', '-q', '--', f).status === 0).map(([f]) => f);
+  // Un fichier de base que git ignore (un .gitignore du dépôt, ou celui du compte) ne s'ajoute pas (`ignoresParGit`). Il
+  // n'est ni écrit ni commité ; un geste le dit, avec la commande qui montre la règle.
+  const ignores = depotLa ? ignoresParGit(fichiers.map(([f]) => f).filter((f) => !commite(f))) : [];
   const suivis = fichiers.filter(([f]) => !ignores.includes(f));
   const manquants = suivis.filter(([f]) => !fs.existsSync(path.join(dossier, f)));
   const aCommiter = suivis.filter(([f]) => !fs.existsSync(path.join(dossier, f)) || (depotLa && !commite(f)));
-  if (ignores.length) noter('ignores', 'geste', `${ignores.join(', ')} : ignoré(s) par git, ni écrit(s) ni commité(s)`, { quoi: 'retirer la règle qui les ignore (la commande la montre), puis relancer ; ou les laisser hors du dépôt', commande: `git -C ${dossier} check-ignore -v -- ${ignores.join(' ')}` });
+  if (ignores.length) noter('ignores', 'geste', `${ignores.join(', ')} : ignoré(s) par git, ni écrit(s) ni commité(s)`, gesteIgnores(ignores));
   if (typee && arbreExistant) {
     const declares = [].concat(noeuds().find((n) => n.location === arbreExistant.fichier)?.attributes?.types || []);
     const absents = types.filter((t) => !declares.includes(t));
@@ -261,25 +277,18 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     // Des règles écrites mais pas commitées (commit refusé à un passage précédent) restent à commiter.
     const dossierRegles = path.join('.claude', 'rules', 'holarch');
     const enAttente = (g('status', '--porcelain', '--', dossierRegles).stdout || '').trim() !== '';
-    // Des règles que git ignore (le dossier `.claude/`, ou un motif d'un .gitignore du dépôt ou du compte) : `git add` les
-    // refusait, en indexant quand même les fichiers déjà suivis, et chaque rejeu s'arrêtait là (comme R4). Écrites quand
-    // même (Claude Code les lit dans ce clone), elles ne se commitent pas, et un geste le dit avec la commande qui montre la
-    // règle ; la suite continue (rien après ne lit les règles commitées). Un fichier déjà suivi n'est jamais ignoré.
-    const prevus = m.plan.fichiers.map((f) => path.join(dossierRegles, f.fichier));
-    const ci = g('check-ignore', '--', ...prevus); // sans chemin : code 128, rien d'ignoré
-    const ignorees = ci.status === 0 ? ci.stdout.split('\n').filter(Boolean) : [];
+    // Des règles que git ignore (le dossier `.claude/`, `ignoresParGit`) : écrites quand même (Claude Code les lit dans ce
+    // clone), elles ne se commitent pas, et un geste le dit avec la commande qui montre la règle ; la suite continue (rien
+    // après ne lit les règles commitées).
+    const ignorees = ignoresParGit(m.plan.fichiers.map((f) => path.join(dossierRegles, f.fichier)));
     const fin = (etat, d) => (ignorees.length
-      ? noter('regles', 'geste', `${d} ; ${ignorees.map((f) => path.basename(f)).join(', ')} : ignorée(s) par git, ni ajoutée(s) ni commitée(s)`,
-        { quoi: 'retirer la règle qui les ignore (la commande la montre), puis relancer ; ou les laisser hors du dépôt (Claude Code les lit dans ce clone)', commande: `git -C ${dossier} check-ignore -v -- ${ignorees.join(' ')}` })
+      ? noter('regles', 'geste', `${d} ; ${ignorees.map((f) => path.basename(f)).join(', ')} : ignorée(s) par git, ni ajoutée(s) ni commitée(s)`, gesteIgnores(ignorees, 'Claude Code les lit'))
       : noter('regles', etat, d));
     if (!changes && !enAttente && ['inchange', 'absent'].includes(m.crochet.etat)) fin('deja', detail);
     else if (aBlanc) fin('a-faire', detail);
     else {
-      // Les fichiers suivis (modifiés, retirés), puis les nouveaux que git n'ignore pas : `add -A` sur le dossier ignoré
-      // échouerait. Refusé (un verrou de l'index), rien ne serait commité : l'étape le dit.
-      const u = g('add', '-u', '--', dossierRegles);
-      const nouveaux = (g('ls-files', '-z', '--others', '--exclude-standard', '--', dossierRegles).stdout || '').split('\0').filter(Boolean);
-      const a = u.status !== 0 || !nouveaux.length ? u : g('add', '--', ...nouveaux);
+      // Refusé (un verrou de l'index), rien ne serait commité : l'étape le dit.
+      const a = ajouter(dossierRegles);
       if (a.status !== 0) { noter('regles', 'echec', `règles écrites, non ajoutées à git : ${erreur(a)}`); return r; }
       if (g('diff', '--cached', '--quiet', '--', dossierRegles).status !== 0) {
         try { commiter('Appliquer les règles HOLARCH', [dossierRegles]); } catch (e) { noter('regles', 'echec', e.message); return r; }
@@ -311,16 +320,24 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
         // a pu passer : indexé, pas seulement non suivi).
         const statut = (f) => (g('status', '--porcelain', '--', f).stdout || '').trim();
         const enAttente = [...(statut(CONTENEUR) ? [CONTENEUR] : []), ...(lire(SCRIPT_CLE) !== null && !commite(SCRIPT_CLE) ? [SCRIPT_CLE] : [])];
-        const aCommiter = [...new Set([...aEcrire.map(([f]) => f), ...enAttente])];
-        if (!aCommiter.length) noter('conteneur', 'deja', CONTENEUR);
-        else if (aBlanc) noter('conteneur', 'a-faire', aCommiter.join(', '));
+        const touches = [...new Set([...aEcrire.map(([f]) => f), ...enAttente])];
+        // Des fichiers que git ignore (le dossier `.devcontainer/`, `ignoresParGit`) : chaque rejeu échouait là. Écrits quand
+        // même (l'éditeur les lit dans ce clone), ils ne s'ajoutent ni ne se commitent, et un geste le dit avec la commande
+        // qui montre la règle.
+        const ignores = ignoresParGit([CONTENEUR, ...(voulus.some(([f]) => f === SCRIPT_CLE) || lire(SCRIPT_CLE) !== null ? [SCRIPT_CLE] : [])]);
+        const aCommiter = touches.filter((f) => !ignores.includes(f));
+        const fin = (etat, d) => (ignores.length
+          ? noter('conteneur', 'geste', `${d} ; ${ignores.join(', ')} : ignoré(s) par git, ni ajouté(s) ni commité(s)`, gesteIgnores(ignores, 'l’éditeur les lit'))
+          : noter('conteneur', etat, d));
+        if (!aEcrire.length && !aCommiter.length) fin('deja', CONTENEUR);
+        else if (aBlanc) fin('a-faire', touches.join(', '));
         else {
           for (const [f, t, mode] of aEcrire) ecrireSansLien(dossier, f, t, mode);
-          const a = g('add', '--', ...aCommiter); if (a.status !== 0) throw new Error(erreur(a));
+          if (aCommiter.length) { const a = ajouter(...aCommiter); if (a.status !== 0) throw new Error(erreur(a)); }
           // Une modification jamais commitée, remplacée par le texte déjà commité : rien à commiter.
           const changes = aCommiter.filter(statut);
           if (changes.length) commiter(present === null ? 'Générer la configuration du conteneur' : 'Régénérer la configuration du conteneur', changes);
-          noter('conteneur', 'faite', aCommiter.join(', '));
+          fin('faite', touches.join(', '));
         }
       }
     } catch (e) { noter('conteneur', 'echec', e.message); }

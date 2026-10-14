@@ -2722,3 +2722,47 @@ test('Création : un dossier de règles ignoré par git ne bloque plus les rejeu
     assert.match(git(d, 'show', 'HEAD:.claude/rules/holarch/tests-verts.md'), /^Tous les tests passent/m, 'la règle suivie, modifiée, est commitée');
   });
 });
+
+// `.devcontainer/` ignoré par git (voisin du lot 5, même traitement que `.claude/`) : `git add` refusait la configuration
+// générée et le script de la clé, et chaque rejeu échouait à l'étape conteneur. Les fichiers ignorés sont écrits mais ni
+// ajoutés ni commités, un geste le dit avec la commande qui montre la règle ; un fichier suivi se commite.
+test('Création : un dossier .devcontainer ignoré par git ne fait plus échouer l’étape conteneur ; un geste le dit', async () => {
+  const etapes = { github: false, conteneur: true, distant: false };
+  const appel = 'bash .devcontainer/deploy-key.sh origin || true';
+  const fichiers = ['.devcontainer/devcontainer.json', '.devcontainer/deploy-key.sh'];
+  const ignores = (d, liste) => [`; ${liste.join(', ')} : ignoré(s) par git, ni ajouté(s) ni commité(s)`, `git -C ${d} check-ignore -v -- ${liste.join(' ')}`];
+  const exclusions = path.join(tmp(), 'exclusions'); fs.writeFileSync(exclusions, '.devcontainer/\n');
+  await gitIsole(async () => {
+    const base = { devcontainer: { image: 'base', remoteUser: 'vscode', postCreateCommand: appel } };
+    const { r, s, etats, git } = await bancCreation({ creation: { etapes }, conteneur: base });
+    const d = path.join(r, 'neuf'); const creer = (aBlanc = false) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc });
+    for (const aBlanc of [false, true, false]) {
+      const p = await creer(aBlanc); const e = p.etapes.find((x) => x.etape === 'conteneur');
+      const [fin, commande] = ignores(d, fichiers);
+      assert.deepEqual([e.etat, e.detail.endsWith(fin), e.geste?.commande], ['geste', true, commande], JSON.stringify(p.etapes, null, 1));
+      assert.equal(etats(p).audit, aBlanc ? 'a-faire' : 'faite', 'la suite se fait');
+    }
+    assert.deepEqual([fs.readFileSync(path.join(d, fichiers[0]), 'utf8'), git(d, 'ls-files', '--', '.devcontainer'), git(d, 'status', '--porcelain')],
+      [genererConteneur({ nom: 'neuf', config: { conteneur: base } }).texte, '', ''], 'écrits, ni ajoutés ni commités');
+    const commande = spawnSync('/bin/sh', ['-c', (await creer()).etapes.find((x) => x.etape === 'conteneur').geste.commande], { encoding: 'utf8' });
+    assert.equal(commande.stdout, fichiers.map((f) => `${exclusions}:1:.devcontainer/\t${f}\n`).join(''), 'la commande montre la règle');
+  }, `[core]\n\texcludesFile = ${exclusions}\n`);
+  // Ignoré après coup : la configuration suivie, régénérée, se commite ; le script, devenu appelé, est écrit, ignoré et dit.
+  await gitIsole(async () => {
+    const { r, s, etats, git, toucher } = await bancCreation({ creation: { etapes }, conteneur: { devcontainer: { image: 'base', remoteUser: 'vscode', postCreateCommand: 'npm ci' } } });
+    const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
+    assert.equal(etats(await creer()).conteneur, 'faite');
+    fs.appendFileSync(path.join(d, '.gitignore'), '.devcontainer/\n'); git(d, 'commit', '-qam', 'Ignorer .devcontainer');
+    const index = path.join(d, 'arbre', 'index.md');
+    fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('types: [methode]\n', `types: [methode]\nconfig:\n  conteneur: { devcontainer: { postCreateCommand: "${appel}" } }\n`)); toucher(index);
+    git(d, 'commit', '-qam', 'appeler le script');
+    const [fin, commande] = ignores(d, [fichiers[1]]);
+    for (const [attendu, detail] of [['faite', fichiers.join(', ')], ['deja', fichiers[0]]]) {
+      const p = await creer(); const e = p.etapes.find((x) => x.etape === 'conteneur');
+      assert.deepEqual([e.etat, e.detail, e.geste?.commande, etats(p).audit], ['geste', `${detail} ${fin}`, commande, 'faite'], `${attendu} : ${JSON.stringify(p.etapes, null, 1)}`);
+    }
+    assert.deepEqual([git(d, 'status', '--porcelain'), git(d, 'log', '-1', '--format=%s'), git(d, 'ls-files', '--', '.devcontainer'), fs.existsSync(path.join(d, fichiers[1]))],
+      ['', 'Régénérer la configuration du conteneur', fichiers[0], true]);
+    assert.equal(parseJsonc(git(d, 'show', `HEAD:${fichiers[0]}`)).postCreateCommand, appel, 'la configuration suivie, régénérée, est commitée');
+  });
+});
