@@ -118,10 +118,56 @@ lecture des ignorés sont mis en commun pour les fichiers de base, les règles e
 reconnue), la commande qui la repointe, la même que `holarch service`. `998f515` : `regles appliquer` sort en 1 quand
 un nom de `--reposer` n'est reposé sur aucun compte (inconnu, ou pas laissé), après le reste ; reposé sur un compte et
 pas laissé sur un autre, c'est dit sans échec. 251 tests verts ; copie de service posée (`998f515`) ; audit réel :
-compte conforme, socle sans autre écart que les commits non poussés, 0 apparu, 0 résolu. Voisin vu, à soumettre : un
-fichier de base suivi, retiré à la main sous un dossier ignoré (`arbre/` par exemple), est réécrit puis ajouté par
+compte conforme, socle sans autre écart que les commits non poussés, 0 apparu, 0 résolu. Voisin vu, codé le même jour sur choix
+de l'auteur (`9e6e623`) : un fichier de base suivi, retiré à la main sous un dossier ignoré (`arbre/` par exemple), est réécrit puis ajouté par
 `git add`, qui sort en 1 : l'étape fichiers échoue une fois, le rejeu suivant le dit « déjà là » sans commit (palliatif :
 `ajouter` à cette étape aussi, trivial, et un test).
+
+**Chiffres, relevé du 2026-10-14** (instance neuve en lecture seule, HEAD `9e6e623`, mesures sur les données réelles en
+lecture) : aucun contrat ne décrit la sortie des outils MCP (`forme-etape-2` dit « en lecture », « les mêmes lectures que
+l'interface ») ; un champ MCP ajouté ou renommé demande donc une décision. Usage mesuré : l'interface n'a pas été ouverte
+depuis le 2026-10-07 (47 vues en 30 jours, toutes avant le retrait de Tailscale Serve) ; le serveur MCP, 30 appels en 30
+jours. Levés : ligne 241, date du catalogue (`e289e11`) ; proposition (3), isolement à l'audit (`46d5d6f`). Ouverts,
+avec la prémisse vérifiée : V1, 2 projets retirés, 222,06 $ et 21 sessions sur 182 hors vue ; `element.retired` porte
+`data: {}`, donc pas de nom à en tirer (ligne sans nom, ou nom tiré de `data.projet`, ou nom ajouté à l'événement :
+contrat 0.11.0) ; `rattachement-projet` touché. V2 : 4 projets sur 10 diffèrent ; `etatDepot` rendrait 0 sur un chemin
+absent (`existsSync`, sinon valeur du catalogue datée) ; 24 ms par projet. V3 : 72 sessions sur 182 diffèrent ;
+renommer `tours` côté MCP casse ses lecteurs (garder `tours`, total, et ajouter `tours_session`). V5 : part datée sur la
+carte (16,17 $) contre coût entier sur 90 jours dans la liste (484,89 $), part tirée de `parts()`. V6 : 6 jours sur 23
+diffèrent de plus de 5 % ; filtre seul insuffisant (colonne « sortie ce jour »), jour local à choisir. V7 :
+`passation-sereine` touchée ; renommer, ou même mesure (champ dans `session.finished`, contrat). V8 et ligne 243 :
+3 restes montrés sur 18, dont 2 déjà clos ; « Reste (3 sur 18) », dernier fait par date. V9 : sans objet tant que
+l'interface n'est pas ouverte au toucher. E4 : Docker absent au démarrage donne 137 des 217 `element.retired` ; garder
+les fiches d'un adaptateur en erreur et réamorcer son contexte (les adaptateurs suivants perdent dépôts et liens). N2 :
+10 inventaires sur 279 finis à moins d'une seconde d'un autre, 51 `element.*` doublés, aucun identifiant doublé
+(dédoublonner `tool.called` : sans objet) ; verrou `wx`, processus vivant lu par numéro et heure de démarrage
+(`veille.js`). N3 : relire avant le renommage, trois essais (protège l'écriture de Claude Code, pas la nôtre). N4 : le
+crochet passe déjà par `ecrireSansLien` ; restent `commun.js:93`, `regles-claude-code.js:261,264`, `distant.js:94,103,406`.
+Faille sans gravité : compte `sans_gravite` dit par l'audit (un écart change `veille-securite-versions`). Chemin
+relatif : 833 commandes avec `../` sur 36 865, 37 vers un autre projet ; faux après un `cd` (470 des 833), résoudre
+seulement sans `cd`. Taille du contexte : sortie moyenne 452 tokens par tour (0,3 % du seuil). Formes d'approbation :
+« Blocked: sleep N followed by » 16, « `&` background operator » 2, « Output redirection » 1 ; relire en version 7
+doublerait environ 19 `tool.failed`. Ligne 238 : `arbreAJour` lance un inventaire complet qui écrit, depuis un GET et un
+outil en lecture, et aggrave N2 (après N2 ; ou `arbreFrais`, lecture pure). Ligne 239 a : 0 inconnu sur ce poste ; un
+statut `null` vient aussi d'un appel sans résultat ; « dont K inconnus ». Voisins vus : sessions coupées limitées à 3
+sans le dire (`contexte.js:116`) ; échecs des projets retirés comptés nulle part ; deux définitions d'un processus
+vivant (`service.js:45`, `veille.js:100`) ; règles d'un dépôt écrites sans `O_NOFOLLOW` (`regles-claude-code.js:261,264`,
+pris dans N4) ; alerte et seuil lisent les règles dans l'index (même cause que 238) ; `voir` refait un inventaire
+complet au démarrage, cause probable des doublons de N2 ; date affichée locale, filtre en UTC (`app.js`) ; `settings.json`
+réécrit pendant que Claude Code peut l'écrire `[À COMPLÉTER : Claude Code le verrouille-t-il ?]`. Lots proposés : lot 1
+sans interface ni contrat (N2 d'abord, E4, N3, N4, formes d'approbation et chemin relatif sous un seul changement de
+version, taille du contexte, V8 et 243, faille sans gravité) ; puis une décision « sorties MCP des chiffres »
+(`retires`, `lu_a`, tours, `inconnus`) ; lot 2, interface (238, V2, V1, V3, 239 a, V5, V6, V7, V9), test visuel requis.
+Test visuel : Chromium absent de l'hôte, mais Docker répond ; il manque `libnss3`, `libnspr4` et `libasound2`
+(palliatif : `sudo apt install -y libnss3 libasound2t64`, puis `npx playwright install --only-shell chromium`, sans
+`sudo`, dans `~/.cache/ms-playwright` ; vérifié par `--dry-run`). Majoration `inference_geo` : 0 « us » mesuré.
+Choix de l'auteur (un tour, recommandations suivies) : lot 1 à coder par une instance neuve à la session suivante :
+N2, un verrou ; un inventaire ou un import qui le trouve pris passe son tour et le dit ; E4, fiches d'un adaptateur en
+erreur gardées, Docker injoignable compris ; N3 et N4 comme le relevé ; formes d'approbation et chemin relatif (`../`
+sans `cd`) pour les nouvelles transcriptions seulement (pas de relecture, pas de doubles) ; taille du contexte avec
+`output_tokens` ; reprise « Reste (3 sur 18) », dernier fait pris par sa date ; faille sans gravité, compte dit par
+l'audit, sans écart. Lot 2 après le lot 1 : la décision « sorties MCP des chiffres » en brouillon d'abord, soumise avant
+tout code ; test visuel par le palliatif ci-dessus (paquets installés par l'auteur).
 
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur

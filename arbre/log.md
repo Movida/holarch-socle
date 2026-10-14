@@ -2,6 +2,19 @@
 
 ## 2026-10-14
 
+* **Revue des limites, famille Chiffres ouverte** (environ 220 k tokens de contexte pour l'agent ; instance neuve en
+  lecture seule : 297 k) : voisin des voisins codé sur choix de l'auteur (`9e6e623`, fichier de base suivi retiré sous un
+  dossier ignoré, 252 tests verts). Envoi de `98ec179` sur autorisation (pas d'intégration continue). Relevé des 19
+  points de la famille sur `9e6e623` (deux levés depuis : date du catalogue, `e289e11` ; isolement à l'audit,
+  `46d5d6f`), prémisses vérifiées sur les données réelles, décisions et contrats touchés : détail dans
+  `revue-limites.md`. Mesures : interface non ouverte depuis le 2026-10-07, MCP 30 appels en 30 jours. Test visuel :
+  Chromium absent, trois bibliothèques manquent (palliatif vérifié par `--dry-run`). Choix de l'auteur, recommandations
+  suivies, en un tour : lot 1 (9 points sans interface ni contrat) à la session suivante ; décision « sorties MCP des
+  chiffres » en brouillon avant le lot 2 ; passation. Leçon : déroulé annoncé en quatre temps (relevé, choix, codage,
+  clôture) ; tenus les deux premiers, les deux autres en passation. Ce qui l'a fait dévier : le contexte, déjà à 216 k
+  après le relevé (estimé à 200 k), et une décision nécessaire entre les deux lots. La demande qui y aurait mené :
+  « famille Chiffres : relevé et choix dans cette session, codage à la suivante ».
+
 * **Revue des limites, voisins du lot 5** (environ 182 k tokens de contexte pour l'agent, sans instance neuve) : les
   trois voisins choisis par l'auteur, relus dans la transcription de la session précédente (le journal disait « les trois
   premiers, pas le quatrième », contraire à l'ordre de la liste ; corrigé dans `revue-limites.md`). Trois commits, chaque

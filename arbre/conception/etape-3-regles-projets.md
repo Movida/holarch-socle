@@ -1260,8 +1260,10 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   2026-10-13 ».
 - **Fait (2026-10-14)** : trois voisins du lot 5 (choix de l'auteur), `4825e1f` à `998f515` : `.devcontainer/` ignoré
   dit par un geste, ajout à git mis en commun dans la création ; commande qui repointe l'entrée MCP dans `service
-  poser` ; `--reposer` sans effet en code 1. 251 tests verts, copie de service posée, audit conforme. Suite : famille
-  Chiffres.
+  poser` ; `--reposer` sans effet en code 1 ; puis un voisin (`9e6e623`, fichier de base sous un dossier ignoré). 252
+  tests verts, copie de service posée (`998f515`), audit conforme. Famille Chiffres : relevé en lecture seule et choix de
+  l'auteur (`revue-limites.md`, « Chiffres, relevé du 2026-10-14 ») ; suite : lot 1 par une instance neuve, puis la
+  décision « sorties MCP des chiffres » en brouillon, puis le lot 2 (interface, test visuel).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
