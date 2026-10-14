@@ -10,7 +10,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { Catalogue } from './stockage/catalogue.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
-import { shell, systemd, fichierMarque, lireJson, ecrireJson, binaireClaude, configClaude, claudeIntrouvable, hacher } from './commun.js';
+import { shell, systemd, fichierMarque, modifierJson, binaireClaude, configClaude, claudeIntrouvable, hacher } from './commun.js';
 import { accueil as accueilParDefaut } from './config.js';
 import { binaireService } from './service.js';
 import { marquerRelance } from './veille.js';
@@ -164,14 +164,15 @@ WantedBy=default.target
 }
 
 // Déclare un dossier de confiance dans la configuration de Claude Code (`projects.<chemin>.hasTrustDialogAccepted`),
-// sans toucher au reste ; écriture atomique.
+// sans toucher au reste ; écriture atomique, relue juste avant le renommage (`modifierJson` : Claude Code réécrit ce
+// fichier à tout moment).
 export function declarerConfiance(fichier, chemin) {
-  const c = lireJson(fichier, {}, { strict: true });
-  const p = ((c.projects ||= {})[chemin] ||= {});
-  if (p.hasTrustDialogAccepted === true) return false;
-  p.hasTrustDialogAccepted = true;
-  ecrireJson(fichier, c);
-  return true;
+  return modifierJson(fichier, (c) => {
+    const p = ((c.projects ||= {})[chemin] ||= {});
+    if (p.hasTrustDialogAccepted === true) return false;
+    p.hasTrustDialogAccepted = true;
+    return true;
+  }, { defaut: {} });
 }
 
 // Reprise après une veille du poste : le serveur Remote Control reste en vie mais n'est plus joignable, et aucune règle

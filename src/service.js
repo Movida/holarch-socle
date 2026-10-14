@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { git, lireJson, ecrireJson, trouverOutil, configClaude, dedans, shell, pourCompte, stat } from './commun.js';
+import { git, lireJson, ecrireJson, modifierJson, trouverOutil, configClaude, dedans, shell, pourCompte, stat } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 import { OUTILS } from './conteneur.js';
 
@@ -91,18 +91,19 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
     } catch (e) { fs.rmSync(tmp, { recursive: true, force: true }); throw e; }
   }
 
-  // Le serveur MCP `holarch` d'un compte (portée utilisateur : `mcpServers` de son `.claude.json`), lu : { fichier, cfg,
-  // s, i (le chemin de `bin/holarch.js` dans ses arguments), lance (une copie de service, le socle : la copie de travail
-  // qui pose, ou la source ; null sinon) }. `service poser` ne repointe que ce qui lance une copie de service ou le socle :
-  // réglé ailleurs (une autre copie de HOLARCH, posée à la main), il est laissé, et dit (décision geste-a-la-main).
-  function entreeMcp(c, src) {
-    const fichier = configClaude(c.home); const cfg = lireJson(fichier, null, { strict: true });
+  // Le serveur MCP `holarch` d'un compte (portée utilisateur : `mcpServers` de son `.claude.json`), lu : { fichier, s, i (le
+  // chemin de `bin/holarch.js` dans ses arguments), lance (une copie de service, le socle : la copie de travail qui pose,
+  // ou la source ; null sinon) }. `service poser` ne repointe que ce qui lance une copie de service ou le socle : réglé
+  // ailleurs (une autre copie de HOLARCH, posée à la main), il est laissé, et dit (décision geste-a-la-main). `cfg` : la
+  // configuration déjà lue (`modifierJson`), sinon lue ici.
+  function entreeMcp(c, src, cfg = lireJson(configClaude(c.home), null, { strict: true })) {
+    const fichier = configClaude(c.home);
     const s = cfg?.mcpServers?.holarch;
     if (!s || typeof s !== 'object') return { fichier, s: null };
     const i = Array.isArray(s.args) ? s.args.findIndex((a) => /(^|\/)bin\/holarch\.js$/.test(a)) : -1; const a = s.args?.[i];
     const lance = i < 0 || !path.isAbsolute(a) ? null : dedans(path.resolve(a), dossier(accueil)) ? 'copie de service'
       : [SOI, src].some((d) => d && path.resolve(a) === path.join(d, 'bin', 'holarch.js')) ? 'socle' : null;
-    return { fichier, cfg, s, i, lance };
+    return { fichier, s, i, lance };
   }
 
   // Le geste qui repointe vers la copie de service l'entrée MCP laissée : la même entrée, le chemin de `bin/holarch.js`
@@ -127,13 +128,19 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
       essai('gitleaks des conteneurs', () => copierGitleaks(gitleaks, maison)),
       ...comptes.filter((c) => c.home).map((c) => essai(`mcp ${c.nom || c.home}`, () => {
         // Laissée (non reconnue, réglée ailleurs), le point dit la commande qui la repointe : celle de `holarch service`.
-        const { fichier, cfg, s, i, lance } = entreeMcp(c, src);
-        if (!s) return { etat: 'absent' };
-        if (i < 0) return { etat: 'non reconnu', geste: repointer(c, { s, i }) };
-        if (s.args[i] === holarch) return { etat: 'inchangé' };
-        if (!lance) return { etat: `réglé ailleurs (${s.args[i]}) : laissé`, geste: repointer(c, { s, i }) };
-        s.args[i] = holarch; ecrireJson(fichier, cfg);
-        return { etat: 'posé (effet à la prochaine session de Claude Code)' };
+        // Claude Code réécrit ce fichier à tout moment : relu juste avant le renommage (`modifierJson`), il est rejugé sur
+        // ce que Claude Code y a laissé.
+        let point = null;
+        modifierJson(configClaude(c.home), (cfg) => {
+          const { s, i, lance } = entreeMcp(c, src, cfg);
+          if (!s) point = { etat: 'absent' };
+          else if (i < 0) point = { etat: 'non reconnu', geste: repointer(c, { s, i }) };
+          else if (s.args[i] === holarch) point = { etat: 'inchangé' };
+          else if (!lance) point = { etat: `réglé ailleurs (${s.args[i]}) : laissé`, geste: repointer(c, { s, i }) };
+          else { s.args[i] = holarch; point = { etat: 'posé (effet à la prochaine session de Claude Code)' }; return true; }
+          return false;
+        });
+        return point;
       })),
     ];
   }

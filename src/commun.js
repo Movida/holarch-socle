@@ -151,7 +151,7 @@ export function lireJson(f, defaut = null, { strict = false } = {}) {
  * un fichier absent n'est pas remplacé (rien n'est écrit). Les droits du fichier remplacé se gardent : un fichier en
  * 0600 ne devient pas lisible de tous.
  */
-export function ecrireJson(f, o, { indent = 2, racine = null } = {}) {
+export function ecrireJson(f, o, { indent = 2, racine = null, siInchange } = {}) {
   let cible = f;
   if (racine) for (const x of [f, `${f}.${process.pid}.holarch`]) cheminSansLien(racine, path.relative(racine, x));
   else if (lienSymbolique(f)) { try { cible = fs.realpathSync(f); } catch (e) { throw new Error(`${f} est un lien vers un fichier absent (${e.code}) : rien n’est écrit`); } }
@@ -163,10 +163,34 @@ export function ecrireJson(f, o, { indent = 2, racine = null } = {}) {
   const fd = fs.openSync(tmp, 'w', mode ?? 0o666);
   try {
     try { if (mode !== null) fs.fchmodSync(fd, mode); fs.writeFileSync(fd, `${JSON.stringify(o, null, indent || undefined)}\n`); } finally { fs.closeSync(fd); }
+    // `siInchange` : le texte lu avant la modification (null : le fichier était absent), relu juste avant le renommage ;
+    // changé depuis, rien n'est remplacé (`modifierJson`).
+    if (siInchange !== undefined && lireFichier(cible) !== siInchange) throw Object.assign(new Error(`${f} a changé depuis sa lecture : rien n’est remplacé`), { code: 'ECHANGE' });
     fs.renameSync(tmp, cible);
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 const lienSymbolique = (f) => { try { return fs.lstatSync(f).isSymbolicLink(); } catch { return false; } };
+
+/**
+ * Modifie un JSON qu'un autre programme réécrit en entier à tout moment (`~/.claude.json`, que Claude Code réécrit sans
+ * verrou) : lu, modifié par `modifier` (qui rend `false` s'il n'y a rien à écrire), puis écrit d'un coup (`ecrireJson`),
+ * relu juste avant le renommage. Changé depuis la lecture, rien n'est remplacé : tout recommence depuis la nouvelle
+ * version, `essais` fois au plus, puis une erreur le dit. Cela protège l'écriture de l'autre programme, pas la nôtre : une
+ * écriture de Claude Code faite après notre renommage, depuis ce qu'il avait lu avant, la remplace (aucun verrou ne les
+ * ordonne) ; reste aussi l'instant entre la relecture et le renommage. `defaut` : le contenu d'un fichier absent ; un
+ * fichier présent mais illisible lève une erreur (`lireJson` strict). Rend ce que rend `modifier`.
+ */
+export function modifierJson(f, modifier, { defaut = null, essais = 3 } = {}) {
+  for (let i = 0; i < essais; i++) {
+    const texte = lireFichier(f);
+    if (texte === null && fs.existsSync(f)) lireJson(f, defaut, { strict: true });
+    let o; try { o = texte === null ? structuredClone(defaut) : JSON.parse(texte); } catch (e) { throw new Error(`${f} illisible : ${e.message}`); }
+    const r = modifier(o);
+    if (r === false) return false;
+    try { ecrireJson(f, o, { siInchange: texte }); return r; } catch (e) { if (e.code !== 'ECHANGE') throw e; }
+  }
+  throw new Error(`${f} a changé pendant chacun des ${essais} essais d’écriture : rien n’est écrit`);
+}
 
 /** `/proc/<pid>/stat` : { comm, ppid, debut } (début en tops d'horloge depuis l'amorçage), ou null. */
 export function stat(pid) {

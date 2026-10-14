@@ -132,6 +132,27 @@ test('accès distant : projet introuvable refusé, service étranger jamais touc
   assert.deepEqual(JSON.parse(fs.readFileSync(f, 'utf8')), { projects: { '/p': { hasTrustDialogAccepted: true } } });
 });
 
+// Défaut N3 (revue des limites) : Claude Code réécrit `~/.claude.json` en entier, à tout moment ; HOLARCH, qui le réécrit
+// aussi (dossier de confiance, entrée MCP de la copie de service), effaçait ce que Claude Code y avait écrit entre sa
+// lecture et son renommage.
+test('~/.claude.json : relu juste avant le renommage, une écriture de Claude Code entre-temps est gardée ; trois essais au plus', () => {
+  const f = path.join(tmp(), 'claude.json');
+  fs.writeFileSync(f, `${JSON.stringify({ numStartups: 1 })}\n`); fs.chmodSync(f, 0o600);
+  // Claude Code écrit pendant que HOLARCH écrit son temporaire, `fois` fois de suite.
+  const ecrireFs = fs.writeFileSync;
+  const claudePendant = (fois, faire) => {
+    fs.writeFileSync = (x, ...r) => { ecrireFs(x, ...r); if (typeof x === 'number' && fois-- > 0) { const c = JSON.parse(fs.readFileSync(f, 'utf8')); ecrireFs(f, JSON.stringify({ ...c, numStartups: c.numStartups + 1 })); } };
+    try { return faire(); } finally { fs.writeFileSync = ecrireFs; }
+  };
+  assert.equal(claudePendant(1, () => declarerConfiance(f, '/p')), true);
+  assert.deepEqual(JSON.parse(fs.readFileSync(f, 'utf8')), { numStartups: 2, projects: { '/p': { hasTrustDialogAccepted: true } } }, 'l’écriture de Claude Code est gardée, la nôtre refaite dessus');
+  assert.equal(fs.statSync(f).mode & 0o777, 0o600);
+  // Changé à chaque essai : rien n'est remplacé, et c'est dit.
+  assert.throws(() => claudePendant(3, () => declarerConfiance(f, '/q')), new RegExp(`^Error: ${f} a changé pendant chacun des 3 essais d’écriture : rien n’est écrit$`));
+  assert.deepEqual(JSON.parse(fs.readFileSync(f, 'utf8')), { numStartups: 5, projects: { '/p': { hasTrustDialogAccepted: true } } });
+  assert.deepEqual(fs.readdirSync(path.dirname(f)), ['claude.json'], 'aucun temporaire laissé');
+});
+
 // ---------------------------------------------------------------- tranche 2 : vue Projets
 import { spawnSync } from 'node:child_process';
 import { Journal } from '../src/stockage/journal.js';
