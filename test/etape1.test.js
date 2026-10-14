@@ -416,6 +416,8 @@ test('verrou : un inventaire ou un import qui trouve le verrou tenu passe son to
   const r = await s.rafraichir();
   assert.match(r.inventaire.passe, new RegExp(`^inventaire déjà en cours \\(processus ${process.pid}, depuis \\d\\d:\\d\\d\\) : celui-ci passe son tour$`));
   assert.match(r.imports.passe, /^import déjà en cours \(processus \d+, depuis \d\d:\d\d\) : celui-ci passe son tour$/);
+  // Pas d'audit non plus : lancé pendant celui de l'inventaire en cours, il doublerait un écart apparu (`rule.violated`).
+  assert.equal(r.audit, null);
   assert.deepEqual([...s.journal.lire()].filter((e) => /^(element\.|inventory\.|session\.)/.test(e.kind)), [], 'rien n’est écrit au journal');
   assert.deepEqual(s.catalogue.lire(), []);
   // La ligne de commande le dit, sans échouer.

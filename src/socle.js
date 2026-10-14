@@ -100,7 +100,9 @@ export class Socle {
 
   indexer() { return this.index.reconstruire({ evenements: this.journal.lire(), fiches: this.catalogue.lire(), tarifs: this.config.tarifs }); }
 
-  async rafraichir() { const inventaire = await this.inventaire(); const imports = this.importer(); const index = this.indexer(); const audit = this.audit({ journaliser: true }).journal; return { inventaire, imports, index, audit }; }
+  // Un inventaire déjà en cours (`passe`) : pas d'audit, qui attend le suivant (deux audits ensemble doubleraient un écart
+  // apparu ; le minuteur horaire audite après son inventaire), comme `holarch inventaire`.
+  async rafraichir() { const inventaire = await this.inventaire(); const imports = this.importer(); const index = this.indexer(); const audit = inventaire.passe ? null : this.audit({ journaliser: true }).journal; return { inventaire, imports, index, audit }; }
 
   // Une page de l'interface consultée : la mesure du critère d'usage de l'étape 1 (décision ouverture de l'étape 2).
   noterVue({ page, jours = null }) {
