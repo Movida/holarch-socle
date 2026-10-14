@@ -7,8 +7,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { noter, evaluer, activite, effacerNote, etatGardien, marquerRelance, fichierRelance, processusSession, vivant, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
+import { noter, evaluer, activite, etatGardien, marquerRelance, fichierRelance, processusSession, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines, uniteVeille } from '../src/distant.js';
+import { vivant, effacerSiInchange } from '../src/commun.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -63,8 +64,8 @@ test('veille : le processus de la session est le premier ancêtre du crochet qui
 });
 
 test('veille : sur le vrai /proc, un crochet lancé par un shell trouve le processus qui l’a lancé, et le reconnaît vivant', () => {
-  const module = new URL('../src/veille.js', import.meta.url).href;
-  const script = `import(${JSON.stringify(module)}).then((m) => { const p = m.processusSession(); console.log(JSON.stringify({ p, vivant: p && m.vivant(p) })); })`;
+  const module = new URL('../src/veille.js', import.meta.url).href; const commun = new URL('../src/commun.js', import.meta.url).href;
+  const script = `Promise.all([import(${JSON.stringify(module)}), import(${JSON.stringify(commun)})]).then(([m, c]) => { const p = m.processusSession(); console.log(JSON.stringify({ p, vivant: p && c.vivant(p) })); })`;
   const r = spawnSync('/bin/sh', ['-c', `"${process.execPath}" --no-warnings -e '${script}'`], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   const { p, vivant: v } = JSON.parse(r.stdout);
@@ -350,19 +351,19 @@ test('veille : l’effacement d’une note n’a pas de fenêtre de course : ren
   const reprise = () => note(accueil, 'UserPromptSubmit', 'r', { t: T0 + min });
   const restes = () => fs.readdirSync(dossierVeille(accueil));
   // Inchangée : effacée.
-  assert.equal(effacerNote(f, lue()), true); assert.deepEqual(restes(), []);
+  assert.equal(effacerSiInchange(f, lue()), true); assert.deepEqual(restes(), []);
   // Réécrite après la lecture, avant le renommage : remise en place.
   let lu = lue(); reprise();
-  assert.equal(effacerNote(f, lu), false); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'travaille');
+  assert.equal(effacerSiInchange(f, lu), false); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'travaille');
   // Réécrite juste après le renommage (la fenêtre de l'ancienne relecture) : la nouvelle reste, l'ancienne part.
   lu = lue();
-  assert.equal(effacerNote(f, lu, { pendant: reprise }), true); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'travaille');
+  assert.equal(effacerSiInchange(f, lu, { pendant: reprise }), true); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'travaille');
   // Réécrite avant le renommage, puis encore après : la plus récente n'est jamais remplacée par la remise en place.
   lu = lue(); reprise();
-  effacerNote(f, lu, { pendant: () => note(accueil, 'PermissionRequest', 'r', { t: T0 + 2 * min }) });
+  effacerSiInchange(f, lu, { pendant: () => note(accueil, 'PermissionRequest', 'r', { t: T0 + 2 * min }) });
   assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).etat, 'attend'); assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).depuis, new Date(T0 + 2 * min).toISOString());
   assert.deepEqual(restes(), ['r.json'], 'aucun fichier provisoire laissé');
-  assert.equal(effacerNote(path.join(dossierVeille(accueil), 'absente.json'), '{}'), false);
+  assert.equal(effacerSiInchange(path.join(dossierVeille(accueil), 'absente.json'), '{}'), false);
 });
 
 // Demande d'éveil témoin : dit « tenue », tient jusqu'à la fin de son entrée standard.

@@ -1,6 +1,8 @@
 // Inventaire : exécute les adaptateurs actifs dans l'ordre (les dépôts d'abord, que les suivants réutilisent), puis
 // remplace l'instantané du catalogue du site et journalise ce qui est apparu ou a disparu. Une source absente de cette
-// machine se signale à part (`absentes`) : ce n'est pas une erreur, mais l'inventaire ne la tait pas.
+// machine se signale à part (`absentes`) : ce n'est pas une erreur, mais l'inventaire ne la tait pas. Un seul inventaire
+// à la fois (`prendreVerrou`) : celui qui en trouve un autre en cours passe son tour (`passe`), sans rien écrire.
+import path from 'node:path';
 import depotsGit from './depots-git.js';
 import claudeCode from './claude-code.js';
 import arbre from './arbre.js';
@@ -9,10 +11,17 @@ import claudeDesktop from './claude-desktop.js';
 import { SourceAbsente } from './source.js';
 import { ulid } from '../ulid.js';
 import { comptesDuSite, comptesNonLus, profilDuSite } from '../config.js';
+import { prendreVerrou, tourPasse } from '../commun.js';
 
 export const ADAPTATEURS = { 'depots-git': depotsGit, 'claude-code': claudeCode, arbre, docker, 'claude-desktop': claudeDesktop };
 
 export async function inventorier(config, { catalogue, journal }) {
+  const verrou = prendreVerrou(path.join(config.donnees, 'inventaire.verrou'));
+  if (verrou.pris) return { passe: tourPasse('inventaire', verrou.pris) };
+  try { return await inventaire(config, { catalogue, journal }); } finally { verrou.liberer(); }
+}
+
+async function inventaire(config, { catalogue, journal }) {
   // L'instantané est daté du début de l'inventaire : un fichier modifié pendant qu'il tourne, après sa lecture, est plus
   // récent que le catalogue, et une lecture qui compare les dates le relit (`arbreFrais`).
   const debut = new Date().toISOString();

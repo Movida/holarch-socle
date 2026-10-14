@@ -17,7 +17,7 @@ import { ulid } from './ulid.js';
 import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
 import { racineIndex } from './creation.js';
 import inventaireArbre, { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
-import { trouverOutil, binaireClaude, ecrireSansLien } from './commun.js';
+import { trouverOutil, binaireClaude, ecrireSansLien, prendreVerrou, tourPasse } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
 function parts(projets) {
@@ -42,10 +42,12 @@ export class Socle {
 
   // Le catalogue date du dernier inventaire (horaire) : une lecture des règles ou de la reprise le refait d'abord quand
   // un arbre connu a changé depuis, sans quoi une règle ajoutée reste invisible jusqu'à l'heure suivante (idée I28).
-  // Rend vrai s'il a fallu l'inventaire ; l'index reste à reconstruire par l'appelant.
+  // Rend vrai s'il a fallu l'inventaire ; l'index reste à reconstruire par l'appelant. Un inventaire déjà en cours le
+  // fera : celui-ci passe son tour, et le dit sur la sortie d'erreur.
   async arbreAJour() {
     if (!this.#arbreChange()?.change) return false;
-    await this.inventaire();
+    const r = await this.inventaire();
+    if (r.passe) process.stderr.write(`holarch : ${r.passe}\n`);
     return true;
   }
 
@@ -69,7 +71,14 @@ export class Socle {
     return inventaireArbre(a.options, { depots: [...a.depots], profil: this.profil(), projetDe: localiserProjet(projetsDe(a.fiches.filter((f) => f.kind === 'project'))) });
   }
 
+  // Un seul import à la fois, comme l'inventaire : celui qui en trouve un autre en cours passe son tour (`passe`).
   importer() {
+    const verrou = prendreVerrou(path.join(this.config.donnees, 'import.verrou'));
+    if (verrou.pris) return { passe: tourPasse('import', verrou.pris) };
+    try { return this.#importer(); } finally { verrou.liberer(); }
+  }
+
+  #importer() {
     const r = {};
     // Une passerelle active fait foi pour les appels qui la traversent : l'import des transcriptions laisse de côté les
     // appels au serveur qui la désigne chez les clients, pour ne pas les compter deux fois.

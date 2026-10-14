@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { ecrireJson, lireJson, heureLocale, shell } from './commun.js';
+import { ecrireJson, lireJson, heureLocale, shell, stat, vivant, effacerSiInchange } from './commun.js';
 import { finDeTranscription, evenements, sousAgents } from './transcription.js';
 import { ulid } from './ulid.js';
 
@@ -76,15 +76,6 @@ export const distante = (env = process.env) => Boolean(env.CLAUDE_CODE_BRIDGE_SE
 // Le même test en shell, en tête de la commande du crochet : une session locale ne lance pas node à chaque invite.
 export const DISTANTE_SHELL = '{ [ -n "$CLAUDE_CODE_BRIDGE_SESSION_ID" ] || [ "$CLAUDE_CODE_ENVIRONMENT_KIND" = bridge ]; }';
 
-/** `/proc/<pid>/stat` : { comm, ppid, debut } (début en tops d'horloge depuis l'amorçage), ou null. */
-export function stat(pid) {
-  try {
-    const t = fs.readFileSync(`/proc/${pid}/stat`, 'utf8'); const i = t.lastIndexOf(')');
-    const champs = t.slice(i + 2).split(' '); // champ 3 (état) en tête : ppid est le champ 4, le début le champ 22
-    return { comm: t.slice(t.indexOf('(') + 1, i), ppid: +champs[1], debut: champs[19] };
-  } catch { return null; }
-}
-
 /** Le processus de la session qui lance un crochet : son premier ancêtre qui n'est pas un shell. */
 export function processusSession(depart = process.ppid, lire = stat) {
   let pid = depart;
@@ -95,9 +86,6 @@ export function processusSession(depart = process.ppid, lire = stat) {
   }
   return null;
 }
-
-/** Le processus noté vit encore : même numéro et même début (un numéro réattribué n'est pas la session). */
-export const vivant = ({ pid, debut }, lire = stat) => { const s = lire(pid); return Boolean(s) && s.debut === debut; };
 
 /**
  * Crochet de Claude Code : note l'état d'une session distante. Ne lève jamais : un crochet ne fait pas échouer un tour.
@@ -167,26 +155,6 @@ export function activite(transcription) {
   return toutes.length ? { derniere: Math.max(...toutes), sous_agents: derniereSous } : null;
 }
 
-/**
- * Efface une note seulement si elle n'a pas changé depuis sa lecture (`lu`), sans fenêtre de course : renommée (le
- * renommage prend d'un coup ce qui est là), comparée, puis supprimée. Réécrite par un crochet entre la lecture et le
- * renommage (session reprise), elle est remise en place, sauf si une note plus récente l'a déjà remplacée (`link` ne
- * remplace jamais un fichier). Le nom provisoire ne finit pas par `.json` : `evaluer` ne le lit pas. `pendant` : appelé
- * après le renommage (essais).
- */
-export function effacerNote(f, lu, { pendant = () => {} } = {}) {
-  const t = `${f}.effacee-${process.pid}`;
-  try { fs.renameSync(f, t); } catch { return false; }
-  pendant();
-  let changee = false;
-  try { changee = fs.readFileSync(t, 'utf8') !== lu; } catch { /* plus rien à comparer */ }
-  if (changee) {
-    try { fs.linkSync(t, f); } catch (e) { if (e.code !== 'EEXIST' && !fs.existsSync(f)) fs.renameSync(t, f); }
-  }
-  fs.rmSync(t, { force: true });
-  return !changee;
-}
-
 // Une session « travaille » tant que sa transcription bouge : immobile depuis l'attente permise, elle attend quelque
 // chose (permission, élicitation, `Stop` manqué) et compte comme une attente depuis sa dernière écriture (hors attente de
 // permission, aucun silence de plus de 11 min pendant un tour : 301 tours de 67 sessions distantes, contre-épreuve de B ;
@@ -207,7 +175,7 @@ export function evaluer({ accueil, maintenant = Date.now(), attente = ATTENTE_MI
   const sessions = []; const finies = [];
   const lire = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return null; } };
   // Effacée seulement si elle n'a pas changé depuis sa lecture : un crochet a pu la réécrire entre-temps (session reprise).
-  const effacer = (f, lu) => { if (nettoyer) effacerNote(f, lu); };
+  const effacer = (f, lu) => { if (nettoyer) effacerSiInchange(f, lu); };
   for (const n of noms) {
     const f = path.join(d, n); const lu = lire(f); let s = null;
     try { s = JSON.parse(lu); } catch { /* illisible */ }

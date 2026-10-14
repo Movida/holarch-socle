@@ -168,6 +168,71 @@ export function ecrireJson(f, o, { indent = 2, racine = null } = {}) {
 }
 const lienSymbolique = (f) => { try { return fs.lstatSync(f).isSymbolicLink(); } catch { return false; } };
 
+/** `/proc/<pid>/stat` : { comm, ppid, debut } (début en tops d'horloge depuis l'amorçage), ou null. */
+export function stat(pid) {
+  try {
+    const t = fs.readFileSync(`/proc/${pid}/stat`, 'utf8'); const i = t.lastIndexOf(')');
+    const champs = t.slice(i + 2).split(' '); // champ 3 (état) en tête : ppid est le champ 4, le début le champ 22
+    return { comm: t.slice(t.indexOf('(') + 1, i), ppid: +champs[1], debut: champs[19] };
+  } catch { return null; }
+}
+
+/** Le processus noté vit encore : même numéro et même début (un numéro réattribué n'est pas ce processus). */
+export const vivant = ({ pid, debut }, lire = stat) => { const s = lire(pid); return Boolean(s) && s.debut === debut; };
+
+/**
+ * Efface un fichier seulement s'il n'a pas changé depuis sa lecture (`lu`), sans fenêtre de course : renommé (le
+ * renommage prend d'un coup ce qui est là), comparé, puis supprimé. Réécrit entre la lecture et le renommage, il est
+ * remis en place, sauf si un plus récent l'a déjà remplacé (`link` ne remplace jamais un fichier). Le nom provisoire ne
+ * finit pas comme le fichier (`.json`, `.verrou`) : ceux qui les lisent ne le prennent pas pour l'un d'eux. Vrai s'il est
+ * effacé. `pendant` : appelé après le renommage (essais).
+ */
+export function effacerSiInchange(f, lu, { pendant = () => {} } = {}) {
+  const t = `${f}.effacee-${process.pid}`;
+  try { fs.renameSync(f, t); } catch { return false; }
+  pendant();
+  let changee = false;
+  try { changee = fs.readFileSync(t, 'utf8') !== lu; } catch { /* plus rien à comparer */ }
+  if (changee) {
+    try { fs.linkSync(t, f); } catch (e) { if (e.code !== 'EEXIST' && !fs.existsSync(f)) fs.renameSync(t, f); }
+  }
+  fs.rmSync(t, { force: true });
+  return !changee;
+}
+
+// Un verrou illisible est celui qu'un processus vient de créer sans l'avoir encore écrit : tenu, une minute au plus.
+const VERROU_ILLISIBLE = 60e3;
+/**
+ * Verrou d'un seul écrivain (l'inventaire, l'import : deux passages simultanés lisent le même état et doublent leurs
+ * événements). Un fichier créé d'un coup (`wx`), qui porte le processus qui le tient : son numéro et son début
+ * (`vivant`). Tenu par un processus vivant : `{ pris: { pid, at } }`, et rien n'est fait, sans attente ni échec ; c'est à
+ * l'appelant de le dire. Laissé par un processus mort (tué, panne du poste), ou illisible depuis plus d'une minute : retiré
+ * s'il n'a pas changé depuis sa lecture (`effacerSiInchange` : deux repreneurs ne retirent pas le verrou neuf de l'autre),
+ * puis repris. Pris : `{ liberer }`, qui ne retire que le sien.
+ */
+export function prendreVerrou(f, { maintenant = Date.now() } = {}) {
+  const texte = JSON.stringify({ pid: process.pid, debut: stat(process.pid)?.debut ?? null, at: new Date(maintenant).toISOString() });
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  let lu = null; let tenant = null;
+  for (let essai = 0; essai < 2; essai++) {
+    let fd = null;
+    try { fd = fs.openSync(f, 'wx', 0o600); } catch (e) { if (e.code !== 'EEXIST') throw e; }
+    if (fd !== null) {
+      try { fs.writeFileSync(fd, texte); } finally { fs.closeSync(fd); }
+      return { liberer: () => effacerSiInchange(f, texte) };
+    }
+    lu = lireFichier(f); tenant = null;
+    if (lu === null) continue; // retiré entre-temps : repris au tour suivant
+    try { tenant = JSON.parse(lu); } catch { /* pas encore écrit */ }
+    let age = Infinity; try { age = maintenant - fs.statSync(f).mtimeMs; } catch { /* retiré entre-temps */ }
+    if (tenant ? vivant(tenant) : age < VERROU_ILLISIBLE) break;
+    effacerSiInchange(f, lu);
+  }
+  return { pris: { pid: tenant?.pid ?? null, at: tenant?.at ?? null } };
+}
+/** Ce que dit un passage qui trouve le verrou tenu (`prendreVerrou`) : `quoi` (« inventaire ») passe son tour. */
+export const tourPasse = (quoi, { pid, at }) => `${quoi} déjà en cours (processus ${pid ?? 'inconnu'}${at ? `, depuis ${heureLocale(at, { seule: true })}` : ''}) : celui-ci passe son tour`;
+
 /**
  * Chemin d'un outil : réglage explicite, sinon le PATH, sinon ~/.local/bin ; null s'il est absent ou n'est pas un fichier
  * exécutable (un réglage qui vise un dossier compris). Un nom d'outil peut venir d'un réglage de l'arbre : il ne passe

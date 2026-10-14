@@ -367,6 +367,47 @@ test('socle : chaîne complète vers les lectures de l’interface, sources abse
   assert.deepEqual(s.sessions(), []);
 });
 
+// Défaut N2 (revue des limites) : deux inventaires, ou deux imports, lancés ensemble (le minuteur horaire et `voir` au
+// démarrage du poste) lisaient le même état et doublaient leurs événements. Un verrou par écrivain : qui le trouve tenu
+// par un processus vivant passe son tour et le dit ; un verrou laissé par un processus mort se reprend.
+test('verrou : un inventaire ou un import qui trouve le verrou tenu passe son tour et le dit, sans rien écrire ; laissé par un processus mort, il se reprend', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { stat } = await import('../src/commun.js');
+  const donnees = tmp(); const home = tmp();
+  ecrire(path.join(home, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\ndescription: Une skill fictive.\n---\n');
+  const config = { site: 'local', donnees, web: {}, tarifs: {}, inventaire: { 'claude-code': { home, config: path.join(home, 'absent.json') }, 'depots-git': { actif: false }, arbre: { actif: false },
+    docker: { actif: false }, 'claude-desktop': { actif: false } }, import: { 'claude-code-transcriptions': { home, calme_minutes: 0 } } };
+  const s = new Socle(config);
+  // Tenus par un processus vivant : celui du test (même numéro, même début).
+  const tenu = { pid: process.pid, debut: stat(process.pid).debut, at: new Date().toISOString() };
+  const verrou = (nom) => path.join(donnees, `${nom}.verrou`);
+  for (const nom of ['inventaire', 'import']) ecrire(verrou(nom), JSON.stringify(tenu));
+  // `voir` rafraîchit au démarrage : il passe par les mêmes verrous.
+  const r = await s.rafraichir();
+  assert.match(r.inventaire.passe, new RegExp(`^inventaire déjà en cours \\(processus ${process.pid}, depuis \\d\\d:\\d\\d\\) : celui-ci passe son tour$`));
+  assert.match(r.imports.passe, /^import déjà en cours \(processus \d+, depuis \d\d:\d\d\) : celui-ci passe son tour$/);
+  assert.deepEqual([...s.journal.lire()].filter((e) => /^(element\.|inventory\.|session\.)/.test(e.kind)), [], 'rien n’est écrit au journal');
+  assert.deepEqual(s.catalogue.lire(), []);
+  // La ligne de commande le dit, sans échouer.
+  ecrire(path.join(donnees, 'config.yaml'), `site: local\ninventaire: { claude-code: { home: ${JSON.stringify(home)} }, depots-git: { actif: false }, arbre: { actif: false }, docker: { actif: false }, claude-desktop: { actif: false } }\nimport: { claude-code-transcriptions: { home: ${JSON.stringify(home)}, calme_minutes: 0 } }\n`);
+  for (const [cmd, nom] of [['inventaire', 'inventaire'], ['importer', 'import']]) {
+    const c = spawnSync(process.execPath, ['--no-warnings', path.resolve('bin/holarch.js'), cmd], { encoding: 'utf8', env: { ...process.env, HOLARCH_HOME: donnees } });
+    assert.equal(c.status, 0, c.stderr); assert.match(c.stdout, new RegExp(`^${nom} déjà en cours .* passe son tour\\n$`));
+  }
+  assert.deepEqual(s.catalogue.lire(), []);
+  // Laissé par un processus mort (son numéro repris par un autre : autre début) : repris, puis rendu en fin de travail.
+  for (const nom of ['inventaire', 'import']) ecrire(verrou(nom), JSON.stringify({ ...tenu, debut: '0' }));
+  const r2 = await s.inventaire();
+  assert.equal(r2.passe, undefined); assert.equal(r2.apparues.length, 1);
+  assert.equal(s.importer().passe, undefined);
+  assert.ok(!fs.existsSync(verrou('inventaire')) && !fs.existsSync(verrou('import')), 'rendus');
+  // Illisible (le premier ne l'a pas fini d'écrire) : tenu une minute, repris après.
+  fs.writeFileSync(verrou('inventaire'), '');
+  assert.match((await s.inventaire()).passe, /^inventaire déjà en cours \(processus inconnu\) : celui-ci passe son tour$/);
+  const t = new Date(Date.now() - 2 * 60e3); fs.utimesSync(verrou('inventaire'), t, t);
+  assert.equal((await s.inventaire()).passe, undefined);
+});
+
 test('socle : le coût se calcule à l’indexation depuis la grille, sans réécrire le journal', () => {
   const donnees = tmp();
   const at = new Date().toISOString().replace(/\.\d+Z$/, 'Z');

@@ -112,7 +112,7 @@ switch (cmd) {
     } catch (e) { console.error(`holarch rapport : ${e.message}`); process.exitCode = 1; }
     break; }
   case 'init': console.log(ecrireConfigExemple() ? `configuration écrite : ${accueil()}/config.yaml` : 'configuration déjà présente'); break;
-  case 'inventaire': { const s = socle(); const r = await s.inventaire(); s.indexer(); const a = s.audit({ journaliser: true }); r.audit = { ouverts: a.cibles.reduce((t, c) => t + c.ecarts.length, 0), ...a.journal }; afficher(json ? r : affichage.inventaire(r)); break; }
+  case 'inventaire': { const s = socle(); const r = await s.inventaire(); if (r.passe) { afficher(json ? r : r.passe); break; } s.indexer(); const a = s.audit({ journaliser: true }); r.audit = { ouverts: a.cibles.reduce((t, c) => t + c.ecarts.length, 0), ...a.journal }; afficher(json ? r : affichage.inventaire(r)); break; }
   case 'importer': { const s = socle(); const r = s.importer(); s.indexer(); afficher(json ? r : affichage.importer(r)); break; }
   case 'indexer': afficher(socle().indexer()); break;
   case 'distant': {
@@ -238,7 +238,7 @@ switch (cmd) {
       const depuis = new Date((jusqua ? Date.parse(jusqua) : Date.now()) - jours * 864e5).toISOString();
       const s = socle(); await s.arbreAJour(); s.indexer();
       const r = s.recolte({ depuis, jusqua, aBlanc: args.includes('--a-blanc'), proposer: args.includes('--proposer'), modele: val('--modele'), budget: val('--budget') });
-      if (r.propositions?.ecrites.length) { await s.inventaire(); s.indexer(); }
+      if (r.propositions?.ecrites.length) { const i = await s.inventaire(); if (i.passe) console.error(`holarch recolte : ${i.passe}`); s.indexer(); }
       afficher(json ? r : affichage.recolte(r));
       // Rien n'est parti (gitleaks absent ou en panne) : la récolte a échoué, la routine du lundi aussi (systemd la dit).
       if (r.indisponible) process.exitCode = 1;
@@ -275,7 +275,7 @@ switch (cmd) {
     break; }
   case 'voir': {
     const s = socle(); const r = await s.rafraichir();
-    console.log(`rafraîchi : ${r.inventaire.fiches} fiches, ${r.index.evenements} événements`);
+    console.log(`rafraîchi : ${r.inventaire.passe ?? `${r.inventaire.fiches} fiches`}, ${r.imports.passe ? `${r.imports.passe}, ` : ''}${r.index.evenements} événements`);
     const { hote } = s.config.web;
     const i = args.indexOf('--port'); const port = i >= 0 ? +args[i + 1] : s.config.web.port;
     const serveur = creerServeur(s);

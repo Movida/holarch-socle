@@ -5,7 +5,7 @@ import { REPOSEE } from '../src/identite-git.js';
 
 export const inventaire = (r) => `${r.fiches} fiches (${r.apparues.length} apparues, ${r.disparues.length} disparues, ${r.deplacees.length} déplacées, ${r.refusees.length} refusées)${r.erreurs.length ? `\nerreurs : ${r.erreurs.join(' ; ')}` : ''}${r.absentes.length ? `\nnon vues sur cette machine : ${r.absentes.join(' ; ')}` : ''}${r.comptes_non_lus?.length ? `\nATTENTION comptes Claude Code non lus : ${r.comptes_non_lus.join(', ')}` : ''}\naudit : ${r.audit.ouverts} écart(s) ouvert(s) ; ${r.audit.apparus} apparu(s), ${r.audit.resolus} résolu(s)`;
 
-export const importer = (r) => Object.entries(r).map(([k, v]) => `${k} : ${v.fichiers_lus} fichier(s) lu(s), ${v.ajoutes} événement(s) ajouté(s), ${v.ignores} déjà connu(s), ${v.refuses} refusé(s)${v.en_cours_ignores ? `, ${v.en_cours_ignores} session(s) en cours laissée(s) pour plus tard` : ''}${v.absent !== undefined ? ` (fichier absent : ${v.absent ?? 'non configuré'})` : ''}`).join('\n');
+export const importer = (r) => r.passe ?? Object.entries(r).map(([k, v]) => `${k} : ${v.fichiers_lus} fichier(s) lu(s), ${v.ajoutes} événement(s) ajouté(s), ${v.ignores} déjà connu(s), ${v.refuses} refusé(s)${v.en_cours_ignores ? `, ${v.en_cours_ignores} session(s) en cours laissée(s) pour plus tard` : ''}${v.absent !== undefined ? ` (fichier absent : ${v.absent ?? 'non configuré'})` : ''}`).join('\n');
 
 const ligne = (e) => `  [${e.origine}] ${e.id}${e.applicable ? '' : e.derogee ? ' (dérogée)' : ` (${e.statut})`} → ${e.claude_code.non ? `non écrite : ${e.claude_code.non}` : e.claude_code.par ? `${e.niveau} : ${e.claude_code.par.join(', ')}` : `${e.claude_code.portee} : ${e.claude_code.fichier}`}`;
 

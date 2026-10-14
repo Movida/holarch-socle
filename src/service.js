@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { git, lireJson, ecrireJson, trouverOutil, configClaude, dedans, shell, pourCompte } from './commun.js';
+import { git, lireJson, ecrireJson, trouverOutil, configClaude, dedans, shell, pourCompte, stat } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 import { OUTILS } from './conteneur.js';
 
@@ -40,12 +40,12 @@ export function retard(copie) {
 }
 
 // Ce que laisse une pose arrêtée net (le processus tué pendant `npm ci`, une panne) : `<nom>.pose-<pid>`, copie, lien ou
-// fichier temporaire, jamais renommé ni retiré. La pose suivante retire ceux dont le processus est mort ; un processus
-// vivant (une pose en cours, ou son numéro repris par un autre) garde le sien. Les chemins retirés.
-const vivant = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+// fichier temporaire, jamais renommé ni retiré. La pose suivante retire ceux dont le processus est mort ; un numéro
+// encore pris (une pose en cours, ou ce numéro repris par un autre : le nom ne porte pas le début) garde le sien. Les
+// chemins retirés.
 function retirerOrphelines(d) {
   let noms = []; try { noms = fs.readdirSync(d); } catch { return []; }
-  return noms.filter((n) => { const m = n.match(/\.pose-(\d+)$/); return m && !vivant(Number(m[1])); }).map((n) => {
+  return noms.filter((n) => { const m = n.match(/\.pose-(\d+)$/); return m && !stat(Number(m[1])); }).map((n) => {
     const f = path.join(d, n); fs.rmSync(f, { recursive: true, force: true }); return f;
   });
 }

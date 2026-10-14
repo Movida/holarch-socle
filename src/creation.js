@@ -238,9 +238,9 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   // qu'il attend : le dépôt, son premier commit (l'identifiant en vient), ou l'inventaire.
   const attente = !estGit ? 'après la création du dépôt' : !premier ? 'après le premier commit (étape fichiers)' : 'après l’inventaire';
   if (aBlanc && !projetIci()) { for (const e of ['declaration', 'regles', 'conteneur', 'github', 'cle', 'distant', 'audit']) noter(e, 'a-faire', attente); return r; }
-  if (!projetIci()) { await socle.inventaire(); socle.indexer(); }
+  const inventaire = projetIci() ? null : await socle.inventaire(); if (inventaire) socle.indexer();
   const projet = projetIci();
-  if (!projet) { noter('declaration', 'echec', `${dossier} n'entre pas au catalogue : hors des racines de l'inventaire (inventaire.depots-git.racines) ou sans commit`); return r; }
+  if (!projet) { noter('declaration', 'echec', inventaire?.passe ? `${inventaire.passe} : à rejouer` : `${dossier} n'entre pas au catalogue : hors des racines de l'inventaire (inventaire.depots-git.racines) ou sans commit`); return r; }
   r.projet = projet.id;
   const fichierContexte = avant.contexte.fichier;
   const texte = fs.readFileSync(fichierContexte, 'utf8');
