@@ -122,8 +122,10 @@ chemins (`/home/vscode/<dépôt>/…`, `/workspaces/<dépôt>/…`) ne sont pas 
 aucun dépôt connu se rattache donc par le nom : un segment égal au nom d'un dépôt du catalogue, si la suite du chemin
 existe dans ce dépôt (le segment le plus profond d'abord). Le répertoire de départ, en repli, se rattache de même.
 
-**Limites connues.** Un chemin relatif dans une commande, hors `cd` et `git -C`, est ignoré. Un dépôt hors des racines
-de `depots-git` n'est pas au catalogue : il n'est pas un projet et ne peut pas recevoir de session.
+**Limites connues.** Un chemin relatif dans une commande, hors `cd` et `git -C`, est ignoré, sauf un chemin qui remonte
+(`../autre-depot/…`) dans une commande sans `cd`, depuis le 2026-10-14 et pour les transcriptions lues pour la première
+fois depuis (pas de relecture). Un dépôt hors des racines de `depots-git` n'est pas au catalogue : il n'est pas un
+projet et ne peut pas recevoir de session.
 
 ## Tranche 3 — Arbre des règles
 
@@ -306,7 +308,8 @@ une mise à jour qui corrige une faille résout son écart au journal.
 | un écart par paquet, au-dessus d'un seuil | lisible et actionnable ; un paquet à jour résout son écart | trop d'écarts : un par fichier de verrouillage |
 | versions par l'API publique de GitHub et l'index de node | sans jeton, une fois par jour, loin de la limite horaire | un outil publié ailleurs : une source de plus |
 
-**Limites connues.** Une faille sans score ni gravité déclarée ne fait pas d'écart. Claude Code et Tailscale se mettent à
+**Limites connues.** Une faille sans score ni gravité déclarée ne fait pas d'écart ; l'audit en dit le compte
+(`sans_gravite`). Claude Code et Tailscale se mettent à
 jour seuls et ne sont pas suivis. Un projet que le contexte ne déclare pas n'est pas audité.
 
 ## Tranche 6 — Consolidation
@@ -364,7 +367,8 @@ filet, réglages de Claude Code posés depuis le profil, mesure au tableau de bo
 avec le résumé du projet ; après une semaine, le contexte moyen par tour est mesuré
 et comparé à celui d'avant (référence : 30 jours au 2026-10-07).
 
-**Limites connues.** La taille du contexte lue dans la transcription a un tour de retard. Seul l'auteur peut lancer
+**Limites connues.** La taille du contexte lue dans la transcription compte la dernière réponse, sortie comprise
+(depuis le 2026-10-14), mais pas l'invite qui arrive. Seul l'auteur peut lancer
 `/clear`. Les sessions des autres clients (Claude Desktop) ne sont pas concernées.
 
 ## Tranche 8 — Configuration : identité de commit
@@ -1267,6 +1271,12 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   headless shell téléchargé le 2026-10-14 sur demande de l'auteur (266 Mo, `~/.cache/ms-playwright`) ; il lui manque
   `libnss3`, `libnssutil3`, `libnspr4` et `libasound` (`ldd`), que donne `sudo apt install -y libnss3 libasound2t64`,
   à lancer par l'auteur (`sudo` demande un mot de passe).
+- **Fait (2026-10-14)** : famille Chiffres, lot 1, par une instance neuve relue par l'agent : neuf commits (`25e5644` à
+  `db2d9e0`), verrou de l'inventaire et de l'import, fiches d'un adaptateur en erreur gardées, `~/.claude.json` relu
+  avant le renommage, `ecrireSansLien` d'un coup, trois formes d'approbation et chemins qui remontent (lecture 2), sortie
+  dans la taille du contexte, « Reste (3 sur N) » et dernier fait par sa date, compte des failles sans gravité. 260 tests
+  verts, copie de service posée (`db2d9e0`), audit conforme. Détail : `revue-limites.md`, « Chiffres, lot 1 ». Suite :
+  la décision « sorties MCP des chiffres » en brouillon, puis le lot 2.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

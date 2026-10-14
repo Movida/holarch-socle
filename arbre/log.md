@@ -2,6 +2,20 @@
 
 ## 2026-10-14
 
+* **Revue des limites, famille Chiffres, lot 1** (environ 160 k tokens de contexte pour l'agent ; instance neuve :
+  391 k, soit 43 k par point) : les neuf points choisis par l'auteur, codés par une instance neuve, relus commit par
+  commit par l'agent (diff, appelants, formes réelles des trois messages d'approbation dans les transcriptions, deux
+  mutants refaits). Neuf commits (`25e5644` à `db2d9e0`) : verrou de l'inventaire et de l'import (N2), fiches d'un
+  adaptateur en erreur gardées (E4), `~/.claude.json` relu avant le renommage (N3), `ecrireSansLien` d'un coup (N4),
+  formes d'approbation et chemins qui remontent pour les transcriptions nouvelles (lecture 2), sortie dans la taille du
+  contexte, « Reste (3 sur N) » et dernier fait par sa date, compte des failles sans gravité. 260 tests verts ; copie de
+  service posée (`db2d9e0`) ; audit réel : socle conforme, 0 apparu, 0 résolu. Aucun point arrêté ; huit voisins vus, à
+  soumettre (`revue-limites.md`, « Chiffres, lot 1 »). Leçon : déroulé annoncé en quatre temps (instance neuve,
+  relecture, tests, pose et audit, journal et envoi sur accord) ; tenus. Ce qui l'a ralenti : `holarch` absent du `PATH`
+  de la session (lancé par `node bin/holarch.js`), `grep` cassé (« unknown option '-G' », contourné par `/usr/bin/grep`),
+  un mutant écrit par `sed` sans effet, vu au diff vide et refait. La demande « On continue » suffisait : le journal
+  nommait le lot et ses choix.
+
 * **Revue des limites, famille Chiffres ouverte** (environ 220 k tokens de contexte pour l'agent ; instance neuve en
   lecture seule : 297 k) : voisin des voisins codé sur choix de l'auteur (`9e6e623`, fichier de base suivi retiré sous un
   dossier ignoré, 252 tests verts). Envoi de `98ec179` sur autorisation (pas d'intégration continue). Relevé des 19

@@ -169,6 +169,37 @@ sans `cd`) pour les nouvelles transcriptions seulement (pas de relecture, pas de
 l'audit, sans écart. Lot 2 après le lot 1 : la décision « sorties MCP des chiffres » en brouillon d'abord, soumise avant
 tout code ; test visuel par le palliatif ci-dessus (paquets installés par l'auteur).
 
+**Chiffres, lot 1** (codé le 2026-10-14 par une instance neuve, environ 391 k tokens, relue par l'agent), neuf commits,
+chaque test rouge sur son parent et ses mutants (deux refaits par l'agent : relecture de N3 retirée, compte du reste
+retiré). `25e5644` N2 : un verrou par écrivain (`inventaire.verrou`, `import.verrou`, un seul mécanisme,
+`prendreVerrou` : `wx`, processus lu par numéro et début, verrou d'un mort repris sans course par `effacerSiInchange`) ;
+un inventaire ou un import qui le trouve tenu passe son tour et le dit (`holarch inventaire` n'indexe ni n'audite alors,
+code 0) ; `voir` y passe ; `stat`, `vivant` et l'effacement sans course de la veille mis en commun dans `commun.js`
+(`service.js` lit `stat` au lieu de `process.kill`). `0b20b18` E4 : un adaptateur en erreur ou dont la source est
+absente (Docker injoignable lève déjà `SourceAbsente`) garde ses fiches précédentes, ce qui est dit, et les dépôts
+réamorcent depuis elles le contexte des suivants (`amorcer`). `80966c9` N3 : `modifierJson`, relu juste avant le
+renommage, trois essais, pour le dossier de confiance et l'entrée MCP (lignes du relevé décalées : `declarerConfiance`,
+pose MCP). `84a7764` N4 : `ecrireSansLien` écrit un temporaire `O_EXCL` renommé ensuite, droits du fichier remplacé
+gardés ; règles générées, unités et passage du réveil y passent ; ce que l'ouverture crée au bout d'un lien encore là
+est retiré. `6a318ec` et `05c4fcf` : « lecture 2 » notée par transcription dans l'état d'import (version d'état
+inchangée, 6) : trois formes d'approbation (vérifiées sur les transcriptions réelles) rangées en `approbation`, et les
+mots qui remontent (`../`) d'une commande sans `cd` ; une transcription déjà lue garde sa lecture, même quand elle grandit
+(pas de double). `2382812` : `output_tokens` dans la taille du contexte. `85950b6` : « Reste (3 sur N) » quand il est
+coupé ; dernier fait par sa date, à date égale le dernier écrit (`dernierFait`, lu par la vue Projets, le MCP et la
+reprise). `db2d9e0` : `sans_gravite` compté par le contrôle, porté par l'audit en ligne de commande, sans écart ; ni le
+MCP ni l'interface ne le lisent (le cache d'osv-scanner, 24 h, le portera au premier recalcul). 260 tests verts ; copie
+de service posée (`db2d9e0`, interface et veille relancées) ; audit réel : socle conforme, 0 apparu, 0 résolu. Voisins
+vus, à soumettre : `rafraichir` (`voir`, bouton de l'interface) audite encore quand son inventaire passe son tour,
+`rule.violated` doublé possible (sauter l'audit comme `holarch inventaire`, trivial) ; une source vraiment retirée garde
+ses dernières fiches indéfiniment, dite absente à chaque inventaire (retirer les fiches gardées après N jours, faible) ;
+`projet creer`, `recolte` et `arbreAJour` peuvent passer leur tour derrière un inventaire parti avant leur changement,
+écart jusqu'à l'inventaire suivant, une heure au plus (attente bornée pour ces seuls appelants, faible, contraire au
+« pas d'attente » choisi ; `creation.js:260` passe son tour sans le dire) ; sans `/proc`, tout verrou paraît périmé et
+`retirerOrphelines` prend toute pose pour orpheline (repli `process.kill(pid, 0)`, trivial ; le poste est sous WSL2) ;
+une unité systemd qui serait un lien est refusée (aucun cas connu) ; `ecrireConfigExemple` (`config.js:126`, `init`
+seulement) et `copierGitleaks` (`service.js`, troisième mécanisme d'écriture) hors d'`ecrireSansLien` (trivial
+chacun) ; sessions coupées limitées à 3 sans le dire dans la reprise (même forme « 3 sur N », trivial).
+
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur
 Tailscale retirée (le téléphone n'y était plus vu depuis le 2026-10-07 ; seul le serveur d'un projet privé, membre,
