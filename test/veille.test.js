@@ -9,7 +9,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { noter, evaluer, activite, etatGardien, marquerRelance, fichierRelance, processusSession, attenteDansTranscription, transcriptionLisible, fichierGardien, fichierErreur, creerGardien, lancerDemande, scriptDemande, commandeWindows, dossierVeille, distante } from '../src/veille.js';
 import { creerDistant, creerReveil, etatVeille, etatRoutines, uniteVeille } from '../src/distant.js';
-import { vivant, effacerSiInchange } from '../src/commun.js';
+import { vivant, numeroPris, effacerSiInchange } from '../src/commun.js';
 import { reglagesVoulus, appliquerReglages, crochetVoulu } from '../src/regles-claude-code.js';
 import { materialiserCompte, veilleVoulue } from '../src/materialisation.js';
 import { regleDuCompte } from '../src/regles.js';
@@ -61,6 +61,17 @@ test('veille : le processus de la session est le premier ancêtre du crochet qui
   assert.equal(vivant({ pid: 7, debut: '55' }, (p) => procs[p] || null), false);
   // Le vrai /proc : ce processus de test se reconnaît lui-même.
   const moi = processusSession(process.pid); assert.equal(moi.pid, process.pid); assert.equal(vivant(moi), true);
+});
+
+// Voisin de N2 (revue des limites, 2026-10-14) : sans /proc (hors Linux), aucun début ne se lit ; un verrou ou une note
+// paraissait alors toujours d'un processus mort. Le numéro seul fait foi (`kill 0`), au risque d'un numéro réattribué.
+test('processus : sans /proc, le numéro seul dit qu’il vit ; avec /proc, un processus qui ne s’y lit pas est mort', () => {
+  const mort = spawnSync(process.execPath, ['-e', '0']).pid; const rien = () => null;
+  assert.deepEqual([vivant({ pid: process.pid, debut: null }, rien, false), vivant({ pid: mort, debut: null }, rien, false)], [true, false]);
+  assert.equal(vivant({ pid: process.pid, debut: null }, rien, true), false);
+  assert.equal(vivant({ pid: 0, debut: null }, rien, false), false, 'pas un numéro de processus (0 vise le groupe)');
+  // Une copie de pose est orpheline quand son numéro n'est plus pris : de même.
+  assert.deepEqual([numeroPris(process.pid, { lire: rien, proc: false }), numeroPris(mort, { lire: rien, proc: false }), numeroPris(process.pid, { lire: rien, proc: true })], [true, false, false]);
 });
 
 test('veille : sur le vrai /proc, un crochet lancé par un shell trouve le processus qui l’a lancé, et le reconnaît vivant', () => {

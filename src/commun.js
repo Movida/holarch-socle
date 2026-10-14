@@ -219,8 +219,21 @@ export function stat(pid) {
   } catch { return null; }
 }
 
-/** Le processus noté vit encore : même numéro et même début (un numéro réattribué n'est pas ce processus). */
-export const vivant = ({ pid, debut }, lire = stat) => { const s = lire(pid); return Boolean(s) && s.debut === debut; };
+/**
+ * Le processus noté vit encore : même numéro et même début (un numéro réattribué n'est pas ce processus). Sans /proc,
+ * le numéro seul (`numeroPris`). `proc` : /proc se lit-il (essais).
+ */
+export const vivant = ({ pid, debut }, lire = stat, proc = procLisible()) => { const s = lire(pid); return s ? s.debut === debut : !proc && signalable(pid); };
+
+/**
+ * Un processus porte ce numéro (une copie de pose est-elle orpheline ?) : lu dans /proc. Sans /proc (hors Linux), comme
+ * pour `vivant`, aucun début ne se lit : le numéro seul fait foi (`kill 0`), au risque d'un numéro réattribué. `proc` :
+ * /proc se lit-il (essais).
+ */
+export const numeroPris = (pid, { lire = stat, proc = procLisible() } = {}) => Boolean(lire(pid)) || (!proc && signalable(pid));
+const procLisible = () => fs.existsSync('/proc/self/stat');
+// `kill 0` n'envoie rien : le numéro est pris (EPERM : par un processus d'un autre utilisateur). 0 et moins visent un groupe.
+const signalable = (pid) => { if (!Number.isInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 
 /**
  * Efface un fichier seulement s'il n'a pas changé depuis sa lecture (`lu`), sans fenêtre de course : renommé (le

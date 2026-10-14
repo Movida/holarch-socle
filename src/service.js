@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { git, lireJson, ecrireJson, ecrireSansLien, modifierJson, trouverOutil, configClaude, dedans, shell, pourCompte, stat } from './commun.js';
+import { git, lireJson, ecrireJson, ecrireSansLien, modifierJson, trouverOutil, configClaude, dedans, shell, pourCompte, numeroPris } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 import { OUTILS } from './conteneur.js';
 
@@ -45,7 +45,7 @@ export function retard(copie) {
 // chemins retirés.
 function retirerOrphelines(d) {
   let noms = []; try { noms = fs.readdirSync(d); } catch { return []; }
-  return noms.filter((n) => { const m = n.match(/\.pose-(\d+)$/); return m && !stat(Number(m[1])); }).map((n) => {
+  return noms.filter((n) => { const m = n.match(/\.pose-(\d+)$/); return m && !numeroPris(Number(m[1])); }).map((n) => {
     const f = path.join(d, n); fs.rmSync(f, { recursive: true, force: true }); return f;
   });
 }
