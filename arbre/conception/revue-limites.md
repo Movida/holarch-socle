@@ -93,8 +93,9 @@ antérieur à 2.6 : le repli du crochet refuse le commit ; arrêté côté `neut
 dépôt : proposition, ne rien lever ; alternative, lever avec un `try` par dépôt, moyen). 250 tests verts ; copie de
 service posée (`3a951ba`) ; crochet de commit des cinq projets qui le portent réécrit ; audit réel : socle et compte
 conformes. Envoi de `3792cb1` sur autorisation (pas d'intégration continue). Choix de l'auteur, recommandations
-suivies : `neutralisation()` ne lève rien ; à coder à la session suivante, les trois premiers voisins ci-après, pas le
-quatrième. Voisins vus : `.devcontainer/` ignoré fait échouer l'étape conteneur à chaque rejeu (même
+suivies : `neutralisation()` ne lève rien ; à coder à la session suivante, trois des quatre voisins ci-après :
+`.devcontainer/` ignoré, la commande dans `service poser`, `--reposer` inconnu en code 1 ; pas `--reposer` d'une clé
+changée. Voisins vus : `.devcontainer/` ignoré fait échouer l'étape conteneur à chaque rejeu (même
 traitement, faible) ; `service poser` dit « réglé ailleurs » sans la commande (renvoi, trivial) ; `--reposer` d'une clé
 changée à la main (trivial, mais remplacerait une valeur posée à la main, contre la décision) ; `--reposer` d'un nom
 inconnu sort en 0 (sortir en 1, trivial). Limites laissées : crochet changé à la main puis autre seuil, les deux tournent
@@ -107,6 +108,20 @@ processus (heure de démarrage lue dans `/proc`, faible) ; deux poses simultané
 ligne toujours refusée relue à chaque import (plafond et événement, faible) ; `appliquerPermissions` remet une
 interdiction de lecture retirée à la main (voulu : règle bloquante, la voie est une dérogation). Test visuel non lancé
 (Chromium absent, I32) : `app.js` inchangé, l'infobulle du seuil peut dire « — ».
+
+**Voisins du lot 5** (codés le 2026-10-14 par l'agent, sans instance neuve), un commit et un test chacun, rouge avant
+son correctif. `4825e1f` : `.devcontainer/` ignoré par git, la configuration et le script de la clé sont écrits, ni
+ajoutés ni commités, et un geste le dit avec `check-ignore -v` ; la suite continue. Le test a montré que `git add` d'un
+fichier suivi sous un dossier ignoré l'indexe mais sort en 1 : l'ajout (`add -u`, puis les nouveaux non ignorés) et la
+lecture des ignorés sont mis en commun pour les fichiers de base, les règles et le conteneur (`ajouter`,
+`ignoresParGit`, `gesteIgnores`). `9358298` : `service poser` donne, pour une entrée MCP laissée (réglée ailleurs ou non
+reconnue), la commande qui la repointe, la même que `holarch service`. `998f515` : `regles appliquer` sort en 1 quand
+un nom de `--reposer` n'est reposé sur aucun compte (inconnu, ou pas laissé), après le reste ; reposé sur un compte et
+pas laissé sur un autre, c'est dit sans échec. 251 tests verts ; copie de service posée (`998f515`) ; audit réel :
+compte conforme, socle sans autre écart que les commits non poussés, 0 apparu, 0 résolu. Voisin vu, à soumettre : un
+fichier de base suivi, retiré à la main sous un dossier ignoré (`arbre/` par exemple), est réécrit puis ajouté par
+`git add`, qui sort en 1 : l'étape fichiers échoue une fois, le rejeu suivant le dit « déjà là » sans commit (palliatif :
+`ajouter` à cette étape aussi, trivial, et un test).
 
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur

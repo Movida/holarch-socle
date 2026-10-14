@@ -1255,9 +1255,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   sous WSL2 (refus de `cat`, `grep -r` et `python3` sur un `.env` interdit), pose rangée avec les palliatifs moyens ;
   famille Gardes muettes, lots 1 à 4 (`7b58a62` à `7625bfd`, 245 tests verts, copie de service posée, crochets de
   commit réécrits, audit conforme) ; lot 5 : décision `geste-a-la-main` approuvée (`bcb4e32`), cinq commits
-  (`d5edf5b` à `3a951ba`), 250 tests verts, copie de service posée, audit conforme : famille close. À coder : trois voisins du lot 5
-  (choix de l'auteur). Restent à soumettre : Veille et outillage, palliatifs moyens ou forts. Détail : `revue-limites.md`, section « Suite
-  du 2026-10-13 ».
+  (`d5edf5b` à `3a951ba`), 250 tests verts, copie de service posée, audit conforme : famille close. Restent à
+  soumettre : Veille et outillage, palliatifs moyens ou forts. Détail : `revue-limites.md`, section « Suite du
+  2026-10-13 ».
+- **Fait (2026-10-14)** : trois voisins du lot 5 (choix de l'auteur), `4825e1f` à `998f515` : `.devcontainer/` ignoré
+  dit par un geste, ajout à git mis en commun dans la création ; commande qui repointe l'entrée MCP dans `service
+  poser` ; `--reposer` sans effet en code 1. 251 tests verts, copie de service posée, audit conforme. Suite : famille
+  Chiffres.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

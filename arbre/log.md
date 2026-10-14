@@ -1,5 +1,22 @@
 # Journal de l'arbre
 
+## 2026-10-14
+
+* **Revue des limites, voisins du lot 5** (environ 182 k tokens de contexte pour l'agent, sans instance neuve) : les
+  trois voisins choisis par l'auteur, relus dans la transcription de la session précédente (le journal disait « les trois
+  premiers, pas le quatrième », contraire à l'ordre de la liste ; corrigé dans `revue-limites.md`). Trois commits, chaque
+  test rouge avant son correctif : `4825e1f` (`.devcontainer/` ignoré : écrit, ni ajouté ni commité, geste avec
+  `check-ignore -v` ; `git add` d'un fichier suivi sous un dossier ignoré l'indexe mais sort en 1, d'où un ajout et une
+  lecture des ignorés communs à la création), `9358298` (`service poser` donne la commande qui repointe une entrée MCP
+  laissée, celle de `holarch service`, aussi pour une entrée non reconnue), `998f515` (`--reposer` reposé sur aucun
+  compte : code 1, après le reste). 251 tests verts ; copie de service posée (`998f515`) ; audit réel : compte conforme,
+  socle sans autre écart que les commits non poussés, 0 apparu, 0 résolu. Voisin vu, à soumettre : fichier de base suivi
+  retiré à la main sous un dossier ignoré (palliatif trivial). Leçon : déroulé annoncé en quatre temps (phrase du
+  journal, trois voisins, tests et pose, journal et envoi sur accord) ; tenus, la phrase corrigée avec le journal plutôt
+  qu'en tête. Ce qui l'a fait dévier : le choix à relire dans une transcription, et le comportement de `git add` vu par le
+  test, qui a élargi le premier voisin à une mise en commun. La demande qui y aurait mené : « coder `.devcontainer/`
+  ignoré, la commande dans `service poser` et `--reposer` en code 1 », le journal nommant les choix plutôt que leur rang.
+
 ## 2026-10-13
 
 * **Revue des limites, famille Gardes muettes close (lot 5)** (environ 175 k tokens de contexte pour l'agent ; instance
