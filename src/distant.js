@@ -10,7 +10,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { Catalogue } from './stockage/catalogue.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
-import { shell, systemd, fichierMarque, modifierJson, binaireClaude, configClaude, claudeIntrouvable, hacher } from './commun.js';
+import { shell, systemd, fichierMarque, modifierJson, ecrireSansLien, binaireClaude, configClaude, claudeIntrouvable, hacher } from './commun.js';
 import { accueil as accueilParDefaut } from './config.js';
 import { binaireService } from './service.js';
 import { marquerRelance } from './veille.js';
@@ -91,7 +91,7 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
     poser(f, texte, { avantRelance = () => {} } = {}) {
       garder(f);
       const avant = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null; const t = signe(texte);
-      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(enCours(f), ''); fs.writeFileSync(f, t);
+      ecrireSansLien(unites, path.relative(unites, enCours(f)), ''); ecrireSansLien(unites, path.relative(unites, f), t);
       lancer(['daemon-reload']); lancer(['enable', '--now', path.basename(f)]);
       if (avant != null && avant !== t) { avantRelance(); lancer(['restart', path.basename(f)]); }
       fs.rmSync(enCours(f), { force: true });
@@ -100,7 +100,7 @@ function services({ unites, systemctl, sousSystemd = SOUS_SYSTEMD }) {
     ecrire(f, texte) {
       garder(f); const t = signe(texte);
       if (fs.existsSync(f) && fs.readFileSync(f, 'utf8') === t) return false;
-      fs.mkdirSync(unites, { recursive: true }); fs.writeFileSync(f, t); return true;
+      ecrireSansLien(unites, path.relative(unites, f), t); return true;
     },
     // Retire l'unité ; rend le chemin de sa copie si elle était modifiée à la main (`copierModifiee`), sinon null.
     retirer(f, absente) {
@@ -404,7 +404,7 @@ export function creerDistant(config, {
     reveil() {
       const t = maintenant(); const ici = demarrage(); let avant = null; let deLa = null;
       try { [avant, deLa] = fs.readFileSync(reveil.passage, 'utf8').trim().split('\n'); avant = Date.parse(avant); } catch { /* premier passage */ }
-      fs.mkdirSync(path.dirname(reveil.passage), { recursive: true }); fs.writeFileSync(reveil.passage, `${new Date(t).toISOString()}\n${ici ?? ''}\n`);
+      ecrireSansLien(path.dirname(reveil.passage), path.basename(reveil.passage), `${new Date(t).toISOString()}\n${ici ?? ''}\n`);
       const ecart = Number.isFinite(avant) ? t - avant : 0;
       if (ecart <= SEUIL_REVEIL) return { ecart_s: Math.round(ecart / 1e3), relances: [], echecs: [] };
       if (deLa && ici && deLa !== ici) return { ecart_s: Math.round(ecart / 1e3), relances: [], echecs: [], nouveau_demarrage: true };

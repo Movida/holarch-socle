@@ -1587,7 +1587,8 @@ test('lireSansLien : un lien posé entre la vérification et la lecture la fait 
 // Course sur un dossier du chemin (limite de C levée) : `x` remplacé par un lien vers un dossier de l'hôte juste avant
 // l'ouverture, puis laissé (la vérification refaite après l'ouverture le voit) ou remis aussitôt (l'inode ouvert n'est
 // pas celui que le chemin désigne) : rien n'est écrit ni lu dehors, rien n'est tronqué, aucun descripteur ne reste
-// ouvert. Reste ouvert sans `openat` (absent de Node) : un fichier absent est créé, vide, au bout du lien.
+// ouvert. Reste ouvert sans `openat` (absent de Node) : le temporaire de l'écriture est créé, vide, au bout du lien quand
+// le dossier est remis aussitôt (le lien encore là, il est retiré).
 test('ecrireSansLien, lireSansLien : un dossier du chemin remplacé par un lien pendant l’ouverture ne fait rien écrire ni lire dehors', () => {
   const d = tmp(); const hote = tmp(); const x = path.join(d, 'x');
   fs.writeFileSync(path.join(hote, 'f.sh'), 'à moi\n'); fs.chmodSync(path.join(hote, 'f.sh'), 0o644);
@@ -1608,12 +1609,50 @@ test('ecrireSansLien, lireSansLien : un dossier du chemin remplacé par un lien 
   course(refus(() => ecrireSansLien(d, 'x/neuf.sh', 'du conteneur\n'), 'x/neuf.sh : un dossier de son chemin a changé pendant l’ouverture, rien n’est écrit'), true);
   assert.equal(descripteurs(), avant, 'un refus ferme ce qu’il a ouvert');
   assert.deepEqual([fs.readFileSync(path.join(hote, 'f.sh'), 'utf8'), fs.statSync(path.join(hote, 'f.sh')).mode & 0o777, fs.readFileSync(path.join(x, 'f.sh'), 'utf8')], ['à moi\n', 0o644, 'du dépôt\n']);
-  assert.deepEqual([fs.readFileSync(path.join(hote, 'neuf.sh'), 'utf8'), fs.existsSync(path.join(x, 'neuf.sh'))], ['', false], 'la limite qui reste : créé vide au bout du lien');
+  const vide = (n) => `${n}.${process.pid}.holarch`;
+  assert.deepEqual([fs.readdirSync(hote).sort(), fs.readFileSync(path.join(hote, vide('f.sh')), 'utf8'), fs.readFileSync(path.join(hote, vide('neuf.sh')), 'utf8'), fs.existsSync(path.join(x, 'neuf.sh'))],
+    [['f.sh', vide('f.sh'), vide('neuf.sh')], '', '', false], 'la limite qui reste : le temporaire créé vide au bout du lien, quand le dossier est remis aussitôt');
   // Un lien vers un fichier absent, posé à la place du fichier juste avant l'ouverture : rien n'est créé au bout.
   const bout = path.join(hote, 'cree.sh'); fs.mkdirSync(path.join(d, 'z'));
   fs.openSync = (...a) => { fs.openSync = open; fs.symlinkSync(bout, path.join(d, 'z', 'f.sh')); return open(...a); };
   try { assert.throws(() => ecrireSansLien(d, 'z/f.sh', 'du conteneur\n'), (e) => e.message === 'z/f.sh est un lien symbolique : rien n’est écrit'); } finally { fs.openSync = open; }
   assert.equal(fs.existsSync(bout), false);
+});
+
+// Défaut N4 (revue des limites) : `ecrireSansLien` et les écritures des règles générées, des unités systemd et du passage
+// du réveil tronquaient le fichier avant de l'écrire. Coupées en route (disque plein, processus tué), elles laissaient un
+// fichier à moitié écrit : sans sa marque ou son empreinte, il était pris pour étranger et plus jamais réécrit.
+test('écritures du socle : coupées en route, elles laissent le fichier d’avant entier, et aucun temporaire', () => {
+  const ecrireFs = fs.writeFileSync;
+  // Le disque se remplit au milieu de l'écriture d'un texte que `quand` reconnaît : sa moitié, puis l'erreur.
+  const coupee = (faire, quand = () => true) => {
+    fs.writeFileSync = (f, t, ...r) => {
+      if (!quand(String(t))) return ecrireFs(f, t, ...r);
+      ecrireFs(f, String(t).slice(0, Math.ceil(String(t).length / 2)), ...r); throw Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' });
+    };
+    try { return faire(); } finally { fs.writeFileSync = ecrireFs; }
+  };
+  const d = tmp(); const f = path.join(d, 'x', 'f.sh'); ecrire(f, 'ancien contenu\n'); fs.chmodSync(f, 0o640);
+  assert.throws(() => coupee(() => ecrireSansLien(d, 'x/f.sh', 'nouveau contenu, plus long\n')), /ENOSPC/);
+  assert.deepEqual([fs.readFileSync(f, 'utf8'), fs.readdirSync(path.dirname(f))], ['ancien contenu\n', ['f.sh']]);
+  ecrireSansLien(d, 'x/f.sh', 'nouveau\n');
+  assert.deepEqual([fs.readFileSync(f, 'utf8'), fs.statSync(f).mode & 0o777], ['nouveau\n', 0o640], 'les droits du fichier remplacé se gardent');
+  // Règles générées : coupée, la règle perdait sa marque et n'était plus jamais réécrite.
+  const depot = tmp(); const dossier = path.join(depot, '.claude', 'rules', 'holarch'); ecrire(path.join(dossier, 'r.md'), `${MARQUE}\nancienne règle\n`);
+  const plan = { fichiers: [{ fichier: 'r.md', contenu: `${MARQUE}\nnouvelle règle\n` }] };
+  assert.match(coupee(() => appliquer(depot, dossier, plan)).erreur, /ENOSPC/);
+  assert.deepEqual([fs.readFileSync(path.join(dossier, 'r.md'), 'utf8'), fs.readdirSync(dossier)], [`${MARQUE}\nancienne règle\n`, ['r.md']]);
+  assert.deepEqual(appliquer(depot, dossier, plan).modifies, ['r.md']);
+  // Unités systemd : coupée, l'unité ne correspondait plus à son empreinte, prise pour modifiée à la main. Passage du réveil.
+  const { d: distant, unites, accueil } = banc();
+  distant.activer('demo'); const unite = path.join(unites, 'holarch-distant-demo.service'); const texte = fs.readFileSync(unite, 'utf8');
+  assert.throws(() => coupee(() => distant.activer('demo'), (t) => t.includes('[Service]')), /ENOSPC/);
+  assert.equal(fs.readFileSync(unite, 'utf8'), texte);
+  assert.equal(distant.activer('demo').nom, 'demo', 'réécrite ensuite, pas prise pour modifiée à la main');
+  distant.reveil(); const passage = fs.readFileSync(path.join(accueil, 'distant-reveil'), 'utf8');
+  assert.throws(() => coupee(() => distant.reveil(), (t) => /^\d{4}-/.test(t)), /ENOSPC/);
+  assert.equal(fs.readFileSync(path.join(accueil, 'distant-reveil'), 'utf8'), passage);
+  assert.ok(!fs.readdirSync(unites).some((n) => n.endsWith('.holarch')) && !fs.readdirSync(accueil).some((n) => n.endsWith('.holarch')), 'aucun temporaire laissé');
 });
 
 // Réglages du compte (limite de C levée) : le manifeste de ce que HOLARCH pose dans settings.json s'écrit d'abord ;

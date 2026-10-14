@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CLASSIFICATIONS } from './regles.js';
 import { CONTROLES } from './controles.js';
-import { lireJson, ecrireJson, fichierMarque, shell, cheminSansLien } from './commun.js';
+import { lireJson, ecrireJson, fichierMarque, shell, cheminSansLien, ecrireSansLien } from './commun.js';
 import { EVENEMENTS as EVENEMENTS_VEILLE, DISTANTE_SHELL, repliShell } from './veille.js';
 
 export const MARQUE = '<!-- Généré par HOLARCH (holarch regles appliquer) : ne pas modifier ici, changer la règle à sa source. -->';
@@ -258,10 +258,10 @@ export function appliquer(racine, dossier, plan, { ecrire = true } = {}) {
     const prevus = new Set(plan.fichiers.map((x) => x.fichier));
     for (const { fichier, contenu: c } of plan.fichiers) {
       const f = chemin(fichier);
-      if (!fs.existsSync(f)) { r.crees.push(fichier); if (ecrire) { fs.mkdirSync(dossier, { recursive: true }); fs.writeFileSync(f, c); } continue; }
+      if (!fs.existsSync(f)) { r.crees.push(fichier); if (ecrire) ecrireSansLien(racine, path.join(relatif, fichier), c); continue; }
       if (!marque(f, racine)) { r.ignores.push(fichier); continue; }
       if (fs.readFileSync(f, 'utf8') === c) { r.inchanges.push(fichier); continue; }
-      r.modifies.push(fichier); if (ecrire) fs.writeFileSync(f, c);
+      r.modifies.push(fichier); if (ecrire) ecrireSansLien(racine, path.join(relatif, fichier), c);
     }
     let presents = []; try { presents = fs.readdirSync(dossier).filter((x) => x.endsWith('.md')); } catch { /* dossier absent */ }
     for (const x of presents) {

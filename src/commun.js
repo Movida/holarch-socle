@@ -34,20 +34,29 @@ export function cheminSansLien(racine, relatif, verbe = 'écrit') {
  * `O_NOFOLLOW` : un lien posé à sa place entre la vérification et l'ouverture la fait échouer, qui le dit comme la
  * vérification. Un dossier du chemin remplacé par un lien dans cet intervalle se voit après l'ouverture : à la
  * vérification refaite (le lien est encore là), sinon à l'inode ouvert, qui n'est pas celui que le chemin désigne (il a
- * été remis). Reste ouvert sans `openat`, absent de Node : un dossier remplacé, remis pour la vérification refaite, puis
- * remplacé de nouveau avant la comparaison des inodes ; et ce que l'ouverture crée au bout du lien (un fichier vide).
+ * été remis). Un fichier créé par cette ouverture (`O_EXCL`) au bout du lien encore là est retiré. Reste ouvert sans
+ * `openat`, absent de Node : un dossier remplacé, remis pour la vérification refaite, puis remplacé de nouveau avant la
+ * comparaison des inodes ; et ce que l'ouverture crée au bout du lien quand le dossier est remis aussitôt (un fichier
+ * vide). `nom` : le fichier que disent les erreurs (celui que remplace un temporaire).
  */
-function ouvrirSansLien(racine, relatif, drapeaux, verbe, mode) {
+function ouvrirSansLien(racine, relatif, drapeaux, verbe, mode, nom = relatif) {
   const p = cheminSansLien(racine, relatif, verbe);
   let fd; try { fd = fs.openSync(p, drapeaux | fs.constants.O_NOFOLLOW, mode); } catch (e) {
-    throw e.code === 'ELOOP' ? new Error(`${relatif} est un lien symbolique : rien n’est ${verbe}`) : e;
+    throw e.code === 'ELOOP' ? new Error(`${nom} est un lien symbolique : rien n’est ${verbe}`) : e;
   }
   try {
     cheminSansLien(racine, relatif, verbe);
-    const o = fs.fstatSync(fd, { bigint: true }); let l; try { l = fs.lstatSync(p, { bigint: true }); } catch { l = null; }
-    if (!l || l.dev !== o.dev || l.ino !== o.ino) throw new Error(`${relatif} : un dossier de son chemin a changé pendant l’ouverture, rien n’est ${verbe}`);
+    if (!memeFichier(p, fd)) throw new Error(`${nom} : un dossier de son chemin a changé pendant l’ouverture, rien n’est ${verbe}`);
     return fd;
-  } catch (e) { fs.closeSync(fd); throw e; }
+  } catch (e) {
+    if (drapeaux & fs.constants.O_EXCL && memeFichier(p, fd)) fs.rmSync(p, { force: true });
+    fs.closeSync(fd); throw e;
+  }
+}
+/** Le chemin `p` désigne-t-il le fichier ouvert `fd` (même inode, sans suivre de lien) ? */
+function memeFichier(p, fd) {
+  const o = fs.fstatSync(fd, { bigint: true }); let l; try { l = fs.lstatSync(p, { bigint: true }); } catch { return false; }
+  return l.dev === o.dev && l.ino === o.ino;
 }
 
 /**
@@ -76,22 +85,31 @@ function lireOuvert(fd, max) {
 }
 
 /**
- * Écrit `contenu` dans `relatif` sous `racine` (un dépôt), dossiers créés au besoin, sans suivre de lien symbolique
- * (`cheminSansLien`, puis `ouvrirSansLien` pour la course entre la vérification et l'écriture). Le fichier s'ouvre sans
- * `O_TRUNC` et ne se tronque qu'une fois l'ouverture vérifiée ; son mode se pose sur ce qui est ouvert. Ce qui n'est pas
- * un fichier (un FIFO posé à sa place) lève une erreur avant la troncature : ouvert sans attendre de lecteur
- * (`O_NONBLOCK` ; sans lecteur, l'ouverture échoue en `ENXIO`), il ne bloque pas l'écriture.
+ * Écrit `contenu` dans `relatif` sous `racine` (un dépôt, un dossier du compte ou du site), dossiers créés au besoin,
+ * d'un coup : dans un temporaire du même dossier, renommé ensuite sur le fichier (une écriture coupée, disque plein ou
+ * processus tué, laisse le fichier d'avant entier ; coupé, un fichier généré perdait sa marque et passait pour étranger).
+ * Sans suivre de lien symbolique : le temporaire s'ouvre par `ouvrirSansLien` (`O_EXCL`), et juste avant le renommage, le
+ * fichier remplacé n'est ni un lien (`cheminSansLien`) ni ce qui n'est pas un fichier (un FIFO posé à sa place, qui reste
+ * en place), et le temporaire est toujours celui qui est ouvert (un dossier du chemin remplacé depuis le ferait chercher
+ * ailleurs). Ses droits : `mode`, sinon ceux du fichier remplacé (un fichier en 0600 ne devient pas lisible de tous).
  */
 export function ecrireSansLien(racine, relatif, contenu, mode) {
   const p = cheminSansLien(racine, relatif);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  const { O_WRONLY, O_CREAT, O_NONBLOCK } = fs.constants;
   const pasUnFichier = () => new Error(`${relatif} n’est pas un fichier : rien n’est écrit`);
-  let fd; try { fd = ouvrirSansLien(racine, relatif, O_WRONLY | O_CREAT | O_NONBLOCK, 'écrit', mode ?? 0o666); } catch (e) { throw e.code === 'ENXIO' ? pasUnFichier() : e; }
+  const remplace = () => { cheminSansLien(racine, relatif); let l; try { l = fs.lstatSync(p); } catch { return null; } if (!l.isFile()) throw pasUnFichier(); return l; };
+  const avant = remplace(); const droits = mode ?? (avant ? avant.mode & 0o7777 : null);
+  // Un temporaire du même numéro de processus, laissé par une panne, ne sert plus : retiré.
+  const tmp = `${relatif}.${process.pid}.holarch`; const t = cheminSansLien(racine, tmp); fs.rmSync(t, { force: true });
+  const { O_WRONLY, O_CREAT, O_EXCL } = fs.constants;
+  const fd = ouvrirSansLien(racine, tmp, O_WRONLY | O_CREAT | O_EXCL, 'écrit', droits ?? 0o666, relatif);
   try {
-    if (!fs.fstatSync(fd).isFile()) throw pasUnFichier();
-    fs.ftruncateSync(fd, 0); fs.writeFileSync(fd, contenu); if (mode) fs.fchmodSync(fd, mode);
-  } finally { fs.closeSync(fd); }
+    if (droits !== null) fs.fchmodSync(fd, droits);
+    fs.writeFileSync(fd, contenu);
+    remplace();
+    if (!memeFichier(t, fd)) throw new Error(`${relatif} : un dossier de son chemin a changé pendant l’écriture, rien n’est écrit`);
+    fs.renameSync(t, p);
+  } catch (e) { if (memeFichier(t, fd)) fs.rmSync(t, { force: true }); throw e; } finally { fs.closeSync(fd); }
 }
 
 /** Le répertoire de travail de HOLARCH (configuration, données) : `HOLARCH_HOME`, sinon `~/.holarch`. */
