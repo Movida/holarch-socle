@@ -115,9 +115,10 @@ export function resume(s, dossier, { max = 1500, transcription = null, maintenan
   // Avant le reste : une question restée sans réponse ne doit pas tomber sous la troncature. Les coupures dites sont
   // marquées (`coupuresAnnoncees`), sans accueil elles se redisent.
   const marques = s.config?.accueil ? coupuresAnnoncees(s.config.accueil, { maintenant }) : null;
-  const coupees = sessionsCoupees(transcription, { maintenant, annoncees: marques?.lues }).slice(0, 3);
+  // Trois au plus, et le dire : les autres, non marquées, viennent à la reprise suivante.
+  const toutes = sessionsCoupees(transcription, { maintenant, annoncees: marques?.lues }); const coupees = toutes.slice(0, 3);
   if (coupees.length) {
-    l.push(`Session(s) arrêtée(s) en route (24 h) : ${coupees.map((c) => `${heureLocale(c.date)}, ${c.question ? `question restée sans réponse : « ${court(c.question, 120)} »` : `pendant ${c.outil}${c.quoi ? ` (${court(c.quoi, 60)})` : ''}`}`).join(' ; ')}. À signaler à l’auteur.`);
+    l.push(`Session(s) arrêtée(s) en route (24 h)${toutes.length > 3 ? ` (3 sur ${toutes.length}, les autres à la reprise suivante)` : ''} : ${coupees.map((c) => `${heureLocale(c.date)}, ${c.question ? `question restée sans réponse : « ${court(c.question, 120)} »` : `pendant ${c.outil}${c.quoi ? ` (${court(c.quoi, 60)})` : ''}`}`).join(' ; ')}. À signaler à l’auteur.`);
     try { marques?.noter(coupees); } catch { /* marque non écrite : la coupure se redira à la reprise suivante */ }
   }
   if (v.etape) {

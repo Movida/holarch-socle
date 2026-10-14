@@ -955,6 +955,8 @@ test('R5 : une session coupée n’est annoncée qu’une fois, par la marque é
   // Une marque qui ne s'écrit pas n'empêche pas la reprise : la coupure se redira.
   fs.rmSync(marques); fs.mkdirSync(marques);
   assert.deepEqual(dites(), ['« 17 h ? »', '« 16 h ? »', '« 15 h ? »']);
+  // Coupées à trois, elles le disent, comme le reste : les autres viennent à la reprise suivante.
+  assert.match(resume(s, d, { transcription: courante, maintenant }), /^Session\(s\) arrêtée\(s\) en route \(24 h\) \(3 sur 5, les autres à la reprise suivante\) : /m);
   // Sans accueil, aucun endroit où tenir la marque : la coupure se redit à chaque reprise.
   const sansAccueil = new Socle({ site: 'local', donnees: accueil, web: {}, tarifs: {}, inventaire: {}, import: {} });
   assert.match(resume(sansAccueil, d, { transcription: courante, maintenant }), /« 17 h \? »/);
