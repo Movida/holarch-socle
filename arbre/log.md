@@ -1,5 +1,15 @@
 # Journal de l'arbre
 
+## 2026-10-15
+
+* **Le pont fait relire ses listes au client après une reprise** (essai du site de travail) : au démarrage du poste,
+  la passerelle a lancé un serveur stdio avant que Docker soit prêt et l'a écarté (FailOpen) ; Claude Desktop a fait
+  son `tools/list` à ce moment-là et a gardé cette liste. La passerelle, relancée une minute plus tard, servait de
+  nouveau le serveur, mais le pont reprenait la session en silence : le serveur est resté invisible dans Desktop
+  jusqu'à sa relance. Le pont envoie désormais `notifications/{tools,prompts,resources}/list_changed` après chaque
+  reprise (la passerelle annonce `listChanged`), test du pont étendu. Que Desktop relise bien sa liste sur cette
+  notification reste à constater à la prochaine reprise.
+
 ## 2026-10-14
 
 * **Revue des limites, voisins du lot 1 et décision en brouillon** (environ 245 k tokens de contexte pour l'agent ;
