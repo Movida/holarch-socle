@@ -33,7 +33,9 @@ export function creerPont({ url, cle, ecrire, fetchImpl = fetch }) {
   const poster = (msg) => fetchImpl(url, { method: 'POST', headers: entetes(msg.method === 'initialize'), body: JSON.stringify(msg) });
   const sessionPerdue = async (r) => session && (r.status === 404 || (r.status === 400 && /session/i.test(await r.clone().text())));
 
-  // Rejoue l'initialisation du client sous un identifiant à nous ; sa réponse ne remonte pas au client.
+  // Rejoue l'initialisation du client sous un identifiant à nous ; sa réponse ne remonte pas au client. Une session perdue
+  // veut dire une passerelle relancée, dont les serveurs ont pu changer (un serveur absent au premier `tools/list` du client,
+  // revenu depuis) : le client est invité à relire ses listes, sans quoi il garde celle du premier appel jusqu'à sa relance.
   async function reinitialiser() {
     session = null;
     const r = await poster({ ...init, id: `holarch-pont-reprise-${Date.now()}` });
@@ -41,6 +43,7 @@ export function creerPont({ url, cle, ecrire, fetchImpl = fetch }) {
     session = r.headers.get('mcp-session-id'); await r.text();
     await (await poster({ jsonrpc: '2.0', method: 'notifications/initialized' })).text();
     trace('session expirée côté hub : reprise');
+    for (const liste of ['tools', 'prompts', 'resources']) ecrire({ jsonrpc: '2.0', method: `notifications/${liste}/list_changed` });
   }
 
   // Un message qui arrive pendant l'initialisation attend sa réponse : sans elle, il partirait sans session.

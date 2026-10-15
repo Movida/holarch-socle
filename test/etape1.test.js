@@ -667,7 +667,10 @@ test('pont stdio → hub : réponses JSON et SSE, reprise d’une session expir�
   ]);
   vivantes.clear(); // la passerelle oublie la session (durée de vie dépassée)
   await pont.envoyer({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: {} });
-  assert.deepEqual(recus.map((m) => [m.id, m.result?.ok ?? m.result?.protocolVersion]), [[1, '2025-06-18'], [2, 's1'], [3, 's2']], 'la réponse de reprise ne remonte pas au client');
+  assert.deepEqual(recus.map((m) => [m.id ?? m.method, m.result?.ok ?? m.result?.protocolVersion]),
+    [[1, '2025-06-18'], [2, 's1'], ['notifications/tools/list_changed', undefined], ['notifications/prompts/list_changed', undefined],
+      ['notifications/resources/list_changed', undefined], [3, 's2']],
+    'la réponse de reprise ne remonte pas au client ; il est invité à relire ses listes (serveur revenu après son premier tools/list)');
   assert.equal(pont.session, 's2');
   await pont.fermer();
   assert.deepEqual(fermees, ['s2']);
