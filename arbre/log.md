@@ -2,6 +2,13 @@
 
 ## 2026-10-15
 
+* **La création de projet ne passe plus à `git add -u` un chemin non suivi** (essai du site de travail) : sur un poste en
+  git 2.53, 18 tests de création échouaient dès l'étape `fichiers` (`pathspec 'README.md' did not match any file(s)
+  known to git`). Ce git refuse `git add -u -- <chemin>` quand le chemin ne désigne aucun fichier de l'index, ce qui
+  est le cas de tout fichier de base au premier commit. `ajouter` ne donne plus à `add -u` que les chemins que
+  `ls-files` trouve dans l'index ; les nouveaux passent toujours par `ls-files --others --exclude-standard`. Ces
+  18 tests le reproduisent sur un git récent ; suite verte (263).
+
 * **Le pont fait relire ses listes au client après une reprise** (essai du site de travail) : au démarrage du poste,
   la passerelle a lancé un serveur stdio avant que Docker soit prêt et l'a écarté (FailOpen) ; Claude Desktop a fait
   son `tools/list` à ce moment-là et a gardé cette liste. La passerelle, relancée une minute plus tard, servait de
