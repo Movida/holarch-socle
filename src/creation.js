@@ -158,10 +158,13 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   };
   const gesteIgnores = (ignores, lus) => ({ quoi: `retirer la règle qui les ignore (la commande la montre), puis relancer ; ou les laisser hors du dépôt${lus ? ` (${lus} dans ce clone)` : ''}`, commande: `git -C ${dossier} check-ignore -v -- ${ignores.join(' ')}` });
   // Les fichiers suivis (modifiés, retirés), puis les nouveaux que git n'ignore pas : un `git add` qui nomme un chemin
-  // ignoré échoue, même en indexant les fichiers suivis qu'il couvre.
+  // ignoré échoue, même en indexant les fichiers suivis qu'il couvre. `git add -u` ne reçoit que des chemins de
+  // l'index : git 2.53 échoue sur un chemin qui ne désigne encore aucun fichier suivi.
   const ajouter = (...chemins) => {
-    const u = g('add', '-u', '--', ...chemins);
-    const nouveaux = (g('ls-files', '-z', '--others', '--exclude-standard', '--', ...chemins).stdout || '').split('\0').filter(Boolean);
+    const lister = (...o) => (g('ls-files', '-z', ...o, '--', ...chemins).stdout || '').split('\0').filter(Boolean);
+    const indexes = lister();
+    const u = indexes.length ? g('add', '-u', '--', ...indexes) : { status: 0 };
+    const nouveaux = lister('--others', '--exclude-standard');
     return u.status !== 0 || !nouveaux.length ? u : g('add', '--', ...nouveaux);
   };
 
