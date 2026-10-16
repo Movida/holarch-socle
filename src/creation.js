@@ -245,8 +245,8 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
   const projet = projetIci();
   if (!projet) { noter('declaration', 'echec', inventaire?.passe ? `${inventaire.passe} : à rejouer` : `${dossier} n'entre pas au catalogue : hors des racines de l'inventaire (inventaire.depots-git.racines) ou sans commit`); return r; }
   r.projet = projet.id;
-  // Un inventaire déjà en cours après la déclaration (`passe`) : elle n'est pas encore au catalogue, les règles attendent
-  // un rejeu (et ne se disent pas « non déclaré »).
+  // Un inventaire déjà en cours après la déclaration (`passe`) : elle n'est pas encore au catalogue ni à l'index. Les
+  // règles se lisent dans l'arbre frais, où elle est déjà (ligne 238) ; l'audit, qui lit l'index, attend l'inventaire.
   let passe = null;
   const fichierContexte = avant.contexte.fichier;
   const texte = fs.readFileSync(fichierContexte, 'utf8');
@@ -426,8 +426,11 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     } catch (e) { noter('distant', 'echec', e.message); }
   }
 
-  // 9. Audit du projet : aucun écart attendu hors gestes réservés.
+  // 9. Audit du projet : aucun écart attendu hors gestes réservés. Un inventaire en cours après la déclaration (`passe`) :
+  // l'index date d'avant elle, l'audit y verrait de faux écarts et les journaliserait ; il attend cet inventaire, comme
+  // `rafraichir`.
   if (aBlanc) noter('audit', 'a-faire', 'audit du projet');
+  else if (passe) noter('audit', 'a-faire', 'l’audit suit l’inventaire en cours');
   else {
     const a = socle.audit({ projet: projet.id, journaliser: true });
     const ecarts = a.cibles.find((c) => c.projet === projet.id)?.ecarts || [];

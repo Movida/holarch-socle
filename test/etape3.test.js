@@ -2954,6 +2954,16 @@ test('Création : un inventaire en cours après la déclaration n’arrête pas 
   const e = p.etapes.find((x) => x.etape === 'regles');
   assert.equal(etats(p).declaration, 'faite', JSON.stringify(p.etapes, null, 1));
   assert.deepEqual([e.etat, e.detail], ['faite', '1 créé(s), 0 modifié(s), 0 retiré(s) ; crochet absent']);
+  // L'audit lirait l'index d'avant la déclaration (faux écart `regles-a-jour`, journalisé) : il attend l'inventaire en
+  // cours, comme `rafraichir`.
+  const violes = () => [...s.journal.lire()].filter((x) => x.kind === 'rule.violated').map((x) => x.data);
+  const a = p.etapes.find((x) => x.etape === 'audit');
+  assert.deepEqual([a.etat, a.detail, violes()], ['a-faire', 'l’audit suit l’inventaire en cours', []], JSON.stringify(p.etapes, null, 1));
+  // L'inventaire passé, la création rejouée audite, sans écart.
+  fs.rmSync(path.join(s.config.donnees, 'inventaire.verrou'));
+  const q = await creerProjet(s, { nom: 'neuf', types: ['methode'] });
+  const b = q.etapes.find((x) => x.etape === 'audit');
+  assert.deepEqual([b.etat, b.detail, violes()], ['faite', 'aucun écart', []], JSON.stringify(q.etapes, null, 1));
 }));
 
 // Voisin de N4 : deux écritures de fichier restaient hors des fonctions communes (`ecrireSansLien`, `ecrireJson`). `init`
