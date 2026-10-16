@@ -333,26 +333,23 @@ export class Socle {
       .filter((l) => !id || (id === 'aucun' ? !l.projets.length : l.projets.some((p) => p.id === id)));
     if (jour) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) throw new Error(`jour attendu AAAA-MM-JJ : ${jour}`);
-      // Les coûts datés ce jour local (bornés à deux jours autour, pour l'index), par session.
-      const autour = (j) => new Date(Date.parse(`${jour}T00:00:00Z`) + j * 864e5).toISOString();
-      const ceJour = new Map();
-      for (const c of this.index.requete(`SELECT correlation, SUM(usd) usd, SUM(tok_out) sortie FROM evenements WHERE kind='cost.recorded' AND at>=? AND at<? AND ${JOUR_LOCAL}=? GROUP BY correlation`, autour(-2), autour(3), jour)) {
-        const k = String(c.correlation).split(':')[0]; const x = ceJour.get(k) || { usd: null, sortie: 0 }; ceJour.set(k, x);
-        if (c.usd != null) x.usd = (x.usd || 0) + c.usd; x.sortie += c.sortie || 0;
-      }
+      const ceJour = this.coutsDeSessions({ jour });
       liste = liste.filter((l) => ceJour.has(l.session)).map((l) => ({ ...l, usd_jour: ceJour.get(l.session).usd, sortie_jour: ceJour.get(l.session).sortie }));
     }
     if (!id) return liste;
-    const couts = this.coutsDeSessions(depuis); const cle = id === 'aucun' ? null : id;
+    const couts = this.coutsDeSessions({ depuis }); const cle = id === 'aucun' ? null : id;
     return liste.map((l) => { const c = couts.get(l.session); const f = parts(l.projets).find(([x]) => x === cle)?.[1] ?? 0; return { ...l, part: !c ? 0 : c.usd == null ? null : c.usd * f }; });
   }
 
   // Tokens et coût liste de chaque session (sous-agents compris), par racine de corrélation : ses coûts datés depuis
-  // `depuis` (`usd` null si aucun n'a de tarif). La seule base du partage entre projets : `consommation` et la part d'un
-  // projet dans `sessions` en viennent, et donnent le même chiffre.
-  coutsDeSessions(depuis) {
+  // `depuis`, ou ce jour local `jour` (bornés à deux jours autour, pour l'index) ; `usd` null si aucun n'a de tarif. La
+  // seule base du partage entre projets et des coûts d'un jour : `consommation`, la part d'un projet et le coût d'un jour
+  // dans `sessions` en viennent, et donnent le même chiffre.
+  coutsDeSessions({ depuis = null, jour = null }) {
+    const autour = (j) => new Date(Date.parse(`${jour}T00:00:00Z`) + j * 864e5).toISOString();
+    const [ou, p] = jour ? [`at>=? AND at<? AND ${JOUR_LOCAL}=?`, [autour(-2), autour(3), jour]] : ['at>=?', [depuis]];
     const r = new Map();
-    for (const l of this.index.requete(`SELECT correlation, ${SOMME} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY correlation`, depuis)) {
+    for (const l of this.index.requete(`SELECT correlation, ${SOMME} FROM evenements WHERE kind='cost.recorded' AND ${ou} GROUP BY correlation`, ...p)) {
       const k = String(l.correlation).split(':')[0];
       const x = r.get(k) || { sortie: 0, cache_lu: 0, cache_ecrit: 0, entree: 0, usd: null, n: 0, via: 0 }; r.set(k, x);
       for (const c of ['sortie', 'cache_lu', 'cache_ecrit', 'entree', 'n', 'via']) x[c] += l[c] || 0;
@@ -465,7 +462,7 @@ export class Socle {
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
     if (par === 'projet') {
       const projetsDeSession = this.attribution(); const r = new Map();
-      for (const [racine, l] of this.coutsDeSessions(depuis)) {
+      for (const [racine, l] of this.coutsDeSessions({ depuis })) {
         for (const [id, part, nom] of parts(projetsDeSession(racine))) {
           const x = r.get(id) || { cle: id, nom, sortie: 0, cache_lu: 0, cache_ecrit: 0, entree: 0, usd: null, n: 0, via: 0 }; r.set(id, x);
           for (const k of ['sortie', 'cache_lu', 'cache_ecrit', 'entree', 'n', 'via']) x[k] += (l[k] || 0) * part;
