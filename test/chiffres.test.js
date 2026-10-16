@@ -170,3 +170,15 @@ test('V3 : l’outil MCP sessions rend tours (sous-agents compris) et tours_sess
     assert.deepEqual(l, [['s1', 12, 8], ['s2', 5, 5]]);
   } finally { await m.fermer(); }
 });
+
+// Ligne 239 a (décision sorties-mcp-des-chiffres) : un appel MCP de statut inconnu (`null` : passerelle, ou appel sans
+// résultat) entrait dans le total sans entrer dans les échecs ; `periode.mcp[]` gagne `inconnus`.
+test('239 a : les appels MCP de statut inconnu se comptent à part (inconnus), à côté du total et des échecs', async () => {
+  const donnees = tmp();
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const appel = (n, statut) => ({ id: ulid(Date.parse(il_y_a(1)), `a${n}`), at: il_y_a(1), kind: 'tool.called', actor: 'agent:claude-code/m', correlation: 's1', classification: 'internal', data: { serveur: 'holarch', outil: 'etat', ...(statut !== undefined && { statut }) } });
+  s.journal.ajouter([appel(1, 'ok'), appel(2, 'erreur'), appel(3, null), appel(4)]); s.indexer();
+  assert.deepEqual(s.etat().periode.mcp.map((x) => ({ ...x })), [{ cle: 'holarch', n: 4, echecs: 1, inconnus: 2 }]);
+  const m = await mcp(s);
+  try { assert.deepEqual((await m.appel('etat')).periode.mcp, [{ cle: 'holarch', n: 4, echecs: 1, inconnus: 2 }]); } finally { await m.fermer(); }
+});

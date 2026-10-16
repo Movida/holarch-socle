@@ -158,7 +158,8 @@ export class Socle {
         // Appels MCP par serveur (dont ceux au serveur holarch : le critère d'usage de l'étape 2 ici).
         // Cibles ignorées par la passerelle (`failOpen`) : un serveur absent des clients sans erreur visible.
         degradations: q("SELECT json_extract(data,'$.serveur') cle, COUNT(*) n, SUM(json_extract(data,'$.phase')='demarrage') demarrage, MAX(at) dernier FROM evenements WHERE kind='system.degraded' AND json_extract(data,'$.composant')='passerelle' AND at>=? GROUP BY cle ORDER BY n DESC", d),
-        mcp: q("SELECT json_extract(data,'$.serveur') cle, COUNT(*) n, SUM(json_extract(data,'$.statut')<>'ok') echecs FROM evenements WHERE kind='tool.called' AND at>=? GROUP BY cle ORDER BY n DESC", d),
+        // `inconnus` : statut null (passerelle, ou appel sans résultat), ni réussi ni en échec (ligne 239 a).
+        mcp: q("SELECT json_extract(data,'$.serveur') cle, COUNT(*) n, SUM(json_extract(data,'$.statut')<>'ok') echecs, SUM(json_extract(data,'$.statut') IS NULL) inconnus FROM evenements WHERE kind='tool.called' AND at>=? GROUP BY cle ORDER BY n DESC", d),
         refus: {
           par_origine: q("SELECT json_extract(data,'$.origine') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC", d),
           par_outil: q("SELECT json_extract(data,'$.outil') cle, COUNT(*) n FROM evenements WHERE kind='tool.denied' AND at>=? GROUP BY cle ORDER BY n DESC LIMIT 8", d),

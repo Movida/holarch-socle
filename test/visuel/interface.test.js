@@ -37,6 +37,8 @@ function donneesFictives() {
   // Un sous-agent de la session 2 (V3) : 12 tours en session, 16 avec lui.
   ev.push({ id: ulid(Date.parse(il_y_a(2, 11)), '2s'), at: il_y_a(2, 11), kind: 'session.finished', actor: 'agent:claude-code/modele-a', correlation: 'session-2:agent-1', data: { projet: 'projet-b', sous_agent: true, tours: 4 } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'a'), at: il_y_a(2, 10), kind: 'tool.called', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', serveur: 'holarch', outil: 'etat', statut: 'ok' } });
+  // Un appel de statut inconnu (ligne 239 a : passerelle, ou appel sans résultat).
+  ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'b'), at: il_y_a(2, 10), kind: 'tool.called', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', serveur: 'holarch', outil: 'projets', statut: null } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'r'), at: il_y_a(2, 10), kind: 'tool.denied', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', outil: 'Bash', origine: 'regle' } });
   s.journal.ajouter(ev);
   const fiche = (kind, nom, extra = {}) => ({ id: `holarch:${kind}:${nom}`, kind, name: nom, status: 'active', provenance: { source: 'test' }, ...extra });
@@ -95,6 +97,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.match(await page.textContent('.tuile:last-child .note'), /hors 1 modèle sans tarif/);
   assert.match(await page.textContent('body'), /mémoire en 2 exemplaires/);
   assert.match(await page.textContent('body'), /Appels MCP, 30 j[\s\S]*holarch/);
+  assert.match(await page.textContent('.carte:has(h2:text("Appels MCP")) .chiffre'), /^2 · dont 1 inconnu$/, 'appels de statut inconnu');
   assert.equal(await page.$eval('table.triable tbody tr td', (td) => td.textContent), 'modele-a', 'modèles triés par coût');
   await page.click('.entete .puce:has-text("7 j")');
   await page.waitForFunction(() => document.querySelectorAll('svg.histo rect').length === 7);
