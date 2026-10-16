@@ -30,6 +30,22 @@ test('ulid : 26 caractères, triable, déterministe avec une graine', () => {
   assert.notEqual(ulid(1000), ulid(1000));
 });
 
+// Relecture du lot 2 de Chiffres (point 11) : sans graine, l'identifiant prenait l'heure et un hasard. L'horloge du poste a
+// reculé (2,6 s toutes les 30 s) : un `rule.resolved` émis après son `rule.violated` prenait un identifiant plus petit, et
+// `ecartsOuverts`, qui suit l'ordre des identifiants, laissait l'écart ouvert. Dans un processus, l'identifiant croît.
+test('ulid : sans graine, croissant dans un processus, à la même milliseconde comme après un recul de l’horloge', () => {
+  const t = Date.parse('2026-10-16T18:00:00Z');
+  const ids = [ulid(t), ulid(t), ulid(t - 2600), ulid(t - 2600), ulid(t + 1)];
+  assert.deepEqual([...ids].sort(), ids, 'dans l’ordre d’émission');
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(ulid(1000, 'x'), ulid(1000, 'x'), 'avec une graine, rien ne change');
+  // Un écart vu, puis résolu après un recul : il ne reste pas ouvert.
+  const donnees = tmp(); const s = new Socle({ site: 'local', donnees, web: {}, tarifs: {}, inventaire: {}, import: {} });
+  const ecart = (kind, ms) => ({ id: ulid(ms), at: new Date(ms).toISOString(), kind, actor: 'system:audit', subject: 'holarch:project:p', data: { regle: 'r', controle: 'c', cle: 'k' }, classification: 'internal' });
+  s.journal.ajouter([ecart('rule.violated', t + 10), ecart('rule.resolved', t + 10 - 2600)]); s.indexer();
+  assert.deepEqual(s.ecartsOuverts(), []);
+});
+
 test('contrat événement : site obligatoire, acteur typé', () => {
   assert.equal(valider('evenement', { ...ev(), site: 'local' }), null);
   assert.match(valider('evenement', ev()), /site/);
