@@ -1328,6 +1328,25 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   renommage : `consommation(par: 'jour').cle` est le jour local du poste (il était UTC) ; un projet retiré porte un nom
   (`consommation`, `sessions`, `arbre`) là où il valait `null` ; `sessions` accepte un projet retiré (l'outil MCP
   `projets` le refuse encore).
+- **Fait (2026-10-16, soir)** : relecture du lot 2 par quatre instances en lecture seule, constats vérifiés par l'agent
+  (détail : `revue-limites.md`, « Chiffres, lot 2, relecture »). Une régression de 238 (`projet creer` derrière un
+  inventaire en cours journalisait un faux écart), le nom trompeur d'un retiré, la spécification non tenue, des tests
+  qui passaient à tort ; cause des suites rouges établie : l'horloge du poste recule d'environ 2,6 s toutes les 30 s
+  (330 reculs en 9 916 s, `dmesg`), et la production a le même défaut (un arbre changé juste après un inventaire passe
+  pour à jour, la garde peut ignorer une règle bloquante neuve). Choix de l'auteur (recommandations suivies) : les huit
+  corrections de relecture, et l'empreinte de l'arbre au lieu de « plus récent que le catalogue ». Six faites par une
+  instance neuve, non relues (`19eead4` à `5d1711a` : audit de la création laissé à l'inventaire en cours, nom `null`
+  pour un dossier de départ qui est ou contient un projet, champs écrits ci-dessus, jour local de l'audit et du journal
+  d'un projet créé, coût d'un jour par `coutsDeSessions`, `git status` en échec). L'instance a été arrêtée à 17 h 17 par
+  une interruption de la session, sans signal ; son point 7a, inachevé, est dans `git stash` (« lot 2, point 7a en
+  cours »). Brouillons du 2026-10-09 tranchés : `idees-fondatrices` réécrite courte et approuvée (manifeste, B6, B7,
+  racine ; `093d814`), `modules-et-palliatifs` versée à la revue (état écrit dans la décision).
+  Suite, dans l'ordre : (1) par une instance neuve, les points restants, consigne dans `revue-limites.md` : 7 (tests qui
+  prouvent : V1 depuis la remise, échappement d'un nom de retiré au test visuel, GET de l'interface), 8 (commentaire du
+  seuil), 9 (empreinte de l'arbre), 10 (tests datés sur le catalogue), 11 (identifiant d'événement croissant dans un
+  processus) ; (2) relecture des commits du lot 2 et des corrections, `npm test`, test visuel, pose, audit, envoi sur
+  autorisation ; (3) revue d'ensemble (cadre ci-dessus), sa première question à l'auteur : Q28 (ce qu'il a observé pour
+  B6 et B7, durée de B7) ; (4) règle « recommander par l'objectif » en brouillon.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

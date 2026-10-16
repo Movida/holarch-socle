@@ -260,6 +260,43 @@ pour retiré (0 cas) ; Journal et fiche d'un projet retiré ; MCP `projets` qui 
 `?modele=` sur 90 jours ; `jours_actifs` et quatre dates encore en UTC (`jours_actifs` mesure un critère de décision :
 à demander) ; plage de l'histogramme au fuseau du navigateur ; noms de tests « session lourde ».
 
+**Chiffres, lot 2, relecture** (2026-10-16, soir ; quatre instances en lecture seule, lignes au commit `3bedb19`,
+constats principaux vérifiés par l'agent). Choix de l'auteur (choix cliquable, recommandations suivies) : huit
+corrections, et l'empreinte pour l'horloge. Faits par une instance neuve, non relus : (1) `19eead4`, régression de 238 :
+`projet creer` derrière un inventaire en cours écrivait les règles d'après l'arbre frais puis auditait sur l'index
+(faux `regles-a-jour` journalisé) ; l'audit se note « à faire », comme `rafraichir`. (2) `cdb7a4b`, un dossier de
+départ qui est ou contient un projet du catalogue, ou vide (`/`), ne nomme pas un retiré (sur le poste : le dossier
+personnel). (3) `374c49a`, champs dans la spécification. (4) `ae8099c`, `jourLocal` commun : retrait daté par l'audit
+(`audit.js:157`) et titre du journal d'un projet créé (`creation.js:203`, faux écart `journal-tenu` entre 0 h et 2 h).
+(5) `7ad0877`, `sessions({jour})` par `coutsDeSessions`. (6) `5d1711a`, `git status` en échec garde la valeur et la
+date du catalogue. Restent, consigne pour l'instance suivante (un commit et un test chacun, rouge avant) : (7) tests qui
+passent à tort : a. V1, six mutants verts (premier retrait au lieu du dernier, `socle.js:254` ; `new Set` d'une session
+sur deux retirés, `:375` ; `arbre()` sans le nom commun, `:569` ; `rule.enforced` hors du groupe, `:446` ; échec compté
+deux fois, `:438` ; filtre `site=?` des retraits), renfort commencé dans `git stash` (« point 7a », non éprouvé) ; b.
+X3 (`garde-fous.test.js:140`) ne voit pas `h()` retiré autour de `p.nom || p.id` et `date(p.retire_le)` (`app.js:135`) :
+nom `<b>x</b>` au retiré du test visuel ; c. une route GET qui appellerait `arbreAJour` resterait verte : un aller GET
+par `creerServeur`, catalogue et journal inchangés à l'octet. (8) Commentaire faux `socle.js:192` : le seuil de l'alerte
+est posé (`--seuil`, `regles-claude-code.js:114`) et ne change qu'au prochain `regles appliquer`. (9) Empreinte de
+l'arbre : `arbreModifieDepuis` (`inventaire/arbre.js:73-83`) compare `mtimeMs > date du catalogue` ; l'inventaire
+prend, avant de lire l'arbre, chemins, dates et tailles, les range dans l'instantané (format hors contrat :
+`fiche-catalogue.md` ne décrit que les fiches) ; « changé » devient « empreinte différente » ; test sans toucher à
+l'horloge (catalogue daté 3 s dans le futur, règle ajoutée vue). (10) Tests datés sur l'horloge (`etape3.test.js:570`,
+`:1217`, `:965-985` ; `garde-fous.test.js:214`, `:259`, `:2339`) : sur la date du catalogue, ou rendus inutiles par (9).
+(11) `ulid.js:7-8` sans graine : croissant dans un processus (après un recul, un `rule.resolved` passait avant son
+`rule.violated`, `ecartsOuverts` trie par `id`, `audit.js:122`) ; d'un processus à l'autre, rien ne change.
+Mesures de l'enquête : 33 rouges sur 4 867 lancements de quatre tests, chacun pendant un recul de plus de 500 ms ;
+en production, une règle ajoutée 300 ms après un inventaire n'est pas vue (2 213 ms avant la date du catalogue) ;
+`[À COMPLÉTER : depuis quand l'horloge du poste recule]` ; geste de l'auteur proposé : `wsl --shutdown`, puis compter
+les reculs (`dmesg`), puis, s'ils restent, la source d'horloge `hyperv_clocksource_tsc_page`. Le rouge ancien du test
+« un commit fautif est refusé » (2026-10-07) : hypothèse faible, `/tmp` partagé avant `638572f`. Voisins vus, versés à
+la revue d'ensemble : `fiche(id)` lit l'index (un nœud neuf de l'Arbre s'ouvre « Introuvable ») ; huit appels de git par
+projet, synchrones (261 à 392 ms pour 10 projets ; la reprise paie les 10 pour en lire un) ; `contexte debut` inventorie
+encore (`bin/holarch.js:209`, choix de l'auteur) ; `hors_projet` sans `echecs_7` (forme différente de `retires`) ;
+Journal qui nomme un projet par `data.projet` (`app.js:186`) ; outil MCP `projets` qui refuse un retiré, `sessions` sans
+`jour` ; deux appels de `sessions()` dans la vue filtrée ; histogramme : un jour partiel compté dans `max` et le total
+(110,08 $ cachés à 7 jours) ; description MCP de `contexte.lourdes` ; `lu_a` heure et non source ; dates de la récolte
+et `--jusqua` en UTC ; fuseau d'un serveur en conteneur `[À COMPLÉTER : un serveur holarch tourne-t-il en UTC ?]`.
+
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur
 Tailscale retirée (le téléphone n'y était plus vu depuis le 2026-10-07 ; seul le serveur d'un projet privé, membre,

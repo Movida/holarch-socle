@@ -2,6 +2,23 @@
 
 ## 2026-10-16
 
+* **Relecture du lot 2, horloge du poste, brouillons fondateurs tranchés** (environ 195 k tokens de contexte pour
+  l'agent ; relecture par quatre instances en lecture seule, environ 950 k en tout ; instance de correction arrêtée) :
+  constats vérifiés dans le code, détail dans `revue-limites.md` (« Chiffres, lot 2, relecture »). Une régression de 238
+  (faux écart journalisé par `projet creer` derrière un inventaire), le nom trompeur d'un retiré, la spécification non
+  tenue, six mutants verts ; cause des suites rouges : l'horloge du poste recule d'environ 2,6 s toutes les 30 s, et la
+  production a le même défaut (la garde peut ignorer une règle neuve). Choix de l'auteur, recommandations suivies : huit
+  corrections et l'empreinte de l'arbre ; six faites (`19eead4` à `5d1711a`), non relues ; le reste consigné, le
+  point 7a dans `git stash`. `idees-fondatrices` réécrite courte, approuvée (« Ce que tu proposes me convient »), appliquée
+  au manifeste, aux besoins (B6, B7) et à la racine (`093d814`) ; `modules-et-palliatifs` versée à la revue. Rien posé,
+  rien envoyé. Leçon : déroulé annoncé en cinq temps (relecture, nom trompeur, tests et pose, journal et envoi,
+  brouillons) ; tenus le premier et le dernier, le deuxième par l'instance, les troisième et quatrième en passation. Ce
+  qui l'a fait dévier : l'enquête sur les rouges a trouvé un défaut de production, d'où un chantier de plus ; une
+  réponse libre à un choix cliquable perdue (l'outil a gardé une option non choisie, l'auteur l'a dit) ; l'instance de
+  correction arrêtée par l'interruption de la session à 17 h 17, vue une heure et demie plus tard faute de signal ; le
+  contexte passé au-delà du seuil pendant l'attente. La demande qui y aurait mené : « relire le lot 2 et chercher la
+  cause des rouges dans cette session ; coder les corrections à la suivante ».
+
 * **Lot 2 de Chiffres, et une revue d'ensemble demandée** (environ 175 k tokens de contexte pour l'agent ; instance
   neuve : 476 k, soit 60 k par point) : bibliothèques du test visuel posées sans `sudo` (empreintes conformes
   à l'index apt) ; le test visuel échouait sur ses données fictives, d'avant `profil-designe` (`ae4c6ee` ; l'interface
