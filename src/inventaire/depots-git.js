@@ -46,12 +46,30 @@ export function racine(d) {
 }
 
 // État de travail d'un dépôt : fichiers modifiés ou non suivis, écart à la branche amont (« retard avance » ; sans
-// branche amont, rien : la branche n'a jamais été poussée). Lu par l'inventaire et, en direct, par le résumé de reprise.
+// branche amont, rien : la branche n'a jamais été poussée). Lu par l'inventaire et, en direct, par `technique`.
 export function etatDepot(d) {
   const fichiers_modifies = (gitInventaire(d, ['status', '--porcelain']) || '').split('\n').filter(Boolean).length;
   const amont = gitInventaire(d, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
   const [retard, avance] = amont ? (gitInventaire(d, ['rev-list', '--left-right', '--count', '@{upstream}...HEAD']) || '').split(/\s+/).map(Number) : [];
   return { fichiers_modifies, amont: amont || null, en_avance: Number.isFinite(avance) ? avance : null, en_retard: Number.isFinite(retard) ? retard : null };
+}
+
+// Date du dernier `fetch` : celle de FETCH_HEAD, dans le dossier git commun aux worktrees (`commun`), null sans fetch.
+const dossierCommun = (d) => gitInventaire(d, ['rev-parse', '--git-common-dir']);
+const dernierFetch = (d, commun = dossierCommun(d)) => (commun ? mtimeIso(path.join(path.resolve(d, commun), 'FETCH_HEAD')) : null);
+
+/**
+ * État technique d'un projet pour les lectures (vue Projets, tableau de bord, reprise ; décision
+ * sorties-mcp-des-chiffres, V2) : lu en direct dans `depot` quand ce chemin existe, sinon celui que porte sa fiche au
+ * catalogue (`attributs`). `lu_a` dit d'où vient la valeur : l'heure de la lecture directe, ou la date du catalogue
+ * (`date`, null sans catalogue daté). Un chemin qui n'est pas (ou plus) un dépôt que git lit ne vaut pas zéro : la
+ * valeur du catalogue reste. La seule lecture de l'état d'un dépôt hors de l'inventaire.
+ */
+export function technique(depot, attributs = {}, { date = null } = {}) {
+  const commun = depot && fs.existsSync(depot) ? dossierCommun(depot) : null;
+  if (commun) return { ...etatDepot(depot), dernier_fetch: dernierFetch(depot, commun), integration_continue: integrationContinue(depot), lu_a: new Date().toISOString() };
+  const a = attributs || {};
+  return { fichiers_modifies: a.fichiers_modifies ?? 0, amont: a.amont ?? null, en_avance: a.en_avance ?? null, en_retard: a.en_retard ?? null, dernier_fetch: a.dernier_fetch ?? null, integration_continue: a.integration_continue ?? null, lu_a: date };
 }
 
 // Intégration continue déclarée dans le dépôt : la configuration présente, pas la preuve qu'elle tourne (une
@@ -102,14 +120,13 @@ export default function inventaireDepots(options, ctx) {
       .map((l) => { const [nom, url] = l.split(/\s+/); return { nom, url: urlSure(url) }; });
     const dernier = gitInventaire(d, ['log', '-1', '--format=%cI%x09%s']);
     const [date, sujet] = dernier ? dernier.split('\t') : [null, null];
-    const commun = gitInventaire(d, ['rev-parse', '--git-common-dir']);
     return {
       id: ids.get(d), kind: 'project', name: path.basename(d),
       description: sujet ? `dernier commit : ${sujet.slice(0, 120)}` : null, status: 'active',
       provenance: { source: 'inventaire:depots-git' }, classification: 'internal', site: ctx.site, location: d,
       usage: { count: 0, last_used: date || null, cost_usd: null },
       attributes: { branche: gitInventaire(d, ['rev-parse', '--abbrev-ref', 'HEAD']), remotes, ...etatDepot(d), integration_continue: integrationContinue(d), dernier_commit: date,
-        dernier_sujet: sujet ? sujet.slice(0, 160) : null, dernier_fetch: commun ? mtimeIso(path.join(path.resolve(d, commun), 'FETCH_HEAD')) : null },
+        dernier_sujet: sujet ? sujet.slice(0, 160) : null, dernier_fetch: dernierFetch(d) },
     };
   });
   amorcer(ctx, fiches);

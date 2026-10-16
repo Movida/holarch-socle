@@ -61,3 +61,35 @@ test('238 : règles, projets, arbre et seuil de passation se lisent frais, une f
   const appels = (f) => { n = 0; f(); return n; };
   assert.deepEqual([appels(() => s.etat()), appels(() => s.projets()), appels(() => s.regles()), appels(() => resume(s, d))], [1, 1, 1, 1]);
 });
+
+// V2 (décision sorties-mcp-des-chiffres) : l'état du dépôt était celui du dernier inventaire dans l'interface et le MCP, et
+// lu en direct dans la reprise (deux chiffres pour la même chose). Lu en direct partout quand le chemin existe, sinon
+// celui du catalogue ; `technique.lu_a` dit d'où vient la valeur. Une seule fonction pour la vue, le tableau de bord et
+// la reprise.
+import { spawnSync } from 'node:child_process';
+const git = (d, ...a) => { const r = spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
+test('V2 : l’état du dépôt se lit en direct dans la vue Projets, le tableau de bord et la reprise ; lu_a dit d’où il vient', () => {
+  const d = path.join(tmp(), 'depot'); fs.mkdirSync(d);
+  git(d, 'init', '-q'); git(d, 'config', 'user.name', 'Alice Exemple'); git(d, 'config', 'user.email', 'alice@exemple.test'); git(d, 'config', 'commit.gpgsign', 'false');
+  ecrire(path.join(d, 'note.md'), 'un\n'); git(d, 'add', '.'); git(d, 'commit', '-qm', 'départ');
+  const donnees = tmp();
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: {}, import: {}, inventaire: {} });
+  const projet = (nom, location, attributes) => ({ id: `holarch:project:${nom}`, kind: 'project', name: nom, status: 'active', site: 'local', location, provenance: { source: 't' }, attributes });
+  s.catalogue.remplacer([projet('depot', d, { branche: 'main', fichiers_modifies: 0, amont: null }), projet('absent', path.join(tmp(), 'parti'), { fichiers_modifies: 2, amont: 'origin/main', en_avance: 1, en_retard: 0 }),
+    projet('sans-git', tmp(), { fichiers_modifies: 3 })]);
+  s.indexer();
+  const date = new Date(s.catalogue.date()).toISOString();
+  ecrire(path.join(d, 'note.md'), 'deux\n'); // après l'inventaire : non commité
+  const avant = new Date().toISOString();
+  const vue = Object.fromEntries(s.projets().projets.map((p) => [p.nom, p.technique]));
+  const apres = new Date().toISOString();
+  assert.equal(vue.depot.fichiers_modifies, 1, 'lu en direct');
+  assert.ok(vue.depot.lu_a >= avant && vue.depot.lu_a <= apres, `l’heure de la lecture directe : ${vue.depot.lu_a}`);
+  assert.deepEqual(vue.absent, { fichiers_modifies: 2, amont: 'origin/main', en_avance: 1, en_retard: 0, dernier_fetch: null, integration_continue: null, lu_a: date }, 'chemin absent : la valeur du catalogue, datée');
+  assert.deepEqual([vue['sans-git'].fichiers_modifies, vue['sans-git'].lu_a], [3, date], 'un chemin que git ne lit pas ne vaut pas zéro');
+  const sales = s.etat().projets_sales;
+  assert.deepEqual(sales.map((x) => [x.name, x.n]), [['sans-git', 3], ['absent', 2], ['depot', 1]]);
+  assert.equal(sales[1].lu_a, date); assert.ok(sales[2].lu_a >= avant);
+  // La reprise dit le même chiffre que la vue.
+  assert.match(resume(s, d), /Dépôt : 1 fichier\(s\) non commité\(s\), 0 commit\(s\) non poussé\(s\)\./);
+});

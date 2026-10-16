@@ -17,6 +17,7 @@ import { ulid } from './ulid.js';
 import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
 import { racineIndex } from './creation.js';
 import inventaireArbre, { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
+import { technique } from './inventaire/depots-git.js';
 import { trouverOutil, binaireClaude, ecrireSansLien, prendreVerrou, tourPasse } from './commun.js';
 
 // Parts d'une session entre ses projets, au prorata des appels : [[id, part, nom]] ; hors projet : [[null, 1, null]].
@@ -165,7 +166,8 @@ export class Socle {
       evenements: q('SELECT COUNT(*) n FROM evenements')[0].n,
       // Mémoires identiques (même nom et même description) dans plusieurs projets : copie oubliée ou savoir à remonter.
       memoires_doubles: q("SELECT name, COUNT(*) n, group_concat(coalesce((SELECT p.name FROM fiches p WHERE p.id=json_extract(m.json,'$.links.project[0]')), json_extract(m.json,'$.attributes.projet_claude')), ', ') projets FROM fiches m WHERE kind='memory' GROUP BY name, coalesce(description,'') HAVING n>1 ORDER BY n DESC"),
-      projets_sales: q("SELECT name, json_extract(json,'$.attributes.fichiers_modifies') n FROM fiches WHERE kind='project' AND (site IS NULL OR site=?) AND n>0 ORDER BY n DESC", this.config.site),
+      // Lu en direct comme la vue Projets (`technique`, V2) ; `lu_a` dit d'où vient le chiffre.
+      projets_sales: this.techniques().map(([f, t]) => ({ name: f.name, n: t.fichiers_modifies, lu_a: t.lu_a })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n),
       contexte: this.contexte(),
     };
   }
@@ -200,6 +202,13 @@ export class Socle {
   // qui l'a inventorié ; ailleurs, son nom rendrait ambigu celui d'un projet d'ici, et son chemin pourrait rattacher une
   // session. Une fiche sans site (ce qui vit dans Git, contrat fiche) vaut partout.
   projetsDuSite() { return this.fiches({ kind: 'project' }).filter((f) => !f.site || f.site === this.config.site); }
+
+  // L'état technique de chaque projet du site, [[fiche, technique]] : en direct quand son chemin existe, sinon celui du
+  // catalogue, daté (`technique`, décision sorties-mcp-des-chiffres, V2). La vue Projets et le tableau de bord le lisent ici.
+  techniques() {
+    const d = this.catalogue.date(); const date = d ? new Date(d).toISOString() : null;
+    return this.projetsDuSite().map((f) => [f, technique(f.location, f.attributes, { date })]);
+  }
 
   fiches({ kind = null, q = null } = {}) {
     let sql = 'SELECT json FROM fiches WHERE 1=1'; const p = [];
@@ -297,6 +306,7 @@ export class Socle {
     const echecs = this.echecs({ jours: 7 }).par_projet;
     const ecarts = new Map();
     for (const o of this.ecartsOuverts()) if (o.projet) ecarts.set(o.projet, (ecarts.get(o.projet) || 0) + 1);
+    const techniques = new Map(this.techniques().map(([f, t]) => [f.id, t]));
     const liste = fiches.map((f) => {
       const a = f.attributes || {};
       const ns = noeuds.filter((n) => n.links?.project?.includes(f.id));
@@ -309,7 +319,7 @@ export class Socle {
       const act = activite.get(f.id) || null;
       const p = {
         id: f.id, nom: f.name, chemin: f.location ?? null, branche: a.branche ?? null,
-        technique: { fichiers_modifies: a.fichiers_modifies ?? 0, amont: a.amont ?? null, en_avance: a.en_avance ?? null, en_retard: a.en_retard ?? null, dernier_fetch: a.dernier_fetch ?? null, integration_continue: a.integration_continue ?? null },
+        technique: techniques.get(f.id),
         dernier_commit: a.dernier_commit ? { at: a.dernier_commit, sujet: a.dernier_sujet ?? null } : null,
         arbre: ns.length > 0,
         etape: courante ? { id: courante.id, numero: courante.attributes.etape, titre: courante.name, close: close(courante), faits: faits.length,
