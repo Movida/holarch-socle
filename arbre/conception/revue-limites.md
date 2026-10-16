@@ -220,6 +220,46 @@ se renomme ; `retires` (nom porté par `element.retired`, contrat événement 0.
 plus fréquent), `technique.lu_a`, `tours_session`, `inconnus`. Approuvée telle quelle le même jour (choix cliquable) ;
 le lot 2 se code dessus.
 
+**Chiffres, lot 2 : choix de l'auteur du 2026-10-16** (un tour, recommandations suivies ; ces quatre points, que la
+décision ne couvre pas, n'avaient pas été demandés le 2026-10-14). Ligne 238 : relire en mémoire (`arbreFrais`, lecture
+pure), jamais un inventaire depuis une lecture ; la page Catalogue reste à l'heure. V6 : jour local du poste partout
+(mesure : 167,90 $ sur 3 697,45 $ et 58 sessions sur 907 changent de jour en 30 jours, sur 6 jours). V7 : renommer
+(« au-dessus du seuil en moyenne par tour »), la mesure reste celle de `passation-sereine`. V9 : différé, rangé avec
+Veille et outillage (interface non ouverte depuis le 2026-10-07, plus publiée sur Tailscale) ; à reprendre si elle est
+republiée pour le téléphone. V5 suit le palliatif du relevé. Contrat événement 0.11.0 écrit (`c2a6577`). Test visuel :
+bibliothèques de Chromium posées sans `sudo` (`apt-get download`, empreintes conformes à l'index apt, extraites dans
+`~/.local/lib/test-visuel`, chargées par `LD_LIBRARY_PATH` ; à retirer après `sudo apt install -y libnss3
+libasound2t64`) ; ses données fictives dataient d'avant `profil-designe` et `garde-sans-passage-muet` (aucune règle ne
+s'appliquait), corrigées (`ae4c6ee`).
+
+**Chiffres, lot 2** (codé le 2026-10-16 par une instance neuve, environ 476 k tokens ; relecture commit par commit
+reportée à la session suivante, choix de l'auteur), huit commits (`b69dca4` à `3bedb19`), chaque test rouge sur son
+parent, mutants rouges (diff vérifié). `b69dca4` 238 : `projets`, `regles`, `arbre` et `contexte` lisent un seul
+`arbreFrais()` par lecture (reprise, `appliquerRegles` et audit le passent) ; catalogue et journal inchangés à l'octet.
+`e3530d3` V2 : `technique()` partagée (`depots-git.js`), `technique.lu_a` et `projets_sales[].lu_a`. `8467c4e` V1 :
+`element.retired` porte `{name, location?}` ; `nomsDeProjets()` commune ; `projets().retires` (`activite` avec
+`echecs_7`, `projets: [{id, nom, retire_le}]`), ligne de la vue Projets. `a2bf0d5` V3 : `tours_session`. `5e3be07`
+239 a : `inconnus`. `fecdcf1` V5 : `sessions().part` (filtrée par projet), `coutsDeSessions()` commune avec
+`consommation`, liens qui portent leur période (`&jours=`). `c4f724c` V6 : jour local (`date(at,'localtime')`, Node et
+SQLite suivent `TZ`, sinon `/etc/localtime`, Europe/Paris ici et pour le service), `sessions({jour})` avec `usd_jour`
+et `sortie_jour`. `3bedb19` V7 : libellé. Sens changés sans renommage : `consommation(par: 'jour').cle` en jour local ;
+un projet retiré porte un nom là où il valait `null` ; `sessions` accepte un projet retiré. Effet de bord de 238 :
+`projet creer` dit l'étape des règles « faite » au lieu de « à rejouer » derrière un inventaire en cours. 271 tests
+verts, test visuel vert (revérifiés par l'agent). Copie de service non posée (reste `dcfd200`) avant la relecture.
+Mesures (copie en lecture seule) : V1, 2 retirés, 222,06 $ et 21 sessions en 30 jours, 44 échecs ; bouclage 3 697,45 $
+des deux côtés ; nom tiré du dossier de départ : le nom d'un projet personnel pour l'un, et le dossier personnel pour l'autre, trompeur :
+la décision dit alors `null` (« ce qui le ferait changer ») ; à faire à la relecture (trivial). 238 : `arbreFrais` 4 ms
+sans changement, 35 ms après un changement. V2 : 1 projet sur 10 diffère ; `projets()` de 634 à 924 ms, `etat()` de 639
+à 965 ms (`sessions(30 j)` en prend 620). V6 : 5 jours sur 23 diffèrent de plus de 5 %. À regarder : 3 suites rouges sur
+environ 25 lancements, trois tests qui datent des fichiers 2 s dans le futur face à la date du catalogue (0 sur 6 sur
+`c2a6577`, 0 sur 30 ciblés) ; `c4f724c` commité après un lancement rouge ; cause `[À COMPLÉTER : horloge de WSL ?]`,
+palliatif faible (dater le catalogue dans ces tests). Voisins vus, non codés, versés à la revue d'ensemble : Catalogue,
+fiche et `audit()` lisent encore l'index ; `branche` et `dernier_commit` du catalogue ; `git status` en échec compté 0
+(trivial) ; `sessions()` à 620 ms (moyen) ; échecs hors projet comptés nulle part (trivial) ; projet ré-identifié pris
+pour retiré (0 cas) ; Journal et fiche d'un projet retiré ; MCP `projets` qui refuse un retiré ; `recolte` ; liens
+`?modele=` sur 90 jours ; `jours_actifs` et quatre dates encore en UTC (`jours_actifs` mesure un critère de décision :
+à demander) ; plage de l'histogramme au fuseau du navigateur ; noms de tests « session lourde ».
+
 **Gestes** : analyse des secrets et protection à l'envoi déjà actives sur les quatre dépôts publics (l'API ne rend
 aucun réglage pour les privés) : ligne « commit hors du clone » levée pour les secrets. Interface : publication sur
 Tailscale retirée (le téléphone n'y était plus vu depuis le 2026-10-07 ; seul le serveur d'un projet privé, membre,

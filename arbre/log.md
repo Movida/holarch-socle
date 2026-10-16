@@ -2,6 +2,26 @@
 
 ## 2026-10-16
 
+* **Lot 2 de Chiffres, et une revue d'ensemble demandée** (environ 175 k tokens de contexte pour l'agent ; instance
+  neuve : 476 k, soit 60 k par point) : bibliothèques du test visuel posées sans `sudo` (empreintes conformes
+  à l'index apt) ; le test visuel échouait sur ses données fictives, d'avant `profil-designe` (`ae4c6ee` ; l'interface
+  n'avait pas changé depuis le 2026-10-10). Quatre points du lot 2 sans choix de l'auteur (238, V6, V7, V9), jamais
+  demandés le 2026-10-14 : choisis en un tour, recommandations suivies. Contrat événement 0.11.0 (`c2a6577`). Lot 2 par
+  une instance neuve : huit commits (`b69dca4` à `3bedb19`), 271 tests verts, test visuel vert ; relecture, copie de
+  service et nom trompeur d'un retiré (le dossier personnel) à la session suivante ; trois suites rouges sur 25, cause inconnue. L'auteur craint que la
+  conception point par point, aux recommandations souvent les moins chères, perde la cohérence et les objectifs ; avis
+  de l'agent, en partie d'accord, faits à l'appui (avancement de l'étape 3) ; choix : aucun nouveau lot avant une revue
+  d'ensemble, les deux brouillons du 2026-10-09 tranchés d'abord, règle « recommander par l'objectif » en brouillon.
+  Puis, à sa question sur les causes de la boucle conception, audit, reconception : diagnostic de l'agent en cinq
+  hypothèses (objectifs sans critère, travail guidé par les défauts, pas de carte d'ensemble, construction plus large
+  que l'usage, garde-fous en texte), retenu comme cadre de la revue (avancement de l'étape 3).
+  Leçon : déroulé annoncé en quatre temps (bibliothèques et test visuel, choix, lot 2 et relecture, clôture) ; tenus les
+  deux premiers, le troisième sans relecture, le quatrième en passation. Ce qui l'a fait dévier : un test visuel cassé
+  sans signal faute de navigateur, quatre choix que la passation du 14 croyait faits (« recommandations suivies » portait
+  sur la composition du lot, pas sur ses alternatives), puis la question de fond de l'auteur, le contexte passé au-delà
+  du seuil pendant que l'instance codait. La demande qui y aurait mené : « avant tout lot, vérifier que chaque point a son
+  choix et que le test visuel passe ; et, avant la suite des familles, une revue d'ensemble ».
+
 * **`holarch service poser` nomme les tests qui le font refuser** (essai du site de travail) : une pose a refusé pour
   « npm test rouge (code 1) », puis la suite est passée six fois de suite ; le test en cause n'a pas pu être retrouvé.
   `node --test` écrit ses échecs sur stdout, alors que le refus ne lisait que la fin de stderr. La liste « ✖ failing

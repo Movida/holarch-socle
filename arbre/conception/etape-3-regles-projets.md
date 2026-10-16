@@ -1284,6 +1284,38 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   (`libnss3`, `libnspr4`, `libasound`) : `sudo` demande un mot de passe que la session ne peut pas saisir ; choix de
   l'auteur : l'agent les pose sans `sudo` en tête de la session suivante (`apt-get download`, extraites dans
   `~/.local`, chargées par `LD_LIBRARY_PATH` ; à retirer après une installation par apt).
+- **Fait (2026-10-16)** : bibliothèques du test visuel posées sans `sudo` (`~/.local/lib/test-visuel`), test visuel
+  rendu vert (données fictives d'avant `profil-designe`, `ae4c6ee`) ; choix de l'auteur sur 238, V6, V7 et V9
+  (`revue-limites.md`) ; contrat événement 0.11.0 (`c2a6577`) ; lot 2 codé par une instance neuve (`b69dca4` à `3bedb19`,
+  huit commits, 271 tests verts, test visuel vert ; relecture, nom trompeur d'un retiré (le dossier personnel) et copie de service à la session suivante ;
+  détail : `revue-limites.md`, « Chiffres, lot 2 »). Inquiétude de l'auteur : la conception point par point, aux recommandations souvent
+  les moins chères, perd de vue la cohérence et les objectifs. Avis de l'agent, faits à l'appui : tri des limites par
+  coût du palliatif ; trois des quatre choix du jour et la décision du 14 (champs ajoutés plutôt qu'un contrat des
+  sorties) vont au moins cher ; chiffres corrigés sur une interface non ouverte depuis le 2026-10-07 ; les deux
+  brouillons du 2026-10-09 (`idees-fondatrices`, `modules-et-palliatifs`), qui portent la revue des fondations et la
+  revue page blanche, jamais resoumis. Choix de l'auteur (recommandations suivies) : le lot 2 finit ; aucun nouveau lot
+  avant une revue d'ensemble ; règle en brouillon. Suite, dans l'ordre : (1) relire les commits du lot 2, tests, test
+  visuel, pose, audit, envoi sur autorisation ; (2) trancher `idees-fondatrices` et `modules-et-palliatifs` ; (3) revue
+  d'ensemble par une instance neuve en lecture seule, du haut vers le bas (intentions de l'auteur lues dans ses messages
+  avant les fondations, besoins, ce que sert chaque module et son usage mesuré, doublons, rustines accumulées, choix
+  « au plus simple » à reprendre), rendue en carte et en liste classée par valeur pour les objectifs, pas par coût ;
+  (4) règle en brouillon soumise en récapitulatif : une recommandation dit l'objectif qu'elle sert et, quand elle
+  retient la voie la moins chère, la voie juste et ce qu'on y perd. Cadre de la revue (choix de l'auteur : « ne pas être
+  obligé de s'inquiéter » d'une boucle conception, audit, reconception) : cinq hypothèses de l'agent, à mesurer, d'où une
+  décision en brouillon commençant par les critères. (a) Objectifs sans critère « servi quand » (B6 et B7 `[À
+  COMPLÉTER]`, étape 3 sans critère de clôture) : la seule mesure devient le défaut. (b) Travail guidé par les défauts
+  (101 limites triées par coût du palliatif, voisins des voisins, une régression le 2026-10-14) : une limite se jugerait
+  d'abord par son effet sur un critère, sans effet acceptée et écrite. (c) Pas de carte des modules et mécanismes
+  communs consultée avant de décider (`PATH` réduit cassé quatre fois, six écritures non atomiques, deux définitions
+  d'un processus vivant). (d) Construction plus large que l'usage (12 tranches ; interface sans vue depuis le
+  2026-10-07, MCP une fois par jour) : geler ce qui ne sert pas. (e) Garde-fous en texte, qui sautent (test visuel cassé
+  sans signal, quatre choix perdus à la passation, deux brouillons fondateurs dormants, sessions de 160 à 245 k pour une
+  trentaine de règles chargées) : contrôles qui bloquent ou s'affichent à la reprise, sessions à une intention. L'auteur
+  n'arbitrerait plus que les critères à l'ouverture d'une étape et les décisions qui changent la carte. Entrée possible
+  de la revue (proposée par l'auteur) : les principes d'un projet de gouvernance de l'IA qu'il mène pour sa société,
+  collés par lui en quelques lignes, confrontés aux hypothèses avec les cadres publics (ISO/IEC 42001 : objectifs,
+  revue de direction, risque accepté, action corrective sur la cause ; NIST AI RMF) ; principes seulement, reformulés,
+  aucun contenu de la société dans ce dépôt, et rien qui élargisse le périmètre (hypothèse d).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
