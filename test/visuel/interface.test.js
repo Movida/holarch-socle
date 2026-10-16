@@ -33,9 +33,10 @@ function donneesFictives() {
   // Des jours sans activité au milieu de la plage : l'histogramme doit les montrer à zéro.
   [[1, 0, 'projet-a', 9e5], [2, 2, 'projet-b', 3e6], [3, 9, 'projet-a', 4e5], [4, 20, 'projet-c', 2e5], [5, 2, 'projet-c', 1e5, 'modele-sans-tarif']]
     .forEach(([n, j, p, o, m]) => session(n, j, p, o, m));
-  // Un projet retiré du catalogue (V1) : des sessions le portent, son retrait porte son nom (contrat événement 0.11.0).
+  // Un projet retiré du catalogue (V1) : des sessions le portent, son retrait porte son nom (contrat événement 0.11.0). Un
+  // nom fait de balises : la page l'affiche en texte (X3 ne voit pas un `h()` retiré autour d'une expression).
   session(6, 3, 'ancien-projet', 5e4, 'modele-a', { projets: [{ id: 'holarch:project:ancien', n: 2 }] });
-  ev.push({ id: ulid(Date.parse(il_y_a(5, 10)), 'retrait'), at: il_y_a(5, 10), kind: 'element.retired', actor: 'system:inventaire', subject: 'holarch:project:ancien', data: { name: 'ancien-projet', location: '/ws/ancien-projet' } });
+  ev.push({ id: ulid(Date.parse(il_y_a(5, 10)), 'retrait'), at: il_y_a(5, 10), kind: 'element.retired', actor: 'system:inventaire', subject: 'holarch:project:ancien', data: { name: '<b>x</b>', location: '/ws/ancien-projet' } });
   // Un coût à 23 h 30 UTC (V6) : 1 h 30 à Paris, il compte au jour local suivant (celui de la session 6).
   ev.push({ id: ulid(Date.parse(il_y_a(4, 23.5)), '7c'), at: il_y_a(4, 23.5), kind: 'cost.recorded', actor: 'agent:claude-code/modele-a', correlation: 'session-7', data: { projet: 'projet-c', sous_agent: false },
     cost: { provider: 'anthropic', model: 'modele-a', usd_list: null, tokens: { in: 100, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 3e4 } } });
@@ -132,7 +133,8 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   const carteA = await page.textContent('.carte.projet:first-child');
   assert.match(carteA, /projet-a[\s\S]*3 non commités[\s\S]*2 non poussés[\s\S]*CI : GitHub Actions[\s\S]*Étape 2 — Fictive[\s\S]*Une tranche à faire[\s\S]*1 question ouverte[\s\S]*7 j : 1 session/);
   assert.match(await page.textContent('main'), /Sans activité sur 30 jours[\s\S]*projet-calme/);
-  assert.match(await page.textContent('.retires'), /Projets retirés du catalogue, sur 30 j : 1 session · [\d,]+ \$ — ancien-projet \(retiré le /, 'ligne des projets retirés');
+  assert.match(await page.textContent('.retires'), /Projets retirés du catalogue, sur 30 j : 1 session · [\d,]+ \$ — <b>x<\/b> \(retiré le /, 'ligne des projets retirés');
+  assert.equal(await page.$$eval('.retires b', (b) => b.length), 0, 'le nom d’un retiré s’affiche échappé');
   // V5 : le chiffre de 30 j mène à la liste de 30 j, dont la colonne « part du projet » se somme à ce chiffre.
   await page.click('.carte.projet:first-child .activite a:nth-of-type(2)');
   await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=holarch') && location.hash.endsWith('&jours=30'));
