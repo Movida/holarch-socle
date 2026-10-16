@@ -201,8 +201,9 @@ test('E2 : un rules.yaml illisible ne fait pas passer la garde, n’efface rien 
     + '- id: rappel\n  statement: Un rappel fictif.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
   ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
   const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
+  // Comme l'inventaire : le catalogue porte l'empreinte des arbres lus, un arbre changé ensuite se relit (point 9).
   const relire = () => { s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
-    { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer(); };
+    { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }], { empreinteArbre: empreinteArbres([path.join(r, 'profil'), d]) }); s.indexer(); };
   relire();
   const m = materialiserProjet(s.regles({ projet: 'depot' }), d, { accueil, holarch: '/opt/holarch/bin/holarch.js' });
   assert.equal(m.crochet.etat, 'pose');
@@ -211,7 +212,6 @@ test('E2 : un rules.yaml illisible ne fait pas passer la garde, n’efface rien 
   // Le fichier de règles devient illisible (édition en cours, conflit de fusion) : avant, ses règles disparaissaient
   // en silence, la garde laissait tout passer et `regles appliquer` retirait fichiers et crochet.
   fs.writeFileSync(regles, '- id: [ouverte\n');
-  const plusTard = new Date(Date.now() + 2000); fs.utimesSync(regles, plusTard, plusTard);
   ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', '.');
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['regles-lisibles'], 'la garde ne dit pas conforme ce qu’elle ne peut pas lire');
   s.garde({ depot: d, journaliser: true }); s.indexer();
@@ -254,18 +254,18 @@ test('E2 : un en-tête illisible dans l’arbre du profil ne fait pas passer la 
   ecrire(decision, '---\ntype: decision\ntitle: Une décision\nstatus: draft\n---\n');
   ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
   const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
+  // Comme l'inventaire : le catalogue porte l'empreinte des arbres lus, un arbre changé ensuite se relit (point 9).
   s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }),
-    { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]); s.indexer();
-  const plusTard = (f, n) => { const t = new Date(Date.now() + n * 1000); fs.utimesSync(f, t, t); };
+    { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }], { empreinteArbre: empreinteArbres([path.join(r, 'profil'), d]) }); s.indexer();
 
   // Un en-tête cassé dans une décision du projet : rien n'en dépend, la garde décide normalement.
-  ecrire(decision, '---\ntype: [decision\n---\n'); plusTard(decision, 2);
+  ecrire(decision, '---\ntype: [decision\n---\n');
   ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', 'note.md');
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['rien-de-personnel']);
 
   // L'en-tête du contexte devient illisible : avant, le contexte disparaissait avec sa règle bloquante, le projet
   // passait pour non déclaré et la garde laissait passer le commit.
-  ecrire(contexte, `---\n${enTeteContexte}  - [ouverte\n---\n`); plusTard(contexte, 4);
+  ecrire(contexte, `---\n${enTeteContexte}  - [ouverte\n---\n`);
   const refus = s.garde({ depot: d }).refus;
   assert.deepEqual(refus.map((x) => x.regle), ['regles-lisibles'], 'la garde ne dit pas conforme ce qu’elle ne peut pas lire');
   assert.match(refus[0].ecarts[0].message, /perso\.md : en-tête illisible/);
@@ -2330,19 +2330,20 @@ test('C4 : la garde tire la liste privée de l’arbre relu, comme les règles',
   ecrireF(path.join(profil, 'arbre', 'rules.yaml'), '- id: rien-de-personnel\n  statement: Aucune donnée personnelle dans un fichier suivi.\n  level: blocking\n  check: [donnees-personnelles]\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
   declarer(['holarch:project:vitrine']);
   const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [profil] } } });
+  // Comme l'inventaire : le catalogue porte l'empreinte des arbres lus, un arbre changé ensuite se relit (point 9).
   s.catalogue.remplacer([...inventaireArbre({}, { depots: [profil], projetDe: () => null }),
-    ...[['vitrine', d], ['zetaprive', prive]].map(([n, location]) => ({ id: `holarch:project:${n}`, kind: 'project', name: n, status: 'active', location, provenance: { source: 't' } }))]);
+    ...[['vitrine', d], ['zetaprive', prive]].map(([n, location]) => ({ id: `holarch:project:${n}`, kind: 'project', name: n, status: 'active', location, provenance: { source: 't' } }))],
+    { empreinteArbre: empreinteArbres([profil]) });
   s.indexer();
   ecrireF(path.join(d, 'note.md'), 'voir zetaprive\n'); g(d, 'add', 'note.md');
   assert.deepEqual(s.garde({ depot: d }).refus, [], 'non déclaré, le projet n’est pas privé');
   // Déclaré après l'inventaire : la garde le voit au commit suivant.
-  const plusTard = (f, n) => { const t = new Date(Date.now() + n * 1000); fs.utimesSync(f, t, t); };
-  declarer(['holarch:project:vitrine', 'holarch:project:zetaprive']); plusTard(contexte, 2);
+  declarer(['holarch:project:vitrine', 'holarch:project:zetaprive']);
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => [x.regle, x.ecarts.map((e) => `${e.fichier}:${e.ligne}`)]), [['rien-de-personnel', ['note.md:1']]]);
   // Passé depuis dans un contexte qui le rend public : son nom n'est plus privé, tout de suite aussi.
   const publics = path.join(profil, 'arbre', 'contextes', 'publics.md');
   ecrireF(publics, '---\ntype: context\ntitle: Publics\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:zetaprive]\nconfig:\n  creation: { visibilite: public }\n---\n');
-  declarer(['holarch:project:vitrine']); plusTard(contexte, 3); plusTard(publics, 3);
+  declarer(['holarch:project:vitrine']);
   assert.deepEqual(s.garde({ depot: d }).refus, []);
 });
 

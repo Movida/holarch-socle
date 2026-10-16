@@ -161,7 +161,7 @@ import { parse as parseJsonc } from 'jsonc-parser';
 import YAML from 'yaml';
 import importerTranscriptions, { cheminsAppel } from '../src/import/claude-code-transcriptions.js';
 import { localiserProjet, resoudreProjet } from '../src/projets.js';
-import inventaireArbre from '../src/inventaire/arbre.js';
+import inventaireArbre, { empreinteArbres } from '../src/inventaire/arbre.js';
 import inventaireDepots from '../src/inventaire/depots-git.js';
 import { ulid } from '../src/ulid.js';
 import { recolter, trier, ajouterRegles } from '../src/recolte.js';
@@ -562,17 +562,17 @@ test('garde : une exception ajoutée à l’arbre vaut au commit suivant, sans a
   ecrire(path.join(d, 'note.md'), 'propre\n'); g('add', '.'); g('commit', '-qm', 'départ');
   const projetDe = (x) => ({ id: `holarch:project:${path.basename(x)}` });
   const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [path.join(r, 'profil')] } } });
-  s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }]);
+  // Comme l'inventaire : le catalogue porte l'empreinte des arbres lus, un arbre changé ensuite se relit (point 9).
+  s.catalogue.remplacer([...inventaireArbre({}, { depots: [path.join(r, 'profil'), d], projetDe }), { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } }],
+    { empreinteArbre: empreinteArbres([path.join(r, 'profil'), d]) });
   s.indexer();
   ecrire(path.join(d, 'note.md'), 'note du projet zeta\n'); g('add', '.');
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['rien-de-personnel']);
   // Écrite dans le dépôt contrôlé, l'exception ne vaut pas (décision profil-designe) : le refus tient.
-  const plusTard = (f) => { const t = new Date(Date.now() + 2000); fs.utimesSync(f, t, t); };
-  racine('config:\n  donnees_personnelles:\n    exceptions: [{ fichier: note.md, pourquoi: essai }]\n'); plusTard(path.join(d, 'arbre', 'index.md'));
+  racine('config:\n  donnees_personnelles:\n    exceptions: [{ fichier: note.md, pourquoi: essai }]\n');
   assert.deepEqual(s.garde({ depot: d }).refus.map((x) => x.regle), ['rien-de-personnel'], 'l’exception du dépôt ne fait rien taire');
   // L'auteur l'ajoute au contexte, comme le refus le lui indique, puis relance le commit (défaut A4).
   ecrire(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:depot]\nconfig:\n  donnees_personnelles:\n    exceptions: [{ fichier: note.md, pourquoi: essai }]\n---\n');
-  plusTard(path.join(r, 'profil', 'arbre', 'contextes', 'perso.md'));
   const catalogue = fs.readFileSync(path.join(accueil, 'catalogue', 'local.json'), 'utf8');
   assert.deepEqual(s.garde({ depot: d }).refus, [], 'l’exception vaut tout de suite');
   assert.equal(fs.readFileSync(path.join(accueil, 'catalogue', 'local.json'), 'utf8'), catalogue, 'rien n’est écrit depuis le crochet');
@@ -974,16 +974,13 @@ test('règles : une règle ajoutée après l’inventaire se voit tout de suite 
   assert.equal(await s.arbreAJour(), false, 'arbre inchangé : aucun inventaire');
   // Constaté le 2026-10-08 : une règle ajoutée restait « 0 proposée » jusqu'à l'inventaire suivant (idée I28).
   fs.appendFileSync(regles, '- id: nouvelle\n  statement: Ajoutée après l’inventaire.\n');
-  // Un changement juste après l'inventaire (même milliseconde que lui ou presque) compte.
-  const apres = () => new Date(s.catalogue.date() + 1);
-  fs.utimesSync(regles, apres(), apres());
   // Les règles se lisent dans l'arbre frais (ligne 238) : elle se voit avant l'inventaire, que la ligne de commande refait.
   assert.equal(proposees(), 1, 'lue fraîche, sans attendre l’inventaire');
   assert.equal(await s.arbreAJour(), true); s.indexer();
   assert.equal(proposees(), 1);
-  // Un fichier retiré change aussi l'arbre (date du dossier).
+  // Un fichier retiré change aussi l'arbre (son chemin sort de l'empreinte).
   assert.equal(await s.arbreAJour(), false);
-  fs.rmSync(regles); fs.utimesSync(path.join(d, 'arbre'), apres(), apres());
+  fs.rmSync(regles);
   assert.equal(await s.arbreAJour(), true);
 });
 
@@ -1249,19 +1246,18 @@ async function bancCreation({ identite = true, creation = {}, conteneur = null }
   const s = new Socle({ site: 'local', profil: path.join(r, 'profil'), donnees: accueil, accueil, web: {}, tarifs: {}, import: {},
     inventaire: { 'depots-git': { actif: true, racines: [r], profondeur: 2, ignorer: [] }, arbre: { actif: true, depots: [] } } });
   await s.inventaire(); s.indexer();
-  const toucher = (f) => { const t = new Date(Date.now() + 2000); fs.utimesSync(f, t, t); };
-  return { r, s, profil, toucher, etats: (x) => Object.fromEntries(x.etapes.map((e) => [e.etape, e.etat])), git: (d, ...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }).stdout.trim() };
+  return { r, s, profil, etats: (x) => Object.fromEntries(x.etapes.map((e) => [e.etape, e.etat])), git: (d, ...a) => spawnSync('git', ['-C', d, ...a], { encoding: 'utf8' }).stdout.trim() };
 }
 
 test('création de projet : rejouée après un commit refusé, elle le refait ; un geste fait dans le profil vaut sans attendre l’inventaire', () => gitIsole(async () => {
-  const { r, s, profil, toucher, etats, git } = await bancCreation({ identite: false });
+  const { r, s, profil, etats, git } = await bancCreation({ identite: false });
   const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
   const p1 = await creer();
   assert.deepEqual([etats(p1).identite, etats(p1).fichiers], ['geste', 'echec'], JSON.stringify(p1.etapes, null, 1));
   const p2 = await creer();
   assert.equal(etats(p2).fichiers, 'echec', 'des fichiers présents mais jamais commités ne sont pas « déjà là » (A5)');
   // Le geste demandé : déclarer l'identité dans le profil, puis relancer, sans inventaire entre les deux (A4).
-  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), profil(true)); toucher(path.join(r, 'profil', 'arbre', 'index.md'));
+  ecrire(path.join(r, 'profil', 'arbre', 'index.md'), profil(true));
   const p3 = await creer();
   assert.deepEqual([etats(p3).identite, etats(p3).fichiers, etats(p3).regles], ['faite', 'faite', 'faite'], JSON.stringify(p3.etapes, null, 1));
   assert.deepEqual(git(d, 'log', '--format=%s').split('\n'), ['Appliquer les règles HOLARCH', 'Créer le projet']);
@@ -1299,10 +1295,10 @@ test('création de projet : une déclaration refusée par le profil le laisse co
 }));
 
 test('création de projet : des règles illisibles mettent l’étape en échec sans interrompre la commande', () => gitIsole(async () => {
-  const { r, s, etats, toucher } = await bancCreation();
+  const { r, s, etats } = await bancCreation();
   const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
   assert.equal(etats(await creer()).regles, 'faite');
-  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: [ouverte\n'); toucher(path.join(d, 'arbre', 'rules.yaml'));
+  ecrire(path.join(d, 'arbre', 'rules.yaml'), '- id: [ouverte\n');
   const p = await creer();
   assert.equal(etats(p).regles, 'echec', JSON.stringify(p.etapes, null, 1));
   assert.match(p.etapes.find((e) => e.etape === 'regles').detail, /règles illisibles, rien n'est écrit : .*rules\.yaml illisible/);
@@ -1383,7 +1379,7 @@ test('conteneur généré : clés du socle après celles des couches, gpu, conne
 
 test('création de projet : conteneur généré, réécrit s’il diffère, jamais un fichier écrit à la main ; l’audit dit un fichier généré modifié', () => gitIsole(async () => {
   const base = { devcontainer: { image: 'base', remoteUser: 'vscode', postCreateCommand: 'bash .devcontainer/deploy-key.sh origin || true' } };
-  const { r, s, etats, git, toucher } = await bancCreation({ creation: { etapes: { github: false, conteneur: true, distant: false } }, conteneur: base });
+  const { r, s, etats, git } = await bancCreation({ creation: { etapes: { github: false, conteneur: true, distant: false } }, conteneur: base });
   const d = path.join(r, 'neuf'); const f = path.join(d, '.devcontainer', 'devcontainer.json'); const script = path.join(d, '.devcontainer', 'deploy-key.sh');
   const creer = (aBlanc = false) => creerProjet(s, { nom: 'neuf', types: ['methode'], aBlanc });
   const etape = (p) => p.etapes.find((e) => e.etape === 'conteneur');
@@ -1436,7 +1432,7 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
   // La racine du projet porte sa propre commande : le script de la clé n'est plus appelé, il ne revient pas une fois retiré.
   git(d, 'rm', '-q', '.devcontainer/deploy-key.sh'); git(d, 'commit', '-qm', 'sans script');
   const index = path.join(d, 'arbre', 'index.md');
-  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('types: [methode]\n', 'types: [methode]\nconfig:\n  conteneur: { devcontainer: { postCreateCommand: "npm install" } }\n')); toucher(index);
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('types: [methode]\n', 'types: [methode]\nconfig:\n  conteneur: { devcontainer: { postCreateCommand: "npm install" } }\n'));
   git(d, 'commit', '-qam', 'commande propre');
   const p6 = await creer();
   assert.deepEqual([etats(p6).conteneur, etape(p6).detail, fs.existsSync(script)], ['faite', '.devcontainer/devcontainer.json', false], JSON.stringify(p6.etapes, null, 1));
@@ -1444,7 +1440,7 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
 
   // Un commit refusé laisse le fichier écrit ; rejouée, la création le commite sans le réécrire.
   const crochet = path.join(d, '.git', 'hooks', 'pre-commit'); ecrire(crochet, '#!/bin/sh\necho refusé >&2\nexit 1\n'); fs.chmodSync(crochet, 0o755);
-  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('"npm install"', '"npm ci"')); toucher(index);
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('"npm install"', '"npm ci"'));
   git(d, 'commit', '-qam', 'npm ci', '--no-verify');
   const p8 = await creer();
   assert.deepEqual([etats(p8).conteneur, etape(p8).detail], ['echec', 'commit refusé : refusé'], JSON.stringify(p8.etapes, null, 1));
@@ -1453,7 +1449,7 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
   assert.deepEqual([etats(p9).conteneur, git(d, 'log', '-1', '--format=%s'), git(d, 'status', '--porcelain'), parseJsonc(fs.readFileSync(f, 'utf8')).postCreateCommand], ['faite', 'Régénérer la configuration du conteneur', '', 'npm ci']);
 
   // Une configuration qui ne se génère plus : l'étape échoue sans rien écrire, l'audit le dit.
-  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('postCreateCommand: "npm ci"', 'name: autre')); toucher(index);
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('postCreateCommand: "npm ci"', 'name: autre'));
   git(d, 'commit', '-qam', 'nom');
   const avant = fs.readFileSync(f, 'utf8'); const p7 = await creer();
   assert.deepEqual([etats(p7).conteneur, etape(p7).detail, fs.readFileSync(f, 'utf8')], ['echec', 'posé par le socle, qu’aucune couche ne remplace : name', avant]);
@@ -1461,7 +1457,7 @@ test('création de projet : conteneur généré, réécrit s’il diffère, jama
 
   // Un lien symbolique posé dans le dépôt (le conteneur l'écrit) ne détourne aucune écriture vers l'hôte : le fichier ou
   // son dossier, l'étape échoue et rien ne s'écrit dehors ; de même pour les fichiers de base.
-  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('name: autre', 'postCreateCommand: "bash .devcontainer/deploy-key.sh origin || true"')); toucher(index);
+  fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('name: autre', 'postCreateCommand: "bash .devcontainer/deploy-key.sh origin || true"'));
   git(d, 'commit', '-qam', 'clé');
   // Le script de la clé, écrit par un passage dont le commit est refusé, reste indexé sans commit : rejouée, la création
   // le commite avec le reste (m-4).
@@ -2430,11 +2426,11 @@ test('M5 : une identité de commit retirée à la main est reposée, et dite ; p
 // par un autre git ; un dossier ignoré est un geste depuis le lot 5), l'étape disait les règles faites alors que rien
 // n'était commité. L'échec se dit, avec le message de git.
 test('Création : un ajout des règles refusé par git se dit en échec, pas « fait »', () => gitIsole(async () => {
-  const { r, s, git, toucher } = await bancCreation();
+  const { r, s, git } = await bancCreation();
   const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
   await creer();
   const source = path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'rules.yaml');
-  fs.writeFileSync(source, fs.readFileSync(source, 'utf8').replace('Les tests passent', 'Tous les tests passent')); toucher(source);
+  fs.writeFileSync(source, fs.readFileSync(source, 'utf8').replace('Les tests passent', 'Tous les tests passent'));
   fs.writeFileSync(path.join(d, '.git', 'index.lock'), '');
   const p = await creer(); const e = p.etapes.find((x) => x.etape === 'regles');
   assert.equal(e?.etat, 'echec', JSON.stringify(p.etapes, null, 1));
@@ -2896,13 +2892,13 @@ test('Création : un dossier de règles ignoré par git ne bloque plus les rejeu
   }, `[core]\n\texcludesFile = ${exclusions}\n`);
   // Ignoré après coup : la règle suivie, modifiée, se commite ; aucun geste (un fichier suivi n'est jamais ignoré).
   await gitIsole(async () => {
-    const { r, s, etats, git, toucher } = await bancCreation();
+    const { r, s, etats, git } = await bancCreation();
     const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
     const regle = path.join(d, '.claude', 'rules', 'holarch', 'tests-verts.md');
     assert.equal(etats(await creer()).regles, 'faite');
     fs.appendFileSync(path.join(d, '.gitignore'), '.claude/\n'); git(d, 'commit', '-qam', 'Ignorer .claude');
     const source = path.join(r, 'socle', 'arbre', 'types-transverses', 'methode', 'rules.yaml');
-    fs.writeFileSync(source, fs.readFileSync(source, 'utf8').replace('Les tests passent', 'Tous les tests passent')); toucher(source);
+    fs.writeFileSync(source, fs.readFileSync(source, 'utf8').replace('Les tests passent', 'Tous les tests passent'));
     for (const attendu of ['faite', 'deja']) {
       const p = await creer(); const e = p.etapes.find((x) => x.etape === 'regles');
       assert.deepEqual([e.etat, e.geste, etats(p).audit], [attendu, undefined, 'faite'], JSON.stringify(p.etapes, null, 1));
@@ -2938,12 +2934,12 @@ test('Création : un dossier .devcontainer ignoré par git ne fait plus échouer
   }, `[core]\n\texcludesFile = ${exclusions}\n`);
   // Ignoré après coup : la configuration suivie, régénérée, se commite ; le script, devenu appelé, est écrit, ignoré et dit.
   await gitIsole(async () => {
-    const { r, s, etats, git, toucher } = await bancCreation({ creation: { etapes }, conteneur: { devcontainer: { image: 'base', remoteUser: 'vscode', postCreateCommand: 'npm ci' } } });
+    const { r, s, etats, git } = await bancCreation({ creation: { etapes }, conteneur: { devcontainer: { image: 'base', remoteUser: 'vscode', postCreateCommand: 'npm ci' } } });
     const d = path.join(r, 'neuf'); const creer = () => creerProjet(s, { nom: 'neuf', types: ['methode'] });
     assert.equal(etats(await creer()).conteneur, 'faite');
     fs.appendFileSync(path.join(d, '.gitignore'), '.devcontainer/\n'); git(d, 'commit', '-qam', 'Ignorer .devcontainer');
     const index = path.join(d, 'arbre', 'index.md');
-    fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('types: [methode]\n', `types: [methode]\nconfig:\n  conteneur: { devcontainer: { postCreateCommand: "${appel}" } }\n`)); toucher(index);
+    fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('types: [methode]\n', `types: [methode]\nconfig:\n  conteneur: { devcontainer: { postCreateCommand: "${appel}" } }\n`));
     git(d, 'commit', '-qam', 'appeler le script');
     const [fin, commande] = ignores(d, [fichiers[1]]);
     for (const [attendu, detail] of [['faite', fichiers.join(', ')], ['deja', fichiers[0]]]) {
