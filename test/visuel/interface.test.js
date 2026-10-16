@@ -109,7 +109,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
 
   assert.equal(await page.getAttribute('.nav a[aria-current="page"]', 'data-vue'), 'tableau');
   await page.click('.barre a.nom:has-text("projet-b")');
-  await page.waitForFunction(() => location.hash === '#/sessions?projet=holarch%3Aproject%3Aprojet-b');
+  await page.waitForFunction(() => location.hash === '#/sessions?projet=holarch%3Aproject%3Aprojet-b&jours=30', null, { timeout: 5000 }); // la période du chiffre
   await page.waitForSelector('.nav a[aria-current="page"][data-vue="sessions"]'); // la page précédente a cédé la place
   await page.waitForSelector('table.triable tbody tr.cliquable');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 1, 'sessions du projet');
@@ -125,11 +125,16 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.match(carteA, /projet-a[\s\S]*3 non commités[\s\S]*2 non poussés[\s\S]*CI : GitHub Actions[\s\S]*Étape 2 — Fictive[\s\S]*Une tranche à faire[\s\S]*1 question ouverte[\s\S]*7 j : 1 session/);
   assert.match(await page.textContent('main'), /Sans activité sur 30 jours[\s\S]*projet-calme/);
   assert.match(await page.textContent('.retires'), /Projets retirés du catalogue, sur 30 j : 1 session · [\d,]+ \$ — ancien-projet \(retiré le /, 'ligne des projets retirés');
-  await page.click('.carte.projet:first-child .activite a');
-  await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=holarch'));
+  // V5 : le chiffre de 30 j mène à la liste de 30 j, dont la colonne « part du projet » se somme à ce chiffre.
+  await page.click('.carte.projet:first-child .activite a:nth-of-type(2)');
+  await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=holarch') && location.hash.endsWith('&jours=30'));
   await page.waitForSelector('.nav a[aria-current="page"][data-vue="sessions"]'); // sinon, le tableau de la page Projets
   await page.waitForSelector('table.triable tbody tr.cliquable');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'sessions du projet');
+  assert.equal(await page.textContent('table.triable th:nth-child(10)'), 'Part du projet, 30 j');
+  const parts = await page.$$eval('table.triable tbody tr td:nth-child(10)', (td) => td.map((x) => +x.dataset.v));
+  const carte = (await (await page.request.get(`${racine}api/projets`)).json()).projets.find((p) => p.nom === 'projet-a').activite.usd_30;
+  assert.ok(Math.abs(parts.reduce((a, b) => a + b, 0) - carte) < 1e-9, `somme des parts ${parts} = chiffre de la carte ${carte}`);
 
   await ouvrir('#/projets', '.carte.projet');
   await page.click('.carte.projet:first-child .regles');

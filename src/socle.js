@@ -36,6 +36,9 @@ const noeudsDe = (arbre) => arbre.filter((f) => f.kind === 'node').sort((a, b) =
 // Clé de groupe des projets retirés du catalogue (V1) : un identifiant de projet commence toujours par `holarch:project:`.
 const RETIRES = 'retires';
 
+// Sommes d'un regroupement de coûts (`consommation`, `coutsDeSessions`) ; `via` : les relevés passés par un intermédiaire.
+const SOMME = "SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd, COUNT(*) n, SUM(model LIKE 'anthropic/%') via";
+
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions, agentgateway: importerPasserelle };
 
 export class Socle {
@@ -282,19 +285,24 @@ export class Socle {
   }
 
   // Une référence de projet donnée par une personne ou un agent (identifiant, nom, chemin ; `aucun` : hors projet).
-  projetDe(ref) {
+  // `retire` : un projet retiré du catalogue (V1) se désigne aussi, par l'identifiant que portent ses sessions.
+  projetDe(ref, { retire = false } = {}) {
     if (!ref || ref === 'aucun') return ref || null;
     const p = resoudreProjet(projetsDe(this.projetsDuSite()), ref);
-    if (!p) throw new Error(`projet inconnu : ${ref}`);
-    return p.id;
+    if (p) return p.id;
+    if (retire && String(ref).startsWith('holarch:project:')
+      && this.index.requete("SELECT 1 FROM evenements e, json_each(e.data, '$.projets') j WHERE e.kind='session.finished' AND json_extract(j.value,'$.id')=? LIMIT 1", ref).length) return ref;
+    throw new Error(`projet inconnu : ${ref}`);
   }
 
   // Sessions d'une période, sous-agents rattachés, chacune avec ses projets (`projets`, attribution ci-dessus). Un
   // `session.finished` complémentaire (`data.complement`) n'apporte que les projets d'une session importée avant eux : il
-  // ne compte pas comme une fin. `projet` : identifiant, nom ou chemin ; `aucun` pour les sessions hors projet.
+  // ne compte pas comme une fin. `projet` : identifiant (d'un projet retiré aussi), nom ou chemin ; `aucun` pour les
+  // sessions hors projet. Filtrée par un projet (ou `aucun`), chaque session porte `part` : la part de ce projet dans son
+  // coût de la période, du même partage que la vue Projets et `consommation` (V5) ; leur somme est le chiffre de la carte.
   sessions({ jours = 30, projet = null } = {}) {
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
-    const id = this.projetDe(projet);
+    const id = this.projetDe(projet, { retire: true });
     const vraie = "json_extract(%s.data,'$.complement') IS NULL";
     const lignes = this.index.requete(`SELECT f.correlation session, f.at fin, f.data, f.actor,
         (SELECT MIN(at) FROM evenements s WHERE s.kind='session.started' AND s.correlation=f.correlation) debut,
@@ -308,8 +316,25 @@ export class Socle {
         AND f.id=(SELECT id FROM evenements g WHERE g.kind='session.finished' AND g.correlation=f.correlation AND ${vraie.replace('%s', 'g')} ORDER BY at DESC, id DESC LIMIT 1)
       ORDER BY f.at DESC`, depuis);
     const projetsDeSession = this.attribution();
-    return lignes.map((l) => ({ ...l, data: JSON.parse(l.data), projets: projetsDeSession(l.session) }))
+    const liste = lignes.map((l) => ({ ...l, data: JSON.parse(l.data), projets: projetsDeSession(l.session) }))
       .filter((l) => !id || (id === 'aucun' ? !l.projets.length : l.projets.some((p) => p.id === id)));
+    if (!id) return liste;
+    const couts = this.coutsDeSessions(depuis); const cle = id === 'aucun' ? null : id;
+    return liste.map((l) => { const c = couts.get(l.session); const f = parts(l.projets).find(([x]) => x === cle)?.[1] ?? 0; return { ...l, part: !c ? 0 : c.usd == null ? null : c.usd * f }; });
+  }
+
+  // Tokens et coût liste de chaque session (sous-agents compris), par racine de corrélation : ses coûts datés depuis
+  // `depuis` (`usd` null si aucun n'a de tarif). La seule base du partage entre projets : `consommation` et la part d'un
+  // projet dans `sessions` en viennent, et donnent le même chiffre.
+  coutsDeSessions(depuis) {
+    const r = new Map();
+    for (const l of this.index.requete(`SELECT correlation, ${SOMME} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY correlation`, depuis)) {
+      const k = String(l.correlation).split(':')[0];
+      const x = r.get(k) || { sortie: 0, cache_lu: 0, cache_ecrit: 0, entree: 0, usd: null, n: 0, via: 0 }; r.set(k, x);
+      for (const c of ['sortie', 'cache_lu', 'cache_ecrit', 'entree', 'n', 'via']) x[c] += l[c] || 0;
+      if (l.usd != null) x.usd = (x.usd || 0) + l.usd;
+    }
+    return r;
   }
 
   // Vue Projets (étape 3, tranche 2) : par projet, où il en est d'après son arbre (frais, `arbre`), ce qui l'attend, son
@@ -414,11 +439,10 @@ export class Socle {
   // clé est l'identifiant du projet, `null` hors projet.
   consommation({ jours = 30, par = 'projet' } = {}) {
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
-    const somme = "SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd, COUNT(*) n, SUM(model LIKE 'anthropic/%') via";
     if (par === 'projet') {
       const projetsDeSession = this.attribution(); const r = new Map();
-      for (const l of this.index.requete(`SELECT correlation, ${somme} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY correlation`, depuis)) {
-        for (const [id, part, nom] of parts(projetsDeSession(String(l.correlation).split(':')[0]))) {
+      for (const [racine, l] of this.coutsDeSessions(depuis)) {
+        for (const [id, part, nom] of parts(projetsDeSession(racine))) {
           const x = r.get(id) || { cle: id, nom, sortie: 0, cache_lu: 0, cache_ecrit: 0, entree: 0, usd: null, n: 0, via: 0 }; r.set(id, x);
           for (const k of ['sortie', 'cache_lu', 'cache_ecrit', 'entree', 'n', 'via']) x[k] += (l[k] || 0) * part;
           if (l.usd != null) x.usd = (x.usd || 0) + l.usd * part;
@@ -428,7 +452,7 @@ export class Socle {
     }
     // Par modèle : un identifiant passé par un intermédiaire (anthropic/…) se range avec son modèle de base ; `via` le compte.
     const col = par === 'jour' ? 'substr(at,1,10)' : "CASE WHEN model LIKE 'anthropic/%' THEN substr(model, 11) ELSE model END";
-    return this.index.requete(`SELECT ${col} cle, ${somme} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY cle ORDER BY ${par === 'jour' ? 'cle' : 'sortie DESC'}`, depuis);
+    return this.index.requete(`SELECT ${col} cle, ${SOMME} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY cle ORDER BY ${par === 'jour' ? 'cle' : 'sortie DESC'}`, depuis);
   }
 
   evenements({ kind = null, session = null, sauf = null, limite = 200 } = {}) {

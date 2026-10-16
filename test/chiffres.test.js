@@ -182,3 +182,35 @@ test('239 a : les appels MCP de statut inconnu se comptent à part (inconnus), �
   const m = await mcp(s);
   try { assert.deepEqual((await m.appel('etat')).periode.mcp, [{ cle: 'holarch', n: 4, echecs: 1, inconnus: 2 }]); } finally { await m.fermer(); }
 });
+
+// V5 (revue des limites) : la carte d'un projet montre sa part du coût (partagé entre les projets où chaque session a
+// travaillé, coûts datés dans la période), la liste de ses sessions le coût entier de chacune, sur 90 jours. `sessions()`
+// filtrée par un projet rend la part de ce projet pour chaque session, tirée du même partage, sur la même période.
+test('V5 : la liste des sessions d’un projet rend sa part de chaque session ; leur somme est le chiffre de la carte', async () => {
+  const donnees = tmp(); const ev = [];
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: TARIFS, inventaire: {}, import: {} });
+  const id = (n) => `holarch:project:${n}`;
+  session(ev, 's1', 1, { cwd: '/ws', projet: 'ws', projets: [{ id: id('a'), n: 3 }, { id: id('b'), n: 1 }] }, 8);
+  session(ev, 's2', 10, { cwd: '/ws/b/src', projet: 'src', projets: [] }, 2);
+  session(ev, 's3', 20, { cwd: '/ws', projet: 'ws', projets: [{ id: id('a'), n: 1 }] }, 4);
+  // À cheval sur le début de la période : 5 $ avant, 3 $ dedans.
+  session(ev, 's4', 29, { cwd: '/ws', projet: 'ws', projets: [{ id: id('a'), n: 1 }] }, 3);
+  ev.push({ id: ulid(Date.parse(il_y_a(31)), 's4c0'), at: il_y_a(31), kind: 'cost.recorded', actor: 'agent:claude-code/m', correlation: 's4:agent-1', classification: 'internal', data: {}, cost: { provider: 'anthropic', model: 'm', usd_list: null, tokens: { out: 5 } } });
+  session(ev, 's5', 3, { cwd: '/ailleurs', projet: 'ailleurs' }, 1);
+  session(ev, 's6', 4, { cwd: '/ws', projet: 'ws', projets: [{ id: id('ancien'), n: 1 }] }, 7);
+  s.journal.ajouter(ev);
+  s.catalogue.remplacer([fiche('a', { attributes: {} }), fiche('b', { location: '/ws/b', attributes: {} })]); s.indexer();
+  const { projets, hors_projet: hors } = s.projets();
+  const a = projets.find((p) => p.nom === 'a');
+  const parts = (jours, projet) => s.sessions({ jours, projet }).map((x) => [x.session, x.part]);
+  assert.deepEqual(parts(30, 'a'), [['s1', 6], ['s3', 4], ['s4', 3]]);
+  assert.equal(s.sessions({ jours: 30, projet: 'a' }).find((x) => x.session === 's4').usd, 8, 'le coût entier reste');
+  const somme = (l) => l.reduce((x, [, p]) => x + p, 0);
+  assert.deepEqual([somme(parts(30, 'a')), somme(parts(7, 'a')), somme(parts(30, 'b'))], [a.activite.usd_30, a.activite.usd_7, projets.find((p) => p.nom === 'b').activite.usd_30]);
+  assert.equal(somme(parts(30, 'aucun')), hors.usd_30, 'hors projet : le même partage');
+  assert.deepEqual(parts(30, id('ancien')), [['s6', 7]], 'un projet retiré se désigne par son identifiant');
+  assert.equal(s.sessions({ jours: 30 })[0].part, undefined, 'sans filtre, pas de part');
+  assert.throws(() => s.sessions({ projet: id('inconnu') }), /projet inconnu/);
+  const m = await mcp(s);
+  try { assert.deepEqual((await m.appel('sessions', { projet: 'a' })).sessions.map((x) => [x.session, x.part]), [['s1', 6], ['s3', 4], ['s4', 3]]); } finally { await m.fermer(); }
+});
