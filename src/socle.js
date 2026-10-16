@@ -189,7 +189,8 @@ export class Socle {
   // en moyenne par tour (`lourdes`, `lourdes_n`) ; l'alerte, elle, compare au seuil la taille du contexte à l'instant (V7 :
   // deux mesures, dites chacune par son nom). Le seuil est celui du profil, comme pour le crochet d'alerte : sans lui
   // (null), aucune alerte n'est posée et aucune session n'est retenue. Lu dans l'arbre frais (`arbre`) : un seuil changé
-  // vaut tout de suite, comme pour l'alerte.
+  // vaut ici tout de suite ; l'alerte, elle, garde celui que porte son crochet (`--seuil`, posé par `reglagesVoulus`)
+  // jusqu'au prochain `regles appliquer`.
   contexte({ arbre = this.arbreFrais() } = {}) {
     const regle = +regleDuCompte(arbre, { profil: this.profil() }).config?.claude_code?.passation?.seuil_tokens;
     const seuil = regle > 0 ? regle : null;
