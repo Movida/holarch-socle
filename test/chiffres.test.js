@@ -94,6 +94,24 @@ test('V2 : l’état du dépôt se lit en direct dans la vue Projets, le tableau
   assert.match(resume(s, d), /Dépôt : 1 fichier\(s\) non commité\(s\), 0 commit\(s\) non poussé\(s\)\./);
 });
 
+// V2, relecture du lot 2 : `git rev-parse` réussit et `git status` échoue (index corrompu, dépôt retiré entre les deux,
+// délai dépassé) ; l'état se disait lu en direct avec 0 fichier modifié. Il reprend la valeur du catalogue, datée.
+test('V2 : un git status en échec ne vaut pas zéro ; la valeur et la date du catalogue restent', () => {
+  const d = path.join(tmp(), 'depot'); fs.mkdirSync(d);
+  git(d, 'init', '-q'); git(d, 'config', 'user.name', 'Alice Exemple'); git(d, 'config', 'user.email', 'alice@exemple.test'); git(d, 'config', 'commit.gpgsign', 'false');
+  ecrire(path.join(d, 'note.md'), 'un\n'); git(d, 'add', '.'); git(d, 'commit', '-qm', 'départ');
+  const donnees = tmp();
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: {}, import: {}, inventaire: {} });
+  const attributs = { branche: 'main', fichiers_modifies: 2, amont: 'origin/main', en_avance: 1, en_retard: 0 };
+  s.catalogue.remplacer([{ id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', site: 'local', location: d, provenance: { source: 't' }, attributes: attributs }]);
+  s.indexer();
+  const date = new Date(s.catalogue.date()).toISOString();
+  fs.writeFileSync(path.join(d, '.git', 'index'), 'octets invalides');
+  assert.equal(spawnSync('git', ['-C', d, 'status', '--porcelain']).status, 128, 'git status échoue');
+  assert.deepEqual(s.projets().projets[0].technique, { fichiers_modifies: 2, amont: 'origin/main', en_avance: 1, en_retard: 0, dernier_fetch: null, integration_continue: null, lu_a: date });
+  assert.deepEqual(s.etat().projets_sales, [{ name: 'depot', n: 2, lu_a: date }]);
+});
+
 // V1 (décision sorties-mcp-des-chiffres, contrat événement 0.11.0) : les projets retirés du catalogue sortaient de la vue
 // Projets (222,06 $ et 21 sessions sur 182 en 30 jours, comptés nulle part) et s'affichaient ailleurs par leur
 // identifiant brut. Un retrait porte désormais le nom et l'emplacement de la fiche retirée ; `projets()` rend `retires`.

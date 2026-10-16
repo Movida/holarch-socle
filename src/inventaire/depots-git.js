@@ -46,9 +46,12 @@ export function racine(d) {
 }
 
 // État de travail d'un dépôt : fichiers modifiés ou non suivis, écart à la branche amont (« retard avance » ; sans
-// branche amont, rien : la branche n'a jamais été poussée). Lu par l'inventaire et, en direct, par `technique`.
+// branche amont, rien : la branche n'a jamais été poussée). `fichiers_modifies` null quand `git status` échoue (index
+// illisible, dépôt retiré, délai dépassé) : inconnu, pas zéro. Lu par l'inventaire, par `technique`, par la création
+// (commits non poussés) et par le contrôle `commits-pousses`.
 export function etatDepot(d) {
-  const fichiers_modifies = (gitInventaire(d, ['status', '--porcelain']) || '').split('\n').filter(Boolean).length;
+  const status = gitInventaire(d, ['status', '--porcelain']);
+  const fichiers_modifies = status === null ? null : status.split('\n').filter(Boolean).length;
   const amont = gitInventaire(d, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
   const [retard, avance] = amont ? (gitInventaire(d, ['rev-list', '--left-right', '--count', '@{upstream}...HEAD']) || '').split(/\s+/).map(Number) : [];
   return { fichiers_modifies, amont: amont || null, en_avance: Number.isFinite(avance) ? avance : null, en_retard: Number.isFinite(retard) ? retard : null };
@@ -62,12 +65,13 @@ const dernierFetch = (d, commun = dossierCommun(d)) => (commun ? mtimeIso(path.j
  * État technique d'un projet pour les lectures (vue Projets, tableau de bord, reprise ; décision
  * sorties-mcp-des-chiffres, V2) : lu en direct dans `depot` quand ce chemin existe, sinon celui que porte sa fiche au
  * catalogue (`attributs`). `lu_a` dit d'où vient la valeur : l'heure de la lecture directe, ou la date du catalogue
- * (`date`, null sans catalogue daté). Un chemin qui n'est pas (ou plus) un dépôt que git lit ne vaut pas zéro : la
- * valeur du catalogue reste. La seule lecture de l'état d'un dépôt hors de l'inventaire.
+ * (`date`, null sans catalogue daté). Un chemin qui n'est pas (ou plus) un dépôt que git lit, ou dont `git status`
+ * échoue, ne vaut pas zéro : la valeur du catalogue reste. La seule lecture de l'état d'un projet pour les vues.
  */
 export function technique(depot, attributs = {}, { date = null } = {}) {
   const commun = depot && fs.existsSync(depot) ? dossierCommun(depot) : null;
-  if (commun) return { ...etatDepot(depot), dernier_fetch: dernierFetch(depot, commun), integration_continue: integrationContinue(depot), lu_a: new Date().toISOString() };
+  const etat = commun ? etatDepot(depot) : null;
+  if (etat && etat.fichiers_modifies !== null) return { ...etat, dernier_fetch: dernierFetch(depot, commun), integration_continue: integrationContinue(depot), lu_a: new Date().toISOString() };
   const a = attributs || {};
   return { fichiers_modifies: a.fichiers_modifies ?? 0, amont: a.amont ?? null, en_avance: a.en_avance ?? null, en_retard: a.en_retard ?? null, dernier_fetch: a.dernier_fetch ?? null, integration_continue: a.integration_continue ?? null, lu_a: date };
 }
