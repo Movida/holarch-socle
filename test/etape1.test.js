@@ -16,7 +16,7 @@ import { Socle } from '../src/socle.js';
 import { prix } from '../src/tarifs.js';
 import http from 'node:http';
 import inventaireDocker from '../src/inventaire/docker.js';
-import inventaireClaudeDesktop, { emplacementParDefaut } from '../src/inventaire/claude-desktop.js';
+import inventaireClaudeDesktop, { emplacementParDefaut, WSL } from '../src/inventaire/claude-desktop.js';
 import { SourceAbsente } from '../src/inventaire/source.js';
 
 import { tmp } from './temporaire.js';
@@ -264,12 +264,24 @@ test('inventaire Claude Desktop : serveurs MCP sans arguments ni secrets ; absen
   assert.ok(!JSON.stringify(fiches).includes('SECRET'));
   assert.ok(fiches.every((x) => x.provenance.source === 'inventaire:claude-desktop' && valider('fiche', x) === null));
   assert.throws(() => inventaireClaudeDesktop({ config: path.join(tmp(), 'absent.json') }, { site: 'local' }), SourceAbsente);
-  assert.equal(emplacementParDefaut('linux', {}), null);
+  const horsWsl = { ...WSL, interop: path.join(tmp(), 'absent') };
+  assert.equal(emplacementParDefaut('linux', {}, horsWsl), null);
   assert.match(emplacementParDefaut('win32', { APPDATA: 'C:/Users/x/AppData/Roaming' }), /Claude.claude_desktop_config\.json$/);
   const w = tmp(); const msix = path.join(w, 'Local', 'Packages', 'Claude_abc123', 'LocalCache', 'Roaming', 'Claude', 'claude_desktop_config.json');
   ecrire(msix, '{}');
   assert.equal(emplacementParDefaut('win32', { APPDATA: path.join(w, 'Roaming'), LOCALAPPDATA: path.join(w, 'Local') }), msix, 'installation en paquet MSIX');
-  assert.equal(emplacementParDefaut('linux', { WSL_DISTRO_NAME: undefined }), null, 'hors WSL, rien');
+  assert.equal(emplacementParDefaut('linux', { WSL_DISTRO_NAME: undefined }, horsWsl), null, 'hors WSL, rien');
+});
+
+// Essai du site de travail (2026-10-15) : lancé par systemd, l'inventaire ne recevait ni `WSL_DISTRO_NAME` ni le `PATH`
+// Windows, et disait la configuration de Claude Desktop introuvable alors qu'elle était là.
+test('inventaire Claude Desktop : depuis un service de WSL, sans WSL_DISTRO_NAME ni cmd.exe au PATH, la configuration est trouvée', () => {
+  const d = tmp(); const f = path.join(d, 'Roaming', 'Claude', 'claude_desktop_config.json'); ecrire(f, '{}');
+  const interop = path.join(d, 'WSLInterop'); ecrire(interop, 'enabled\n');
+  const script = (nom, corps) => { const s = path.join(d, nom); fs.writeFileSync(s, `#!/bin/sh\n${corps}\n`, { mode: 0o755 }); return s; };
+  const cmd = script('cmd.exe', 'case "$2" in "echo %APPDATA%") echo \'C:\\R\' ;; "echo %LOCALAPPDATA%") echo \'C:\\L\' ;; esac');
+  const wslpath = script('wslpath', `case "$2" in 'C:\\R') echo ${JSON.stringify(path.join(d, 'Roaming'))} ;; 'C:\\L') echo ${JSON.stringify(path.join(d, 'Local'))} ;; *) exit 1 ;; esac`);
+  assert.equal(emplacementParDefaut('linux', {}, { interop, cmd: [path.join(d, 'absent', 'cmd.exe'), cmd], wslpath }), f);
 });
 
 test('import : refus d’outil repérés par leur message en tête, origine et outil, jamais le contenu', () => {

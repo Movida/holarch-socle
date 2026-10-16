@@ -10,23 +10,30 @@ import { lireJson, liste } from './outils.js';
 import { mcp } from './claude-code.js';
 import { SourceAbsente } from './source.js';
 
+// Un service systemd de WSL ne reçoit ni `WSL_DISTRO_NAME` ni le `PATH` Windows : WSL se reconnaît aussi à son interop,
+// et `cmd.exe` se cherche aussi à son emplacement par défaut (lecteur C: monté sous /mnt/c).
+export const WSL = { interop: '/proc/sys/fs/binfmt_misc/WSLInterop', cmd: ['cmd.exe', '/mnt/c/Windows/System32/cmd.exe'], wslpath: 'wslpath' };
+
 // Depuis WSL, les dossiers Windows de l'utilisateur, traduits en chemins Linux ; ailleurs (conteneur, Linux), rien.
-function windowsDepuisWsl(env) {
-  if (!env.WSL_DISTRO_NAME) return null;
+function windowsDepuisWsl(env, wsl) {
+  if (!env.WSL_DISTRO_NAME && !fs.existsSync(wsl.interop)) return null;
   const dossier = (nom) => {
-    const w = spawnSync('cmd.exe', ['/c', `echo %${nom}%`], { encoding: 'utf8', timeout: 5000 });
-    const v = w.status === 0 ? w.stdout.trim() : '';
+    let v = '';
+    for (const cmd of wsl.cmd) {
+      const w = spawnSync(cmd, ['/c', `echo %${nom}%`], { encoding: 'utf8', timeout: 5000 });
+      if (w.status === 0) { v = w.stdout.trim(); break; }
+    }
     if (!v || v.includes('%')) return null;
-    const u = spawnSync('wslpath', ['-u', v], { encoding: 'utf8', timeout: 5000 });
+    const u = spawnSync(wsl.wslpath, ['-u', v], { encoding: 'utf8', timeout: 5000 });
     return u.status === 0 ? u.stdout.trim() : null;
   };
   return { APPDATA: dossier('APPDATA'), LOCALAPPDATA: dossier('LOCALAPPDATA') };
 }
 
 /** Emplacements possibles de la configuration, dans l'ordre : installation classique, puis paquet MSIX (Windows). */
-export function emplacementsCandidats(plateforme = process.platform, env = process.env) {
+export function emplacementsCandidats(plateforme = process.platform, env = process.env, wsl = WSL) {
   if (plateforme === 'darwin') return [path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')];
-  const w = plateforme === 'win32' ? env : plateforme === 'linux' ? windowsDepuisWsl(env) : null;
+  const w = plateforme === 'win32' ? env : plateforme === 'linux' ? windowsDepuisWsl(env, wsl) : null;
   if (!w) return [];
   const c = [];
   if (w.APPDATA) c.push(path.join(w.APPDATA, 'Claude', 'claude_desktop_config.json'));
@@ -39,8 +46,8 @@ export function emplacementsCandidats(plateforme = process.platform, env = proce
   return c;
 }
 
-export function emplacementParDefaut(plateforme = process.platform, env = process.env) {
-  const c = emplacementsCandidats(plateforme, env);
+export function emplacementParDefaut(plateforme = process.platform, env = process.env, wsl = WSL) {
+  const c = emplacementsCandidats(plateforme, env, wsl);
   return c.find((f) => fs.existsSync(f)) || c[0] || null;
 }
 
