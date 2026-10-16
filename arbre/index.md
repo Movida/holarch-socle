@@ -19,7 +19,7 @@ config:
       portsAttributes: { "4280": { label: "HOLARCH — interface", onAutoForward: notify } }
       postCreateCommand: "sudo apt-get update && sudo apt-get install -y bubblewrap socat && npm install -g @anthropic-ai/claude-code && npm install && npx playwright install --with-deps chromium && bash .devcontainer/deploy-keys.sh origin"
 title: HOLARCH — ligne directrice
-description: Un socle autour des runtimes d'agents d'IA, qui embarque les règles, rend tout visible, conserve et vérifie le savoir, et se régule.
+description: Un socle autour des runtimes d'agents d'IA, qu'on emporte d'un projet et d'une machine à l'autre, qui embarque les règles, rend tout visible, conserve et vérifie le savoir, et se régule.
 status: draft
 ---
 

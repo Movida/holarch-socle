@@ -1,7 +1,7 @@
 ---
 type: need
 title: Besoins fondateurs
-description: Les quatre besoins observés d'où part HOLARCH, chacun avec ce qui montrerait qu'il est servi.
+description: Les besoins observés d'où part HOLARCH, chacun avec ce qui montrerait qu'il est servi.
 status: stable
 approved: { by: human:auteur, at: 2026-10-03, ref: "échange du 2026-10-03, « ça me va » (avis rendu point par point)" }
 links:
@@ -17,6 +17,8 @@ links:
 | B2 | **Voir ce qui est en place et ce qui se passe** | sessions détachées, hooks, mémoires locales, coûts et refus invisibles sans fouiller | on ouvre l'interface plutôt que de demander « qu'est-ce qui tourne ? » |
 | B3 | **Garder et vérifier ce qu'on apprend** | leçons perdues d'une session à l'autre, savoir non daté qui finit par répondre faux | une décision réelle s'appuie sur une entrée de savoir sourcée et à jour |
 | B4 | **Prendre du recul à temps** | du temps perdu à adapter l'existant quand repartir de plus haut était plus simple | une revue « page blanche » se déclenche sur signal et sa décision est tracée |
+| B6 | **Ne rien refaire d'un projet à l'autre** (outillage, environnement, accès, contrôles ; les règles sont à B1) | `[À COMPLÉTER : ce que l'auteur a vu se refaire (Q28)]` | un projet créé par `holarch projet creer` reçoit conteneur, accès distant, journal et contrôles sans geste hors gestes réservés |
+| B7 | **Emporter son outillage partout** | `[À COMPLÉTER : ce que l'auteur a observé (Q28)]` | une machine neuve retrouve l'outillage par `holarch init` et le profil désigné, sans recopie à la main, en `[À COMPLÉTER : durée (Q28)]` |
 
 `[À COMPLÉTER : un cinquième besoin, « déléguer une tâche longue en confiance » (vérification indépendante, coût
 connu), dépend du second test comparatif ; à qualifier après la mesure.]`

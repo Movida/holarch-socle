@@ -69,6 +69,18 @@ des tâches étroites mesurée) ; I8 → type `charte-ui` (premier usage sur le 
 **Choix de l'auteur (2026-10-09, choix cliquables).** Modules dans le dépôt du socle ; projet témoin : le projet privé
 le plus coûteux ; ordre : faille du conteneur, garde des approbations et schémas, témoin, découpage en modules.
 
+**État et choix de l'auteur (2026-10-16).** Palliatif 7 fait (2026-10-09) ; 5 tranché autrement par
+`garde-sans-passage-muet` (une règle `stable` sans approbation se lit comme un brouillon ; ni garde avant commit, ni
+approbation liée à une version, ni schémas) ; 8 en partie (parcours commun des transcriptions, format lu dans cinq
+modules) ; 10 en partie (un verrou par écrivain, 2026-10-14 ; index reconstruit en entier) ; 12 en partie (`/tmp`
+nettoyé par les tests) ; 3 autrement : accès distant, veille et conteneur construits dans le cœur (`audit.js` importe
+`veille.js` et `conteneur.js`) ; les autres non faits, ni contrat « module » ni découpage. Prémisses remesurées sur 7
+jours : le socle fait 83 sessions sur 86 et 97 % du coût (40 sur 52 et 41 % ici) ; le projet témoin n'a plus de session
+depuis le 2026-10-09 environ ; le contexte fait toujours 86 % du coût. Choix de l'auteur (choix cliquable, recommandation
+suivie) : ce brouillon devient une entrée de la revue d'ensemble, dont l'hypothèse (c), pas de carte des modules, est sa
+question ; la décision qu'elle produira le remplace (`replaces`) ; le choix du témoin est à redemander ; les choix du
+2026-10-09 (modules dans le dépôt, ordre) restent écrits ici.
+
 **Ce qui le ferait changer.** Un module voulu seul par quelqu'un d'autre (il sort en dépôt) ; une mesure sur le témoin
 qui ne montre ni moins de redites ni moins de contexte par tour.
 

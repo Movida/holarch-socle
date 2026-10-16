@@ -16,6 +16,11 @@ les mêmes consignes se redisent projet après projet et s'oublient ; ce que fon
 qu'ils apprennent se perd d'une session à l'autre ; et l'on s'épuise à adapter l'existant quand repartir de plus haut
 serait plus simple.
 
+HOLARCH naît de l'usage quotidien de l'IA par l'auteur et de ce que cet usage a appris. Il doit éviter de recréer N fois
+la même chose d'un projet à l'autre (règles, outillage, environnement, accès, contrôles) et former un couteau suisse
+qu'on emporte partout : nouveau projet, nouvelle machine, au travail comme chez soi. Aucune idée ne s'y perd : elle
+attend dans la boîte à idées, puis prend sa place quand sa phase s'ouvre.
+
 HOLARCH est un **socle autour des agents** qu'on utilise déjà. Il ne les remplace pas et ne leur fait pas concurrence :
 il leur apporte, d'un outil, d'une session et d'un projet à l'autre, ce qu'aucun ne fournit seul — des règles
 embarquées, une visibilité complète, un savoir vérifié et partagé, une ligne directrice sur N projets, une vérification
