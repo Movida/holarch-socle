@@ -1372,8 +1372,9 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   création, tests nommés au refus de la pose ; `c6641af` à `7ae3cc3`), jamais posés ici. Choix de l'auteur
   (recommandation suivie) : rebase des 30 commits locaux sur `origin/main`, historique linéaire ; un seul conflit, au
   journal, entrées rangées par date ; code identique à celui des commits distants ; hashes cités dans l'arbre
-  remplacés par les nouveaux (`git rev-list`, mêmes sujets dans le même ordre). Suite : (2) tests, pose et envoi de la
-  pointe rebasée sur autorisation, puis lecture de l'intégration continue ; (3) et (4) ci-dessus, inchangés.
+  remplacés par les nouveaux (`git rev-list`, mêmes sujets dans le même ordre). Pointe rebasée `4c9582a` :
+  278 tests verts, test visuel vert, posée, audit conforme, envoyée sur autorisation (pas d'intégration continue sur ce
+  dépôt). Suite : (3) et (4) ci-dessus, inchangés.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
