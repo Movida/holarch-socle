@@ -58,9 +58,13 @@ async function inventaire(config, { catalogue, journal }) {
   erreurs.push(...r.doublons.map((x) => `catalogue : fiche en double écartée, ${x.id} (gardée : ${x.garde ?? 'sans emplacement'} ; écartée : ${x.ecarte ?? 'sans emplacement'})`));
   const maintenant = Date.now(); const at = new Date(maintenant).toISOString();
   const ev = (kind, subject) => ({ id: ulid(maintenant), at, kind, actor: 'system:inventaire', subject, data: {}, classification: 'internal' });
+  // Un retrait porte le nom et l'emplacement de la fiche retirée (contrat événement 0.11.0) : le catalogue ne la garde
+  // pas, et le nom d'un projet retiré ne peut venir que de là (affichage seulement).
+  const avant = new Map(precedentes.map((f) => [f.id, f]));
+  const retrait = (id) => { const f = avant.get(id); return f ? { name: f.name, ...(f.location && { location: f.location }) } : {}; };
   journal.ajouter([
     ...r.apparues.map((s) => ev('element.created', s)),
-    ...r.disparues.map((s) => ev('element.retired', s)),
+    ...r.disparues.map((s) => ({ ...ev('element.retired', s), data: retrait(s) })),
     ...r.deplacees.map((d) => ({ ...ev('element.moved', d.id), data: { de: d.de, vers: d.vers } })),
     { ...ev('inventory.finished', null), data: { fiches: r.fiches, apparues: r.apparues.length, disparues: r.disparues.length, deplacees: r.deplacees.length, refusees: r.refusees.length, erreurs, absentes, comptes: comptes.map((c) => c.nom).filter(Boolean), comptes_non_lus: nonLus } },
   ]);

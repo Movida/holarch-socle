@@ -42,13 +42,13 @@ export function creerServeurMcp(socle, version) {
   });
 
   s.registerTool('projets', {
-    description: 'Suivi des projets (identifiés par leur dépôt Git) : étape en cours d’après leur arbre (faits, reste), questions ouvertes et décisions à approuver, idées de la boîte visées pour l’étape en cours, activité sur 7 et 30 jours (sessions, coût liste partagé entre les projets où chaque session a travaillé), dernier commit, état du dépôt (non commité, non poussé, retard sur l’amont), intégration continue configurée.',
+    description: 'Suivi des projets (identifiés par leur dépôt Git) : étape en cours d’après leur arbre (faits, reste), questions ouvertes et décisions à approuver, idées de la boîte visées pour l’étape en cours, activité sur 7 et 30 jours (sessions, coût liste partagé entre les projets où chaque session a travaillé), dernier commit, état du dépôt (non commité, non poussé, retard sur l’amont ; lu en direct, `lu_a`), intégration continue configurée ; activité hors projet, et des projets retirés du catalogue (`retires`, avec leur nom et la date du retrait).',
     inputSchema: z.object({ projet, calmes: z.boolean().optional().describe('Inclure les projets sans activité ni attente (non par défaut)'), limite: limite(20, 200) }),
     annotations: LECTURE,
   }, async ({ projet: ref, calmes, limite: n }) => {
     const r = socle.projets(); const id = ref ? socle.projetDe(ref) : null;
     const l = r.projets.filter((p) => (id ? p.id === id : calmes || !p.calme));
-    return texte({ total: l.length, hors_projet: r.hors_projet, projets: l.slice(0, n ?? 20) });
+    return texte({ total: l.length, hors_projet: r.hors_projet, retires: r.retires, projets: l.slice(0, n ?? 20) });
   });
 
   s.registerTool('regles', {

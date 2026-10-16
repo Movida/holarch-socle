@@ -93,3 +93,63 @@ test('V2 : l’état du dépôt se lit en direct dans la vue Projets, le tableau
   // La reprise dit le même chiffre que la vue.
   assert.match(resume(s, d), /Dépôt : 1 fichier\(s\) non commité\(s\), 0 commit\(s\) non poussé\(s\)\./);
 });
+
+// V1 (décision sorties-mcp-des-chiffres, contrat événement 0.11.0) : les projets retirés du catalogue sortaient de la vue
+// Projets (222,06 $ et 21 sessions sur 182 en 30 jours, comptés nulle part) et s'affichaient ailleurs par leur
+// identifiant brut. Un retrait porte désormais le nom et l'emplacement de la fiche retirée ; `projets()` rend `retires`.
+import { ulid } from '../src/ulid.js';
+const il_y_a = (j) => new Date(Date.now() - j * 864e5).toISOString().replace(/\.\d+Z$/, 'Z');
+const TARIFS = { modeles: { m: { entree: 0, cache_ecrit: 0, cache_lu: 0, sortie: 1e6 } } }; // 1 $ par token de sortie
+// Une session : un coût (`out` tokens, donc `out` $), sa fin ; `data` complète la fin (projets touchés, dossier de départ).
+function session(ev, corr, j, data, out) {
+  const base = { actor: 'agent:claude-code/m', correlation: corr, classification: 'internal' };
+  ev.push({ ...base, id: ulid(Date.parse(il_y_a(j)), `${corr}c`), at: il_y_a(j), kind: 'cost.recorded', data: {}, cost: { provider: 'anthropic', model: 'm', usd_list: null, tokens: { out } } });
+  ev.push({ ...base, id: ulid(Date.parse(il_y_a(j)), `${corr}f`), at: il_y_a(j), kind: 'session.finished', data: { sous_agent: false, tours: 4, ...data } });
+}
+const fiche = (nom, extra = {}) => ({ id: `holarch:project:${nom}`, kind: 'project', name: nom, status: 'active', site: 'local', location: `/ws/${nom}`, provenance: { source: 't' }, ...extra });
+
+test('V1 : un retrait porte le nom et l’emplacement de la fiche retirée', async () => {
+  const r = tmp(); const d = path.join(r, 'parti'); fs.mkdirSync(d); git(d, 'init', '-q');
+  const donnees = tmp();
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: {}, import: {}, inventaire: { 'depots-git': { racines: [r], profondeur: 1 } } });
+  await s.inventaire();
+  const [p] = s.catalogue.lire().filter((f) => f.kind === 'project');
+  fs.rmSync(d, { recursive: true });
+  assert.equal((await s.inventaire()).disparues.length, 1);
+  const retrait = [...s.journal.lire()].find((e) => e.kind === 'element.retired');
+  assert.deepEqual([retrait.subject, retrait.data], [p.id, { name: 'parti', location: d }]);
+});
+
+test('V1 : projets() rend les projets retirés (activité, nom, date du retrait) ; projets + hors projet + retirés = total', async () => {
+  const donnees = tmp(); const ev = [];
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: TARIFS, inventaire: {}, import: {} });
+  const id = (n) => `holarch:project:${n}`;
+  session(ev, 's1', 1, { cwd: '/ws', projet: 'ws', projets: [{ id: id('a'), n: 3 }, { id: id('r1'), n: 1 }] }, 8);
+  session(ev, 's2', 2, { cwd: '/ws/x', projet: 'dossier-x', projets: [{ id: id('r2'), n: 2 }] }, 4);
+  session(ev, 's3', 40, { cwd: '/ws/x', projet: 'dossier-x', projets: [{ id: id('r2'), n: 1 }] }, 50);
+  session(ev, 's4', 45, { cwd: '/ws/y', projet: 'autre', projets: [{ id: id('r2'), n: 1 }] }, 50);
+  session(ev, 's5', 3, { cwd: '/ailleurs', projet: 'ailleurs' }, 1);
+  session(ev, 's6', 5, { cwd: '/ws/z', projets: [{ id: id('r3'), n: 1 }] }, 3);
+  const evt = (kind, j, extra) => ({ id: ulid(Date.parse(il_y_a(j)), `${kind}${j}`), at: il_y_a(j), kind, classification: 'internal', ...extra });
+  ev.push(evt('element.retired', 6, { actor: 'system:inventaire', subject: id('r1'), data: { name: 'ancien-nom', location: '/ws/ancien' } }));
+  ev.push(evt('element.retired', 9, { actor: 'system:inventaire', subject: id('r2'), data: {} })); // avant 0.11.0
+  ev.push(evt('tool.failed', 2, { actor: 'agent:claude-code/m', correlation: 's2', data: { motif: 'sortie', programme: 'npm', outil: 'Bash' } }));
+  s.journal.ajouter(ev);
+  s.catalogue.remplacer([fiche('a', { attributes: { fichiers_modifies: 0 } })]); s.indexer();
+  const { projets, hors_projet: hors, retires } = s.projets();
+  assert.deepEqual(retires.projets, [{ id: id('r1'), nom: 'ancien-nom', retire_le: il_y_a(6) }, { id: id('r2'), nom: 'dossier-x', retire_le: il_y_a(9) }, { id: id('r3'), nom: null, retire_le: null }],
+    'nom du dernier retrait ; avant 0.11.0, le dossier de départ le plus fréquent ; sinon null');
+  assert.deepEqual(retires.activite, { sessions_7: 3, sessions_30: 3, usd_7: 9, usd_30: 9, sortie_30: 9, derniere_session: il_y_a(1), echecs_7: { n: 1, tests_rouges: 0, garde: 0 } });
+  // Bouclage : rien ne sort du compte.
+  const total = s.etat().periode.tokens.usd;
+  assert.equal(projets.reduce((x, p) => x + (p.activite?.usd_30 || 0), 0) + hors.usd_30 + retires.activite.usd_30, total);
+  assert.equal(total, 16);
+  // Les autres lectures qui nomment un projet prennent le même nom.
+  assert.equal(s.consommation({ jours: 30, par: 'projet' }).find((c) => c.cle === id('r1')).nom, 'ancien-nom');
+  assert.deepEqual(s.sessions({ jours: 30 }).find((x) => x.session === 's2').projets.map((p) => p.nom), ['dossier-x']);
+  // Le serveur MCP les rend aussi.
+  const m = await mcp(s);
+  try { assert.deepEqual((await m.appel('projets')).retires, retires); } finally { await m.fermer(); }
+  const sansRetrait = new Socle({ ...s.config, donnees: tmp() }); sansRetrait.indexer();
+  assert.deepEqual(sansRetrait.projets().retires, { activite: null, projets: [] });
+});

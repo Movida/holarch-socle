@@ -33,6 +33,9 @@ const dernierFait = (faits) => faits.reduce((d, e) => (e.date && (!d?.date || e.
 // Les nœuds d'un arbre lu (`arbreFrais`), rangés par nom comme les rendait l'index (`fiches`, ORDER BY name).
 const noeudsDe = (arbre) => arbre.filter((f) => f.kind === 'node').sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
+// Clé de groupe des projets retirés du catalogue (V1) : un identifiant de projet commence toujours par `holarch:project:`.
+const RETIRES = 'retires';
+
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions, agentgateway: importerPasserelle };
 
 export class Socle {
@@ -229,13 +232,36 @@ export class Socle {
     return { fiche: JSON.parse(r.json), evenements: this.index.requete(`SELECT * FROM evenements WHERE subject IN (${ids.map(() => '?').join(',')}) ORDER BY at DESC LIMIT 50`, ...ids) };
   }
 
+  // Nom d'affichage d'un projet, le même dans toutes les lectures qui en nomment un (vue Projets, sessions, consommation,
+  // tableau de bord, arbre ; décision sorties-mcp-des-chiffres, V1) : `nom(id)` est celui de sa fiche ; pour un projet
+  // retiré du catalogue, celui que porte son dernier `element.retired` (contrat événement 0.11.0) ; retiré avant 0.11.0
+  // (`data: {}`), le dossier de départ (`data.projet`) le plus fréquent de ses sessions, affichage seulement (décision
+  // rattachement-projet) ; sinon null. `retire_le(id)` : la date de ce dernier retrait sur ce site, null sans retrait.
+  nomsDeProjets(projets = projetsDe(this.projetsDuSite())) {
+    const fiches = new Map(projets.map((p) => [p.id, p.nom]));
+    let retraits; let departs;
+    const retrait = (id) => (retraits ??= new Map(this.index.requete("SELECT subject, at, json_extract(data,'$.name') nom FROM evenements WHERE kind='element.retired' AND subject LIKE 'holarch:project:%' AND site=? ORDER BY at, id", this.config.site)
+      .map((e) => [e.subject, e]))).get(id);
+    const depart = (id) => {
+      if (!departs) {
+        departs = new Map();
+        for (const x of this.index.requete(`SELECT json_extract(j.value,'$.id') projet, json_extract(e.data,'$.projet') dossier,
+            COUNT(DISTINCT CASE WHEN instr(e.correlation, ':') > 0 THEN substr(e.correlation, 1, instr(e.correlation, ':') - 1) ELSE e.correlation END) n
+          FROM evenements e, json_each(e.data, '$.projets') j WHERE e.kind='session.finished' AND json_extract(e.data,'$.projet') IS NOT NULL
+          GROUP BY projet, dossier ORDER BY n DESC, dossier`)) if (!departs.has(x.projet)) departs.set(x.projet, x.dossier);
+      }
+      return departs.get(id) ?? null;
+    };
+    return { nom: (id) => (id == null ? null : fiches.has(id) ? fiches.get(id) : retrait(id)?.nom ?? depart(id)), retire_le: (id) => retrait(id)?.at ?? null };
+  }
+
   // Attribution des sessions aux projets (décision rattachement-projet), la seule, partagée par toutes les lectures :
   // racine de corrélation → [{id, nom, n}]. Ce sont les projets touchés (`data.projets`, sous-agents compris, la dernière
   // fin de chaque corrélation qui en porte, complément compris) ; sans projet touché, celui du répertoire de départ
   // (`repli`) ; sinon aucun (« hors projet »).
   attribution() {
     const projets = projetsDe(this.projetsDuSite());
-    const noms = new Map(projets.map((p) => [p.id, p.nom]));
+    const { nom } = this.nomsDeProjets(projets);
     const lieu = localiserProjet(projets);
     const touches = new Map(); const departs = new Map(); const vues = new Set();
     for (const e of this.index.requete("SELECT correlation, data FROM evenements WHERE kind='session.finished' AND correlation IS NOT NULL ORDER BY at DESC, id DESC")) {
@@ -248,7 +274,7 @@ export class Socle {
     }
     return (racine) => {
       const t = touches.get(racine);
-      if (t?.size) return [...t].map(([id, n]) => ({ id, nom: noms.get(id) ?? null, n })).sort((a, b) => b.n - a.n);
+      if (t?.size) return [...t].map(([id, n]) => ({ id, nom: nom(id), n })).sort((a, b) => b.n - a.n);
       const p = lieu(departs.get(racine));
       return p ? [{ id: p.id, nom: p.nom, n: 1, repli: true }] : [];
     };
@@ -291,19 +317,24 @@ export class Socle {
     const fiches = this.projetsDuSite();
     const noeuds = noeudsDe(arbre);
     // Sessions comptées par projet ; coût et tokens repris de `consommation` (coûts datés dans la période) : la vue et le
-    // tableau de bord donnent le même chiffre.
+    // tableau de bord donnent le même chiffre. Un projet que portent des sessions mais que le catalogue de ce site n'a plus
+    // est retiré (V1) : tous comptent ensemble (`RETIRES`), une session une fois, et projets, hors projet et retirés font le
+    // total de la période.
     const j7 = new Date(Date.now() - 7 * 864e5).toISOString();
+    const presents = new Set(fiches.map((f) => f.id)); const retires = new Set();
+    const groupe = (id) => { if (id == null || presents.has(id)) return id; retires.add(id); return RETIRES; };
     const activite = new Map();
     const de = (id) => { if (!activite.has(id)) activite.set(id, { sessions_7: 0, sessions_30: 0, usd_7: null, usd_30: null, sortie_30: 0, derniere_session: null }); return activite.get(id); };
     for (const s of this.sessions({ jours: 30 })) {
-      for (const [id] of parts(s.projets)) {
-        const a = de(id); a.sessions_30++; if (s.fin >= j7) a.sessions_7++;
+      for (const g of new Set(parts(s.projets).map(([id]) => groupe(id)))) {
+        const a = de(g); a.sessions_30++; if (s.fin >= j7) a.sessions_7++;
         if (!a.derniere_session || s.fin > a.derniere_session) a.derniere_session = s.fin;
       }
     }
-    for (const c of this.consommation({ jours: 30, par: 'projet' })) { const a = de(c.cle); a.usd_30 = c.usd; a.sortie_30 = c.sortie; }
-    for (const c of this.consommation({ jours: 7, par: 'projet' })) de(c.cle).usd_7 = c.usd;
-    const echecs = this.echecs({ jours: 7 }).par_projet;
+    const plus = (x, v) => (v == null ? x : (x || 0) + v);
+    for (const c of this.consommation({ jours: 30, par: 'projet' })) { const a = de(groupe(c.cle)); a.usd_30 = plus(a.usd_30, c.usd); a.sortie_30 += c.sortie; }
+    for (const c of this.consommation({ jours: 7, par: 'projet' })) { const a = de(groupe(c.cle)); a.usd_7 = plus(a.usd_7, c.usd); }
+    const echecs = this.echecs({ jours: 7, groupe }).par_projet;
     const ecarts = new Map();
     for (const o of this.ecartsOuverts()) if (o.projet) ecarts.set(o.projet, (ecarts.get(o.projet) || 0) + 1);
     const techniques = new Map(this.techniques().map(([f, t]) => [f.id, t]));
@@ -339,20 +370,26 @@ export class Socle {
       return p;
     });
     liste.sort((x, y) => (y.recent || '').localeCompare(x.recent || '') || x.nom.localeCompare(y.nom));
-    return { projets: liste, hors_projet: activite.get(null) || null };
+    // Les retirés : leur activité (échecs compris, comptés nulle part avant), et chacun avec son nom et la date de son retrait.
+    const noms = this.nomsDeProjets();
+    const retire = activite.get(RETIRES) ? { ...activite.get(RETIRES), echecs_7: echecs[RETIRES] || null } : null;
+    const projetsRetires = [...retires].map((id) => ({ id, nom: noms.nom(id), retire_le: noms.retire_le(id) }))
+      .sort((x, y) => (y.retire_le || '').localeCompare(x.retire_le || '') || x.id.localeCompare(y.id));
+    return { projets: liste, hors_projet: activite.get(null) || null, retires: { activite: retire, projets: projetsRetires } };
   }
 
   // Échecs d'une période (décision echecs-au-journal) : erreurs d'outil par motif, programme et outil, refus de la garde
   // (un par commit refusé), tests lancés et rouges (dernière fin de chaque session qui en porte). Par projet : les échecs
   // des sessions qui y ont travaillé (même attribution que la vue Projets, sans partage : un échec ne se divise pas) et
   // les refus de la garde dans son dépôt. Le tableau de bord et la carte d'un projet lisent ce seul compte.
-  echecs({ jours = 30 } = {}) {
+  // `groupe` : la clé de `par_projet` d'un identifiant (les projets retirés comptent ensemble ; un échec une fois par clé).
+  echecs({ jours = 30, groupe = (id) => id } = {}) {
     const d = new Date(Date.now() - jours * 864e5).toISOString();
     const projetsDeSession = this.attribution();
     const r = { total: 0, par_motif: {}, par_programme: {}, par_outil: {}, tests: { lances: 0, rouges: 0 }, par_projet: {} };
     const pp = (id) => (r.par_projet[id] ||= { n: 0, tests_rouges: 0, garde: 0 });
     const plus = (o, k) => { if (k != null) o[k] = (o[k] || 0) + 1; };
-    const projetsDe = (corr) => projetsDeSession(String(corr).split(':')[0]).map((p) => p.id);
+    const projetsDe = (corr) => [...new Set(projetsDeSession(String(corr).split(':')[0]).map((p) => groupe(p.id)))];
     for (const e of this.index.requete("SELECT correlation, json_extract(data,'$.motif') motif, json_extract(data,'$.programme') programme, json_extract(data,'$.outil') outil FROM evenements WHERE kind='tool.failed' AND at>=?", d)) {
       if (e.motif === 'garde') continue; // compté par `rule.enforced`
       r.total++; plus(r.par_motif, e.motif); plus(r.par_programme, e.programme); plus(r.par_outil, e.outil);
@@ -360,7 +397,7 @@ export class Socle {
     }
     for (const e of this.index.requete("SELECT DISTINCT at, subject FROM evenements WHERE kind='rule.enforced' AND at>=?", d)) {
       r.total++; plus(r.par_motif, 'garde');
-      if (e.subject) { pp(e.subject).n++; pp(e.subject).garde++; }
+      if (e.subject) { pp(groupe(e.subject)).n++; pp(groupe(e.subject)).garde++; }
     }
     const vues = new Set();
     for (const e of this.index.requete("SELECT correlation, json_extract(data,'$.tests') tests FROM evenements WHERE kind='session.finished' AND json_extract(data,'$.tests') IS NOT NULL AND at>=? ORDER BY at DESC, id DESC", d)) {
@@ -482,8 +519,8 @@ export class Socle {
 
   // Nœuds de l'arbre frais (`arbre`), comme la vue Projets et les règles.
   arbre({ arbre = this.arbreFrais() } = {}) {
-    const noms = new Map(projetsDe(this.projetsDuSite()).map((p) => [p.id, p.nom]));
+    const { nom } = this.nomsDeProjets();
     return noeudsDe(arbre).map((f) => ({ id: f.id, chemin: f.node, titre: f.name, description: f.description, type: f.attributes?.type, statut: f.attributes?.statut, version: f.version,
-      projet: f.links?.project?.[0] ? { id: f.links.project[0], nom: noms.get(f.links.project[0]) ?? null } : null, parent: (f.links?.derives_from || [])[0] || null, approuve: f.attributes?.approuve || null }));
+      projet: f.links?.project?.[0] ? { id: f.links.project[0], nom: nom(f.links.project[0]) } : null, parent: (f.links?.derives_from || [])[0] || null, approuve: f.attributes?.approuve || null }));
   }
 }

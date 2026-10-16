@@ -20,17 +20,20 @@ function donneesFictives() {
   const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {}, profil: '/ws/profil', // décision profil-designe
     tarifs: { source: 'https://exemple.test/tarifs', releve: '2026-10-01', modeles: { 'modele-a': { entree: 1, cache_ecrit: 1, cache_ecrit_1h: 2, cache_lu: 0.1, sortie: 10 } } } });
   const ev = [];
-  const session = (n, jours, projet, sortie, modele = 'modele-a') => {
+  const session = (n, jours, projet, sortie, modele = 'modele-a', extra = {}) => {
     const corr = `session-${n}`; const base = { actor: `agent:claude-code/${modele}`, correlation: corr, classification: 'internal' };
     ev.push({ ...base, id: ulid(Date.parse(il_y_a(jours, 9)), `${n}d`), at: il_y_a(jours, 9), kind: 'session.started', data: { projet, sous_agent: false } });
     ev.push({ ...base, id: ulid(Date.parse(il_y_a(jours, 11)), `${n}c`), at: il_y_a(jours, 11), kind: 'cost.recorded', data: { projet, sous_agent: false },
       cost: { provider: 'anthropic', model: modele, usd_list: null, tokens: { in: 1200, cache_write: 5e4, cache_write_1h: 0, cache_read: sortie * 40, out: sortie } } });
     ev.push({ ...base, id: ulid(Date.parse(il_y_a(jours, 11)), `${n}f`), at: il_y_a(jours, 11), kind: 'session.finished',
-      data: { projet, cwd: `/ws/${projet}`, sous_agent: false, tours: 12, invites: 3, duree_s: 7200, modeles: [modele] } });
+      data: { projet, cwd: `/ws/${projet}`, sous_agent: false, tours: 12, invites: 3, duree_s: 7200, modeles: [modele], ...extra } });
   };
   // Des jours sans activité au milieu de la plage : l'histogramme doit les montrer à zéro.
   [[1, 0, 'projet-a', 9e5], [2, 2, 'projet-b', 3e6], [3, 9, 'projet-a', 4e5], [4, 20, 'projet-c', 2e5], [5, 2, 'projet-c', 1e5, 'modele-sans-tarif']]
     .forEach(([n, j, p, o, m]) => session(n, j, p, o, m));
+  // Un projet retiré du catalogue (V1) : des sessions le portent, son retrait porte son nom (contrat événement 0.11.0).
+  session(6, 3, 'ancien-projet', 5e4, 'modele-a', { projets: [{ id: 'holarch:project:ancien', n: 2 }] });
+  ev.push({ id: ulid(Date.parse(il_y_a(5, 10)), 'retrait'), at: il_y_a(5, 10), kind: 'element.retired', actor: 'system:inventaire', subject: 'holarch:project:ancien', data: { name: 'ancien-projet', location: '/ws/ancien-projet' } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'a'), at: il_y_a(2, 10), kind: 'tool.called', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', serveur: 'holarch', outil: 'etat', statut: 'ok' } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'r'), at: il_y_a(2, 10), kind: 'tool.denied', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', outil: 'Bash', origine: 'regle' } });
   s.journal.ajouter(ev);
@@ -115,6 +118,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   const carteA = await page.textContent('.carte.projet:first-child');
   assert.match(carteA, /projet-a[\s\S]*3 non commités[\s\S]*2 non poussés[\s\S]*CI : GitHub Actions[\s\S]*Étape 2 — Fictive[\s\S]*Une tranche à faire[\s\S]*1 question ouverte[\s\S]*7 j : 1 session/);
   assert.match(await page.textContent('main'), /Sans activité sur 30 jours[\s\S]*projet-calme/);
+  assert.match(await page.textContent('.retires'), /Projets retirés du catalogue, sur 30 j : 1 session · [\d,]+ \$ — ancien-projet \(retiré le /, 'ligne des projets retirés');
   await page.click('.carte.projet:first-child .activite a');
   await page.waitForFunction(() => location.hash.startsWith('#/sessions?projet=holarch'));
   await page.waitForSelector('.nav a[aria-current="page"][data-vue="sessions"]'); // sinon, le tableau de la page Projets

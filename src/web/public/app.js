@@ -96,7 +96,7 @@ const md = (t) => h(t).replace(/`([^`]+)`/g, '<code>$1</code>');
 
 async function projets(params) {
   const tous = params.get('tous') === '1';
-  const { projets: liste, hors_projet: hors } = await api('/api/projets');
+  const { projets: liste, hors_projet: hors, retires } = await api('/api/projets');
   const actifs = liste.filter((p) => !p.calme); const calmes = liste.filter((p) => p.calme);
   const tech = (p) => {
     const t = p.technique; const b = [];
@@ -126,7 +126,8 @@ async function projets(params) {
     <p class="sous-titre">Où en est chaque projet d’après son arbre, ce qui l’attend, son activité et l’état de son dépôt. Une session compte pour chaque projet où elle a travaillé.</p>
     <div class="grille g2">${(tous ? liste : actifs).map(carte).join('') || '<div class="carte vide">Aucun projet en mouvement sur 30 jours.</div>'}</div>
     ${!tous && calmes.length ? `<div class="carte tableau section"><h2>Sans activité sur 30 jours, rien en attente</h2><table class="triable"><thead><tr><th>Projet</th><th>Branche</th><th class="num" data-sens="desc">Dernier commit</th></tr></thead><tbody>${calmes.map((p) => `<tr class="cliquable" data-fiche="${h(p.id)}"><td>${h(p.nom)}</td><td class="mono desc">${h(p.branche || '')}</td><td class="num" data-v="${p.dernier_commit ? Date.parse(p.dernier_commit.at) : -1}">${p.dernier_commit ? h(date(p.dernier_commit.at)) : '—'}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    ${hors ? `<p class="discret section"><a href="#/sessions?projet=aucun">Hors projet sur 30 j : ${nf.format(hors.sessions_30)} session${hors.sessions_30 > 1 ? 's' : ''}${cout(hors.usd_30)}</a> (aucun projet du catalogue touché).</p>` : ''}`;
+    ${hors ? `<p class="discret section"><a href="#/sessions?projet=aucun">Hors projet sur 30 j : ${nf.format(hors.sessions_30)} session${hors.sessions_30 > 1 ? 's' : ''}${cout(hors.usd_30)}</a> (aucun projet du catalogue touché).</p>` : ''}
+    ${retires?.activite ? (() => { const r = retires.activite; return `<p class="discret section retires">Projets retirés du catalogue, sur 30 j : ${nf.format(r.sessions_30)} session${r.sessions_30 > 1 ? 's' : ''}${cout(r.usd_30)}${r.echecs_7?.n ? ` · ${nf.format(r.echecs_7.n)} échec${r.echecs_7.n > 1 ? 's' : ''} (7 j)` : ''} — ${retires.projets.map((p) => `<a href="#/sessions?projet=${encodeURIComponent(p.id)}">${h(p.nom || p.id)}</a>${p.retire_le ? ` (retiré le ${h(date(p.retire_le))})` : ''}`).join(', ')}.</p>`; })() : ''}`;
 }
 
 async function catalogue(params) {
