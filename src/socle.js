@@ -185,9 +185,11 @@ export class Socle {
   }
 
   // Contexte relu par tour (décision passation-sereine) : la mesure de l'économie (moyenne pondérée par les tours, donc
-  // portée par les longues sessions, celles qui coûtent), et les sessions de la semaine au-dessus du seuil de passation.
-  // Le seuil est celui du profil, comme pour le crochet d'alerte : sans lui (null), aucune alerte n'est posée et aucune
-  // session n'est dite lourde. Lu dans l'arbre frais (`arbre`) : un seuil changé vaut tout de suite, comme pour l'alerte.
+  // portée par les longues sessions, celles qui coûtent), et les sessions de la semaine au-dessus du seuil de passation
+  // en moyenne par tour (`lourdes`, `lourdes_n`) ; l'alerte, elle, compare au seuil la taille du contexte à l'instant (V7 :
+  // deux mesures, dites chacune par son nom). Le seuil est celui du profil, comme pour le crochet d'alerte : sans lui
+  // (null), aucune alerte n'est posée et aucune session n'est retenue. Lu dans l'arbre frais (`arbre`) : un seuil changé
+  // vaut tout de suite, comme pour l'alerte.
   contexte({ arbre = this.arbreFrais() } = {}) {
     const regle = +regleDuCompte(arbre, { profil: this.profil() }).config?.claude_code?.passation?.seuil_tokens;
     const seuil = regle > 0 ? regle : null;

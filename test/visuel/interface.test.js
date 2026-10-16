@@ -58,7 +58,8 @@ function donneesFictives() {
     fiche('project', 'projet-a', { location: '/ws/projet-a', attributes: { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 3, integration_continue: ['GitHub Actions'], dernier_commit: il_y_a(1), dernier_sujet: 'Un commit fictif' } }),
     fiche('project', 'projet-b', { location: '/ws/projet-b', attributes: { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(4) } }),
     fiche('project', 'projet-calme', { location: '/ws/projet-calme', attributes: { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0, dernier_commit: il_y_a(300) } }),
-    fiche('node', 'profil/racine', { name: 'Profil fictif', location: '/ws/profil/arbre/index.md', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'profil' } }),
+    // Un seuil de passation (décision passation-sereine) : les sessions fictives le dépassent en moyenne par tour (V7).
+    fiche('node', 'profil/racine', { name: 'Profil fictif', location: '/ws/profil/arbre/index.md', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'profil', config: { claude_code: { passation: { seuil_tokens: 1000 } } } } }),
     fiche('node', 'profil/perso', { name: 'Perso', location: '/ws/profil/arbre/contextes/perso.md', node: '/arbre/contextes/perso.md', links: { derives_from: ['/arbre/index.md'] }, attributes: { type: 'context', statut: 'draft', arbre: 'profil', projects: ['holarch:project:projet-a'] } }),
     fiche('node', 'socle/racine', { name: 'Socle fictif', location: '/ws/socle/arbre/index.md', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'socle' } }),
     fiche('node', 'socle/methode', { name: 'Méthode fictive', location: '/ws/socle/arbre/types-transverses/methode/index.md', node: '/arbre/types-transverses/methode/index.md', attributes: { type: 'template', statut: 'draft', arbre: 'socle', id: 'methode' } }),
@@ -102,6 +103,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.equal(await page.$$eval('.axe span', (r) => r.length), 4);
   assert.match(await page.textContent('.tuile:last-child .note'), /hors 1 modèle sans tarif/);
   assert.match(await page.textContent('body'), /mémoire en 2 exemplaires/);
+  assert.match(await page.textContent('body'), /Contexte relu par tour : 7 j [^·]+ · 30 j [^·]+ · \d+ session\(s\) au-dessus du seuil en moyenne par tour/, 'V7 : la mesure dite, pas « lourde »');
   assert.match(await page.textContent('body'), /Appels MCP, 30 j[\s\S]*holarch/);
   assert.match(await page.textContent('.carte:has(h2:text("Appels MCP")) .chiffre'), /^2 · dont 1 inconnu$/, 'appels de statut inconnu');
   assert.equal(await page.$eval('table.triable tbody tr td', (td) => td.textContent), 'modele-a', 'modèles triés par coût');
