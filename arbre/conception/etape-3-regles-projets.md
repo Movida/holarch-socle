@@ -1285,8 +1285,8 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   l'auteur : l'agent les pose sans `sudo` en tête de la session suivante (`apt-get download`, extraites dans
   `~/.local`, chargées par `LD_LIBRARY_PATH` ; à retirer après une installation par apt).
 - **Fait (2026-10-16)** : bibliothèques du test visuel posées sans `sudo` (`~/.local/lib/test-visuel`), test visuel
-  rendu vert (données fictives d'avant `profil-designe`, `ae4c6ee`) ; choix de l'auteur sur 238, V6, V7 et V9
-  (`revue-limites.md`) ; contrat événement 0.11.0 (`c2a6577`) ; lot 2 codé par une instance neuve (`b69dca4` à `3bedb19`,
+  rendu vert (données fictives d'avant `profil-designe`, `49ea704`) ; choix de l'auteur sur 238, V6, V7 et V9
+  (`revue-limites.md`) ; contrat événement 0.11.0 (`3ea8499`) ; lot 2 codé par une instance neuve (`02afd73` à `7f2c13d`,
   huit commits, 271 tests verts, test visuel vert ; relecture, nom trompeur d'un retiré (le dossier personnel) et copie de service à la session suivante ;
   détail : `revue-limites.md`, « Chiffres, lot 2 »). Inquiétude de l'auteur : la conception point par point, aux recommandations souvent
   les moins chères, perd de vue la cohérence et les objectifs. Avis de l'agent, faits à l'appui : tri des limites par
@@ -1335,12 +1335,12 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   (330 reculs en 9 916 s, `dmesg`), et la production a le même défaut (un arbre changé juste après un inventaire passe
   pour à jour, la garde peut ignorer une règle bloquante neuve). Choix de l'auteur (recommandations suivies) : les huit
   corrections de relecture, et l'empreinte de l'arbre au lieu de « plus récent que le catalogue ». Six faites par une
-  instance neuve, non relues (`19eead4` à `5d1711a` : audit de la création laissé à l'inventaire en cours, nom `null`
+  instance neuve, non relues (`b86073e` à `36d5ddf` : audit de la création laissé à l'inventaire en cours, nom `null`
   pour un dossier de départ qui est ou contient un projet, champs écrits ci-dessus, jour local de l'audit et du journal
   d'un projet créé, coût d'un jour par `coutsDeSessions`, `git status` en échec). L'instance a été arrêtée à 17 h 17 par
   une interruption de la session, sans signal ; son point 7a, inachevé, est dans `git stash` (« lot 2, point 7a en
   cours »). Brouillons du 2026-10-09 tranchés : `idees-fondatrices` réécrite courte et approuvée (manifeste, B6, B7,
-  racine ; `093d814`), `modules-et-palliatifs` versée à la revue (état écrit dans la décision).
+  racine ; `bfba54b`), `modules-et-palliatifs` versée à la revue (état écrit dans la décision).
   Suite, dans l'ordre : (1) par une instance neuve, les points restants, consigne dans `revue-limites.md` : 7 (tests qui
   prouvent : V1 depuis la remise, échappement d'un nom de retiré au test visuel, GET de l'interface), 8 (commentaire du
   seuil), 9 (empreinte de l'arbre), 10 (tests datés sur le catalogue), 11 (identifiant d'événement croissant dans un
@@ -1348,7 +1348,7 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   autorisation ; (3) revue d'ensemble (cadre ci-dessus), sa première question à l'auteur : Q28 (ce qu'il a observé pour
   B6 et B7, durée de B7) ; (4) règle « recommander par l'objectif » en brouillon.
 - **Fait (2026-10-16, nuit)** : points 7 à 11 de la relecture par une instance neuve, relus par l'agent avec les six
-  précédents (ils tiennent). Huit commits (`4b08b65` à `43feed9`), chaque test rouge avant son correctif ; les mutants
+  précédents (ils tiennent). Huit commits (`ff2ea2a` à `b49f362`), chaque test rouge avant son correctif ; les mutants
   sont ceux de l'instance. V1 éprouvé contre ses six mutants (la remise reprise) ; un retiré nommé `<b>x</b>` au test
   visuel (un `h()` retiré autour de `date(p.retire_le)` ne se voit pas : `date()` ne rend jamais de balise) ; chaque
   route GET de l'API, par `creerServeur`, sans écriture ; commentaire du seuil ; empreinte de l'arbre (chemins,
@@ -1366,9 +1366,14 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   (`claude-code-transcriptions.js:241`, `contexte.js:41`, `commun.js:282`), effet de quelques secondes ; un `git status`
   en échec à l'inventaire, rangé `null`, s'affiche 0 (`depots-git.js:76`). Pose de la copie de service refusée en
   session par le contrôle des permissions (déploiement), puis faite sur l'accord de l'auteur (« pose-la ») : copie
-  `7f48e2f`, interface et veille relancées, l'interface répond. Audit sur la copie posée : 0 écart apparu, 0 résolu ;
-  pour ce dépôt, seul `commits-pousses` (29). Suite : (2) envoi sur autorisation, puis lecture de l'intégration
-  continue ; (3) et (4) ci-dessus, inchangés.
+  `7f48e2f` (hash d'avant le rebase), interface et veille relancées, l'interface répond. Audit sur la copie posée :
+  0 écart apparu, 0 résolu ; pour ce dépôt, seul `commits-pousses` (29). Envoi autorisé, refusé par `origin` : huit
+  commits d'une autre session (2026-10-15 et 16 : pont, Claude Desktop depuis un service de WSL, `git add -u` à la
+  création, tests nommés au refus de la pose ; `c6641af` à `7ae3cc3`), jamais posés ici. Choix de l'auteur
+  (recommandation suivie) : rebase des 30 commits locaux sur `origin/main`, historique linéaire ; un seul conflit, au
+  journal, entrées rangées par date ; code identique à celui des commits distants ; hashes cités dans l'arbre
+  remplacés par les nouveaux (`git rev-list`, mêmes sujets dans le même ordre). Suite : (2) tests, pose et envoi de la
+  pointe rebasée sur autorisation, puis lecture de l'intégration continue ; (3) et (4) ci-dessus, inchangés.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

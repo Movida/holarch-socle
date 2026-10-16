@@ -226,23 +226,23 @@ pure), jamais un inventaire depuis une lecture ; la page Catalogue reste à l'he
 (mesure : 167,90 $ sur 3 697,45 $ et 58 sessions sur 907 changent de jour en 30 jours, sur 6 jours). V7 : renommer
 (« au-dessus du seuil en moyenne par tour »), la mesure reste celle de `passation-sereine`. V9 : différé, rangé avec
 Veille et outillage (interface non ouverte depuis le 2026-10-07, plus publiée sur Tailscale) ; à reprendre si elle est
-republiée pour le téléphone. V5 suit le palliatif du relevé. Contrat événement 0.11.0 écrit (`c2a6577`). Test visuel :
+republiée pour le téléphone. V5 suit le palliatif du relevé. Contrat événement 0.11.0 écrit (`3ea8499`). Test visuel :
 bibliothèques de Chromium posées sans `sudo` (`apt-get download`, empreintes conformes à l'index apt, extraites dans
 `~/.local/lib/test-visuel`, chargées par `LD_LIBRARY_PATH` ; à retirer après `sudo apt install -y libnss3
 libasound2t64`) ; ses données fictives dataient d'avant `profil-designe` et `garde-sans-passage-muet` (aucune règle ne
-s'appliquait), corrigées (`ae4c6ee`).
+s'appliquait), corrigées (`49ea704`).
 
 **Chiffres, lot 2** (codé le 2026-10-16 par une instance neuve, environ 476 k tokens ; relecture commit par commit
-reportée à la session suivante, choix de l'auteur), huit commits (`b69dca4` à `3bedb19`), chaque test rouge sur son
-parent, mutants rouges (diff vérifié). `b69dca4` 238 : `projets`, `regles`, `arbre` et `contexte` lisent un seul
+reportée à la session suivante, choix de l'auteur), huit commits (`02afd73` à `7f2c13d`), chaque test rouge sur son
+parent, mutants rouges (diff vérifié). `02afd73` 238 : `projets`, `regles`, `arbre` et `contexte` lisent un seul
 `arbreFrais()` par lecture (reprise, `appliquerRegles` et audit le passent) ; catalogue et journal inchangés à l'octet.
-`e3530d3` V2 : `technique()` partagée (`depots-git.js`), `technique.lu_a` et `projets_sales[].lu_a`. `8467c4e` V1 :
+`c810de6` V2 : `technique()` partagée (`depots-git.js`), `technique.lu_a` et `projets_sales[].lu_a`. `f0b103f` V1 :
 `element.retired` porte `{name, location?}` ; `nomsDeProjets()` commune ; `projets().retires` (`activite` avec
-`echecs_7`, `projets: [{id, nom, retire_le}]`), ligne de la vue Projets. `a2bf0d5` V3 : `tours_session`. `5e3be07`
-239 a : `inconnus`. `fecdcf1` V5 : `sessions().part` (filtrée par projet), `coutsDeSessions()` commune avec
-`consommation`, liens qui portent leur période (`&jours=`). `c4f724c` V6 : jour local (`date(at,'localtime')`, Node et
+`echecs_7`, `projets: [{id, nom, retire_le}]`), ligne de la vue Projets. `495f840` V3 : `tours_session`. `2f87e63`
+239 a : `inconnus`. `6da7338` V5 : `sessions().part` (filtrée par projet), `coutsDeSessions()` commune avec
+`consommation`, liens qui portent leur période (`&jours=`). `a87d8bf` V6 : jour local (`date(at,'localtime')`, Node et
 SQLite suivent `TZ`, sinon `/etc/localtime`, Europe/Paris ici et pour le service), `sessions({jour})` avec `usd_jour`
-et `sortie_jour`. `3bedb19` V7 : libellé. Sens changés sans renommage : `consommation(par: 'jour').cle` en jour local ;
+et `sortie_jour`. `7f2c13d` V7 : libellé. Sens changés sans renommage : `consommation(par: 'jour').cle` en jour local ;
 un projet retiré porte un nom là où il valait `null` ; `sessions` accepte un projet retiré. Effet de bord de 238 :
 `projet creer` dit l'étape des règles « faite » au lieu de « à rejouer » derrière un inventaire en cours. 271 tests
 verts, test visuel vert (revérifiés par l'agent). Copie de service non posée (reste `dcfd200`) avant la relecture.
@@ -252,7 +252,7 @@ la décision dit alors `null` (« ce qui le ferait changer ») ; à faire à la 
 sans changement, 35 ms après un changement. V2 : 1 projet sur 10 diffère ; `projets()` de 634 à 924 ms, `etat()` de 639
 à 965 ms (`sessions(30 j)` en prend 620). V6 : 5 jours sur 23 diffèrent de plus de 5 %. À regarder : 3 suites rouges sur
 environ 25 lancements, trois tests qui datent des fichiers 2 s dans le futur face à la date du catalogue (0 sur 6 sur
-`c2a6577`, 0 sur 30 ciblés) ; `c4f724c` commité après un lancement rouge ; cause `[À COMPLÉTER : horloge de WSL ?]`,
+`3ea8499`, 0 sur 30 ciblés) ; `a87d8bf` commité après un lancement rouge ; cause `[À COMPLÉTER : horloge de WSL ?]`,
 palliatif faible (dater le catalogue dans ces tests). Voisins vus, non codés, versés à la revue d'ensemble : Catalogue,
 fiche et `audit()` lisent encore l'index ; `branche` et `dernier_commit` du catalogue ; `git status` en échec compté 0
 (trivial) ; `sessions()` à 620 ms (moyen) ; échecs hors projet comptés nulle part (trivial) ; projet ré-identifié pris
@@ -260,15 +260,15 @@ pour retiré (0 cas) ; Journal et fiche d'un projet retiré ; MCP `projets` qui 
 `?modele=` sur 90 jours ; `jours_actifs` et quatre dates encore en UTC (`jours_actifs` mesure un critère de décision :
 à demander) ; plage de l'histogramme au fuseau du navigateur ; noms de tests « session lourde ».
 
-**Chiffres, lot 2, relecture** (2026-10-16, soir ; quatre instances en lecture seule, lignes au commit `3bedb19`,
+**Chiffres, lot 2, relecture** (2026-10-16, soir ; quatre instances en lecture seule, lignes au commit `7f2c13d`,
 constats principaux vérifiés par l'agent). Choix de l'auteur (choix cliquable, recommandations suivies) : huit
-corrections, et l'empreinte pour l'horloge. Faits par une instance neuve, non relus : (1) `19eead4`, régression de 238 :
+corrections, et l'empreinte pour l'horloge. Faits par une instance neuve, non relus : (1) `b86073e`, régression de 238 :
 `projet creer` derrière un inventaire en cours écrivait les règles d'après l'arbre frais puis auditait sur l'index
-(faux `regles-a-jour` journalisé) ; l'audit se note « à faire », comme `rafraichir`. (2) `cdb7a4b`, un dossier de
+(faux `regles-a-jour` journalisé) ; l'audit se note « à faire », comme `rafraichir`. (2) `6c35e06`, un dossier de
 départ qui est ou contient un projet du catalogue, ou vide (`/`), ne nomme pas un retiré (sur le poste : le dossier
-personnel). (3) `374c49a`, champs dans la spécification. (4) `ae8099c`, `jourLocal` commun : retrait daté par l'audit
+personnel). (3) `f044833`, champs dans la spécification. (4) `98051d4`, `jourLocal` commun : retrait daté par l'audit
 (`audit.js:157`) et titre du journal d'un projet créé (`creation.js:203`, faux écart `journal-tenu` entre 0 h et 2 h).
-(5) `7ad0877`, `sessions({jour})` par `coutsDeSessions`. (6) `5d1711a`, `git status` en échec garde la valeur et la
+(5) `a9bdd02`, `sessions({jour})` par `coutsDeSessions`. (6) `36d5ddf`, `git status` en échec garde la valeur et la
 date du catalogue. Restent, consigne pour l'instance suivante (un commit et un test chacun, rouge avant) : (7) tests qui
 passent à tort : a. V1, six mutants verts (premier retrait au lieu du dernier, `socle.js:254` ; `new Set` d'une session
 sur deux retirés, `:375` ; `arbre()` sans le nom commun, `:569` ; `rule.enforced` hors du groupe, `:446` ; échec compté

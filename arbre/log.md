@@ -6,14 +6,17 @@
   instance neuve : 309 k, soit 62 k par point) : après `wsl --shutdown`, l'auteur n'a pas pu lancer le comptage des
   reculs (`dmesg | grep -c`, cause non sue : PowerShell au lieu de WSL, ou le code de sortie 1 d'un compte nul) ;
   l'agent l'a lancé de sa session : 0 recul en 22 min, contre un toutes les 30 s avant. Points 7 à 11 codés par
-  l'instance, huit commits (`4b08b65` à `43feed9`), relus par l'agent avec les six précédents ; 277 tests verts, test
+  l'instance, huit commits (`ff2ea2a` à `b49f362`), relus par l'agent avec les six précédents ; 277 tests verts, test
   visuel vert ; détail dans l'avancement de l'étape 3. Pose de la copie de service refusée en session par le contrôle
-  des permissions, faite sur l'accord de l'auteur (« pose-la ») : copie `7f48e2f` ; audit : 0 écart apparu. Leçon :
-  déroulé annoncé en quatre temps (instance ; relecture des six ; relecture de ses commits, tests, pose et audit ;
-  envoi sur autorisation) ; tenus les trois premiers, la pose avec un aller-retour, le quatrième en attente. Ce qui
-  l'a fait dévier : la pose, que l'agent faisait jusqu'ici, est refusée en mode automatique sans accord écrit de
-  l'auteur, vu seulement au moment de la lancer. La demande qui y aurait mené : « dire au début de la session les gestes que le
-  contrôle des permissions peut refuser, et me les donner ensemble ».
+  des permissions, faite sur l'accord de l'auteur (« pose-la ») : copie `7f48e2f` (hash d'avant le rebase) ; audit :
+  0 écart apparu. Envoi autorisé, refusé : huit commits d'une autre session sur `origin/main` (`c6641af` à `7ae3cc3`) ;
+  rebase des 30 commits locaux, choix de l'auteur (recommandation suivie), un conflit au journal, hashes cités dans
+  l'arbre remplacés. Leçon : déroulé annoncé en quatre temps (instance ; relecture des six ; relecture de ses commits,
+  tests, pose et audit ; envoi sur autorisation) ; tenus les trois premiers, la pose avec un aller-retour, l'envoi
+  après un rebase. Ce qui l'a fait dévier : la pose, que l'agent faisait jusqu'ici, refusée en mode automatique sans
+  accord écrit de l'auteur ; `origin/main` avancé par une autre session depuis le 2026-10-15, vu seulement au refus de
+  l'envoi ; et, pour l'agent, des hashes cités dans l'arbre qu'un rebase rend faux. La demande qui y aurait mené : « au
+  début de la session, lire `origin` et dire les gestes que le contrôle des permissions peut refuser ».
 
 * **Relecture du lot 2, horloge du poste, brouillons fondateurs tranchés** (environ 195 k tokens de contexte pour
   l'agent ; relecture par quatre instances en lecture seule, environ 950 k en tout ; instance de correction arrêtée) :
@@ -21,9 +24,9 @@
   (faux écart journalisé par `projet creer` derrière un inventaire), le nom trompeur d'un retiré, la spécification non
   tenue, six mutants verts ; cause des suites rouges : l'horloge du poste recule d'environ 2,6 s toutes les 30 s, et la
   production a le même défaut (la garde peut ignorer une règle neuve). Choix de l'auteur, recommandations suivies : huit
-  corrections et l'empreinte de l'arbre ; six faites (`19eead4` à `5d1711a`), non relues ; le reste consigné, le
+  corrections et l'empreinte de l'arbre ; six faites (`b86073e` à `36d5ddf`), non relues ; le reste consigné, le
   point 7a dans `git stash`. `idees-fondatrices` réécrite courte, approuvée (« Ce que tu proposes me convient »), appliquée
-  au manifeste, aux besoins (B6, B7) et à la racine (`093d814`) ; `modules-et-palliatifs` versée à la revue. Rien posé,
+  au manifeste, aux besoins (B6, B7) et à la racine (`bfba54b`) ; `modules-et-palliatifs` versée à la revue. Rien posé,
   rien envoyé. Leçon : déroulé annoncé en cinq temps (relecture, nom trompeur, tests et pose, journal et envoi,
   brouillons) ; tenus le premier et le dernier, le deuxième par l'instance, les troisième et quatrième en passation. Ce
   qui l'a fait dévier : l'enquête sur les rouges a trouvé un défaut de production, d'où un chantier de plus ; une
@@ -34,10 +37,10 @@
 
 * **Lot 2 de Chiffres, et une revue d'ensemble demandée** (environ 175 k tokens de contexte pour l'agent ; instance
   neuve : 476 k, soit 60 k par point) : bibliothèques du test visuel posées sans `sudo` (empreintes conformes
-  à l'index apt) ; le test visuel échouait sur ses données fictives, d'avant `profil-designe` (`ae4c6ee` ; l'interface
+  à l'index apt) ; le test visuel échouait sur ses données fictives, d'avant `profil-designe` (`49ea704` ; l'interface
   n'avait pas changé depuis le 2026-10-10). Quatre points du lot 2 sans choix de l'auteur (238, V6, V7, V9), jamais
-  demandés le 2026-10-14 : choisis en un tour, recommandations suivies. Contrat événement 0.11.0 (`c2a6577`). Lot 2 par
-  une instance neuve : huit commits (`b69dca4` à `3bedb19`), 271 tests verts, test visuel vert ; relecture, copie de
+  demandés le 2026-10-14 : choisis en un tour, recommandations suivies. Contrat événement 0.11.0 (`3ea8499`). Lot 2 par
+  une instance neuve : huit commits (`02afd73` à `7f2c13d`), 271 tests verts, test visuel vert ; relecture, copie de
   service et nom trompeur d'un retiré (le dossier personnel) à la session suivante ; trois suites rouges sur 25, cause inconnue. L'auteur craint que la
   conception point par point, aux recommandations souvent les moins chères, perde la cohérence et les objectifs ; avis
   de l'agent, en partie d'accord, faits à l'appui (avancement de l'étape 3) ; choix : aucun nouveau lot avant une revue
