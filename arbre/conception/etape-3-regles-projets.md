@@ -1316,6 +1316,18 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   collés par lui en quelques lignes, confrontés aux hypothèses avec les cadres publics (ISO/IEC 42001 : objectifs,
   revue de direction, risque accepté, action corrective sur la cause ; NIST AI RMF) ; principes seulement, reformulés,
   aucun contenu de la société dans ce dépôt, et rien qui élargisse le périmètre (hypothèse d).
+- **Fait (2026-10-16)** : sorties des lectures ajoutées par le lot 2 (décision `sorties-mcp-des-chiffres`), communes
+  à l'interface et au MCP sauf mention. `technique.lu_a` (`projets`) et `projets_sales[].lu_a` (`etat`) : l'heure de la
+  lecture directe de l'état du dépôt, ou la date du catalogue quand il ne se lit pas. `retires` (`projets`) :
+  `{activite, projets: [{id, nom, retire_le}]}`, l'activité des projets retirés du catalogue, comptés ensemble, et
+  chacun avec son nom et la date de son dernier retrait. `tours_session` (outil MCP `sessions`) : les tours de la
+  session seule, à côté de `tours`, sous-agents compris. `periode.mcp[].inconnus` (`etat`, tableau de bord) : les appels
+  MCP de statut inconnu. `part` (`sessions` filtrée par un projet) : la part de ce projet dans le coût de chaque session
+  sur la période. Paramètre `jour` (AAAA-MM-JJ) de `sessions`, avec `usd_jour` et `sortie_jour` : le coût et les tokens
+  de sortie de chaque session ce jour local (interface ; l'outil MCP `sessions` n'a pas ce paramètre). Sens changés sans
+  renommage : `consommation(par: 'jour').cle` est le jour local du poste (il était UTC) ; un projet retiré porte un nom
+  (`consommation`, `sessions`, `arbre`) là où il valait `null` ; `sessions` accepte un projet retiré (l'outil MCP
+  `projets` le refuse encore).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
