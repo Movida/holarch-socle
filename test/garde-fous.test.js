@@ -15,7 +15,7 @@ import { executer, dossierClaude, maisonsWindows } from '../src/controles.js';
 import { git, gitLu, dedans } from '../src/commun.js';
 import { Socle } from '../src/socle.js';
 import importerTranscriptions from '../src/import/claude-code-transcriptions.js';
-import inventaireArbre from '../src/inventaire/arbre.js';
+import inventaireArbre, { empreinteArbres } from '../src/inventaire/arbre.js';
 import { regleEffective, regleDuCompte, exceptions, fusionnerConfig } from '../src/regles.js';
 
 import { tmp } from './temporaire.js';
@@ -2348,7 +2348,8 @@ test('C4 : la garde tire la liste privée de l’arbre relu, comme les règles',
 
 // C5 : le catalogue était daté de la fin de l'inventaire, et `arbreFrais` rendait l'index quand la date disait le
 // catalogue à jour. Une règle écrite pendant l'inventaire, après la lecture de son fichier, restait invisible de la garde
-// jusqu'à l'inventaire suivant ; un catalogue refait avant l'index aussi. Daté du début, et rendu depuis le catalogue.
+// jusqu'à l'inventaire suivant ; un catalogue refait avant l'index aussi. Daté du début, et rendu depuis le catalogue ;
+// depuis, l'empreinte de l'arbre, prise avant sa lecture, dit le catalogue à jour (relecture du lot 2, point 9).
 test('C5 : la garde voit une règle écrite pendant l’inventaire, et le catalogue plutôt qu’un index plus ancien', async () => {
   const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
   const regle = (id) => `- id: ${id}\n  statement: Règle ${id}.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n`;
@@ -2368,8 +2369,8 @@ test('C5 : la garde voit une règle écrite pendant l’inventaire, et le catalo
   assert.deepEqual(ids(), ['a', 'b'], 'la règle écrite pendant l’inventaire vaut tout de suite');
   // Un catalogue refait sans que l'index le soit (inventaire en cours de rafraîchissement) : ce qu'il dit vaut.
   ecrireF(regles, regle('a') + regle('b') + regle('c'));
-  const avant = new Date(Date.now() - 60e3); fs.utimesSync(regles, avant, avant);
-  s.catalogue.remplacer(inventaireArbre({ depots: [profil] }, { profil, projetDe: () => null }));
+  // Comme l'inventaire, avec l'empreinte de l'arbre lu (sans elle, le catalogue compte pour changé, et l'arbre est relu).
+  s.catalogue.remplacer(inventaireArbre({ depots: [profil] }, { profil, projetDe: () => null }), { empreinteArbre: empreinteArbres([profil]) });
   assert.deepEqual(ids(), ['a', 'b', 'c'], 'le catalogue à jour, pas l’index d’avant lui');
 });
 
