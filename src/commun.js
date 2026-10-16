@@ -396,11 +396,13 @@ export const configClaude = (home) => (compteParDefaut(home) ? path.join(os.home
 /** Ce qui fait parler une commande `claude` au compte `home` : rien pour le compte par défaut, sinon `CLAUDE_CONFIG_DIR`. */
 export const pourCompte = (home) => (compteParDefaut(home) ? '' : `CLAUDE_CONFIG_DIR=${shell(home)} `);
 
-/** Clé d'un serveur MCP, telle qu'elle apparaît dans le nom de ses outils (`mcp__<clé>__<outil>`). */
 // Heure locale du poste, « AAAA-MM-JJ HH:MM » (`seule` : « HH:MM ») : une seule façon de la dire, au terminal, dans les
 // constats et dans le résumé de reprise.
 export function heureLocale(iso, { seule = false } = {}) {
   const t = new Date(iso).toLocaleString('sv-SE').slice(0, 16);
   return seule ? t.slice(11) : t;
 }
+// Jour local du poste d'une date, « AAAA-MM-JJ » (choix de l'auteur : jour local partout), celui de `heureLocale`.
+export const jourLocal = (date) => heureLocale(date).slice(0, 10);
+/** Clé d'un serveur MCP, telle qu'elle apparaît dans le nom de ses outils (`mcp__<clé>__<outil>`). */
 export const cleServeur = (nom) => String(nom).replace(/[^A-Za-z0-9_-]/g, '_');

@@ -6,7 +6,7 @@ import { comptesDuSite, accueil } from './config.js';
 import { projetsDe, localiserProjet } from './projets.js';
 import { regleEffective, regleDuCompte, projetsDeclares, projetsCouverts, declarationsDe } from './regles.js';
 import { listePrivee, executer, CONTROLES } from './controles.js';
-import { trouverOutil, porteMarque, lireSansLien, heureLocale } from './commun.js';
+import { trouverOutil, porteMarque, lireSansLien, heureLocale, jourLocal } from './commun.js';
 import { erreurRecente } from './veille.js';
 import { racineArbre } from './inventaire/arbre.js';
 import { projetDuDepot } from './inventaire/depots-git.js';
@@ -154,7 +154,7 @@ function ecartsDisparus(s, declarations, projets) {
     for (const id of new Set([ev.subject, ev.de].filter(Boolean))) dernier.set(id, ev);
   }
   return absents.filter((x) => dernier.has(x.projet)).map((x) => {
-    const ev = dernier.get(x.projet); const le = ev.at.slice(0, 10);
+    const ev = dernier.get(x.projet); const le = jourLocal(ev.at);
     // Un identifiant qui n'est pas le sujet de son dernier événement en est l'ancien : le projet a été ré-identifié.
     const quoi = ev.subject !== x.projet ? `ré-identifié en ${ev.subject} le ${le}` : ev.kind === 'element.retired' ? `retiré de l’inventaire le ${le}` : `vu le ${le}`;
     return { regle: 'profil-designe', regle_id: 'profil-designe', controle: 'profil-designe', cle: `projet-absent:${x.projet}`, fichier: x.noeud,

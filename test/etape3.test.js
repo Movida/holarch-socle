@@ -2966,6 +2966,18 @@ test('Création : un inventaire en cours après la déclaration n’arrête pas 
   assert.deepEqual([b.etat, b.detail, violes()], ['faite', 'aucun écart', []], JSON.stringify(q.etapes, null, 1));
 }));
 
+// V6, relecture du lot 2 (choix de l'auteur : jour local partout) : le titre du journal d'un projet créé était le jour
+// UTC, que le contrôle `journal-tenu` compare aux dates de commit, en heure locale : un projet créé entre 0 h et 2 h à
+// Paris avait un faux écart dès sa création. Fuseau fixé pour le test, comme le test V6 des chiffres.
+test('Création : le titre du journal d’un projet créé à 23 h 30 UTC est le jour local du poste', () => gitIsole(async () => {
+  const fuseau = process.env.TZ; process.env.TZ = 'Europe/Paris';
+  try {
+    const { r, s } = await bancCreation({ creation: { journal: 'arbre/log.md' } });
+    await creerProjet(s, { nom: 'neuf', types: ['methode'] }, { maintenant: new Date('2026-10-15T23:30:00Z') });
+    assert.match(fs.readFileSync(path.join(r, 'neuf', 'arbre', 'log.md'), 'utf8'), /^## 2026-10-16$/m);
+  } finally { if (fuseau === undefined) delete process.env.TZ; else process.env.TZ = fuseau; }
+}));
+
 // Voisin de N4 : deux écritures de fichier restaient hors des fonctions communes (`ecrireSansLien`, `ecrireJson`). `init`
 // écrivait la configuration à travers un lien cassé posé à sa place ; le gitleaks des conteneurs avait sa propre copie
 // temporaire, un troisième mécanisme.

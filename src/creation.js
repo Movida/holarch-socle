@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { git, trouverOutil, porteMarque, ecrireSansLien, lireSansLien } from './commun.js';
+import { git, trouverOutil, porteMarque, ecrireSansLien, lireSansLien, jourLocal } from './commun.js';
 import { configAvantProjet, fusionnerConfig } from './regles.js';
 import { identiteDeclaree } from './controles.js';
 import { poserIdentite, NOTE_IDENTITE, REPOSEE } from './identite-git.js';
@@ -203,7 +203,7 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
     ...(cfg.licence ? [['LICENSE', () => modele(`licences/${cfg.licence}`, { annee: maintenant.getFullYear(), titulaire: identite?.nom ?? '[À COMPLÉTER : titulaire du droit d’auteur]' })]] : []),
     // L'arbre et son journal ne s'écrivent que pour un projet qui n'a pas encore d'arbre : un arbre existant tient le sien.
     ...(typee && !arbreExistant ? [['arbre/index.md', () => racineIndex({ nom, description, types, journal: cfg.journal })],
-      ...(cfg.journal ? [[cfg.journal, () => `# Journal de l'arbre\n\n## ${maintenant.toISOString().slice(0, 10)}\n\n* **Création** : projet créé par \`holarch projet creer\`.\n`]] : [])] : []),
+      ...(cfg.journal ? [[cfg.journal, () => `# Journal de l'arbre\n\n## ${jourLocal(maintenant)}\n\n* **Création** : projet créé par \`holarch projet creer\`.\n`]] : [])] : []),
   ];
   // Un fichier présent mais jamais commité (commit refusé à un passage précédent) n'est pas réécrit : il est commité.
   const commite = (f) => g('cat-file', '-e', `HEAD:${f}`).status === 0;

@@ -261,3 +261,20 @@ test('V6 : l’histogramme et la liste d’un jour comptent par jour local ; un 
     assert.deepEqual(s.sessions({ jours: 30, jour: u }).map((x) => [x.session, x.usd_jour]), [['s3', 4]], 's1 a fini le jour UTC, mais pas le jour local');
   } finally { if (fuseau === undefined) delete process.env.TZ; else process.env.TZ = fuseau; }
 });
+
+// V6, relecture du lot 2 (choix de l'auteur : jour local partout) : l'audit datait le retrait d'un projet déclaré par son
+// jour UTC (« retiré de l'inventaire le D »), la vue Projets le même retrait par son jour local.
+test('V6 : l’audit date le retrait d’un projet déclaré par son jour local ; à 23 h 30 UTC, le jour suivant à Paris', () => {
+  const fuseau = process.env.TZ; process.env.TZ = 'Europe/Paris';
+  try {
+    const donnees = tmp(); const p = path.join(tmp(), 'profil');
+    ecrire(path.join(p, 'arbre', 'index.md'), '---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\n---\n');
+    ecrire(path.join(p, 'arbre', 'contextes', 'perso.md'), '---\ntype: context\ntitle: Perso\nstatus: draft\nlinks: { derives_from: [/arbre/index.md] }\nprojects: [holarch:project:parti]\n---\n');
+    const s = new Socle({ site: 'local', profil: p, donnees, accueil: donnees, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [p] } } });
+    const at = '2026-10-15T23:30:00Z';
+    s.journal.ajouter([{ id: ulid(Date.parse(at), 'retrait'), at, kind: 'element.retired', actor: 'system:inventaire', subject: 'holarch:project:parti', data: { name: 'parti', location: '/ws/parti' }, classification: 'internal' }]);
+    s.catalogue.remplacer(inventaireArbre({}, { depots: [p], profil: p, projetDe: () => null })); s.indexer();
+    const e = s.audit({}).cibles.find((x) => x.projet === null).ecarts.find((x) => x.cle === 'projet-absent:holarch:project:parti');
+    assert.match(e?.message ?? '', /\(retiré de l’inventaire le 2026-10-16\)/);
+  } finally { if (fuseau === undefined) delete process.env.TZ; else process.env.TZ = fuseau; }
+});
