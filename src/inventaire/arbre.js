@@ -70,16 +70,40 @@ export function racineArbre(depot) {
   return fs.existsSync(o) && enTete(o, depot).okf_version != null ? { fichier: o, dossier: depot, okf: true } : null;
 }
 
-/** L'arbre d'un dépôt a-t-il changé après `ms` (fichier modifié, ajouté ou retiré) ? Dates seules, rien n'est parsé. */
-export function arbreModifieDepuis(depot, ms) {
-  const racine = racineArbre(depot);
-  if (!racine) return false;
-  const recent = (p) => { try { return fs.statSync(p).mtimeMs > ms; } catch { return true; } };
-  const parcourir = (d) => {
-    if (recent(d)) return true;
-    try { return fs.readdirSync(d, { withFileTypes: true }).some((e) => (e.isDirectory() ? parcourir(path.join(d, e.name)) : recent(path.join(d, e.name)))); } catch { return true; }
+/** Les dépôts dont l'inventaire lit l'arbre : ceux des options, plus ceux du contexte et le profil quand ils en portent un. */
+export function depotsLus(options, ctx) {
+  const depots = new Set(options.depots || []);
+  for (const d of [...(ctx.depots || []), ...(ctx.profil && path.isAbsolute(ctx.profil) ? [ctx.profil] : [])]) if (racineArbre(d)) depots.add(d);
+  return depots;
+}
+
+/**
+ * Empreinte de l'arbre de chaque dépôt, `{ dépôt: [[chemin, mtimeMs, taille], …] }` rangée par chemin (relatif au
+ * dépôt ; null sans arbre, null pour ce qui ne se lit pas) : rien n'est lu ni parsé. L'inventaire la prend avant de lire
+ * l'arbre et la range dans l'instantané ; un arbre a changé quand son empreinte n'est plus la même (`memeEmpreinte`). Une
+ * date de fichier ne se compare pas à l'horloge, qui recule parfois (relecture du lot 2 de Chiffres).
+ */
+export function empreinteArbres(depots) {
+  const une = (depot) => {
+    const racine = racineArbre(depot);
+    if (!racine) return null;
+    const out = [];
+    const noter = (p) => { let s = null; try { s = fs.statSync(p); } catch { /* retiré entre-temps, lien cassé */ } out.push([path.relative(depot, p), s?.mtimeMs ?? null, s?.size ?? null]); };
+    const parcourir = (d) => {
+      let entrees; try { entrees = fs.readdirSync(d, { withFileTypes: true }); } catch { out.push([path.relative(depot, d), null, null]); return; }
+      for (const e of entrees) { const p = path.join(d, e.name); if (e.isDirectory()) parcourir(p); else noter(p); }
+    };
+    if (racine.okf) noter(racine.fichier); else parcourir(racine.dossier);
+    return out.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   };
-  return racine.okf ? recent(racine.fichier) : parcourir(racine.dossier);
+  return Object.fromEntries([...depots].map((d) => [d, une(d)]));
+}
+
+/** Les arbres de `depots` ont-ils l'empreinte `avant` ? Un dépôt qu'elle ne nomme pas comptait sans arbre. */
+export function memeEmpreinte(depots, avant) {
+  const tous = [...new Set([...depots, ...Object.keys(avant)])];
+  const maintenant = empreinteArbres(tous);
+  return tous.every((d) => JSON.stringify(maintenant[d]) === JSON.stringify(avant[d] ?? null));
 }
 
 // Règles d'un nœud (contrat règle §1) : celles de son en-tête (`rules:`) et, pour l'`index.md` d'un dossier, celles du
@@ -118,8 +142,7 @@ function formes(h) {
 }
 
 export default function inventaireArbre(options, ctx) {
-  const depots = new Set(options.depots || []);
-  for (const d of [...(ctx.depots || []), ...(ctx.profil && path.isAbsolute(ctx.profil) ? [ctx.profil] : [])]) if (racineArbre(d)) depots.add(d);
+  const depots = depotsLus(options, ctx);
   const out = [];
   const lus = [...depots].map((depot) => ({ depot, racine: racineArbre(depot) })).filter((x) => x.racine).map((x) => {
     // Dépôt configuré hors des racines inventoriées : pas de projet connu, l'identifiant garde le nom du dossier.

@@ -987,6 +987,41 @@ test('règles : une règle ajoutée après l’inventaire se voit tout de suite 
   assert.equal(await s.arbreAJour(), true);
 });
 
+import { ADAPTATEURS } from '../src/inventaire/index.js';
+// Revue des limites, relecture du lot 2 (point 9) : « changé » comparait la date des fichiers à celle du catalogue. L'horloge
+// du poste a reculé (2,6 s toutes les 30 s) : un arbre changé juste après un inventaire passait pour à jour, et la garde
+// au commit pouvait ignorer une règle bloquante neuve. L'inventaire range l'empreinte de l'arbre (chemins, dates, tailles)
+// dans l'instantané ; « changé » est « empreinte différente ». Sans toucher à l'horloge : le catalogue daté 3 s plus tard.
+test('règles : une règle ajoutée après un inventaire daté plus tard que ses fichiers (horloge qui recule) se voit', async () => {
+  const r = tmp(); fs.mkdirSync(path.join(r, 'depot')); const { d, g } = depotGit(path.join(r, 'depot')); const regles = path.join(d, 'arbre', 'rules.yaml');
+  ecrire(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: Dépôt fictif\nstatus: draft\n---\n');
+  ecrire(regles, '- id: en-place\n  statement: Déjà approuvée.\n  status: stable\n  approved: { by: human:alice, at: 2026-10-07 }\n');
+  g('add', '.'); g('commit', '-qm', 'x');
+  const accueil = tmp(); const s = new Socle({ site: 'local', donnees: accueil, accueil, web: {}, tarifs: {}, inventaire: { 'depots-git': { racines: [r], profondeur: 1 }, arbre: {} }, import: {} });
+  await s.inventaire(); s.indexer();
+  const instantane = path.join(accueil, 'catalogue', 'local.json');
+  const c = JSON.parse(fs.readFileSync(instantane, 'utf8')); c.at = new Date(Date.now() + 3000).toISOString(); fs.writeFileSync(instantane, JSON.stringify(c));
+  assert.equal(await s.arbreAJour(), false, 'arbre inchangé : aucun inventaire');
+  fs.appendFileSync(regles, '- id: nouvelle\n  statement: Ajoutée après l’inventaire.\n  level: blocking\n');
+  assert.ok(fs.statSync(regles).mtimeMs < s.catalogue.date(), 'le fichier paraît plus ancien que le catalogue');
+  assert.ok(s.arbreFrais().some((f) => f.kind === 'rule' && f.name === 'nouvelle'), 'la garde lit la règle neuve');
+  assert.deepEqual(s.regles({ projet: 'depot' }).regles.map((e) => e.id).sort(), ['en-place', 'nouvelle']);
+  assert.equal(await s.arbreAJour(), true, 'la ligne de commande refait l’inventaire');
+  // L'arbre en erreur à l'inventaire suivant : ses fiches d'avant sont gardées, avec l'empreinte qui leur correspond.
+  fs.appendFileSync(regles, '- id: autre\n  statement: Ajoutée avant un inventaire en erreur.\n');
+  const lire = ADAPTATEURS.arbre; ADAPTATEURS.arbre = () => { throw new Error('panne'); };
+  try { assert.match((await s.inventaire()).erreurs.join(), /arbre : panne/); } finally { ADAPTATEURS.arbre = lire; }
+  assert.ok(s.arbreFrais().some((f) => f.kind === 'rule' && f.name === 'autre'), 'les fiches gardées ne passent pas pour à jour');
+  // Même date, autre taille (une copie qui garde la date : `cp -p`, `rsync -t`) : changé aussi.
+  const fixe = 1700000000; fs.utimesSync(regles, fixe, fixe); await s.inventaire();
+  fs.appendFileSync(regles, '- id: meme-date\n  statement: Écrite sans changer la date.\n'); fs.utimesSync(regles, fixe, fixe);
+  assert.ok(s.arbreFrais().some((f) => f.kind === 'rule' && f.name === 'meme-date'), 'la taille compte');
+  // Un arbre retiré (sa racine) n'a plus d'empreinte : changé aussi, ses règles ne valent plus.
+  fs.rmSync(path.join(d, 'arbre', 'index.md'));
+  assert.ok(!s.arbreFrais().some((f) => f.kind === 'rule'), 'l’arbre retiré ne porte plus de règle');
+  assert.equal(await s.arbreAJour(), true);
+});
+
 import { poserIdentite } from '../src/identite-git.js';
 import { materialiserProjet } from '../src/materialisation.js';
 

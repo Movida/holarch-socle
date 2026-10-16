@@ -11,8 +11,9 @@ export class Catalogue {
     this.site = site;
   }
 
-  // `at` : la date de l'instantané, le début de l'inventaire qui le produit (maintenant par défaut).
-  remplacer(fiches, { at = new Date().toISOString() } = {}) {
+  // `at` : la date de l'instantané, le début de l'inventaire qui le produit (maintenant par défaut). `empreinteArbre` :
+  // celle des arbres lus (`empreinteArbres`), prise avant leur lecture ; hors contrat, comme tout ce qui n'est pas une fiche.
+  remplacer(fiches, { at = new Date().toISOString(), empreinteArbre = null } = {}) {
     const valides = []; const refusees = []; const doublons = [];
     // Une fiche de même identifiant n'est gardée qu'une fois ; venue d'ailleurs, elle se dit (`doublons`) : deux éléments
     // qui prennent le même identifiant ne s'effacent pas l'un l'autre en silence.
@@ -29,7 +30,7 @@ export class Catalogue {
     const lu = lireJson(fichier, null);
     const illisible = fs.existsSync(fichier) && !Array.isArray(lu?.fiches);
     const precedent = illisible ? valides : lu?.fiches || [];
-    ecrireJson(fichier, { site: this.site, at, fiches: valides }, { indent: 1 });
+    ecrireJson(fichier, { site: this.site, at, ...(empreinteArbre && { empreinte_arbre: empreinteArbre }), fiches: valides }, { indent: 1 });
     // Un élément qui change d'emplacement garde son identifiant : c'est un déplacement, pas une disparition suivie d'une
     // création. Un identifiant qui disparaît pendant qu'un autre apparaît au même emplacement, pour le même kind **et sous
     // le même nom**, est le même élément ré-identifié (migration d'un schéma d'identifiants). Les deux deviennent
@@ -59,6 +60,11 @@ export class Catalogue {
   /** Date de l'instantané du site (ms), null s'il n'y en a pas encore. */
   date() {
     return Date.parse(lireJson(path.join(this.dossier, `${this.site}.json`), null)?.at) || null;
+  }
+
+  /** Empreinte des arbres lus par l'inventaire qui a fait l'instantané du site ; null sans instantané ou sans empreinte. */
+  empreinteArbre() {
+    return lireJson(path.join(this.dossier, `${this.site}.json`), null)?.empreinte_arbre ?? null;
   }
 
   // Un instantané illisible (écrit avant l'écriture atomique, disque plein) se lit vide : l'inventaire suivant le refait.

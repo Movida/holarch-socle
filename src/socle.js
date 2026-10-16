@@ -16,7 +16,7 @@ import { contexteControle, garde, ecartsOuverts, audit } from './audit.js';
 import { ulid } from './ulid.js';
 import { recolter, regroupeurClaude, trier, regleProposee, ajouterRegles } from './recolte.js';
 import { racineIndex } from './creation.js';
-import inventaireArbre, { racineArbre, arbreModifieDepuis } from './inventaire/arbre.js';
+import inventaireArbre, { racineArbre, depotsLus, memeEmpreinte } from './inventaire/arbre.js';
 import { technique } from './inventaire/depots-git.js';
 import { trouverOutil, binaireClaude, ecrireSansLien, prendreVerrou, tourPasse } from './commun.js';
 
@@ -59,7 +59,7 @@ export class Socle {
   // Le dépôt du profil désigné par la configuration du site (décision profil-designe), que reçoit toute lecture des règles.
   profil() { return profilDuSite(this.config); }
 
-  // Le catalogue date du dernier inventaire (horaire) : une lecture des règles ou de la reprise le refait d'abord quand
+  // Le catalogue vient du dernier inventaire (horaire) : une lecture des règles ou de la reprise le refait d'abord quand
   // un arbre connu a changé depuis, sans quoi une règle ajoutée reste invisible jusqu'à l'heure suivante (idée I28).
   // Rend vrai s'il a fallu l'inventaire ; l'index reste à reconstruire par l'appelant. Un inventaire déjà en cours le
   // fera : celui-ci passe son tour, et le dit sur la sortie d'erreur.
@@ -71,21 +71,23 @@ export class Socle {
   }
 
   // Un arbre connu a-t-il changé depuis le catalogue ? null si l'inventaire de l'arbre est coupé, sinon { change, fiches }.
+  // Changé : son empreinte (chemins, dates, tailles) n'est plus celle que l'inventaire a prise avant de le lire ; un
+  // instantané sans empreinte (absent, ou d'avant elle) compte pour changé. Aucune date ne se compare à l'horloge.
   #arbreChange() {
     const o = this.config.inventaire?.arbre;
     if (!o || o.actif === false) return null;
-    const depuis = this.catalogue.date(); const fiches = this.catalogue.lire({ site: this.config.site });
-    const depots = new Set([...(o.depots || []), ...fiches.filter((f) => f.kind === 'project' && f.location).map((f) => f.location), ...(this.profil() ? [this.profil()] : [])]);
-    return { change: !depuis || [...depots].some((d) => arbreModifieDepuis(d, depuis)), fiches, options: o, depots };
+    const avant = this.catalogue.empreinteArbre(); const fiches = this.catalogue.lire({ site: this.config.site });
+    const depots = depotsLus(o, { depots: fiches.filter((f) => f.kind === 'project' && f.location).map((f) => f.location), profil: this.profil() });
+    return { change: !avant || !memeEmpreinte(depots, avant), fiches, options: o, depots };
   }
 
   // Nœuds et règles pour une décision immédiate (garde avant commit) et pour les lectures de l'interface et du MCP (règles,
   // projets, arbre, seuil de passation ; ligne 238) : ceux du catalogue, ou, si un arbre a changé depuis, relus des
   // fichiers, en mémoire. Une lecture le prend une fois et le passe aux fonctions qu'elle appelle (`arbre`). Ni git ni
   // écriture : la garde tourne dans un crochet de git, où `GIT_INDEX_FILE` fausserait la lecture des autres dépôts par un
-  // inventaire complet, et une lecture de l'interface ou du MCP n'écrit rien. Ce qui est rendu vient du catalogue dont la
-  // date a décidé, pas de l'index, qui peut dater d'avant lui (reconstruit après l'inventaire) ; sans inventaire de
-  // l'arbre, de l'index.
+  // inventaire complet, et une lecture de l'interface ou du MCP n'écrit rien. Ce qui est rendu vient du catalogue dont
+  // l'empreinte a décidé, pas de l'index, qui peut dater d'avant lui (reconstruit après l'inventaire) ; sans inventaire
+  // de l'arbre, de l'index.
   arbreFrais() {
     const a = this.#arbreChange();
     if (!a) return [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];

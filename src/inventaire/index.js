@@ -8,7 +8,7 @@
 import path from 'node:path';
 import depotsGit, { amorcer as amorcerDepots } from './depots-git.js';
 import claudeCode from './claude-code.js';
-import arbre from './arbre.js';
+import arbre, { depotsLus, empreinteArbres } from './arbre.js';
 import docker from './docker.js';
 import claudeDesktop from './claude-desktop.js';
 import { SourceAbsente } from './source.js';
@@ -27,9 +27,12 @@ export async function inventorier(config, { catalogue, journal }) {
 }
 
 async function inventaire(config, { catalogue, journal }) {
-  // L'instantané est daté du début de l'inventaire : un fichier modifié pendant qu'il tourne, après sa lecture, est plus
-  // récent que le catalogue, et une lecture qui compare les dates le relit (`arbreFrais`).
+  // L'instantané est daté du début de l'inventaire. L'arbre y laisse son empreinte (chemins, dates, tailles), prise avant
+  // sa lecture : un fichier modifié pendant l'inventaire, après sa lecture, ou après lui, la change, et une lecture qui en
+  // trouve une autre le relit (`arbreFrais`), sans comparer de date à l'horloge, qui recule parfois. L'arbre en erreur
+  // garde ses fiches de l'inventaire précédent, et l'empreinte qui leur correspond.
   const debut = new Date().toISOString();
+  let empreinteArbre = null;
   // Usage des serveurs MCP, tiré des appels au journal : les adaptateurs le portent sur les fiches des connecteurs.
   const appelsMcp = new Map();
   for (const e of journal.lire()) {
@@ -48,13 +51,17 @@ async function inventaire(config, { catalogue, journal }) {
   for (const [nom, adaptateur] of Object.entries(ADAPTATEURS)) {
     const opts = config.inventaire[nom];
     if (!opts || opts.actif === false) continue;
-    try { fiches.push(...await adaptateur(opts, ctx)); } catch (e) {
+    try {
+      if (nom === 'arbre') empreinteArbre = empreinteArbres(depotsLus(opts, ctx));
+      fiches.push(...await adaptateur(opts, ctx));
+    } catch (e) {
+      if (nom === 'arbre') empreinteArbre = catalogue.empreinteArbre();
       const gardees = precedentes.filter((f) => f.provenance?.source === `inventaire:${nom}`);
       fiches.push(...gardees); AMORCES[nom]?.(ctx, gardees);
       (e instanceof SourceAbsente ? absentes : erreurs).push(`${nom} : ${e.message}${gardees.length ? ` ; ${gardees.length} fiche(s) de l’inventaire précédent gardée(s)` : ''}`);
     }
   }
-  const r = catalogue.remplacer(fiches, { at: debut });
+  const r = catalogue.remplacer(fiches, { at: debut, empreinteArbre });
   erreurs.push(...r.doublons.map((x) => `catalogue : fiche en double écartée, ${x.id} (gardée : ${x.garde ?? 'sans emplacement'} ; écartée : ${x.ecarte ?? 'sans emplacement'})`));
   const maintenant = Date.now(); const at = new Date(maintenant).toISOString();
   const ev = (kind, subject) => ({ id: ulid(maintenant), at, kind, actor: 'system:inventaire', subject, data: {}, classification: 'internal' });
