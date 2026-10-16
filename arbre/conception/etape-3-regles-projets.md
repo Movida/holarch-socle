@@ -1365,8 +1365,10 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   passent par le repli « changé » ; trois dates de fichier encore comparées à l'horloge
   (`claude-code-transcriptions.js:241`, `contexte.js:41`, `commun.js:282`), effet de quelques secondes ; un `git status`
   en échec à l'inventaire, rangé `null`, s'affiche 0 (`depots-git.js:76`). Pose de la copie de service refusée en
-  session par le contrôle des permissions (déploiement) : geste de l'auteur, puis audit. Suite : (2) pose, audit, envoi
-  sur autorisation ; (3) et (4) ci-dessus, inchangés.
+  session par le contrôle des permissions (déploiement), puis faite sur l'accord de l'auteur (« pose-la ») : copie
+  `7f48e2f`, interface et veille relancées, l'interface répond. Audit sur la copie posée : 0 écart apparu, 0 résolu ;
+  pour ce dépôt, seul `commits-pousses` (29). Suite : (2) envoi sur autorisation, puis lecture de l'intégration
+  continue ; (3) et (4) ci-dessus, inchangés.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
