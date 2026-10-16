@@ -3,11 +3,11 @@ type: contract
 title: Contrat — événement du journal
 description: Tout ce qui se passe est un événement daté, attribué, en ajout seul ; le journal est la matière de la visibilité et de la régulation.
 status: stable
-approved: { by: human:auteur, at: 2026-10-09, ref: "échange du 2026-10-09 au soir, récapitulatif et recommandation, choix cliquables (0.10.0, décision veille-et-conteneur-precisions ; jusqu'à 0.9.0 : échange du 2026-10-03, « ok pour tes recommandations »)" }
-version: 0.10.0
+approved: { by: human:auteur, at: 2026-10-14, ref: "choix cliquable du 2026-10-14, « Approuver telle quelle » (0.11.0, décision sorties-mcp-des-chiffres) ; 0.10.0 : échange du 2026-10-09 au soir, choix cliquables (décision veille-et-conteneur-precisions) ; jusqu'à 0.9.0 : échange du 2026-10-03, « ok pour tes recommandations »" }
+version: 0.11.0
 links:
   derives_from: [/arbre/besoins/besoins-fondateurs.md]
-  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/decisions/2026-10-07-echecs-au-journal.md, /arbre/decisions/2026-10-09-environnement-d-execution.md]
+  constrained_by: [/arbre/fondations/principes.md, /arbre/conception/contrats/acteurs.md, /arbre/decisions/2026-10-03-cout-liste.md, /arbre/decisions/2026-10-03-refus.md, /arbre/decisions/2026-10-03-identite-projets.md, /arbre/decisions/2026-10-03-cloture-etape-1.md, /arbre/decisions/2026-10-05-rattachement-projet.md, /arbre/decisions/2026-10-07-controles-de-regles.md, /arbre/decisions/2026-10-07-echecs-au-journal.md, /arbre/decisions/2026-10-09-environnement-d-execution.md, /arbre/decisions/2026-10-14-sorties-mcp-des-chiffres.md]
 ---
 
 # Contrat — événement du journal
@@ -42,6 +42,7 @@ correction est un nouvel événement qui cite le précédent. Exemple fictif :
 | `data` d'un échec | `tool.failed` : `{outil, motif, code?, programme?}`, `motif` parmi `sortie`, `tests`, `garde`, `edition-perimee`, `edition-introuvable`, `edition-ambigue`, `edition-non-lue`, `fichier-absent`, `validation`, `delai`, `autre` ; `code` et `programme` (nom seul, sans chemin ni argument) pour une commande shell ; `rule.enforced` (refus d'une garde) : `{regle, controle, n, moment}` ; `session.finished` porte `tests: {lances, rouges}` ; jamais la commande, le chemin ni la sortie (décision échecs au journal) |
 | `data` de la veille (0.10.0) | `power.held` (demande d'éveil du poste tenue) : `{sessions: [{session, etat, projet?}]}`, les sessions distantes qui la retiennent, émis de nouveau quand l'une arrive ou part pendant la tenue ; une demande reprise après une panne courte pour les mêmes sessions ne se redit qu'une fois tenue plus d'une minute (d'autres sessions la font redire aussitôt) ; `etat` parmi `travaille` et `attend`, `projet` le nom du dossier de départ (affichage seulement) ; `power.released` : `{raison}`, `aucune-session` ou `arret` (l'adaptateur s'arrête) ; `power.failed` : `{motif, code?}`, `motif` parmi `sans-mecanisme`, `non-lancee`, `sans-reponse`, `refusee` et `arretee`, `code` celui de sortie de la demande s'il y en a un ; une fois par panne, le détail (sortie de la demande, chemins) au seul log de l'adaptateur (décision environnement-d-execution) |
 | `data.environnement` (0.10.0) | `conteneur` : l'événement vient d'une session tenue dans le conteneur d'un projet (sa transcription, écrite dans le dossier du conteneur, lue depuis l'hôte) ; elle ne se rattache qu'au projet de ce conteneur. Absent : l'hôte. Distinct de `origine`, qui dit d'où vient un refus d'outil (`tool.denied`) |
+| `data` d'un retrait (0.11.0) | `element.retired` : `{name, location?}`, le nom et l'emplacement que portait la fiche retirée dans le catalogue précédent (`location` absent si elle n'en avait pas) ; affichage seulement (le nom d'un projet retiré), jamais une clé de regroupement. Avant 0.11.0 : `{}` (décision sorties-mcp-des-chiffres) |
 
 ## 3. Familles (vocabulaire ouvert, extensible par décision)
 
