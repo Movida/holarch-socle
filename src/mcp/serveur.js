@@ -57,7 +57,7 @@ export function creerServeurMcp(socle, version) {
   }, async ({ projet: ref }) => texte(socle.regles({ projet: ref || null })));
 
   s.registerTool('consommation', {
-    description: 'Tokens et coût liste d’une période, regroupés par projet (identifiant et nom ; le coût d’une session se partage entre ses projets, null : hors projet), par modèle ou par jour.',
+    description: 'Tokens et coût liste d’une période, regroupés par projet (identifiant et nom ; le coût d’une session se partage entre ses projets, null : hors projet), par modèle ou par jour (jour local du poste).',
     inputSchema: z.object({ jours, par: z.enum(['projet', 'modele', 'jour']).optional().describe('Regroupement (projet par défaut)') }), annotations: LECTURE,
   }, async ({ jours: j, par }) => texte(socle.consommation({ jours: j ?? 30, par: par ?? 'projet' })));
 

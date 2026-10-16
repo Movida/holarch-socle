@@ -214,3 +214,31 @@ test('V5 : la liste des sessions d’un projet rend sa part de chaque session ; 
   const m = await mcp(s);
   try { assert.deepEqual((await m.appel('sessions', { projet: 'a' })).sessions.map((x) => [x.session, x.part]), [['s1', 6], ['s3', 4], ['s4', 3]]); } finally { await m.fermer(); }
 });
+
+// V6 (revue des limites ; choix de l'auteur : jour local du poste) : l'histogramme rangeait le coût par jour UTC, la
+// liste des sessions d'un jour filtrait par jour UTC de fin, alors que les dates s'affichent en heure locale. Le jour est
+// partout le jour local du poste ; la liste d'un jour rend les sessions qui ont un coût ce jour-là, et se somme à la barre.
+// Le fuseau est fixé pour le test : Node et SQLite suivent `process.env.TZ`, posé en cours d'exécution (vérifié).
+test('V6 : l’histogramme et la liste d’un jour comptent par jour local ; un coût à 23 h 30 UTC va au jour local suivant', () => {
+  const fuseau = process.env.TZ; process.env.TZ = 'Europe/Paris';
+  try {
+    const donnees = tmp(); const ev = [];
+    const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: TARIFS, inventaire: {}, import: {} });
+    const u = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10); // un jour UTC
+    const a = (jour, h) => new Date(`${jour}T${h}:00Z`).toISOString().replace(/\.\d+Z$/, 'Z');
+    const lendemain = new Date(Date.parse(`${u}T12:00:00Z`) + 864e5).toISOString().slice(0, 10);
+    const cout = (corr, at, out) => ev.push({ id: ulid(Date.parse(at), `${corr}${at}`), at, kind: 'cost.recorded', actor: 'agent:claude-code/m', correlation: corr, classification: 'internal', data: {}, cost: { provider: 'anthropic', model: 'm', usd_list: null, tokens: { out } } });
+    const fin = (corr, at) => ev.push({ id: ulid(Date.parse(at), `${corr}f`), at, kind: 'session.finished', actor: 'agent:claude-code/m', correlation: corr, classification: 'internal', data: { sous_agent: false, tours: 1, cwd: '/ws', projet: 'ws' } });
+    cout('s1', a(u, '23:30'), 1); fin('s1', a(u, '23:35')); // 01 h 30 à Paris : le lendemain local
+    cout('s2', a(lendemain, '10:00'), 2); fin('s2', a(lendemain, '10:05'));
+    cout('s3', a(u, '21:00'), 4); cout('s3', a(lendemain, '08:00'), 8); fin('s3', a(lendemain, '08:05')); // deux jours locaux
+    s.journal.ajouter(ev); s.indexer();
+    const jours = Object.fromEntries(s.consommation({ jours: 30, par: 'jour' }).map((x) => [x.cle, [x.sortie, x.usd]]));
+    assert.deepEqual(jours, { [u]: [4, 4], [lendemain]: [11, 11] }, 'par jour local');
+    const liste = s.sessions({ jours: 30, jour: lendemain });
+    assert.deepEqual(liste.map((x) => [x.session, x.usd_jour, x.sortie_jour]).sort(), [['s1', 1, 1], ['s2', 2, 2], ['s3', 8, 8]]);
+    const somme = (k) => liste.reduce((x, y) => x + y[k], 0);
+    assert.deepEqual([somme('sortie_jour'), somme('usd_jour')], jours[lendemain], 'la liste se somme à la barre');
+    assert.deepEqual(s.sessions({ jours: 30, jour: u }).map((x) => [x.session, x.usd_jour]), [['s3', 4]], 's1 a fini le jour UTC, mais pas le jour local');
+  } finally { if (fuseau === undefined) delete process.env.TZ; else process.env.TZ = fuseau; }
+});

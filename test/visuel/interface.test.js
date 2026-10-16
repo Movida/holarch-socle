@@ -12,6 +12,8 @@ import { creerServeur } from '../../src/web/serveur.js';
 import { ulid } from '../../src/ulid.js';
 import { tmp } from '../temporaire.js';
 
+// Le jour local du poste (V6) : le serveur (Node et SQLite suivent `process.env.TZ`) et le navigateur dans le même fuseau.
+process.env.TZ = 'Europe/Paris';
 const JOUR = 864e5;
 const il_y_a = (j, h = 10) => new Date(Math.floor(Date.now() / JOUR - j) * JOUR + h * 36e5).toISOString().replace(/\.\d+Z$/, 'Z');
 
@@ -34,6 +36,10 @@ function donneesFictives() {
   // Un projet retiré du catalogue (V1) : des sessions le portent, son retrait porte son nom (contrat événement 0.11.0).
   session(6, 3, 'ancien-projet', 5e4, 'modele-a', { projets: [{ id: 'holarch:project:ancien', n: 2 }] });
   ev.push({ id: ulid(Date.parse(il_y_a(5, 10)), 'retrait'), at: il_y_a(5, 10), kind: 'element.retired', actor: 'system:inventaire', subject: 'holarch:project:ancien', data: { name: 'ancien-projet', location: '/ws/ancien-projet' } });
+  // Un coût à 23 h 30 UTC (V6) : 1 h 30 à Paris, il compte au jour local suivant (celui de la session 6).
+  ev.push({ id: ulid(Date.parse(il_y_a(4, 23.5)), '7c'), at: il_y_a(4, 23.5), kind: 'cost.recorded', actor: 'agent:claude-code/modele-a', correlation: 'session-7', data: { projet: 'projet-c', sous_agent: false },
+    cost: { provider: 'anthropic', model: 'modele-a', usd_list: null, tokens: { in: 100, cache_write: 0, cache_write_1h: 0, cache_read: 0, out: 3e4 } } });
+  ev.push({ id: ulid(Date.parse(il_y_a(4, 23.6)), '7f'), at: il_y_a(4, 23.6), kind: 'session.finished', actor: 'agent:claude-code/modele-a', correlation: 'session-7', data: { projet: 'projet-c', cwd: '/ws/projet-c', sous_agent: false, tours: 2, duree_s: 300, modeles: ['modele-a'] } });
   // Un sous-agent de la session 2 (V3) : 12 tours en session, 16 avec lui.
   ev.push({ id: ulid(Date.parse(il_y_a(2, 11)), '2s'), at: il_y_a(2, 11), kind: 'session.finished', actor: 'agent:claude-code/modele-a', correlation: 'session-2:agent-1', data: { projet: 'projet-b', sous_agent: true, tours: 4 } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'a'), at: il_y_a(2, 10), kind: 'tool.called', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', serveur: 'holarch', outil: 'etat', statut: 'ok' } });
@@ -77,7 +83,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
     throw new Error(`Chromium ne démarre pas (${e.message.split('\n')[0]}). Préparer : npx playwright install --with-deps chromium`);
   });
   t.after(() => navigateur.close());
-  const page = await navigateur.newPage({ viewport: { width: 1280, height: 600 } });
+  const page = await navigateur.newPage({ viewport: { width: 1280, height: 600 }, timezoneId: 'Europe/Paris' });
   const erreurs = [];
   page.on('pageerror', (e) => erreurs.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') erreurs.push(m.text()); });
@@ -155,6 +161,14 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   assert.match(await page.textContent('table.triable tbody tr td:nth-child(10)'), /\$$/, 'coût par tour affiché');
   await ouvrir(`#/sessions?jour=${il_y_a(2).slice(0, 10)}`, 'table.triable tbody tr');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 2, 'filtre par jour');
+  // V6 : le jour local ; la liste d'un jour se somme à la barre de ce jour.
+  const jour = il_y_a(3).slice(0, 10);
+  await ouvrir(`#/sessions?jour=${jour}`, 'table.triable tbody tr');
+  assert.deepEqual(await page.$$eval('table.triable tbody tr', (r) => r.map((x) => x.dataset.lien.split('=')[1]).sort()), ['session-6', 'session-7'], 'la session de 23 h 30 UTC la veille compte ce jour local');
+  assert.equal(await page.textContent('table.triable th:nth-child(10)'), 'Coût ce jour');
+  const ceJour = await page.$$eval('table.triable tbody tr td:nth-child(10)', (td) => td.map((x) => +x.dataset.v));
+  const barre = (await (await page.request.get(`${racine}api/consommation?par=jour&jours=30`)).json()).find((x) => x.cle === jour).usd;
+  assert.ok(Math.abs(ceJour.reduce((a, b) => a + b, 0) - barre) < 1e-9, `la liste (${ceJour}) se somme à la barre (${barre})`);
 
   await page.setViewportSize({ width: 1100, height: 600 });
   await ouvrir('#/sessions', 'table.triable tbody tr');

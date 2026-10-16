@@ -36,6 +36,11 @@ const noeudsDe = (arbre) => arbre.filter((f) => f.kind === 'node').sort((a, b) =
 // Clé de groupe des projets retirés du catalogue (V1) : un identifiant de projet commence toujours par `holarch:project:`.
 const RETIRES = 'retires';
 
+// Jour local du poste d'un événement (V6 ; choix de l'auteur : jour local partout) : SQLite le lit dans le fuseau du
+// processus, comme Node (`heureLocale`) ; l'histogramme (`consommation` par jour) et la liste des sessions d'un jour le
+// prennent tous deux ici.
+const JOUR_LOCAL = "date(at, 'localtime')";
+
 // Sommes d'un regroupement de coûts (`consommation`, `coutsDeSessions`) ; `via` : les relevés passés par un intermédiaire.
 const SOMME = "SUM(tok_out) sortie, SUM(tok_cache_read) cache_lu, SUM(tok_cache_write) cache_ecrit, SUM(tok_in) entree, SUM(usd) usd, COUNT(*) n, SUM(model LIKE 'anthropic/%') via";
 
@@ -300,7 +305,9 @@ export class Socle {
   // ne compte pas comme une fin. `projet` : identifiant (d'un projet retiré aussi), nom ou chemin ; `aucun` pour les
   // sessions hors projet. Filtrée par un projet (ou `aucun`), chaque session porte `part` : la part de ce projet dans son
   // coût de la période, du même partage que la vue Projets et `consommation` (V5) ; leur somme est le chiffre de la carte.
-  sessions({ jours = 30, projet = null } = {}) {
+  // `jour` (AAAA-MM-JJ, jour local du poste, V6) : les sessions qui ont un coût ce jour-là, chacune avec `usd_jour` et
+  // `sortie_jour` ; leur somme est la barre de ce jour dans l'histogramme (`consommation` par jour).
+  sessions({ jours = 30, projet = null, jour = null } = {}) {
     const depuis = new Date(Date.now() - jours * 864e5).toISOString();
     const id = this.projetDe(projet, { retire: true });
     const vraie = "json_extract(%s.data,'$.complement') IS NULL";
@@ -316,8 +323,19 @@ export class Socle {
         AND f.id=(SELECT id FROM evenements g WHERE g.kind='session.finished' AND g.correlation=f.correlation AND ${vraie.replace('%s', 'g')} ORDER BY at DESC, id DESC LIMIT 1)
       ORDER BY f.at DESC`, depuis);
     const projetsDeSession = this.attribution();
-    const liste = lignes.map((l) => ({ ...l, data: JSON.parse(l.data), projets: projetsDeSession(l.session) }))
+    let liste = lignes.map((l) => ({ ...l, data: JSON.parse(l.data), projets: projetsDeSession(l.session) }))
       .filter((l) => !id || (id === 'aucun' ? !l.projets.length : l.projets.some((p) => p.id === id)));
+    if (jour) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) throw new Error(`jour attendu AAAA-MM-JJ : ${jour}`);
+      // Les coûts datés ce jour local (bornés à deux jours autour, pour l'index), par session.
+      const autour = (j) => new Date(Date.parse(`${jour}T00:00:00Z`) + j * 864e5).toISOString();
+      const ceJour = new Map();
+      for (const c of this.index.requete(`SELECT correlation, SUM(usd) usd, SUM(tok_out) sortie FROM evenements WHERE kind='cost.recorded' AND at>=? AND at<? AND ${JOUR_LOCAL}=? GROUP BY correlation`, autour(-2), autour(3), jour)) {
+        const k = String(c.correlation).split(':')[0]; const x = ceJour.get(k) || { usd: null, sortie: 0 }; ceJour.set(k, x);
+        if (c.usd != null) x.usd = (x.usd || 0) + c.usd; x.sortie += c.sortie || 0;
+      }
+      liste = liste.filter((l) => ceJour.has(l.session)).map((l) => ({ ...l, usd_jour: ceJour.get(l.session).usd, sortie_jour: ceJour.get(l.session).sortie }));
+    }
     if (!id) return liste;
     const couts = this.coutsDeSessions(depuis); const cle = id === 'aucun' ? null : id;
     return liste.map((l) => { const c = couts.get(l.session); const f = parts(l.projets).find(([x]) => x === cle)?.[1] ?? 0; return { ...l, part: !c ? 0 : c.usd == null ? null : c.usd * f }; });
@@ -451,7 +469,7 @@ export class Socle {
       return [...r.values()].map((x) => ({ ...x, sortie: Math.round(x.sortie), cache_lu: Math.round(x.cache_lu), cache_ecrit: Math.round(x.cache_ecrit), entree: Math.round(x.entree) })).sort((a, b) => b.sortie - a.sortie);
     }
     // Par modèle : un identifiant passé par un intermédiaire (anthropic/…) se range avec son modèle de base ; `via` le compte.
-    const col = par === 'jour' ? 'substr(at,1,10)' : "CASE WHEN model LIKE 'anthropic/%' THEN substr(model, 11) ELSE model END";
+    const col = par === 'jour' ? JOUR_LOCAL : "CASE WHEN model LIKE 'anthropic/%' THEN substr(model, 11) ELSE model END";
     return this.index.requete(`SELECT ${col} cle, ${SOMME} FROM evenements WHERE kind='cost.recorded' AND at>=? GROUP BY cle ORDER BY ${par === 'jour' ? 'cle' : 'sortie DESC'}`, depuis);
   }
 
