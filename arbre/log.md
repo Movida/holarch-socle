@@ -1,5 +1,13 @@
 # Journal de l'arbre
 
+## 2026-10-16
+
+* **L'inventaire trouve Claude Desktop depuis un service de WSL** (essai du site de travail) : lancé par systemd,
+  l'inventaire horaire disait la configuration de Claude Desktop introuvable, alors qu'elle était là ; le catalogue
+  perdait les serveurs MCP de Desktop. Un service de WSL ne reçoit ni `WSL_DISTRO_NAME` ni le `PATH` Windows : WSL
+  se reconnaît désormais aussi à son interop (`/proc/sys/fs/binfmt_misc/WSLInterop`), et `cmd.exe` se cherche aussi
+  sous `/mnt/c/Windows/System32`, comme PowerShell dans `veille.js`. Test qui reproduit l'environnement du service.
+
 ## 2026-10-15
 
 * **La création de projet ne passe plus à `git add -u` un chemin non suivi** (essai du site de travail) : sur un poste en
