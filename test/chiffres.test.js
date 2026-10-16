@@ -154,6 +154,25 @@ test('V1 : projets() rend les projets retirés (activité, nom, date du retrait)
   assert.deepEqual(sansRetrait.projets().retires, { activite: null, projets: [] });
 });
 
+// V1, relecture du lot 2 : un retiré d'avant 0.11.0 prenait pour nom le dossier de départ le plus fréquent de ses sessions,
+// le dossier personnel sur le poste, ou "" pour un départ de `/`. La décision : un nom trompeur se laisse `null`. Un
+// dossier de départ qui est l'emplacement d'un projet du catalogue, ou en contient un, ou sans nom, ne nomme pas un retiré.
+test('V1 : un retiré d’avant 0.11.0 ne prend pas pour nom un dossier de départ qui est ou contient un projet, ni un nom vide', () => {
+  const donnees = tmp(); const ev = [];
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: TARIFS, inventaire: {}, import: {} });
+  const id = (n) => `holarch:project:${n}`;
+  session(ev, 's1', 1, { cwd: '/ws', projet: 'ws', projets: [{ id: id('ra'), n: 1 }] }, 1); // contient /ws/a
+  session(ev, 's2', 1, { cwd: '/ws', projet: 'ws', projets: [{ id: id('rb'), n: 1 }] }, 1);
+  session(ev, 's3', 2, { cwd: '/ws', projet: 'ws', projets: [{ id: id('rb'), n: 1 }] }, 1);
+  session(ev, 's4', 3, { cwd: '/ws/b', projet: 'b', projets: [{ id: id('rb'), n: 1 }] }, 1); // son dossier : il le nomme
+  session(ev, 's5', 3, { cwd: '/', projet: '', projets: [{ id: id('rc'), n: 1 }] }, 1);
+  session(ev, 's6', 4, { cwd: '/ws/a', projet: 'a', projets: [{ id: id('rd'), n: 1 }] }, 1); // l'emplacement de a
+  for (const [n, r] of ['ra', 'rb', 'rc', 'rd'].entries()) ev.push({ id: ulid(Date.parse(il_y_a(6)), `retrait${r}`), at: il_y_a(6 + n), kind: 'element.retired', actor: 'system:inventaire', subject: id(r), data: {}, classification: 'internal' });
+  s.journal.ajouter(ev);
+  s.catalogue.remplacer([fiche('a', { attributes: {} })]); s.indexer();
+  assert.deepEqual(s.projets().retires.projets.map((p) => [p.id, p.nom]), [[id('ra'), null], [id('rb'), 'b'], [id('rc'), null], [id('rd'), null]]);
+});
+
 // V3 (décision sorties-mcp-des-chiffres) : « Tours » comptait la session seule dans la colonne de l'interface, les
 // sous-agents compris dans le MCP (72 sessions sur 182 différaient). `tours` garde son sens dans le MCP (total) ;
 // `tours_session` s'ajoute (la session seule).

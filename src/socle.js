@@ -246,8 +246,11 @@ export class Socle {
   // Nom d'affichage d'un projet, le même dans toutes les lectures qui en nomment un (vue Projets, sessions, consommation,
   // tableau de bord, arbre ; décision sorties-mcp-des-chiffres, V1) : `nom(id)` est celui de sa fiche ; pour un projet
   // retiré du catalogue, celui que porte son dernier `element.retired` (contrat événement 0.11.0) ; retiré avant 0.11.0
-  // (`data: {}`), le dossier de départ (`data.projet`) le plus fréquent de ses sessions, affichage seulement (décision
-  // rattachement-projet) ; sinon null. `retire_le(id)` : la date de ce dernier retrait sur ce site, null sans retrait.
+  // (`data: {}`), le nom du dossier de départ (`data.projet`) le plus fréquent de ses sessions, affichage seulement
+  // (décision rattachement-projet) ; sinon null. Un dossier de départ (`data.cwd`) qui est l'emplacement d'un projet de
+  // `projets` ou en contient un (le dossier personnel), ou dont le nom est vide (`/`), ne nomme pas un retiré : ce nom
+  // tromperait, il reste null (décision sorties-mcp-des-chiffres). `retire_le(id)` : la date de ce dernier retrait sur ce
+  // site, null sans retrait.
   nomsDeProjets(projets = projetsDe(this.projetsDuSite())) {
     const fiches = new Map(projets.map((p) => [p.id, p.nom]));
     let retraits; let departs;
@@ -258,8 +261,9 @@ export class Socle {
         departs = new Map();
         for (const x of this.index.requete(`SELECT json_extract(j.value,'$.id') projet, json_extract(e.data,'$.projet') dossier,
             COUNT(DISTINCT CASE WHEN instr(e.correlation, ':') > 0 THEN substr(e.correlation, 1, instr(e.correlation, ':') - 1) ELSE e.correlation END) n
-          FROM evenements e, json_each(e.data, '$.projets') j WHERE e.kind='session.finished' AND json_extract(e.data,'$.projet') IS NOT NULL
-          GROUP BY projet, dossier ORDER BY n DESC, dossier`)) if (!departs.has(x.projet)) departs.set(x.projet, x.dossier);
+          FROM evenements e, json_each(e.data, '$.projets') j WHERE e.kind='session.finished' AND json_extract(e.data,'$.projet') <> ''
+            AND NOT EXISTS (SELECT 1 FROM json_each(?) l WHERE substr(l.value || '/', 1, length(json_extract(e.data,'$.cwd')) + 1) = json_extract(e.data,'$.cwd') || '/')
+          GROUP BY projet, dossier ORDER BY n DESC, dossier`, JSON.stringify(projets.map((p) => p.location).filter(Boolean)))) if (!departs.has(x.projet)) departs.set(x.projet, x.dossier);
       }
       return departs.get(id) ?? null;
     };
