@@ -2,6 +2,18 @@
 
 ## 2026-10-16
 
+* **Horloge du poste, points 7 à 11 de la relecture du lot 2** (environ 80 k tokens de contexte pour l'agent ;
+  instance neuve : 309 k, soit 62 k par point) : après `wsl --shutdown`, l'auteur n'a pas pu lancer le comptage des
+  reculs (`dmesg | grep -c`, cause non sue : PowerShell au lieu de WSL, ou le code de sortie 1 d'un compte nul) ;
+  l'agent l'a lancé de sa session : 0 recul en 22 min, contre un toutes les 30 s avant. Points 7 à 11 codés par
+  l'instance, huit commits (`4b08b65` à `43feed9`), relus par l'agent avec les six précédents ; 277 tests verts, test
+  visuel vert ; détail dans l'avancement de l'étape 3. Pose de la copie de service refusée en session par le contrôle
+  des permissions : geste de l'auteur. Leçon : déroulé annoncé en quatre temps (instance ; relecture des six ;
+  relecture de ses commits, tests, pose et audit ; envoi sur autorisation) ; tenus les deux premiers, le troisième sans
+  pose ni audit, le quatrième en attente. Ce qui l'a fait dévier : la pose, que l'agent faisait jusqu'ici, est refusée en mode automatique, vu
+  seulement au moment de la lancer. La demande qui y aurait mené : « dire au début de la session les gestes que le
+  contrôle des permissions peut refuser, et me les donner ensemble ».
+
 * **Relecture du lot 2, horloge du poste, brouillons fondateurs tranchés** (environ 195 k tokens de contexte pour
   l'agent ; relecture par quatre instances en lecture seule, environ 950 k en tout ; instance de correction arrêtée) :
   constats vérifiés dans le code, détail dans `revue-limites.md` (« Chiffres, lot 2, relecture »). Une régression de 238

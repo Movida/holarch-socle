@@ -1347,6 +1347,26 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   processus) ; (2) relecture des commits du lot 2 et des corrections, `npm test`, test visuel, pose, audit, envoi sur
   autorisation ; (3) revue d'ensemble (cadre ci-dessus), sa première question à l'auteur : Q28 (ce qu'il a observé pour
   B6 et B7, durée de B7) ; (4) règle « recommander par l'objectif » en brouillon.
+- **Fait (2026-10-16, nuit)** : points 7 à 11 de la relecture par une instance neuve, relus par l'agent avec les six
+  précédents (ils tiennent). Huit commits (`4b08b65` à `43feed9`), chaque test rouge avant son correctif ; les mutants
+  sont ceux de l'instance. V1 éprouvé contre ses six mutants (la remise reprise) ; un retiré nommé `<b>x</b>` au test
+  visuel (un `h()` retiré autour de `date(p.retire_le)` ne se voit pas : `date()` ne rend jamais de balise) ; chaque
+  route GET de l'API, par `creerServeur`, sans écriture ; commentaire du seuil ; empreinte de l'arbre (chemins,
+  `mtimeMs`, tailles, prise avant la lecture, rangée dans l'instantané, `empreinte_arbre`, hors contrat ;
+  `arbreModifieDepuis` retirée, son seul appelant était `#arbreChange`), et le test C5 rendu à son objet, qu'elle
+  vidait ; six tests datés sur l'horloge rendus inutiles par l'empreinte ; `ulid` sans graine croissant dans un
+  processus (contrat événement : « triable dans le temps », rien de contraire). 277 tests verts, test visuel vert,
+  relancés par l'agent. Horloge du poste : 0 recul en 22 min après `wsl --shutdown` (19 h 02), contre un toutes les
+  30 s avant. Comportements nouveaux : le premier `regles appliquer` ou `contexte debut` après la pose refait un
+  inventaire (instantané sans empreinte) ; un adaptateur de l'arbre en panne fait relancer l'inventaire à chaque
+  `arbreAJour` (il ne lève pas d'erreur hors d'un défaut imprévu). Voisins vus, versés à la revue d'ensemble : test V1
+  instable selon l'instance (`il_y_a` appelé deux fois, 1 échec sur 40 sous charge ; palliatif : un instant figé au
+  chargement) ; `garde-fous.test.js:1023` daté à +5 s, devenu inutile ; catalogues de test écrits sans empreinte, qui
+  passent par le repli « changé » ; trois dates de fichier encore comparées à l'horloge
+  (`claude-code-transcriptions.js:241`, `contexte.js:41`, `commun.js:282`), effet de quelques secondes ; un `git status`
+  en échec à l'inventaire, rangé `null`, s'affiche 0 (`depots-git.js:76`). Pose de la copie de service refusée en
+  session par le contrôle des permissions (déploiement) : geste de l'auteur, puis audit. Suite : (2) pose, audit, envoi
+  sur autorisation ; (3) et (4) ci-dessus, inchangés.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
