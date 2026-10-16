@@ -2,6 +2,12 @@
 
 ## 2026-10-16
 
+* **`holarch service poser` nomme les tests qui le font refuser** (essai du site de travail) : une pose a refusé pour
+  « npm test rouge (code 1) », puis la suite est passée six fois de suite ; le test en cause n'a pas pu être retrouvé.
+  `node --test` écrit ses échecs sur stdout, alors que le refus ne lisait que la fin de stderr. La liste « ✖ failing
+  tests: » se lit désormais par `testsEnEchec` (`commun.js`), partagée avec `eprouver`, et le refus nomme jusqu'à cinq
+  tests.
+
 * **L'inventaire trouve Claude Desktop depuis un service de WSL** (essai du site de travail) : lancé par systemd,
   l'inventaire horaire disait la configuration de Claude Desktop introuvable, alors qu'elle était là ; le catalogue
   perdait les serveurs MCP de Desktop. Un service de WSL ne reçoit ni `WSL_DISTRO_NAME` ni le `PATH` Windows : WSL
