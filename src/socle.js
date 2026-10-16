@@ -29,6 +29,9 @@ function parts(projets) {
 // égale ; sans aucune date, le dernier écrit. La vue Projets, le MCP et la reprise le lisent ici.
 const dernierFait = (faits) => faits.reduce((d, e) => (e.date && (!d?.date || e.date >= d.date) ? e : d), null) ?? faits.at(-1) ?? null;
 
+// Les nœuds d'un arbre lu (`arbreFrais`), rangés par nom comme les rendait l'index (`fiches`, ORDER BY name).
+const noeudsDe = (arbre) => arbre.filter((f) => f.kind === 'node').sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
 export const IMPORTS = { 'claude-code-transcriptions': importerTranscriptions, agentgateway: importerPasserelle };
 
 export class Socle {
@@ -64,10 +67,13 @@ export class Socle {
     return { change: !depuis || [...depots].some((d) => arbreModifieDepuis(d, depuis)), fiches, options: o, depots };
   }
 
-  // Nœuds et règles pour une décision immédiate (garde avant commit) : ceux du catalogue, ou, si un arbre a changé depuis,
-  // relus des fichiers, en mémoire. Ni git ni écriture : la garde tourne dans un crochet de git, où `GIT_INDEX_FILE` fausserait
-  // la lecture des autres dépôts par un inventaire complet. Ce qui est rendu vient du catalogue dont la date a décidé, pas
-  // de l'index, qui peut dater d'avant lui (reconstruit après l'inventaire) ; sans inventaire de l'arbre, de l'index.
+  // Nœuds et règles pour une décision immédiate (garde avant commit) et pour les lectures de l'interface et du MCP (règles,
+  // projets, arbre, seuil de passation ; ligne 238) : ceux du catalogue, ou, si un arbre a changé depuis, relus des
+  // fichiers, en mémoire. Une lecture le prend une fois et le passe aux fonctions qu'elle appelle (`arbre`). Ni git ni
+  // écriture : la garde tourne dans un crochet de git, où `GIT_INDEX_FILE` fausserait la lecture des autres dépôts par un
+  // inventaire complet, et une lecture de l'interface ou du MCP n'écrit rien. Ce qui est rendu vient du catalogue dont la
+  // date a décidé, pas de l'index, qui peut dater d'avant lui (reconstruit après l'inventaire) ; sans inventaire de
+  // l'arbre, de l'index.
   arbreFrais() {
     const a = this.#arbreChange();
     if (!a) return [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
@@ -167,10 +173,9 @@ export class Socle {
   // Contexte relu par tour (décision passation-sereine) : la mesure de l'économie (moyenne pondérée par les tours, donc
   // portée par les longues sessions, celles qui coûtent), et les sessions de la semaine au-dessus du seuil de passation.
   // Le seuil est celui du profil, comme pour le crochet d'alerte : sans lui (null), aucune alerte n'est posée et aucune
-  // session n'est dite lourde.
-  contexte() {
-    const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
-    const regle = +regleDuCompte(fiches, { profil: this.profil() }).config?.claude_code?.passation?.seuil_tokens;
+  // session n'est dite lourde. Lu dans l'arbre frais (`arbre`) : un seuil changé vaut tout de suite, comme pour l'alerte.
+  contexte({ arbre = this.arbreFrais() } = {}) {
+    const regle = +regleDuCompte(arbre, { profil: this.profil() }).config?.claude_code?.passation?.seuil_tokens;
     const seuil = regle > 0 ? regle : null;
     const l = this.sessions({ jours: 30 }).filter((x) => x.tours_total && x.cache_lu);
     const moyen = (a) => { const t = a.reduce((x, y) => x + y.tours_total, 0); return t ? Math.round(a.reduce((x, y) => x + y.cache_lu, 0) / t) : null; };
@@ -271,11 +276,11 @@ export class Socle {
       .filter((l) => !id || (id === 'aucun' ? !l.projets.length : l.projets.some((p) => p.id === id)));
   }
 
-  // Vue Projets (étape 3, tranche 2) : par projet, où il en est d'après son arbre, ce qui l'attend, son activité et
-  // l'état technique de son dépôt. Le coût d'une session se partage entre ses projets, au prorata des appels.
-  projets() {
+  // Vue Projets (étape 3, tranche 2) : par projet, où il en est d'après son arbre (frais, `arbre`), ce qui l'attend, son
+  // activité et l'état technique de son dépôt. Le coût d'une session se partage entre ses projets, au prorata des appels.
+  projets({ arbre = this.arbreFrais() } = {}) {
     const fiches = this.projetsDuSite();
-    const noeuds = this.fiches({ kind: 'node' });
+    const noeuds = noeudsDe(arbre);
     // Sessions comptées par projet ; coût et tokens repris de `consommation` (coûts datés dans la période) : la vue et le
     // tableau de bord donnent le même chiffre.
     const j7 = new Date(Date.now() - 7 * 864e5).toISOString();
@@ -389,23 +394,23 @@ export class Socle {
 
   // Règle effective (étape 3, tranche 3, décision arbre-des-regles) d'un projet ; sans projet, ce qui vaut au compte et
   // les projets qui ont des règles. Chaque règle dit où l'adaptateur Claude Code l'écrit, ou pourquoi il ne l'écrit pas.
-  regles({ projet = null } = {}) {
-    const fiches = [...this.fiches({ kind: 'node' }), ...this.fiches({ kind: 'rule' })];
+  // Les règles sont celles de l'arbre frais (`arbre`) : une règle ajoutée se voit sans attendre l'inventaire.
+  regles({ projet = null, arbre = this.arbreFrais() } = {}) {
     // Les couches lues par les contrôles (`couches`) restent dans le socle : la vue garde la configuration fusionnée.
     const portees = ({ couches, ...r }, classificationDepot) => ({ ...r, regles: r.regles.map((e) => ({ ...e, claude_code: destination(e, { classificationDepot }) })) });
     const projets = this.projetsDuSite();
     const ouverts = this.ecartsOuverts();
     if (projet) {
-      const id = this.projetDe(projet); const r = regleEffective(fiches, id, { profil: this.profil() });
+      const id = this.projetDe(projet); const r = regleEffective(arbre, id, { profil: this.profil() });
       return { nom: projets.find((p) => p.id === id)?.name ?? null, chemin: projets.find((p) => p.id === id)?.location ?? null, ...portees(r, r.arbre?.classification),
         ecarts: ouverts.filter((o) => o.projet === id) };
     }
-    const declares = projetsDeclares(fiches, { profil: this.profil() });
-    const resume = projets.map((p) => ({ p, r: regleEffective(fiches, p.id, { profil: this.profil() }) }))
+    const declares = projetsDeclares(arbre, { profil: this.profil() });
+    const resume = projets.map((p) => ({ p, r: regleEffective(arbre, p.id, { profil: this.profil() }) }))
       .filter(({ p, r }) => declares.has(p.id) || r.arbre?.types.length || r.regles.some((e) => e.origine === 'projet'))
       .map(({ p, r }) => ({ id: p.id, nom: p.name, declare: declares.has(p.id), types: r.arbre?.types || [], appliquees: r.regles.filter((e) => e.applicable).length,
         proposees: r.regles.filter(aApprouver).length, rappels: r.rappels, signaux: r.signaux.length, ecarts: ouverts.filter((o) => o.projet === p.id).length }));
-    return { compte: { ...portees(regleDuCompte(fiches, { profil: this.profil() }), 'sensitive'), ecarts: ouverts.filter((o) => !o.projet) }, projets: resume };
+    return { compte: { ...portees(regleDuCompte(arbre, { profil: this.profil() }), 'sensitive'), ecarts: ouverts.filter((o) => !o.projet) }, projets: resume };
   }
 
   // ---------- contrôles et audit (étape 3, tranches 4 et 5) : module audit ----------
@@ -465,9 +470,10 @@ export class Socle {
     return { ecrites, deja, sans_noeud: sans, a_trancher: t.a_trancher.map((g) => ({ id: g.id, consigne: g.consigne, contredit: g.contredit })), couvertes: t.couvertes.length };
   }
 
-  arbre() {
+  // Nœuds de l'arbre frais (`arbre`), comme la vue Projets et les règles.
+  arbre({ arbre = this.arbreFrais() } = {}) {
     const noms = new Map(projetsDe(this.projetsDuSite()).map((p) => [p.id, p.nom]));
-    return this.fiches({ kind: 'node' }).map((f) => ({ id: f.id, chemin: f.node, titre: f.name, description: f.description, type: f.attributes?.type, statut: f.attributes?.statut, version: f.version,
+    return noeudsDe(arbre).map((f) => ({ id: f.id, chemin: f.node, titre: f.name, description: f.description, type: f.attributes?.type, statut: f.attributes?.statut, version: f.version,
       projet: f.links?.project?.[0] ? { id: f.links.project[0], nom: noms.get(f.links.project[0]) ?? null } : null, parent: (f.links?.derives_from || [])[0] || null, approuve: f.attributes?.approuve || null }));
   }
 }

@@ -108,7 +108,9 @@ export function reglesDuDossier(s, dossier) {
 export function resume(s, dossier, { max = 1500, transcription = null, maintenant = Date.now() } = {}) {
   const p = projetDuDossier(s, dossier);
   if (!p) return null;
-  const v = s.projets().projets.find((x) => x.id === p.id);
+  // L'arbre relu une fois (ligne 238), pour la vue du projet et ses règles.
+  const arbre = s.arbreFrais();
+  const v = s.projets({ arbre }).projets.find((x) => x.id === p.id);
   if (!v) return null;
   const ecarts = s.ecartsOuverts().filter((o) => o.projet === p.id);
   const l = [`HOLARCH — reprise du projet ${v.nom} (résumé au démarrage ; le détail est dans son journal et l’avancement de l’étape).`];
@@ -133,7 +135,7 @@ export function resume(s, dossier, { max = 1500, transcription = null, maintenan
   if (v.idees.length) l.push(`Idées pour l’étape ${v.etape.numero} (\`arbre/idees.md\`) : ${v.idees.map((i) => i.id).join(', ')}.`);
   if (v.decisions.length) l.push(`Décisions à approuver : ${v.decisions.map((d) => court(d.titre, 60)).join(' ; ')}.`);
   // Règles proposées (récolte, décision recolte) que ce projet recevrait : celles de son nœud et de ses couches.
-  const proposees = s.regles({ projet: p.id }).regles.filter(aApprouver);
+  const proposees = s.regles({ projet: p.id, arbre }).regles.filter(aApprouver);
   if (proposees.length) l.push(`Règles à approuver : ${proposees.length} (${proposees.slice(0, 4).map((e) => e.id).join(', ')}${proposees.length > 4 ? '…' : ''}), page « Règles ».`);
   // L'état du dépôt se lit en direct : celui de l'inventaire peut dater de l'heure précédente. Il se lit dans le dépôt du
   // dossier de travail (`--show-toplevel`) quand c'est celui du projet (même premier commit) : le chemin du catalogue est

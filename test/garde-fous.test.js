@@ -971,7 +971,8 @@ test('Arbre du socle : chaque en-tête se lit (un « : » non cité dans un titr
 
 // Décision profil-designe. Deux arbres portent un contexte : `profil` (son contexte déclare `depot` ; règle `francais`)
 // et `autre` (règle `autre-regle`) ; `depot` est un projet du catalogue. `socle(profil, { depots })` : un site qui
-// désigne ce profil (chemin, null ou valeur invalide), son catalogue lu de ces dépôts.
+// désigne ce profil (chemin, null ou valeur invalide), son catalogue lu de ces dépôts, qu'il relit aussi quand un arbre a
+// changé depuis (`arbreFrais`, lu par les règles depuis la ligne 238 : avec d'autres dépôts, la relecture différait).
 function essaiProfil() {
   const ecrireF = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t); };
   const r = tmp(); const p = path.join(r, 'profil'); const autre = path.join(r, 'autre'); const d = path.join(r, 'depot');
@@ -983,7 +984,7 @@ function essaiProfil() {
   ecrireF(path.join(d, 'arbre', 'index.md'), '---\ntype: guideline\nid: depot\ntitle: depot\nstatus: draft\n---\n');
   const projet = { id: 'holarch:project:depot', kind: 'project', name: 'depot', status: 'active', location: d, provenance: { source: 't' } };
   const socle = (profil, { depots = [p, autre, d], accueil = tmp() } = {}) => {
-    const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots: [] } } });
+    const s = new Socle({ site: 'local', profil, donnees: accueil, accueil, web: {}, tarifs: {}, import: {}, inventaire: { arbre: { actif: true, depots } } });
     s.catalogue.remplacer([...inventaireArbre({}, { depots, profil: s.profil(), projetDe: (x) => ({ id: `holarch:project:${path.basename(x)}` }) }), projet]); s.indexer();
     return s;
   };

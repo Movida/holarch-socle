@@ -977,7 +977,8 @@ test('règles : une règle ajoutée après l’inventaire se voit tout de suite 
   // Un changement juste après l'inventaire (même milliseconde que lui ou presque) compte.
   const apres = () => new Date(s.catalogue.date() + 1);
   fs.utimesSync(regles, apres(), apres());
-  assert.equal(proposees(), 0, 'le catalogue de l’inventaire précédent ne la voit pas');
+  // Les règles se lisent dans l'arbre frais (ligne 238) : elle se voit avant l'inventaire, que la ligne de commande refait.
+  assert.equal(proposees(), 1, 'lue fraîche, sans attendre l’inventaire');
   assert.equal(await s.arbreAJour(), true); s.indexer();
   assert.equal(proposees(), 1);
   // Un fichier retiré change aussi l'arbre (date du dossier).
@@ -2939,8 +2940,10 @@ test('Création : un fichier de base suivi, retiré à la main sous un dossier i
 // ---- Famille « Chiffres », voisins du lot 1 (choix de l'auteur du 2026-10-14).
 
 // Voisin de N2 : un inventaire déjà en cours quand la création relit le catalogue, après avoir déclaré le projet, passe son
-// tour ; l'étape des règles disait alors « projet toujours non déclaré après l'inventaire », qui ne s'était pas fait.
-test('Création : un inventaire en cours après la déclaration fait dire aux règles qu’elles sont à rejouer', () => gitIsole(async () => {
+// tour ; l'étape des règles disait alors « projet toujours non déclaré après l'inventaire », qui ne s'était pas fait, puis
+// « à rejouer ». Depuis la ligne 238, les règles se lisent dans l'arbre frais, où la déclaration écrite est déjà : elles
+// s'appliquent sans attendre l'inventaire.
+test('Création : un inventaire en cours après la déclaration n’arrête pas les règles, lues dans l’arbre frais', () => gitIsole(async () => {
   const { stat } = await import('../src/commun.js');
   const { r, s, etats } = await bancCreation();
   const d = path.join(r, 'neuf'); fs.mkdirSync(d); const { g } = depotGit(d);
@@ -2950,7 +2953,7 @@ test('Création : un inventaire en cours après la déclaration fait dire aux r�
   const p = await creerProjet(s, { nom: 'neuf', types: ['methode'] });
   const e = p.etapes.find((x) => x.etape === 'regles');
   assert.equal(etats(p).declaration, 'faite', JSON.stringify(p.etapes, null, 1));
-  assert.deepEqual([e.etat, e.detail.replace(/\d+, depuis \d\d:\d\d/, 'N')], ['echec', 'inventaire déjà en cours (processus N) : celui-ci passe son tour : à rejouer']);
+  assert.deepEqual([e.etat, e.detail], ['faite', '1 créé(s), 0 modifié(s), 0 retiré(s) ; crochet absent']);
 }));
 
 // Voisin de N4 : deux écritures de fichier restaient hors des fonctions communes (`ecrireSansLien`, `ecrireJson`). `init`

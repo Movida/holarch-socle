@@ -29,14 +29,16 @@ function lisible(r) {
  * Claude Code laissés (retirés ou changés à la main) que l'auteur fait reposer (`appliquerReglages`).
  */
 export function appliquerRegles(s, refs, comptes, { reposer = [] } = {}) {
-  // Un dépôt déplacé depuis l'inventaire : son ancien chemin, absent, n'est pas recréé pour y écrire les règles.
+  // Un dépôt déplacé depuis l'inventaire : son ancien chemin, absent, n'est pas recréé pour y écrire les règles. L'arbre
+  // est lu une fois pour le compte et tous les projets.
+  const arbre = s.arbreFrais();
   const effectives = refs.map((ref) => {
-    const r = s.regles({ projet: ref });
+    const r = s.regles({ projet: ref, arbre });
     if (!r.chemin) throw new Error(`projet sans emplacement sur ce site : ${ref}`);
     if (!dossier(r.chemin)) throw new Error(`projet ${ref} : ${r.chemin} n'existe plus (dépôt déplacé ou retiré depuis l'inventaire ; holarch inventaire le retrouve sous ses racines), rien n'est écrit`);
     return r;
   });
-  const compte = s.regles().compte;
+  const compte = s.regles({ arbre }).compte;
   const illisibles = [...new Set([compte, ...effectives].flatMap((r) => r.illisibles || []))];
   if (illisibles.length) throw new Error(`règles illisibles, rien n'est écrit : ${illisibles.join(' ; ')}`);
   lisible(compte);

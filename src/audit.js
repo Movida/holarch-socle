@@ -313,7 +313,7 @@ export function audit(s, { projet = null, journaliser = false } = {}) {
   }
 
   // Projets.
-  const cibles = projet ? [s.projetDe(projet)] : s.regles().projets.map((p) => p.id);
+  const cibles = projet ? [s.projetDe(projet)] : s.regles({ arbre: fiches }).projets.map((p) => p.id);
   const chaines = new Map();
   for (const id of cibles) {
     const p = projets.find((x) => x.id === id); if (!p) continue;
