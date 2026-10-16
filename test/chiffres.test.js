@@ -7,6 +7,7 @@ import path from 'node:path';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { Socle } from '../src/socle.js';
 import { creerServeurMcp } from '../src/mcp/serveur.js';
+import { creerServeur } from '../src/web/serveur.js';
 import inventaireArbre from '../src/inventaire/arbre.js';
 import { resume } from '../src/contexte.js';
 import { tmp } from './temporaire.js';
@@ -26,7 +27,8 @@ async function mcp(s) {
 
 // Ligne 238 (revue des limites) : les règles, la vue Projets, l'arbre et le seuil de passation se lisaient dans l'index,
 // donc dans le catalogue de l'inventaire horaire ; une règle changée restait invisible jusqu'à une heure. Ils lisent
-// `arbreFrais` (relu en mémoire quand un arbre a changé), une fois par lecture, sans inventaire ni écriture.
+// `arbreFrais` (relu en mémoire quand un arbre a changé), une fois par lecture, sans inventaire ni écriture, par le
+// serveur MCP comme par l'interface (une route GET qui appellerait `arbreAJour` écrirait catalogue et journal).
 test('238 : règles, projets, arbre et seuil de passation se lisent frais, une fois par lecture, sans rien écrire', async () => {
   const donnees = tmp(); const p = path.join(tmp(), 'profil'); const d = path.join(tmp(), 'depot');
   const profil = (seuil) => ecrire(path.join(p, 'arbre', 'index.md'), `---\ntype: guideline\nid: profil\ntitle: Profil fictif\nstatus: draft\nconfig:\n  claude_code: { passation: { seuil_tokens: ${seuil} } }\n---\n`);
@@ -55,6 +57,13 @@ test('238 : règles, projets, arbre et seuil de passation se lisent frais, une f
     assert.deepEqual((await m.appel('projets')).projets[0].decisions.map((x) => x.titre), ['Décision neuve']);
     assert.ok((await m.appel('arbre')).some((n) => n.titre === 'Décision neuve'));
   } finally { await m.fermer(); }
+  // Par l'interface : un aller par route GET de l'API.
+  const srv = creerServeur(s); await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
+  try {
+    const lire = async (chemin) => { const r = await fetch(`http://127.0.0.1:${srv.address().port}${chemin}`); assert.equal(r.status, 200, chemin); return r.json(); };
+    assert.deepEqual((await lire('/api/regles?projet=depot')).regles.map((e) => e.id).sort(), ['en-place', 'nouvelle']);
+    for (const chemin of ['/api/etat', '/api/fiches', '/api/fiche?id=holarch%3Aproject%3Adepot', '/api/sessions', '/api/projets', '/api/regles', '/api/consommation', '/api/evenements', '/api/arbre']) await lire(chemin);
+  } finally { srv.close(); }
   assert.deepEqual({ catalogue: octets(path.join(donnees, 'catalogue')), journal: octets(path.join(donnees, 'journal')) }, avant, 'ni inventaire ni journal : rien n’est écrit');
   // Une seule relecture par lecture, passée aux fonctions appelées.
   let n = 0; const frais = s.arbreFrais.bind(s); s.arbreFrais = () => { n++; return frais(); };
