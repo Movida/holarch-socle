@@ -17,7 +17,7 @@ const il_y_a = (j, h = 10) => new Date(Math.floor(Date.now() / JOUR - j) * JOUR 
 
 function donneesFictives() {
   const donnees = tmp('holarch-visuel-');
-  const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {},
+  const s = new Socle({ site: 'local', donnees, web: {}, inventaire: {}, import: {}, profil: '/ws/profil', // décision profil-designe
     tarifs: { source: 'https://exemple.test/tarifs', releve: '2026-10-01', modeles: { 'modele-a': { entree: 1, cache_ecrit: 1, cache_ecrit_1h: 2, cache_lu: 0.1, sortie: 10 } } } });
   const ev = [];
   const session = (n, jours, projet, sortie, modele = 'modele-a') => {
@@ -45,10 +45,11 @@ function donneesFictives() {
     fiche('project', 'projet-a', { location: '/ws/projet-a', attributes: { branche: 'main', amont: 'origin/main', en_avance: 2, en_retard: 0, fichiers_modifies: 3, integration_continue: ['GitHub Actions'], dernier_commit: il_y_a(1), dernier_sujet: 'Un commit fictif' } }),
     fiche('project', 'projet-b', { location: '/ws/projet-b', attributes: { branche: 'main', amont: null, fichiers_modifies: 0, dernier_commit: il_y_a(4) } }),
     fiche('project', 'projet-calme', { location: '/ws/projet-calme', attributes: { branche: 'main', amont: 'origin/main', en_avance: 0, en_retard: 0, fichiers_modifies: 0, dernier_commit: il_y_a(300) } }),
-    fiche('node', 'profil/racine', { name: 'Profil fictif', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'profil' } }),
-    fiche('node', 'profil/perso', { name: 'Perso', node: '/arbre/contextes/perso.md', links: { derives_from: ['/arbre/index.md'] }, attributes: { type: 'context', statut: 'draft', arbre: 'profil', projects: ['holarch:project:projet-a'] } }),
-    fiche('node', 'socle/methode', { name: 'Méthode fictive', node: '/arbre/types-transverses/methode/index.md', attributes: { type: 'template', statut: 'draft', arbre: 'socle', id: 'methode' } }),
-    fiche('rule', 'profil/avis', { name: 'avis', description: 'Donner un avis.', attributes: { arbre: 'profil', noeud_id: 'holarch:node:profil/racine', enonce: 'Donner un avis argumenté.', pourquoi: 'Exemple.', niveau: 'reminder', statut: 'stable', derogeable: true } }),
+    fiche('node', 'profil/racine', { name: 'Profil fictif', location: '/ws/profil/arbre/index.md', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'profil' } }),
+    fiche('node', 'profil/perso', { name: 'Perso', location: '/ws/profil/arbre/contextes/perso.md', node: '/arbre/contextes/perso.md', links: { derives_from: ['/arbre/index.md'] }, attributes: { type: 'context', statut: 'draft', arbre: 'profil', projects: ['holarch:project:projet-a'] } }),
+    fiche('node', 'socle/racine', { name: 'Socle fictif', location: '/ws/socle/arbre/index.md', node: '/arbre/index.md', attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'socle' } }),
+    fiche('node', 'socle/methode', { name: 'Méthode fictive', location: '/ws/socle/arbre/types-transverses/methode/index.md', node: '/arbre/types-transverses/methode/index.md', attributes: { type: 'template', statut: 'draft', arbre: 'socle', id: 'methode' } }),
+    fiche('rule', 'profil/avis', { name: 'avis', description: 'Donner un avis.', attributes: { arbre: 'profil', noeud_id: 'holarch:node:profil/racine', enonce: 'Donner un avis argumenté.', pourquoi: 'Exemple.', niveau: 'reminder', statut: 'stable', approuve: { by: 'human:auteur', at: '2026-10-01' }, derogeable: true } }),
     fiche('rule', 'socle/methode/inventer', { name: 'jamais-inventer', description: 'Ne pas inventer.', attributes: { arbre: 'socle', noeud_id: 'holarch:node:socle/methode', enonce: 'Un fait inconnu se marque.', niveau: 'reminder', statut: 'draft', derogeable: true } }),
     fiche('node', 'projet-a/racine', { name: 'Racine A', location: '/ws/projet-a/arbre/index.md', node: '/arbre/index.md', links: { project: ['holarch:project:projet-a'] }, attributes: { type: 'guideline', statut: 'draft', racine: true, arbre: 'projet-a', types: ['methode'], questions_ouvertes: [{ id: 'Q1', noeud: 'x.md', question: 'Une question `fictive` ?', niveau: 'gênant' }] } }),
     fiche('node', 'projet-a/etape', { name: 'Étape 2 — Fictive', location: '/ws/projet-a/arbre/conception/etape-2-fictive.md', node: '/arbre/conception/etape-2-fictive.md', links: { project: ['holarch:project:projet-a'] }, attributes: { type: 'spec', statut: 'draft', etape: 2, avancement: [{ etiquette: 'Fait', date: '2026-10-01', texte: 'Une tranche faite.', sous: [] }, { etiquette: 'Reste', date: null, texte: null, sous: ['Une tranche à faire.'] }] } }),
