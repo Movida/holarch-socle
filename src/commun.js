@@ -312,6 +312,12 @@ export const claudeIntrouvable = (config) => (config?.acces_distant?.claude
   ? `claude introuvable : acces_distant.claude (${config.acces_distant.claude}) n'existe pas ou n'est pas un fichier exécutable`
   : 'claude introuvable dans le PATH ni ~/.local/bin (acces_distant.claude pour le préciser)');
 
+/** Noms des tests en échec dans la sortie de `node --test` (rapport spec) : la liste qui suit « ✖ failing tests: ». */
+export function testsEnEchec(sortie) {
+  const apres = String(sortie || '').split(/^✖ failing tests:/m)[1] || '';
+  return [...new Set(apres.match(/^✖ .+$/gm) || [])].map((l) => l.slice(2).replace(/ \([\d.]+m?s\)$/, ''));
+}
+
 /**
  * git dans un dépôt de l'auteur : le résultat complet (status, stdout, stderr), avec un délai et un tampon larges.
  * Sa configuration s'applique comme à la main (filtres, crochets) : c'est par là que passent les écritures (création,

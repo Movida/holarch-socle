@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { git } from '../src/commun.js';
+import { git, testsEnEchec } from '../src/commun.js';
 
 const USAGE = 'usage : eprouver parent "<motif>" <fichier>… | eprouver mutant "<motif>" <fichier> "<expression>" "<remplacement>"';
 
@@ -24,9 +24,9 @@ function lancer(dossier, motif) {
     { cwd: dossier, env, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 900e3 });
   if (r.error) return { erreur: r.error.message };
   // Un fichier de test se dit comme un test : sans test retenu par le motif, ou s'il ne se charge pas.
-  const [avant, apres = ''] = `${r.stdout || ''}${r.stderr || ''}`.split(/^✖ failing tests:/m);
+  const sortie = `${r.stdout || ''}${r.stderr || ''}`; const avant = sortie.split(/^✖ failing tests:/m)[0];
   const noms = (t, m) => [...new Set(t.match(m) || [])].map((l) => l.slice(2).replace(/ \([\d.]+m?s\)$/, ''));
-  return { n: noms(avant, /^[✔✖] .+$/gm).filter((x) => !x.endsWith('.test.js')).length, echecs: noms(apres, /^✖ .+$/gm) };
+  return { n: noms(avant, /^[✔✖] .+$/gm).filter((x) => !x.endsWith('.test.js')).length, echecs: testsEnEchec(sortie) };
 }
 
 export function eprouver({ racine, mode, motif, fichiers = [], fichier = null, expression = null, remplacement = '' }) {

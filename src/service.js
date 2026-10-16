@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { git, lireJson, ecrireJson, ecrireSansLien, modifierJson, trouverOutil, configClaude, dedans, shell, pourCompte, numeroPris } from './commun.js';
+import { git, lireJson, ecrireJson, ecrireSansLien, modifierJson, trouverOutil, testsEnEchec, configClaude, dedans, shell, pourCompte, numeroPris } from './commun.js';
 import { creerInterface, creerImport, creerRecolte, creerReveil, etatRoutines } from './distant.js';
 import { OUTILS } from './conteneur.js';
 
@@ -182,7 +182,9 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
         if (etat.status !== 0 || sortie(etat)) throw new Error('copie de travail non propre : commiter d\'abord, la copie se tire d\'un commit vérifié');
         if (!npm) throw new Error('npm introuvable dans le PATH');
         const t = lancer(npm, ['test'], { cwd: src, env });
-        if (t.status !== 0) throw new Error(`npm test rouge (${echec(t)}) : rien n'est posé`);
+        // Les tests en échec se nomment : un échec intermittent ne se retrouve pas en relançant.
+        const rouges = t.status !== 0 && !t.error ? testsEnEchec(`${t.stdout || ''}${t.stderr || ''}`) : [];
+        if (t.status !== 0) throw new Error(`npm test rouge (${rouges.length ? `${rouges.length} en échec : ${rouges.slice(0, 5).join(' ; ')}${rouges.length > 5 ? ' ; …' : ''}` : echec(t)}) : rien n'est posé`);
         fs.rmSync(cible, { recursive: true, force: true });
         installer(src, commit, cible);
       }

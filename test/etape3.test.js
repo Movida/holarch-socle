@@ -1776,7 +1776,8 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
     if (cmd !== 'npm') return spawnSync(cmd, args, o);
     appels.push(`${args[0]} ${o.cwd}`);
     if (args[0] === 'ci') fs.mkdirSync(path.join(o.cwd, 'node_modules'));
-    return { status: args[0] === 'test' && !testsVerts ? 1 : 0, stdout: '', stderr: args[0] === 'test' ? '1 test rouge' : '' };
+    const rouge = args[0] === 'test' && !testsVerts;
+    return { status: rouge ? 1 : 0, stdout: rouge ? "✔ vert (1.2ms)\n✖ intermittent (3.4ms)\nℹ fail 1\n\n✖ failing tests:\n\ntest at test/a.test.js:3:1\n✖ intermittent (3.4ms)\n  'x'\n" : '', stderr: '' };
   };
   // systemctl répond comme le vrai : une unité activée et active, systemd en marche.
   const systemctl = (args) => ({ status: 0, stdout: { 'is-enabled': 'enabled\n', 'is-active': 'active\n', 'is-system-running': 'running\n' }[args[0]] ?? '', stderr: '' });
@@ -1785,7 +1786,8 @@ test('copie de service : posée d\'un commit vérifié, bascule, retour arrière
 
   assert.equal(sv.etat().copie, null);
   assert.equal(binaireService(accueil), path.resolve('bin/holarch.js'), 'sans copie : le code qui s\'exécute');
-  assert.throws(() => sv.poser(), /npm test rouge/); assert.ok(!fs.existsSync(path.join(accueil, 'service', c1)));
+  assert.throws(() => sv.poser(), /npm test rouge \(1 en échec : intermittent\) : rien n'est posé/, 'les tests en échec se nomment');
+  assert.ok(!fs.existsSync(path.join(accueil, 'service', c1)));
   testsVerts = true;
   fs.writeFileSync(path.join(src, 'brouillon.txt'), 'x');
   assert.throws(() => sv.poser(), /non propre/); fs.rmSync(path.join(src, 'brouillon.txt'));
