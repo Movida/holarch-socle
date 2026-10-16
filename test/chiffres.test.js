@@ -116,6 +116,7 @@ test('V2 : un git status en échec ne vaut pas zéro ; la valeur et la date du c
 // Projets (222,06 $ et 21 sessions sur 182 en 30 jours, comptés nulle part) et s'affichaient ailleurs par leur
 // identifiant brut. Un retrait porte désormais le nom et l'emplacement de la fiche retirée ; `projets()` rend `retires`.
 import { ulid } from '../src/ulid.js';
+import { Journal } from '../src/stockage/journal.js';
 const il_y_a = (j) => new Date(Date.now() - j * 864e5).toISOString().replace(/\.\d+Z$/, 'Z');
 const TARIFS = { modeles: { m: { entree: 0, cache_ecrit: 0, cache_lu: 0, sortie: 1e6 } } }; // 1 $ par token de sortie
 // Une session : un coût (`out` tokens, donc `out` $), sa fin ; `data` complète la fin (projets touchés, dossier de départ).
@@ -138,6 +139,8 @@ test('V1 : un retrait porte le nom et l’emplacement de la fiche retirée', asy
   assert.deepEqual([retrait.subject, retrait.data], [p.id, { name: 'parti', location: d }]);
 });
 
+// Relecture du lot 2 : six mutants y restaient verts (premier retrait au lieu du dernier, une session ou un échec sur deux
+// retirés compté deux fois, refus de la garde hors du groupe, retraits d'un autre site, `arbre()` sans le nom commun).
 test('V1 : projets() rend les projets retirés (activité, nom, date du retrait) ; projets + hors projet + retirés = total', async () => {
   const donnees = tmp(); const ev = [];
   const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: TARIFS, inventaire: {}, import: {} });
@@ -148,23 +151,34 @@ test('V1 : projets() rend les projets retirés (activité, nom, date du retrait)
   session(ev, 's4', 45, { cwd: '/ws/y', projet: 'autre', projets: [{ id: id('r2'), n: 1 }] }, 50);
   session(ev, 's5', 3, { cwd: '/ailleurs', projet: 'ailleurs' }, 1);
   session(ev, 's6', 5, { cwd: '/ws/z', projets: [{ id: id('r3'), n: 1 }] }, 3);
+  // Une session sur deux retirés, avec un échec : une session et un échec, une fois chacun pour le groupe des retirés.
+  session(ev, 's7', 2, { cwd: '/ws/z', projets: [{ id: id('r1'), n: 1 }, { id: id('r2'), n: 1 }] }, 2);
   const evt = (kind, j, extra) => ({ id: ulid(Date.parse(il_y_a(j)), `${kind}${j}`), at: il_y_a(j), kind, classification: 'internal', ...extra });
+  // Deux retraits de r1 sous deux noms : le dernier fait foi, pour le nom et la date.
+  ev.push(evt('element.retired', 8, { actor: 'system:inventaire', subject: id('r1'), data: { name: 'premier-nom', location: '/ws/premier' } }));
   ev.push(evt('element.retired', 6, { actor: 'system:inventaire', subject: id('r1'), data: { name: 'ancien-nom', location: '/ws/ancien' } }));
   ev.push(evt('element.retired', 9, { actor: 'system:inventaire', subject: id('r2'), data: {} })); // avant 0.11.0
   ev.push(evt('tool.failed', 2, { actor: 'agent:claude-code/m', correlation: 's2', data: { motif: 'sortie', programme: 'npm', outil: 'Bash' } }));
+  ev.push({ ...evt('tool.failed', 2, { actor: 'agent:claude-code/m', correlation: 's7', data: { motif: 'sortie', programme: 'npm', outil: 'Bash' } }), id: ulid(Date.parse(il_y_a(2)), 's7e') });
+  // Un refus de la garde dans le dépôt d'un retiré : compté avec les retirés.
+  ev.push(evt('rule.enforced', 3, { actor: 'system:garde', subject: id('r2'), data: { regle: 'x', controle: 'secrets', n: 1, moment: 'avant-commit' } }));
   s.journal.ajouter(ev);
-  s.catalogue.remplacer([fiche('a', { attributes: { fichiers_modifies: 0 } })]); s.indexer();
+  // Un retrait de r3 sur un autre site : il ne le nomme ni ne le date ici.
+  new Journal(donnees, 'ailleurs').ajouter([evt('element.retired', 4, { actor: 'system:inventaire', subject: id('r3'), data: { name: 'autre-site', location: '/ws/r3' } })]);
+  const noeud = { id: 'holarch:node:n1', kind: 'node', name: 'Nœud de r1', status: 'active', provenance: { source: 't' }, node: '/arbre/n1.md', links: { project: [id('r1')] } };
+  s.catalogue.remplacer([fiche('a', { attributes: { fichiers_modifies: 0 } }), noeud]); s.indexer();
   const { projets, hors_projet: hors, retires } = s.projets();
   assert.deepEqual(retires.projets, [{ id: id('r1'), nom: 'ancien-nom', retire_le: il_y_a(6) }, { id: id('r2'), nom: 'dossier-x', retire_le: il_y_a(9) }, { id: id('r3'), nom: null, retire_le: null }],
     'nom du dernier retrait ; avant 0.11.0, le dossier de départ le plus fréquent ; sinon null');
-  assert.deepEqual(retires.activite, { sessions_7: 3, sessions_30: 3, usd_7: 9, usd_30: 9, sortie_30: 9, derniere_session: il_y_a(1), echecs_7: { n: 1, tests_rouges: 0, garde: 0 } });
+  assert.deepEqual(retires.activite, { sessions_7: 4, sessions_30: 4, usd_7: 11, usd_30: 11, sortie_30: 11, derniere_session: il_y_a(1), echecs_7: { n: 3, tests_rouges: 0, garde: 1 } });
   // Bouclage : rien ne sort du compte.
   const total = s.etat().periode.tokens.usd;
   assert.equal(projets.reduce((x, p) => x + (p.activite?.usd_30 || 0), 0) + hors.usd_30 + retires.activite.usd_30, total);
-  assert.equal(total, 16);
+  assert.equal(total, 18);
   // Les autres lectures qui nomment un projet prennent le même nom.
   assert.equal(s.consommation({ jours: 30, par: 'projet' }).find((c) => c.cle === id('r1')).nom, 'ancien-nom');
   assert.deepEqual(s.sessions({ jours: 30 }).find((x) => x.session === 's2').projets.map((p) => p.nom), ['dossier-x']);
+  assert.deepEqual(s.arbre().find((n) => n.id === noeud.id).projet, { id: id('r1'), nom: 'ancien-nom' });
   // Le serveur MCP les rend aussi.
   const m = await mcp(s);
   try { assert.deepEqual((await m.appel('projets')).retires, retires); } finally { await m.fermer(); }
