@@ -153,3 +153,20 @@ test('V1 : projets() rend les projets retirés (activité, nom, date du retrait)
   const sansRetrait = new Socle({ ...s.config, donnees: tmp() }); sansRetrait.indexer();
   assert.deepEqual(sansRetrait.projets().retires, { activite: null, projets: [] });
 });
+
+// V3 (décision sorties-mcp-des-chiffres) : « Tours » comptait la session seule dans la colonne de l'interface, les
+// sous-agents compris dans le MCP (72 sessions sur 182 différaient). `tours` garde son sens dans le MCP (total) ;
+// `tours_session` s'ajoute (la session seule).
+test('V3 : l’outil MCP sessions rend tours (sous-agents compris) et tours_session (la session seule)', async () => {
+  const donnees = tmp(); const ev = [];
+  const s = new Socle({ site: 'local', donnees, accueil: donnees, web: {}, tarifs: TARIFS, inventaire: {}, import: {} });
+  session(ev, 's1', 1, { cwd: '/ws', projet: 'ws', tours: 8 }, 2);
+  ev.push({ id: ulid(Date.parse(il_y_a(1)), 's1:a'), at: il_y_a(1), kind: 'session.finished', actor: 'agent:claude-code/m', correlation: 's1:agent-1', classification: 'internal', data: { sous_agent: true, tours: 4 } });
+  session(ev, 's2', 2, { cwd: '/ws', projet: 'ws', tours: 5 }, 1);
+  s.journal.ajouter(ev); s.indexer();
+  const m = await mcp(s);
+  try {
+    const l = (await m.appel('sessions')).sessions.map((x) => [x.session, x.tours, x.tours_session]);
+    assert.deepEqual(l, [['s1', 12, 8], ['s2', 5, 5]]);
+  } finally { await m.fermer(); }
+});

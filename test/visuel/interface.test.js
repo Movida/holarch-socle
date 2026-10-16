@@ -34,6 +34,8 @@ function donneesFictives() {
   // Un projet retiré du catalogue (V1) : des sessions le portent, son retrait porte son nom (contrat événement 0.11.0).
   session(6, 3, 'ancien-projet', 5e4, 'modele-a', { projets: [{ id: 'holarch:project:ancien', n: 2 }] });
   ev.push({ id: ulid(Date.parse(il_y_a(5, 10)), 'retrait'), at: il_y_a(5, 10), kind: 'element.retired', actor: 'system:inventaire', subject: 'holarch:project:ancien', data: { name: 'ancien-projet', location: '/ws/ancien-projet' } });
+  // Un sous-agent de la session 2 (V3) : 12 tours en session, 16 avec lui.
+  ev.push({ id: ulid(Date.parse(il_y_a(2, 11)), '2s'), at: il_y_a(2, 11), kind: 'session.finished', actor: 'agent:claude-code/modele-a', correlation: 'session-2:agent-1', data: { projet: 'projet-b', sous_agent: true, tours: 4 } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'a'), at: il_y_a(2, 10), kind: 'tool.called', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', serveur: 'holarch', outil: 'etat', statut: 'ok' } });
   ev.push({ id: ulid(Date.parse(il_y_a(2, 10)), 'r'), at: il_y_a(2, 10), kind: 'tool.denied', actor: 'agent:claude-code/modele-a', correlation: 'session-2', data: { projet: 'projet-b', outil: 'Bash', origine: 'regle' } });
   s.journal.ajouter(ev);
@@ -108,6 +110,7 @@ test('interface : chaque page s’affiche sans erreur, barres visibles, barre la
   await page.waitForSelector('.nav a[aria-current="page"][data-vue="sessions"]'); // la page précédente a cédé la place
   await page.waitForSelector('table.triable tbody tr.cliquable');
   assert.equal(await page.$$eval('table.triable tbody tr', (r) => r.length), 1, 'sessions du projet');
+  assert.equal(await page.textContent('table.triable tbody tr td:nth-child(4)'), '16, dont 12 en session', 'tours : sous-agents compris, et la session seule');
   await page.click('table.triable tbody tr.cliquable td:nth-child(2)');
   await page.waitForFunction(() => location.hash.startsWith('#/journal?session=session-2'));
   await page.waitForSelector('.evenement .badge.fam-tool');

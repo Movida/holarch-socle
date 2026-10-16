@@ -34,11 +34,11 @@ export function creerServeurMcp(socle, version) {
   }, async ({ id }) => texte(socle.fiche(id) ?? { erreur: `fiche introuvable : ${id}` }));
 
   s.registerTool('sessions', {
-    description: 'Sessions Claude Code d’une période, les plus récentes d’abord : projets (ceux où la session a travaillé), dossier de départ, durée, tours, sous-agents, refus, tokens, coût liste.',
+    description: 'Sessions Claude Code d’une période, les plus récentes d’abord : projets (ceux où la session a travaillé), dossier de départ, durée, tours (`tours` : sous-agents compris ; `tours_session` : la session seule), sous-agents, refus, tokens, coût liste.',
     inputSchema: z.object({ jours, projet, limite: limite(30, 500) }), annotations: LECTURE,
   }, async ({ jours: j, projet: p, limite: n }) => {
     const l = socle.sessions({ jours: j ?? 30, projet: p || null });
-    return texte({ total: l.length, sessions: l.slice(0, n ?? 30).map((x) => ({ session: x.session, fin: x.fin, projets: x.projets.map((q) => ({ id: q.id, nom: q.nom, n: q.n })), dossier: x.data.projet, branche: x.data.branche, duree_s: x.data.duree_s, tours: x.tours_total ?? x.data.tours, sous_agents: x.sous_agents, refus: x.refus, sortie: x.sortie, cache_lu: x.cache_lu, usd: x.usd, modeles: x.data.modeles })) });
+    return texte({ total: l.length, sessions: l.slice(0, n ?? 30).map((x) => ({ session: x.session, fin: x.fin, projets: x.projets.map((q) => ({ id: q.id, nom: q.nom, n: q.n })), dossier: x.data.projet, branche: x.data.branche, duree_s: x.data.duree_s, tours: x.tours_total ?? x.data.tours, tours_session: x.data.tours ?? null, sous_agents: x.sous_agents, refus: x.refus, sortie: x.sortie, cache_lu: x.cache_lu, usd: x.usd, modeles: x.data.modeles })) });
   });
 
   s.registerTool('projets', {
