@@ -100,7 +100,8 @@ cette page n'en porte aucune. agentgateway 1.6.0, `mcp-remote` 0.14.3, Node 24 L
     **dernière activité** (vérifié : une session active survit au-delà du délai, une inactive expire). Les accumulations
     des constats 6 et 9 viennent de sessions jamais fermées : réessais d'un client, et scripts de vérification qui ne
     fermaient pas les leurs (17 séries vivantes pour une dizaine d'essais). Délai laissé au défaut : plus court, il
-    couperait une session de client inactive, et la reprise par le pont n'est pas vérifiée.
+    couperait une session de client inactive, et la reprise par le pont n'est pas vérifiée. (2026-10-17 : vérifiée
+    depuis, au constat 19 et à l'usage ; mais Desktop n'y relit pas sa liste d'outils, voir le journal.)
 19. **Le pont générique ne gère pas la vie d'une session.** `mcp-remote` ne reprend pas une session que la passerelle a
     expirée (« invalid session ID header » à chaque appel, jusqu'au redémarrage du client) et ne ferme pas la sienne quand
     le client se ferme (les serveurs stdio de la session restent en marche jusqu'à expiration) : vérifié sur une passerelle

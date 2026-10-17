@@ -1,5 +1,17 @@
 # Journal de l'arbre
 
+## 2026-10-17
+
+* **Le pont rend l'initialisation avec les outils attendus** (essai du site de travail) : la relecture des listes
+  attendue le 2026-10-15 n'a pas lieu. Quatre reprises du pont de Claude Desktop (15 et 16/10) envoient
+  `list_changed`, et aucune n'est suivie d'un `tools/list` au journal de la passerelle : Desktop lit sa liste une fois,
+  à l'initialisation. Un flux d'écoute (`GET`) qui préviendrait plus tôt n'y changerait rien : abandonné. À la place,
+  `holarch pont --attendus <serveur,…>` demande la liste avant de rendre l'initialisation et rouvre une session tant
+  qu'un serveur y manque, au plus `--attendre` (20 s) : Desktop abandonne une initialisation vers 40 s (mesuré dans
+  ses journaux, 2026-10-06). Un serveur encore absent est écrit en tête des instructions, que lit le modèle : sans
+  cela, une session a conclu que les outils n'existaient pas. Limite : un Docker qui démarre en plus de ~30 s
+  dépasse ce délai ; il reste alors à relancer Desktop. Essai réel : 8 serveurs, 5,5 s ; un serveur inexistant, 24 s.
+
 ## 2026-10-16
 
 * **Horloge du poste, points 7 à 11 de la relecture du lot 2** (environ 80 k tokens de contexte pour l'agent ;
