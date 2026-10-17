@@ -82,14 +82,16 @@ const AIDE = `holarch — socle autour des agents d'IA
                        le rapport final d'un sous-agent (contre-épreuve, relecture), lu dans sa transcription : le plus
                        long des messages (remis ou écrits) après son dernier outil de travail ; identifiant entier ou
                        un début qui n'en désigne qu'un ; en lecture seule
-  holarch pont <url> --cle <fichier>
+  holarch pont <url> --cle <fichier> [--attendus <serveur,…>] [--attendre <secondes>]
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
-                       session expirée, ferme la sienne en partant ; la clé est lue dans le fichier
+                       session expirée, ferme la sienne en partant ; la clé est lue dans le fichier. Avec --attendus,
+                       l'initialisation n'est rendue qu'une fois les outils de ces serveurs présents (nouvelle session
+                       sinon, au plus --attendre secondes, 20 par défaut) ; un serveur encore absent est dit au modèle
 
 Options : --json (sortie brute), --help. Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
 // Une option inconnue arrête la commande avant qu'elle n'agisse : lancée « pour voir l'aide », elle n'écrit rien.
-const OPTIONS = { pont: ['--cle'], voir: ['--port'], contexte: ['--seuil'], regles: ['--reposer'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc', '--proposer'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
+const OPTIONS = { pont: ['--cle', '--attendus', '--attendre'], voir: ['--port'], contexte: ['--seuil'], regles: ['--reposer'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc', '--proposer'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
 if (args.includes('--help') || args.includes('-h')) { console.log(AIDE); process.exit(0); }
 const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIONS[cmd] || []).includes(a));
 if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
@@ -102,7 +104,13 @@ switch (cmd) {
   // Rien ne s'écrit sur la sortie standard en mode MCP : c'est le canal du protocole.
   case 'mcp': servirStdio(socle(), JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version); break;
   // Pont stdio → hub : la sortie standard est le canal du protocole, les traces vont sur stderr.
-  case 'pont': { const i = args.indexOf('--cle'); await lancerPont({ url: args.find((a) => /^https?:\/\//.test(a)), fichierCle: i >= 0 ? args[i + 1] : null }); break; }
+  case 'pont': {
+    const val = (o) => { const i = args.indexOf(o); return i >= 0 ? args[i + 1] : null; };
+    const attendre = val('--attendre');
+    if (attendre !== null && !(Number(attendre) > 0)) { console.error('holarch pont : --attendre veut un nombre de secondes'); process.exitCode = 2; break; }
+    await lancerPont({ url: args.find((a) => /^https?:\/\//.test(a)), fichierCle: val('--cle'),
+      attendus: (val('--attendus') || '').split(',').map((s) => s.trim()).filter(Boolean), delai: attendre && Number(attendre) * 1000 });
+    break; }
   case 'rapport': {
     const c = chargerConfig();
     try {

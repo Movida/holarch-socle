@@ -703,3 +703,62 @@ test('pont stdio → hub : réponses JSON et SSE, reprise d’une session expir�
   await pont.fermer();
   assert.deepEqual(fermees, ['s2']);
 });
+
+test('pont stdio → hub : l’initialisation n’est rendue qu’avec les outils des serveurs attendus, sinon le modèle en est averti', async () => {
+  const { creerPont, serveursAbsents } = await import('../src/pont.js');
+  assert.deepEqual(serveursAbsents(['a', 'kb'], [{ result: { tools: [{ name: 'a_lire' }, { name: 'kbx_lire' }] } }]), ['kb'], 'préfixe du serveur, pas un début de nom');
+  // Faux hub : une session par initialize ; le serveur `kb` n'est servi qu'à partir de la session `complete`.
+  const fauxHub = (complete) => {
+    let n = 0; const vus = []; const fermees = [];
+    const hub = async (url, { method, headers, body }) => {
+      const reponse = (obj, h = {}) => new Response(obj === null ? null : JSON.stringify(obj), { status: obj === null ? 202 : 200, headers: { 'content-type': 'application/json', ...h } });
+      if (method === 'DELETE') { fermees.push(headers['mcp-session-id']); return reponse(null); }
+      const m = JSON.parse(body); vus.push(`${headers['mcp-session-id'] || '-'} ${m.method}`);
+      if (m.method === 'initialize') { h.avancer(800); return reponse({ jsonrpc: '2.0', id: m.id, result: { protocolVersion: '2025-06-18', instructions: 'du hub' } }, { 'mcp-session-id': `s${++n}` }); }
+      if (!('id' in m)) return reponse(null);
+      const tools = [{ name: 'a_lire' }, ...(n >= complete ? [{ name: 'kb_chercher' }] : [])];
+      return reponse({ jsonrpc: '2.0', id: m.id, result: { tools } });
+    };
+    const h = { hub, vus, fermees, avancer: () => {} };
+    return h;
+  };
+  const lancer = async (h, surEcrire = () => {}) => {
+    let t = 0; const recus = []; h.avancer = (ms) => { t += ms; };
+    const pont = creerPont({ url: 'http://hub/mcp', ecrire: (m) => { recus.push(m); surEcrire(m); }, fetchImpl: h.hub, attendus: ['a', 'kb'], delai: 5000, pause: 1000,
+      horloge: () => t, dormir: async (ms) => { t += ms; } });
+    await Promise.all([
+      pont.envoyer({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }),
+      pont.envoyer({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+      pont.envoyer({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
+    ]);
+    return { pont, recus, duree: t };
+  };
+
+  // Serveur revenu à la troisième session : le client ne voit que la liste complète, sur la dernière session.
+  const h1 = fauxHub(3); const { pont: p1, recus: r1 } = await lancer(h1);
+  assert.deepEqual(r1.map((m) => m.id), [1, 2], 'le client ne reçoit que ses propres réponses');
+  assert.equal(r1[0].result.instructions, 'du hub', 'liste complète : instructions intactes');
+  assert.deepEqual(r1[1].result.tools.map((x) => x.name), ['a_lire', 'kb_chercher']);
+  assert.equal(p1.session, 's3');
+  assert.deepEqual(h1.fermees, ['s1', 's2'], 'les sessions incomplètes sont fermées');
+  assert.equal(h1.vus.filter((v) => v.startsWith('s3 notifications/initialized')).length, 1, 'notifications/initialized une seule fois par session');
+
+  // Jamais servi : rendu au délai, et les instructions le disent au modèle.
+  const h2 = fauxHub(Infinity); const { recus: r2, duree } = await lancer(h2);
+  assert.deepEqual(r2.map((m) => m.id), [1, 2]);
+  assert.match(r2[0].result.instructions, /^\[holarch pont\] Serveurs absents au démarrage de cette session : kb\..*relance du client.*\n\ndu hub$/s);
+  assert.ok(duree <= 800 + 5000, `délai tenu, durée d'un essai comprise (${duree} ms)`);
+  assert.equal(h2.fermees.length, 2, 'essais bornés par le délai');
+
+  // Passerelle en relance pendant toute la vérification : rendue sans session, le message suivant en rouvre une.
+  const h3 = fauxHub(Infinity); const brut = h3.hub; let inits = 0; let panne = true;
+  h3.hub = async (u, o) => {
+    if (o.method === 'POST' && JSON.parse(o.body).method === 'initialize' && ++inits > 1 && panne) throw new Error('ECONNREFUSED');
+    return brut(u, o);
+  };
+  const { pont: p3, recus: r3 } = await lancer(h3, (m) => { if (m.id === 1) panne = false; });
+  assert.deepEqual(r3.map((m) => m.id ?? m.method).filter((x) => typeof x === 'number'), [1, 2]);
+  assert.match(r3[0].result.instructions, /absents au démarrage de cette session : kb\./);
+  assert.ok(r3.at(-1).result.tools.length, 'tools/list servi sur une session rouverte');
+  assert.ok(p3.session, 'session rouverte');
+});
