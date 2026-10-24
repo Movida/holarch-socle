@@ -1407,6 +1407,13 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   l'auteur : quitter Desktop (zone de notification comprise) puis le relancer ; l'entrée `hub` a survécu à la relance.
   **Critère tenu** : une session de Desktop a appelé `okf-hub_kb_read` (puis `kb_search`, `kb_propose` et des outils
   `holarch_*`) ; 13 `tool.called` au journal après import. I42 prise. Ensuite, (b) inchangé.
+- **Fait (2026-10-24, soir, conteneur du socle)** : deux défauts à l'usage. (1) Le test des routines lisait le vrai
+  systemd utilisateur et échouait dans le conteneur : `creerService` transmet `sousSystemd` (`ee741f5`). (2) Le
+  conteneur n'avait pas d'identité de commit : le dépôt est celui du poste, dont l'identité globale est la bonne, donc
+  `regles appliquer` ne posait rien en local ; décision `identite-toujours-locale` (approuvée, amende
+  `identite-par-contexte`), l'identité se pose en local même quand la globale est la bonne, test qui reproduit le cas.
+  Règle récoltée `prendre-de-la-hauteur` approuvée. 280 tests verts dans le conteneur. Reste sur le poste :
+  `holarch regles appliquer` (règle et identité), commit des fichiers qu'il écrit, puis `holarch service poser`.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

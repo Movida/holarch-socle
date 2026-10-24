@@ -2,6 +2,15 @@
 
 ## 2026-10-24
 
+* **Points restants avancés dans le conteneur** (soir, « si tu peux avancer sur les points restants, vas-y ») :
+  test des routines rendu indépendant du systemd de la machine (`ee741f5`) ; décision `identite-toujours-locale`
+  (choix de l'auteur, recommandation suivie ; alternative par le conteneur écartée) et son correctif, test qui reproduit
+  le défaut (ancien code : « inchangé » là où l'identité manquait) ; règle récoltée `prendre-de-la-hauteur` approuvée
+  sur son récapitulatif, ce qui lève le blocage de la pose sur le poste. I44 et I45 : consigne remise à l'auteur pour
+  une session du poste dans `holarch-profil`, non monté ici. 280 tests verts. Reste au poste : `regles appliquer`, commit
+  de ce qu'il écrit, `service poser`. Leçon : déroulé annoncé en trois points, tenu ; ce qui l'a fait dévier : la pose
+  bloquée par une proposition de la récolte en attente depuis le 2026-10-19, découverte en préparant la pose.
+
 * **Export claude.ai lu une fois, motifs rendus** (soir, suite de l'entrée qui suit) : l'export n'est plus une
   archive mais un manifeste de 9 liens d'un usage ; l'auteur l'a déposé à la racine du dépôt, puis les 9 archives
   (avis de l'agent : tout télécharger, ne lire que ce qui sert) ; chaque fichier sorti aussitôt du dépôt vers le
