@@ -42,3 +42,11 @@
   status: stable
   approved: { by: human:auteur, at: 2026-10-07, ref: "échange du 2026-10-07, avis rendu règle par règle, choix cliquables" }
   source: harvest
+- id: prendre-de-la-hauteur
+  statement: "Prendre du recul : relier chaque conception aux objectifs fondateurs et vérifier qu'aucun objectif n'a disparu."
+  why: Concevoir point par point fait perdre la cohérence et provoque des cycles de reconception.
+  level: reminder
+  status: stable
+  approved: { by: human:auteur, at: 2026-10-24, ref: "choix cliquable du 2026-10-24 sur son récapitulatif (ce qu'elle impose, pourquoi, ce que la pose change) : « Approuver »" }
+  source: harvest
+  harvest: { at: 2026-10-19, sessions: 3, projects: [ holarch-socle ], first: 2026-10-08, last: 2026-10-16, refs: [ 56cfd22a-6906-579e-a070-117d93110f66, 9823c4bd-742e-51b4-a2af-ebc148adad62, c3ba8dd3-e10e-45d3-bd02-09343f030c04 ] }
