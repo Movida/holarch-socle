@@ -7,9 +7,10 @@
   l'entrée `hub` (le pont), qui remplace `holarch` ; import du journal de la passerelle activé. Vérifications du §3 de
   la procédure tenues (détail dans l'avancement et `essai-agentgateway.md`). Défaut trouvé à la pose : agentgateway
   remplace les variables écrites avec un dollar jusque dans les commentaires, et le service a refusé de démarrer sur un
-  commentaire de la configuration ; corrigé, consigné. Reste le geste de l'auteur (relancer Desktop) et le critère
-  (`kb_read` au journal). Leçon : déroulé annoncé en cinq temps (lire l'état, version, configuration et service, Desktop,
-  geste et critère), tenu jusqu'au geste. Ce qui l'a fait dévier : l'essai à la main a hérité du `HOLARCH_HOME` du
+  commentaire de la configuration ; corrigé, consigné. Desktop relancé par l'auteur, l'entrée `hub` gardée ; critère
+  tenu : `kb_read`, `kb_search`, `kb_propose` et des outils `holarch` appelés depuis Desktop, 13 appels au journal
+  après import ; I42 prise. Leçon : déroulé annoncé en cinq temps (lire l'état, version, configuration et service, Desktop,
+  geste et critère), tenu en entier. Ce qui l'a fait dévier : l'essai à la main a hérité du `HOLARCH_HOME` du
   shell, que le service n'a pas ; un essai sous le service dès le départ l'aurait montré plus tôt. « go » a pu se lire
   sans question cette fois : l'avancement donnait l'ordre (a) puis (b).
 

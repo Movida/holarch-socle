@@ -1404,8 +1404,9 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   l'entrée `holarch` remplacée par `hub` (le pont), sans entrée directe en secours (sauvegarde
   `…-2026-10-24-avant-hub`). Import du journal de la passerelle activé au site (nom `hub`, par défaut). Le poste passe
   ainsi à la ligne « site où des serveurs se fédèrent » de `passerelle-par-site`, sans changer la décision. Geste de
-  l'auteur : quitter Desktop (zone de notification comprise) puis le relancer ; critère : une session de Desktop
-  appelle `okf-hub_kb_read`, l'appel est au journal de HOLARCH après import. Ensuite, (b) inchangé.
+  l'auteur : quitter Desktop (zone de notification comprise) puis le relancer ; l'entrée `hub` a survécu à la relance.
+  **Critère tenu** : une session de Desktop a appelé `okf-hub_kb_read` (puis `kb_search`, `kb_propose` et des outils
+  `holarch_*`) ; 13 `tool.called` au journal après import. I42 prise. Ensuite, (b) inchangé.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
