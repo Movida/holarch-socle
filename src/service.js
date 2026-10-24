@@ -66,7 +66,7 @@ export function copierGitleaks(bin, maison = os.homedir()) {
 }
 
 export function creerService({ accueil, comptes = [], veille = null, gitleaks = null, maison = os.homedir() }, {
-  source = null, unites, systemctl, node = process.execPath,
+  source = null, unites, systemctl, sousSystemd, node = process.execPath,
   npm = trouverOutil('npm'),
   lancer = (cmd, args, o) => spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 900e3, ...o }),
 } = {}) {
@@ -160,7 +160,7 @@ export function creerService({ accueil, comptes = [], veille = null, gitleaks = 
           return { compte, fichier: m.fichier, lance, etat: m.i < 0 ? 'non reconnue : laissée' : 'réglée ailleurs : laissée', geste: repointer(c, m) };
         } catch (e) { return { compte, etat: 'illisible', message: e.message }; }
       });
-      return { copie, retard: retard(copie), copies, binaire: holarch, routines: etatRoutines({ unites, systemctl }), mcp };
+      return { copie, retard: retard(copie), copies, binaire: holarch, routines: etatRoutines({ unites, systemctl, sousSystemd }), mcp };
     },
 
     /**

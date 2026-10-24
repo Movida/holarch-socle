@@ -656,8 +656,10 @@ test('routines : une unité coupée à la main reste coupée quand la copie est 
   assert.deepEqual(appels.filter((a) => /^(enable|restart|start)/.test(a)), [], 'rien n’est rallumé');
   assert.ok(fs.readFileSync(path.join(unites, 'holarch-recolte.service'), 'utf8').includes('"/v2/holarch.js" recolte'), 'le texte suit la copie posée');
   assert.ok(fs.readFileSync(path.join(unites, 'holarch-interface.service'), 'utf8').includes('"/v2/holarch.js" voir'));
-  const routines = creerService({ accueil: tmp() }, { unites, systemctl }).etat().routines;
-  assert.deepEqual(routines.map((r) => [r.unite, r.etat]), [['holarch-interface.service', 'coupée'], ['holarch-import.timer', 'absente'], ['holarch-recolte.timer', 'coupée'], ['holarch-reveil.timer', 'absente'], ['holarch-veille.service', 'absente']]);
+  // systemd simulé : le test ne dépend pas de la machine (un conteneur n'a pas de systemd utilisateur, 2026-10-24).
+  const routines = (sousSystemd) => creerService({ accueil: tmp() }, { unites, systemctl, sousSystemd }).etat().routines.map((r) => [r.unite, r.etat]);
+  assert.deepEqual(routines(() => true), [['holarch-interface.service', 'coupée'], ['holarch-import.timer', 'absente'], ['holarch-recolte.timer', 'coupée'], ['holarch-reveil.timer', 'absente'], ['holarch-veille.service', 'absente']]);
+  assert.ok(routines(() => false).every(([, etat]) => etat === 'impossible sans systemd utilisateur'), 'sans systemd utilisateur, aucune routine ne passe pour activée ou coupée');
 });
 
 // ---- Tranche 5 : veille de sécurité et de versions (décision veille-securite-versions). Données fictives.
