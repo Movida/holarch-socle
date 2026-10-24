@@ -15,8 +15,10 @@
   l'étape 2 se mesure par un export, une fois Q38 tranchée). Pistes inscrites, choix de l'auteur sur quatre
   proposées : I35 élargie aux agents des canaux cloud, I43 carte de reprise (sur le résumé de `passation-sereine`),
   I44 et I45 deux règles de profil rédigées, à poser en brouillon dans `holarch-profil` depuis le poste (le dépôt du
-  profil n'est pas monté dans ce conteneur). Suite de l'export (source de la récolte ou non) pas encore tranchée ;
-  recommandation : aucune, relire après Q38.
+  profil n'est pas monté dans ce conteneur). Suite de l'export, choix de l'auteur (recommandation suivie) : aucune
+  source de la récolte, une lecture ponctuelle quand un chiffre que seul l'export donne est demandé. Q38 suivie sur le
+  poste : claude.ai dit ces sessions indisponibles, deux transcriptions de `holarch-socle` couvrent leurs heures sans
+  qu'aucune trace ne les relie ; Q38 reste ouverte, rétrogradée en cosmétique.
 
 * **But d'I39 consigné, lecture unique d'un export claude.ai** (soir, point renvoyé par la session de Desktop
   désormais branchée sur `hub`) : la session disait les pistes 2 et 3 de la proposition Desktop nécessaires pour voir
