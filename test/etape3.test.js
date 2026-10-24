@@ -1067,6 +1067,10 @@ test('identité de commit : posée en réglage local, réglage à la main laiss�
     const a1 = s.audit({ journaliser: true });
     assert.deepEqual([ecartsDe(a1), a1.journal.resolus], [[], 2], 'écart d’identité et crochet absent résolus');
 
+    // L'identité globale est la bonne, aucun réglage local : posée quand même, un conteneur qui partage le dépôt n'a pas
+    // la configuration globale de l'hôte (décision identite-toujours-locale, 2026-10-24).
+    assert.equal(poserIdentite(d, voulue, { ecrire: false }).etat, 'pose');
+
     // Une identité globale différente : HOLARCH pose la déclarée, la met à jour, puis retire ce qu'il a posé.
     ecrire(globale, '[user]\n\tname = Autre\n\temail = autre@exemple.test\n');
     const local = () => [g('config', '--local', '--get', 'user.email').trim()];
