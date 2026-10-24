@@ -289,6 +289,17 @@ test('inventaire Claude Desktop : serveurs MCP sans arguments ni secrets ; absen
   assert.equal(emplacementParDefaut('linux', { WSL_DISTRO_NAME: undefined }, horsWsl), null, 'hors WSL, rien');
 });
 
+// Poste personnel (2026-10-24) : Desktop a sorti ses données du paquet MSIX (seul y reste `.user-data-left.<paquet>`)
+// vers `%LOCALAPPDATA%\Claude-Data\<paquet en minuscules>\` ; l'inventaire disait la configuration introuvable.
+test('inventaire Claude Desktop : les données sorties du paquet vers Claude-Data sont trouvées avant l’ancien emplacement', () => {
+  const w = tmp(); const env = { APPDATA: path.join(w, 'Roaming'), LOCALAPPDATA: path.join(w, 'Local') };
+  ecrire(path.join(w, 'Local', 'Packages', 'Claude_abc123', 'LocalCache', 'Roaming', 'Claude', '.user-data-left.claude_abc123'), '');
+  const f = path.join(w, 'Local', 'Claude-Data', 'claude_abc123', 'claude_desktop_config.json'); ecrire(f, '{}');
+  assert.equal(emplacementParDefaut('win32', env), f);
+  ecrire(path.join(w, 'Roaming', 'Claude', 'claude_desktop_config.json'), '{}');
+  assert.equal(emplacementParDefaut('win32', env), f, 'Claude-Data passe avant un ancien fichier resté dans Roaming');
+});
+
 // Essai du site de travail (2026-10-15) : lancé par systemd, l'inventaire ne recevait ni `WSL_DISTRO_NAME` ni le `PATH`
 // Windows, et disait la configuration de Claude Desktop introuvable alors qu'elle était là.
 test('inventaire Claude Desktop : depuis un service de WSL, sans WSL_DISTRO_NAME ni cmd.exe au PATH, la configuration est trouvée', () => {

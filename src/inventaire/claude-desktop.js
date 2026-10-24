@@ -30,12 +30,22 @@ function windowsDepuisWsl(env, wsl) {
   return { APPDATA: dossier('APPDATA'), LOCALAPPDATA: dossier('LOCALAPPDATA') };
 }
 
-/** Emplacements possibles de la configuration, dans l'ordre : installation classique, puis paquet MSIX (Windows). */
+/**
+ * Emplacements possibles de la configuration, dans l'ordre (Windows) : données sorties du paquet (`Claude-Data`),
+ * installation classique, puis paquet MSIX.
+ */
 export function emplacementsCandidats(plateforme = process.platform, env = process.env, wsl = WSL) {
   if (plateforme === 'darwin') return [path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')];
   const w = plateforme === 'win32' ? env : plateforme === 'linux' ? windowsDepuisWsl(env, wsl) : null;
   if (!w) return [];
   const c = [];
+  // Constaté le 2026-10-24 : Desktop range ses données dans `Claude-Data\<paquet en minuscules>\` et ne laisse dans le
+  // paquet qu'un marqueur `.user-data-left.<paquet>` ; le nom du sous-dossier d'une installation classique n'est pas connu.
+  if (w.LOCALAPPDATA) {
+    for (const d of liste(path.join(w.LOCALAPPDATA, 'Claude-Data'), (x) => x.isDirectory())) {
+      c.push(path.join(w.LOCALAPPDATA, 'Claude-Data', d.name, 'claude_desktop_config.json'));
+    }
+  }
   if (w.APPDATA) c.push(path.join(w.APPDATA, 'Claude', 'claude_desktop_config.json'));
   // Installé en paquet MSIX, Claude Desktop range sa configuration dans le dossier virtualisé du paquet.
   if (w.LOCALAPPDATA) {
