@@ -1385,8 +1385,16 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   gouvernance de l'IA de l'auteur, entrée de la revue, attendus). Sujet de l'auteur : `okf-hub` joignable depuis Desktop par
   HOLARCH (I42, Q37) ; faits vérifiés, deux sujets de la feuille de route distingués (accès, étape 2 ; savoir, étape 6),
   pistes écartées écrites ; choix de l'auteur : rien de branché, la revue d'ensemble d'abord. I34 corrigée (le fichier du
-  quota s'allonge, 105 relevés). Suite : (3) la revue d'ensemble, lancée en tête d'une session après la remise à zéro de la
-  fenêtre de 5 h (choix de l'auteur), avec I42 et les principes en entrées ; (4) inchangé ; I41 sans choix.
+  quota s'allonge, 105 relevés). Puis, l'auteur ayant dit à d'autres sessions de Desktop qu'`okf-hub` passait par HOLARCH :
+  choix de la passerelle sur le poste, durable (I42). Suite, dans l'ordre : (a) la passerelle, session suivante, déroulé
+  annoncé : version d'agentgateway lue dans son aide et ses notes de version ; binaire, configuration (127.0.0.1,
+  `dnsRebindingProtection`, `apiKey`, `failOpen`, journal `json`), clé et service dans le profil privé, `holarch` et
+  `okf-hub` (stdio, `~/okf-hub/.venv/bin/python -m okf_hub --hub-root ~/okf-hub`) derrière ; configuration de Desktop
+  sauvegardée, son entrée `holarch` remplacée par le script du pont (`holarch pont … --cle … --attendus holarch,okf-hub`,
+  `procedure-site-travail.md` §3 et §4) ; geste de l'auteur : redémarrer Desktop ; critère : une session de Desktop appelle
+  `kb_read`, l'appel est au journal de HOLARCH ; choix de l'auteur à venir : le port, garder ou non l'entrée directe en
+  secours. (b) la revue d'ensemble, après la remise à zéro de la fenêtre de 5 h, avec I42 et les principes en entrées ;
+  (4) inchangé ; I41 sans choix.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

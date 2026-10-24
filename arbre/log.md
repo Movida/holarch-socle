@@ -16,7 +16,10 @@
   critères, règle, journal) ; tenus Q28 en partie et le journal, la revue reportée. Ce qui l'a fait dévier : « go » lu
   comme la suite prévue alors que l'auteur voulait le sujet Desktop ; un choix cliqué trop vite, repris ; « la dernière
   proposition d'idée » cherchée d'abord sur I41. La demande qui y aurait mené : « go sur okf-hub dans Desktop » ; côté agent,
-  après un `/clear`, demander le sujet quand la reprise en liste plusieurs.
+  après un `/clear`, demander le sujet quand la reprise en liste plusieurs. Puis l'auteur, perdu : il avait dit à d'autres
+  sessions de Desktop que ce mécanisme était en place. Constat redit : Desktop ne voit pas `okf-hub` sur le poste (la
+  passerelle n'existe qu'au site de travail). Choix de l'auteur : la passerelle, durable (seule l'entrée directe proposée
+  en palliatif aurait été provisoire), posée par la session suivante avant la revue (I42, déroulé dans l'avancement).
 
 * **Claude Desktop retrouvé dans `Claude-Data`, proposition Desktop triée** (proposition d'une session cloud,
   `proposition-desktop-pour-holarch.md`, retirée de la racine une fois triée) : depuis le 2026-10-19 environ,
