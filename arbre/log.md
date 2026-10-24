@@ -2,6 +2,22 @@
 
 ## 2026-10-24
 
+* **okf-hub depuis Desktop, versé à la revue d'ensemble** (après-midi) : une conversation de Desktop sur une base
+  personnelle de l'auteur ne voyait que les 9 outils de mesure de `holarch` ; l'auteur attend qu'`okf-hub` passe par HOLARCH, sans
+  partir sur une mauvaise piste. Faits vérifiés : le Desktop du poste ne déclare que `holarch` ; `okf-hub` y était jusqu'au
+  2026-10-03 (sauvegarde `…-avant-holarch-direct`), raison du retrait introuvable (Q37) ; il se lance depuis WSL sans
+  conteneur ; cette base est un clone de son dépôt au même commit ; agentgateway absent du poste. Deux sujets de la
+  feuille de route distingués : l'accès (étape 2 ; `passerelle-par-site` range le poste « sans serveurs à fédérer ») et le
+  savoir (étape 6, okf-hub candidat). Écartées : PR sur la base, outils `kb_*` refaits par HOLARCH, brique Savoir avant son
+  étape. Avis de l'agent : la passerelle sur le poste ; choix de l'auteur : la revue d'ensemble d'abord (I42). Q28 répondue
+  en partie (B6 rien de neuf, B7 une heure, principes de gouvernance de l'IA attendus) ; revue lancée après la remise à zéro
+  de la fenêtre de 5 h (quota à 56 % au relevé de 14 h 42, choix de l'auteur). I34 corrigée : le fichier du quota
+  s'allonge (105 relevés, le premier du 2026-09-24). Leçon : déroulé annoncé en cinq temps (Q28, revue, décision des
+  critères, règle, journal) ; tenus Q28 en partie et le journal, la revue reportée. Ce qui l'a fait dévier : « go » lu
+  comme la suite prévue alors que l'auteur voulait le sujet Desktop ; un choix cliqué trop vite, repris ; « la dernière
+  proposition d'idée » cherchée d'abord sur I41. La demande qui y aurait mené : « go sur okf-hub dans Desktop » ; côté agent,
+  après un `/clear`, demander le sujet quand la reprise en liste plusieurs.
+
 * **Claude Desktop retrouvé dans `Claude-Data`, proposition Desktop triée** (proposition d'une session cloud,
   `proposition-desktop-pour-holarch.md`, retirée de la racine une fois triée) : depuis le 2026-10-19 environ,
   l'inventaire disait la configuration de Desktop introuvable. Desktop a sorti ses données du paquet MSIX vers
