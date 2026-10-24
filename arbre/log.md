@@ -2,6 +2,18 @@
 
 ## 2026-10-24
 
+* **Export claude.ai lu une fois, motifs rendus** (soir, suite de l'entrée qui suit) : l'export n'est plus une
+  archive mais un manifeste de 9 liens d'un usage ; l'auteur l'a déposé à la racine du dépôt, puis les 9 archives
+  (avis de l'agent : tout télécharger, ne lire que ce qui sert) ; chaque fichier sorti aussitôt du dépôt vers le
+  dossier temporaire du conteneur. Structure mesurée sans lire les contenus : Q35 fermée, Q38 ouverte (51
+  conversations sur 53 creuses des deux côtés, d'abord lues à tort comme vides du seul côté de l'auteur, corrigé).
+  Lecture choisie par l'auteur avec les transcriptions cloud : quatre sous-agents Sonnet, environ 535 k tokens ; les
+  deux sur les transcriptions n'y ont trouvé aucun mot de l'auteur. Motifs et mesures dans I39, sujets gardés hors
+  de l'arbre (dépôt public). Export effacé après lecture ; les sous-agents avaient écrit six fichiers d'extraits dans
+  le dossier temporaire malgré la consigne, effacés aussi ; restent les transcriptions de session, comme annoncé.
+  Pistes de l'auteur : bases de connaissance (étape 6, avis : pas maintenant) et connecteur Desktop (le critère de
+  l'étape 2 se mesure par un export, une fois Q38 tranchée).
+
 * **But d'I39 consigné, lecture unique d'un export claude.ai** (soir, point renvoyé par la session de Desktop
   désormais branchée sur `hub`) : la session disait les pistes 2 et 3 de la proposition Desktop nécessaires pour voir
   les conversations de l'auteur ; vérifié, I38 n'en montre aucune (`mcp.log` ne porte que les échecs des serveurs) et
