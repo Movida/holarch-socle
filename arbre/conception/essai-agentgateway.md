@@ -1,9 +1,9 @@
 ---
 type: observation
 title: Essai d'agentgateway comme hub de fédération
-description: Ce que l'essai du 2026-10-03 a montré d'agentgateway 1.6.0 (fédération, journal, panne, ports), en conteneur puis sur un hôte WSL avec Claude Desktop.
+description: Ce que l'essai du 2026-10-03 a montré d'agentgateway 1.6.0 (fédération, journal, panne, ports), en conteneur puis sur un hôte WSL avec Claude Desktop ; passerelle durable du poste personnel le 2026-10-24.
 status: draft
-as_of: 2026-10-03
+as_of: 2026-10-24
 links:
   derives_from: [/arbre/conception/etape-2-point-entree.md]
   supported_by: [/arbre/decisions/2026-10-03-forme-etape-2.md]
@@ -60,3 +60,26 @@ Procédure : `procedure-essai-hote.md`. Hôte Windows, WSL 2 (transfert localhos
 
 **Reste.** Traduction du journal de la passerelle vers `tool.called` ; lancement durable de la passerelle et du site de
 l'hôte (aujourd'hui à la main) ; déploiement sur le site de travail.
+
+## Sur le poste personnel, le 2026-10-24 (passerelle durable, I42)
+
+agentgateway 1.6.0 (toujours la dernière publication stable ; somme SHA-256 vérifiée), sections `gateways` et `mcp` du
+schéma de cette version, service utilisateur systemd ; cibles stdio : le serveur HOLARCH (copie de service) et
+`okf-hub`. Client : `holarch pont`, lancé par Claude Desktop au travers de `wsl.exe`.
+
+| Vérifié | Résultat |
+|---|---|
+| Écoute | 127.0.0.1:3900 seulement ; `adminAddr`, `statsAddr`, `readinessAddr` à `off` (un conteneur joint la boucle locale de WSL, sans clé) |
+| Clé (`apiKey`, `mode: strict`, `keyHash`) | sans clé ou avec une fausse : 401 ; en-tête lu par défaut `Authorization: Bearer` (code source), celui du pont |
+| DNS rebinding | `Host: evil.example` avec la clé : 403 |
+| Journal | serveur, outil, statut, durée, session ; la chaîne témoin passée en argument n'y figure pas ; la session du pont fermée (`DELETE`) |
+| Session neuve | ~4 s pour deux serveurs, pont compris (Desktop abandonne vers 40 s) |
+| Panne d'une cible | `okf-hub` introuvable : `holarch` servi seul (9 outils), le pont le dit au modèle en tête des instructions |
+
+**Constats.**
+- **Préfixes** : `prefixMode` vaut `conditional` par défaut, et une seule cible configurée n'est alors pas préfixée
+  (code source) ; `holarch pont --attendus` reconnaît un serveur à son préfixe : `prefixMode: always` l'assure.
+- **Variables dans le fichier** : agentgateway remplace les variables d'environnement écrites avec un dollar dans tout
+  le fichier, **commentaires compris**. Un commentaire qui citait `HOLARCH_HOME` ainsi a empêché le service de démarrer
+  (variable absente de son environnement) ; à la main, le shell l'avait. Essayer une configuration sous le service, pas
+  seulement dans un shell.

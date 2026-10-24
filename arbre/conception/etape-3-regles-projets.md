@@ -1395,6 +1395,17 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   `kb_read`, l'appel est au journal de HOLARCH ; choix de l'auteur à venir : le port, garder ou non l'entrée directe en
   secours. (b) la revue d'ensemble, après la remise à zéro de la fenêtre de 5 h, avec I42 et les principes en entrées ;
   (4) inchangé ; I41 sans choix.
+- **Fait (2026-10-24, soir)** : (a) posée, critère à constater. agentgateway 1.6.0 (dernière stable, somme vérifiée),
+  configuration, unité systemd et script du pont de Desktop dans le profil (`passerelle/`), clé hors dépôt en droits
+  600 (motif `*.key`, lecture refusée aux agents), agentgateway suivi par `outils_surveilles`. Vérifié à la main puis sous
+  le service : 16 outils (`holarch_*`, `okf-hub_*`), 401 sans clé, 403 pour un hôte étranger, arguments absents du
+  journal, ~4 s par session neuve, `holarch` servi seul quand `okf-hub` manque (observation dans
+  `essai-agentgateway.md`). Choix de l'auteur (recommandations suivies) : service sur 127.0.0.1:3900 ; dans Desktop,
+  l'entrée `holarch` remplacée par `hub` (le pont), sans entrée directe en secours (sauvegarde
+  `…-2026-10-24-avant-hub`). Import du journal de la passerelle activé au site (nom `hub`, par défaut). Le poste passe
+  ainsi à la ligne « site où des serveurs se fédèrent » de `passerelle-par-site`, sans changer la décision. Geste de
+  l'auteur : quitter Desktop (zone de notification comprise) puis le relancer ; critère : une session de Desktop
+  appelle `okf-hub_kb_read`, l'appel est au journal de HOLARCH après import. Ensuite, (b) inchangé.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

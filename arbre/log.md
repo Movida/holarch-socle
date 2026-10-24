@@ -2,6 +2,17 @@
 
 ## 2026-10-24
 
+* **Passerelle du poste posée pour okf-hub** (soir, suite (a) de l'avancement, I42) : agentgateway 1.6.0 en service
+  utilisateur sur 127.0.0.1:3900, `holarch` et `okf-hub` derrière, clé et configuration au profil ; Desktop passe par
+  l'entrée `hub` (le pont), qui remplace `holarch` ; import du journal de la passerelle activé. Vérifications du §3 de
+  la procédure tenues (détail dans l'avancement et `essai-agentgateway.md`). Défaut trouvé à la pose : agentgateway
+  remplace les variables écrites avec un dollar jusque dans les commentaires, et le service a refusé de démarrer sur un
+  commentaire de la configuration ; corrigé, consigné. Reste le geste de l'auteur (relancer Desktop) et le critère
+  (`kb_read` au journal). Leçon : déroulé annoncé en cinq temps (lire l'état, version, configuration et service, Desktop,
+  geste et critère), tenu jusqu'au geste. Ce qui l'a fait dévier : l'essai à la main a hérité du `HOLARCH_HOME` du
+  shell, que le service n'a pas ; un essai sous le service dès le départ l'aurait montré plus tôt. « go » a pu se lire
+  sans question cette fois : l'avancement donnait l'ordre (a) puis (b).
+
 * **okf-hub depuis Desktop, versé à la revue d'ensemble** (après-midi) : une conversation de Desktop sur une base
   personnelle de l'auteur ne voyait que les 9 outils de mesure de `holarch` ; l'auteur attend qu'`okf-hub` passe par HOLARCH, sans
   partir sur une mauvaise piste. Faits vérifiés : le Desktop du poste ne déclare que `holarch` ; `okf-hub` y était jusqu'au
