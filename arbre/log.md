@@ -1,5 +1,28 @@
 # Journal de l'arbre
 
+## 2026-10-24
+
+* **Claude Desktop retrouvé dans `Claude-Data`, proposition Desktop triée** (proposition d'une session cloud,
+  `proposition-desktop-pour-holarch.md`, retirée de la racine une fois triée) : depuis le 2026-10-19 environ,
+  l'inventaire disait la configuration de Desktop introuvable. Desktop a sorti ses données du paquet MSIX vers
+  `%LOCALAPPDATA%\Claude-Data\claude_pzs8sxrjxfjjc\` (README de l'app ; dans le paquet ne reste qu'un marqueur
+  `.user-data-left.…`) : ce dossier est cherché en premier (`e9f5ac1`, test qui reproduit la panne), Q7 complétée.
+  Deux constats de la proposition étaient faux : l'adaptateur cherchait déjà le paquet, et le catalogue voit déjà
+  11 connecteurs du compte claude.ai. Choix de l'auteur « A + C » (recommandation suivie) : source du quota pour I34
+  (`plan-usage-history.json`, 100 relevés), I38 échecs MCP de Desktop (retenue, par décision ; 213 erreurs sur 30 jours
+  dans `mcp.log`), I39 export claude.ai et I40 skills du compte (à trier), Q34 à Q36 (`8725eaa`) ; I41, instantané de
+  site figé (proposée). Copie de service posée (`8725eaa`) : `arbre/rules.yaml`, écrit par la récolte du 2026-10-19
+  (règle `prendre-de-la-hauteur`) et jamais commité, mis de côté le temps de la pose puis remis à l'identique
+  (empreinte vérifiée), choix de l'auteur ; 280 tests verts ; inventaire relancé depuis la copie : `absentes` vide,
+  la fiche `holarch` de Desktop à son nouvel emplacement. Reste à l'auteur : le site `hote` (`config.hote.yaml` fixe
+  l'ancien chemin ; son instantané du 2026-10-03 montre encore `okf-hub` et `holon-oracle` actifs). Mémoire
+  `claude_desktop_msix_config.md` (projet `~`) corrigée. Rien envoyé. Leçon : déroulé annoncé en quatre temps
+  (vérifier les constats, avis, choix, correctif avec tests, pose et journal), tenu. Ce qui l'a fait dévier :
+  `origin/main` en avance de deux commits (2026-10-17) qui touchaient `test/etape1.test.js`, intégrés en avance
+  rapide autour du correctif ; une pose bloquée par le fichier d'une autre session, laissé là depuis cinq jours ; une
+  question de l'auteur en cours de route (le message pour la session cloud). La demande qui y aurait mené : « au début,
+  lire `origin` et les fichiers laissés par d'autres sessions ».
+
 ## 2026-10-17
 
 * **Le pont rend l'initialisation avec les outils attendus** (essai du site de travail) : la relecture des listes
