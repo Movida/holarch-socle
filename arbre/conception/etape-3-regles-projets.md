@@ -1375,6 +1375,12 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   remplacés par les nouveaux (`git rev-list`, mêmes sujets dans le même ordre). Pointe rebasée `4c9582a` :
   278 tests verts, test visuel vert, posée, audit conforme, envoyée sur autorisation (pas d'intégration continue sur ce
   dépôt). Suite : (3) et (4) ci-dessus, inchangés.
+- **Fait (2026-10-24)** : défaut à l'usage, la configuration de Claude Desktop dite introuvable depuis le 2026-10-19
+  environ : Desktop range ses données dans `%LOCALAPPDATA%\Claude-Data\<paquet>\`, cherché en premier (`e9f5ac1`,
+  test qui reproduit). Proposition d'une session cloud triée (`8725eaa`, `0dccba5`) : source du quota pour I34, I38 à
+  I41, Q34 à Q36. Copie posée (`8725eaa`), 280 tests verts, inventaire sans source absente. Site `hote` retiré
+  (`config.hote.yaml`, instantané du 2026-10-03), accord de l'auteur. Suite : I38 par une décision courte, quand
+  l'auteur l'ouvre ; (3) et (4) ci-dessus, inchangés.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

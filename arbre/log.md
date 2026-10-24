@@ -16,7 +16,9 @@
   (empreinte vérifiée), choix de l'auteur ; 280 tests verts ; inventaire relancé depuis la copie : `absentes` vide,
   la fiche `holarch` de Desktop à son nouvel emplacement. Reste à l'auteur : le site `hote` (`config.hote.yaml` fixe
   l'ancien chemin ; son instantané du 2026-10-03 montre encore `okf-hub` et `holon-oracle` actifs). Mémoire
-  `claude_desktop_msix_config.md` (projet `~`) corrigée. Rien envoyé. Leçon : déroulé annoncé en quatre temps
+  `claude_desktop_msix_config.md` (projet `~`) corrigée. Puis, sur l'accord de l'auteur (« oui, go ») : site `hote`
+  retiré (`config.hote.yaml` et `catalogue/hote.json` supprimés, aucun lanceur ne s'y référait ; l'index se refait à
+  l'import horaire), et envoi sur `origin/main`. Leçon : déroulé annoncé en quatre temps
   (vérifier les constats, avis, choix, correctif avec tests, pose et journal), tenu. Ce qui l'a fait dévier :
   `origin/main` en avance de deux commits (2026-10-17) qui touchaient `test/etape1.test.js`, intégrés en avance
   rapide autour du correctif ; une pose bloquée par le fichier d'une autre session, laissé là depuis cinq jours ; une
