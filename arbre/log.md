@@ -12,7 +12,11 @@
   de l'arbre (dépôt public). Export effacé après lecture ; les sous-agents avaient écrit six fichiers d'extraits dans
   le dossier temporaire malgré la consigne, effacés aussi ; restent les transcriptions de session, comme annoncé.
   Pistes de l'auteur : bases de connaissance (étape 6, avis : pas maintenant) et connecteur Desktop (le critère de
-  l'étape 2 se mesure par un export, une fois Q38 tranchée).
+  l'étape 2 se mesure par un export, une fois Q38 tranchée). Pistes inscrites, choix de l'auteur sur quatre
+  proposées : I35 élargie aux agents des canaux cloud, I43 carte de reprise (sur le résumé de `passation-sereine`),
+  I44 et I45 deux règles de profil rédigées, à poser en brouillon dans `holarch-profil` depuis le poste (le dépôt du
+  profil n'est pas monté dans ce conteneur). Suite de l'export (source de la récolte ou non) pas encore tranchée ;
+  recommandation : aucune, relire après Q38.
 
 * **But d'I39 consigné, lecture unique d'un export claude.ai** (soir, point renvoyé par la session de Desktop
   désormais branchée sur `hub`) : la session disait les pistes 2 et 3 de la proposition Desktop nécessaires pour voir
