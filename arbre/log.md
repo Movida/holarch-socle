@@ -2,6 +2,17 @@
 
 ## 2026-10-24
 
+* **But d'I39 consigné, lecture unique d'un export claude.ai** (soir, point renvoyé par la session de Desktop
+  désormais branchée sur `hub`) : la session disait les pistes 2 et 3 de la proposition Desktop nécessaires pour voir
+  les conversations de l'auteur ; vérifié, I38 n'en montre aucune (`mcp.log` ne porte que les échecs des serveurs) et
+  I39 ne prévoyait que des chiffres. But redit par l'auteur : progresser dans sa façon d'utiliser Claude par quatre
+  motifs (demandes répétées, conversations abandonnées ou relancées, corrections fréquentes, répartition par sujet),
+  motifs et mesures gardés, jamais le texte. Trois motifs ont déjà leur place pour Claude Code seulement (récolte,
+  I21, I6). Avis de l'agent : l'export en seconde source de la récolte ; choix de l'auteur : pas de nouvelle mécanique,
+  un export lu une fois sur place, les motifs rendus une fois, Q35 fermée au passage, la suite décidée au vu du
+  résultat (I39 réécrite, toujours à trier). Recherche intégrée de claude.ai écartée pour ce but (ne compte rien).
+  Le conteneur du socle ne voit pas `/mnt/c` : l'export y passe par un dossier temporaire, effacé après lecture.
+
 * **Passerelle du poste posée pour okf-hub** (soir, suite (a) de l'avancement, I42) : agentgateway 1.6.0 en service
   utilisateur sur 127.0.0.1:3900, `holarch` et `okf-hub` derrière, clé et configuration au profil ; Desktop passe par
   l'entrée `hub` (le pont), qui remplace `holarch` ; import du journal de la passerelle activé. Vérifications du §3 de
