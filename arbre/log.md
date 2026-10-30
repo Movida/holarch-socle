@@ -126,6 +126,24 @@
   change que le nom des outils, une cible stdio n'a pas de dossier de travail, `mcpAuthorization` filtre par nom et non
   par annotation. Les noms des outils du poste restent hors de l'arbre (dépôt public).
 
+## 2026-10-30
+
+* **Le pont rend les outils d'un serveur absent d'après sa mémoire** (essai du site de travail, Q8) : la limite
+  consignée le 2026-10-17 s'est produite. Claude Desktop ouvert à l'ouverture de session, Docker Desktop lancé par
+  Windows deux minutes et demie plus tard : le pont a rendu l'initialisation au bout de ses 20 s avec un seul serveur
+  sur quatorze, et la conversation n'en a pas vu d'autre. Constat qui précise celui du 2026-10-16, dans les journaux de
+  Desktop : il relit bien sa liste après chaque `list_changed` (37 fois depuis le 2026-10-17), mais la conversation
+  ouverte garde ses outils, même après un message de plus ; seule la relance de Desktop les rend. Attendre plus
+  longtemps est exclu (Desktop abandonne une initialisation vers 40 s). Avec `--memoire <fichier>`, le pont retient les
+  outils de chaque serveur attendu à chaque liste lue ; un serveur absent qu'il connaît ne fait plus attendre, ses
+  outils sont ajoutés à la liste du client d'après la mémoire et les instructions le disent au modèle. À l'appel d'un de
+  ces outils, si la session ne le sert pas, le pont en ouvre une neuve (la passerelle n'ajoute pas un serveur à une
+  session ouverte) ; encore absent, l'appel répond au modèle de le refaire dans une minute. Limite : un serveur dont les
+  outils ont changé pendant son absence garde l'ancienne liste jusqu'à la relance du client. Essai réel sur la
+  passerelle avec un serveur retenu mais absent : initialisation immédiate, outil listé, appel refusé avec le message,
+  les autres servis. Écriture par `ecrireJson`, que le test des écritures a exigée. Côté poste, hors socle : Docker
+  Desktop lancé par une tâche planifiée à l'ouverture de session, sans le délai des applications de démarrage.
+
 ## 2026-10-24
 
 * **Points restants avancés dans le conteneur** (soir, « si tu peux avancer sur les points restants, vas-y ») :
