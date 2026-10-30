@@ -82,16 +82,18 @@ const AIDE = `holarch — socle autour des agents d'IA
                        le rapport final d'un sous-agent (contre-épreuve, relecture), lu dans sa transcription : le plus
                        long des messages (remis ou écrits) après son dernier outil de travail ; identifiant entier ou
                        un début qui n'en désigne qu'un ; en lecture seule
-  holarch pont <url> --cle <fichier> [--attendus <serveur,…>] [--attendre <secondes>]
+  holarch pont <url> --cle <fichier> [--attendus <serveur,…>] [--attendre <secondes>] [--memoire <fichier>]
                        pont stdio vers le hub HTTP d'un site (pour un client stdio comme Claude Desktop) : reprend une
                        session expirée, ferme la sienne en partant ; la clé est lue dans le fichier. Avec --attendus,
                        l'initialisation n'est rendue qu'une fois les outils de ces serveurs présents (nouvelle session
-                       sinon, au plus --attendre secondes, 20 par défaut) ; un serveur encore absent est dit au modèle
+                       sinon, au plus --attendre secondes, 20 par défaut) ; un serveur encore absent est dit au modèle.
+                       Avec --memoire, le pont y retient les outils de chaque serveur attendu : un serveur absent qu'il
+                       connaît ne fait pas attendre, ses outils sont rendus d'après le fichier et rattrapés à leur appel
 
 Options : --json (sortie brute), --help. Répertoire de travail : HOLARCH_HOME (défaut ~/.holarch).`;
 
 // Une option inconnue arrête la commande avant qu'elle n'agisse : lancée « pour voir l'aide », elle n'écrit rien.
-const OPTIONS = { pont: ['--cle', '--attendus', '--attendre'], voir: ['--port'], contexte: ['--seuil'], regles: ['--reposer'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc', '--proposer'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
+const OPTIONS = { pont: ['--cle', '--attendus', '--attendre', '--memoire'], voir: ['--port'], contexte: ['--seuil'], regles: ['--reposer'], recolte: ['--jours', '--jusqua', '--modele', '--budget', '--a-blanc', '--proposer'], projet: ['--contexte', '--type', '--description', '--a-blanc'] };
 if (args.includes('--help') || args.includes('-h')) { console.log(AIDE); process.exit(0); }
 const inconnue = args.find((a) => a.startsWith('-') && a !== '--json' && !(OPTIONS[cmd] || []).includes(a));
 if (inconnue) { console.error(`holarch ${cmd} : option inconnue ${inconnue} (holarch --help)`); process.exit(2); }
@@ -108,7 +110,7 @@ switch (cmd) {
     const val = (o) => { const i = args.indexOf(o); return i >= 0 ? args[i + 1] : null; };
     const attendre = val('--attendre');
     if (attendre !== null && !(Number(attendre) > 0)) { console.error('holarch pont : --attendre veut un nombre de secondes'); process.exitCode = 2; break; }
-    await lancerPont({ url: args.find((a) => /^https?:\/\//.test(a)), fichierCle: val('--cle'),
+    await lancerPont({ url: args.find((a) => /^https?:\/\//.test(a)), fichierCle: val('--cle'), fichierMemoire: val('--memoire'),
       attendus: (val('--attendus') || '').split(',').map((s) => s.trim()).filter(Boolean), delai: attendre && Number(attendre) * 1000 });
     break; }
   case 'rapport': {

@@ -773,3 +773,66 @@ test('pont stdio → hub : l’initialisation n’est rendue qu’avec les outil
   assert.ok(r3.at(-1).result.tools.length, 'tools/list servi sur une session rouverte');
   assert.ok(p3.session, 'session rouverte');
 });
+
+test('pont stdio → hub : un serveur absent au démarrage est rendu d’après la mémoire des outils, puis rattrapé à son appel', async () => {
+  const { creerPont } = await import('../src/pont.js');
+  const fichier = path.join(tmp(), 'outils.json');
+  // Faux hub : `kb` n'est servi qu'aux sessions ouvertes quand il est prêt ; un appel répond le nom de la session qui le sert.
+  let n = 0; let kbPret = true; const servies = new Map(); const fermees = []; const appels = [];
+  const hub = async (url, { method, headers, body }) => {
+    const reponse = (obj, h = {}) => new Response(obj === null ? null : JSON.stringify(obj), { status: obj === null ? 202 : 200, headers: { 'content-type': 'application/json', ...h } });
+    const s = headers['mcp-session-id'];
+    if (method === 'DELETE') { fermees.push(s); return reponse(null); }
+    const m = JSON.parse(body);
+    if (m.method === 'initialize') { const id = `s${++n}`; servies.set(id, kbPret); return reponse({ jsonrpc: '2.0', id: m.id, result: { protocolVersion: '2025-06-18', instructions: 'du hub' } }, { 'mcp-session-id': id }); }
+    if (!('id' in m)) return reponse(null);
+    if (m.method === 'tools/list') return reponse({ jsonrpc: '2.0', id: m.id, result: { tools: [{ name: 'a_lire' }, ...(servies.get(s) ? [{ name: 'kb_chercher', description: 'v1' }] : [])] } });
+    appels.push(`${s} ${m.params.name}`);
+    return reponse({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: s }] } });
+  };
+  const lancer = async () => {
+    const recus = []; let t = 0;
+    const pont = creerPont({ url: 'http://hub/mcp', ecrire: (m) => recus.push(m), fetchImpl: hub, attendus: ['a', 'kb'], fichierMemoire: fichier,
+      delai: 5000, pause: 1000, horloge: () => t, dormir: async (ms) => { t += ms; } });
+    await Promise.all([
+      pont.envoyer({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }),
+      pont.envoyer({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+      pont.envoyer({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
+    ]);
+    return { pont, recus, duree: t };
+  };
+  const appeler = (pont, id, name) => pont.envoyer({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: {} } });
+
+  // Tout servi : la mémoire retient les outils de chaque serveur attendu.
+  const { pont: p1 } = await lancer();
+  assert.deepEqual(JSON.parse(fs.readFileSync(fichier, 'utf8')), { a: [{ name: 'a_lire' }], kb: [{ name: 'kb_chercher', description: 'v1' }] });
+  await p1.fermer();
+
+  // Client lancé avant que `kb` soit prêt (Docker lent au démarrage du poste) : rendu sans attendre, liste complète.
+  kbPret = false;
+  const { pont: p2, recus: r2, duree } = await lancer();
+  assert.equal(duree, 0, 'pas de session d’essai : la mémoire couvre le serveur absent');
+  assert.match(r2[0].result.instructions, /^\[holarch pont\] Serveurs encore en démarrage : kb\..*dernière liste connue.*\n\ndu hub$/s);
+  assert.deepEqual(r2[1].result.tools.map((x) => x.name), ['a_lire', 'kb_chercher']);
+  assert.deepEqual(JSON.parse(fs.readFileSync(fichier, 'utf8')).kb, [{ name: 'kb_chercher', description: 'v1' }], 'un serveur absent reste en mémoire');
+
+  // Appel de `kb` encore absent : une session neuve essayée, puis le modèle invité à refaire l'appel ; rien n'est envoyé.
+  const avant = n; r2.length = 0;
+  await appeler(p2, 3, 'kb_chercher');
+  assert.equal(n, avant + 1, 'une session neuve essayée');
+  const refus = r2.find((m) => m.id === 3).result;
+  assert.equal(refus.isError, true);
+  assert.match(refus.content[0].text, /kb démarre encore.*une minute/);
+  assert.deepEqual(appels, []);
+
+  // `kb` prêt : son appel ouvre une session qui le sert et y passe ; ensuite, plus aucune session neuve.
+  kbPret = true; r2.length = 0;
+  await appeler(p2, 4, 'kb_chercher');
+  await appeler(p2, 5, 'a_lire');
+  await appeler(p2, 6, 'kb_chercher');
+  const derniere = `s${avant + 2}`;
+  assert.equal(n, avant + 2);
+  assert.deepEqual(appels, [`${derniere} kb_chercher`, `${derniere} a_lire`, `${derniere} kb_chercher`]);
+  assert.deepEqual(r2.filter((m) => m.id).map((m) => [m.id, m.result.content[0].text]), [[4, derniere], [5, derniere], [6, derniere]]);
+  assert.ok([`s${avant}`, `s${avant + 1}`].every((s) => fermees.includes(s)), 'les sessions sans kb sont fermées');
+});
