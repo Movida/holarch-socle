@@ -2,6 +2,30 @@
 
 ## 2026-11-02
 
+* **Capsule des sauvegardes, membre du hub** (poste, tranche 1 de `membres-du-hub`, déroulé donné par l'auteur ; code
+  dans le dépôt privé dédié, réglages au profil). Dans l'ordre :
+  - copie de service : déjà posée au dernier commit ;
+  - script de la clé corrigé, recopié dans le projet créé ;
+  - mesure des intervalles d'inventaire du poste : 446 inventaires sur 30 jours ; 413 intervalles sous 1 h 05, 2 entre
+    1 h 05 et 2 h, 29 au-delà de 2 h (4 au-delà de 24 h). Depuis le 2026-10-11, aucun de ces trous ne porte d'activité
+    du poste au journal (poste en veille ou éteint) : les seuils de 2 h et 24 h tiennent, sans fausse alerte poste allumé ;
+  - Q39 résolue (tâche planifiée et script trouvés, outils et mots de passe lus depuis une unité systemd, détail dans
+    la décision). Le disque externe était débranché : essai sur l'ancien dépôt local, aux mêmes identifiants.
+  Capsule : Node et le SDK du socle (versions exactes), outil `etat` au contrat, détail par dépôt (date, source et
+  erreurs du dernier instantané), instructions de serveur, programme, arguments, dossier, environnement et commande du
+  secret pris dans la configuration (le secret passe par une variable, masqué s'il revenait dans un message d'erreur) ;
+  10 tests sur un faux outil, dont un lancement en stdio. Le cadre de la passerelle n'a pas les dossiers Windows dans son
+  `PATH` : la configuration du dépôt distant l'ajoute. Écart à la consigne, dit à l'auteur : la passerelle lance une
+  **copie de service** tirée d'un commit, pas la copie de travail, montée dans le conteneur du projet (un agent du
+  conteneur ferait sinon exécuter son code sur l'hôte, avec les identifiants Windows). Refus par `mcpAuthorization` :
+  lu dans le code d'agentgateway 1.6.0, la documentation ne le disant pas (`deny` seul laisse passer le reste, un
+  `allow` refuse tout ce qu'il ne couvre pas, une expression `deny` en échec ne refuse pas) ; règle `require` gardée par
+  `!has(mcp.tool)`, sur le modèle de l'exemple `mcp-authzen`, pour ne toucher ni invites ni ressources. Contre-essai :
+  règle durcie le temps d'un appel, outil retiré de la liste et appel refusé, `holarch` (9 outils) et `okf-hub` (7)
+  intacts. Critère : par le pont d'une session neuve, `sauvegardes_etat` rend la date et l'état du dernier instantané du
+  dépôt distant (5,5 s), sans script modifié ni fichier intermédiaire ; le dépôt du disque externe se dit non
+  disponible, avec la cause. Le socle étant public, ces lignes ne nomment ni outil ni chemin.
+
 * **Projet `capsules` créé par la commande** (poste, `node bin/holarch.js projet creer capsules` : `holarch` n'est pas
   dans le `PATH` du poste, commande d'abord donnée par l'agent sans le vérifier) : dépôt privé, contexte perso,
   conteneur, accès distant ; premier vrai projet créé par la commande depuis la tranche 10. Gestes : la clé de

@@ -30,7 +30,9 @@ Ce que chaque statut signifie pour un service donné (seuils, signaux) appartien
 description de son outil.
 
 **Membres qui le tiennent.** `holarch`, depuis le 2026-11-02 : âge du dernier inventaire, cibles ignorées par la
-passerelle dans l'heure ; seuils au réglage `etat` de la configuration du site.
+passerelle dans l'heure ; seuils au réglage `etat` de la configuration du site. `sauvegardes` (capsule, dans son dépôt
+privé dédié), depuis le 2026-11-02 : âge et erreurs du dernier instantané de chaque dépôt, au moins `alerte` quand un
+dépôt ne se lit pas ; seuils par dépôt dans sa configuration, au profil.
 
 **Évolution.** Un champ commun s'ajoute par une version mineure ; renommer ou retirer un champ, ou changer le sens d'un
 statut, est une décision (contrat P1).

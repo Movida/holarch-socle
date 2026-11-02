@@ -1435,6 +1435,12 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   distant dans le conteneur et retire l'écart). Un défaut trouvé et corrigé : le script de la clé disait active une clé
   jamais enregistrée, l'agent SSH de l'hôte répondant (Q41 pour la portée). Le service d'accès distant du projet était
   arrêté aux deux reprises de la commande, cause non cherchée.
+- **Fait (2026-11-02, poste)** : tranche 1 de `membres-du-hub`, second temps. Copie de service déjà posée ; script de
+  la clé recopié dans le projet créé ; seuils de `holarch_etat` confirmés par la mesure ; Q39 résolue ; capsule des
+  sauvegardes écrite (dépôt privé dédié, 10 tests sur un faux outil), lancée par la passerelle depuis une copie de
+  service, outil `etat` seul admis par `mcpAuthorization`. Critère tenu pour le dépôt distant ; celui du disque externe
+  dit non disponible, disque débranché. Reste : seuils et absence du disque externe (choix de l'auteur), essai disque
+  branché, inventaire des cibles de la passerelle (« Catalogue »), puis tâches planifiées et contrôle de santé.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5
