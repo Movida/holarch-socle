@@ -1415,6 +1415,11 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   Règle récoltée `prendre-de-la-hauteur` approuvée. 280 tests verts dans le conteneur. Sur le poste : copie de service
   posée, puis `holarch regles appliquer holarch-socle` (règle écrite, identité « posée en réglage local »), fichier
   commité depuis le conteneur sous l'identité locale (`4860075`).
+- **Ouverture hors étape (2026-11-02)** : capsules (I46), sur une proposition rédigée dans un fil claude.ai. Avis de
+  l'agent, suivi par l'auteur : « membre du hub » plutôt que « tout est capsule », contrat réduit à l'outil `etat` à
+  sortie déclarée, aucune description maison, gestionnaire de mots de passe hors du premier lot ; code dans un dépôt
+  dédié privé (choix de l'auteur). Décision `membres-du-hub` proposée, en brouillon ; tranche 0 faite d'ici (serveurs
+  existants, identifiants des outils de sauvegarde, code d'agentgateway 1.6.0) ; l'essai sur le poste reste (Q39).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

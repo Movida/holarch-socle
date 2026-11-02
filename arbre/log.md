@@ -1,5 +1,20 @@
 # Journal de l'arbre
 
+## 2026-11-02
+
+* **Capsules : idée, décision en brouillon, vérifications d'ici** (conteneur du socle) : proposition rédigée dans un
+  fil claude.ai, remise par l'auteur en fichier (le lien du fil ne se lit pas depuis le conteneur). Avis de l'agent sur
+  sa demande (« qu'en penses-tu ? ») : le principe tient, et il s'applique à l'existant à condition de parler de
+  « membre du hub » (`holarch` et `okf-hub` parlent MCP eux-mêmes et gardent leurs données, ce ne sont pas des
+  capsules) ; la description de capsule refait ce que MCP porte ; seul contrat nouveau, l'outil `etat` à sortie
+  déclarée (le SDK du socle valide un `outputSchema`) ; le gestionnaire de mots de passe hors du premier lot (P6) ;
+  risque premier, une capsule lancée par le service de la passerelle dans WSL face aux programmes Windows (Q39).
+  Choix de l'auteur (recommandations suivies) : idée, décision et vérifications ; code dans un dépôt dédié privé. I46
+  inscrite, `membres-du-hub` proposée. Tranche 0 par deux sous-agents Sonnet (pages ouvertes, code d'agentgateway au
+  tag v1.6.0 cloné dans le dossier temporaire, rien exécuté), trois points relus dans le code par l'agent : la fusion ne
+  change que le nom des outils, une cible stdio n'a pas de dossier de travail, `mcpAuthorization` filtre par nom et non
+  par annotation. Les noms des outils du poste restent hors de l'arbre (dépôt public).
+
 ## 2026-10-24
 
 * **Points restants avancés dans le conteneur** (soir, « si tu peux avancer sur les points restants, vas-y ») :
