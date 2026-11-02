@@ -40,7 +40,9 @@ ssh-keyscan -t ed25519 github.com >> "$SSH_DIR/known_hosts" 2>/dev/null
 sort -u -o "$SSH_DIR/known_hosts" "$SSH_DIR/known_hosts"
 chmod 644 "$SSH_DIR/known_hosts"
 
-reponse="$(ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@github.com 2>&1 || true)"
+# La clé de déploiement seule, jamais l'agent : VS Code transmet celui de l'hôte au conteneur (SSH_AUTH_SOCK), et la clé
+# de compte qu'il porte répondait à la place d'une clé jamais enregistrée (constaté le 2026-11-02, projet capsules).
+reponse="$(ssh -i "$cle" -o IdentitiesOnly=yes -o IdentityAgent=none -o BatchMode=yes -o ConnectTimeout=10 -T git@github.com 2>&1 || true)"
 if echo "$reponse" | grep -q "successfully authenticated"; then
     echo "✓ $depot — deploy key active ($(echo "$reponse" | grep -oE 'Hi [^!]*'))"
 else

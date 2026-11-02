@@ -2,6 +2,16 @@
 
 ## 2026-11-02
 
+* **Clé de déploiement : faux succès corrigé** (défaut à l'usage, création du projet `capsules`) : le script du
+  conteneur disait la clé active (« Hi <compte> ») alors que GitHub n'en portait aucune, ce que la création, qui lit les
+  clés du dépôt, disait bien. Cause : VS Code transmet l'agent SSH de l'hôte au conteneur (`SSH_AUTH_SOCK`, vu aussi
+  dans le conteneur du socle), et la clé de compte répondait ; une clé de déploiement fait saluer le dépôt
+  (« Hi <compte>/<dépôt> »). Le modèle `deploy-key.sh` n'essaie plus que la clé de déploiement (`-i`, `IdentitiesOnly`,
+  `IdentityAgent=none`) ; 2 tests sur de faux outils SSH, rouges sur l'ancien script. Le script du socle passait déjà
+  par un alias à `IdentitiesOnly`. La création ne réécrit pas la copie de `capsules` : à recopier. Portée plus large :
+  tant que VS Code est relié, un agent du conteneur peut s'authentifier avec la clé de compte de l'hôte, ce que la clé
+  de déploiement devait empêcher (Q41).
+
 * **Règle récoltée `boite-a-idees` écartée** (choix cliquable de l'auteur sur son récapitulatif, recommandation
   suivie) : proposition de la récolte du 2026-10-26, non commitée, qui bloquait la pose de la copie de service. Déjà
   portée par `arbre/idees.md` (son en-tête ; 46 idées, 14 commits depuis le 2026-10-09), le manifeste, la ligne du
