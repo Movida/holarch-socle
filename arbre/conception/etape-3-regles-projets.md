@@ -1429,6 +1429,12 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   de la configuration du site (seuils de la minuterie, choix de l'auteur, mesure à faire sur le poste). 5 tests
   (`test/membres-du-hub.test.js`). Reste sur le poste : copie de service posée, mesure des intervalles d'inventaire,
   dépôt `capsules` créé, fin de Q39, capsule des sauvegardes.
+- **Fait (2026-11-02, poste)** : tranche 10, premier vrai projet créé par la commande, `capsules`. Hors gestes réservés
+  (la clé), une ligne écrite à la main : l'exception `acces-distant:capsules` au contexte perso, que tout projet à
+  conteneur et accès distant demandera tant que la livraison D n'est pas faite (palliatif : D, qui fait tourner l'accès
+  distant dans le conteneur et retire l'écart). Un défaut trouvé et corrigé : le script de la clé disait active une clé
+  jamais enregistrée, l'agent SSH de l'hôte répondant (Q41 pour la portée). Le service d'accès distant du projet était
+  arrêté aux deux reprises de la commande, cause non cherchée.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

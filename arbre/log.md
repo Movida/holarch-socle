@@ -2,6 +2,14 @@
 
 ## 2026-11-02
 
+* **Projet `capsules` créé par la commande** (poste, `node bin/holarch.js projet creer capsules` : `holarch` n'est pas
+  dans le `PATH` du poste, commande d'abord donnée par l'agent sans le vérifier) : dépôt privé, contexte perso,
+  conteneur, accès distant ; premier vrai projet créé par la commande depuis la tranche 10. Gestes : la clé de
+  déploiement (réservé), enregistrée après le faux succès du script, corrigé dans le modèle (`0981f49`) ; l'écart
+  `montage-sensible`, levé par une exception `acces-distant:capsules` au contexte perso, même raison que pour le socle
+  (choix de l'auteur, recommandation suivie ; commit du profil). Rejouée, la commande dit tout en place et l'audit sans
+  écart. Aux deux reprises, le service d'accès distant de `capsules` était arrêté et a été rallumé : cause non cherchée.
+
 * **Clé de déploiement : faux succès corrigé** (défaut à l'usage, création du projet `capsules`) : le script du
   conteneur disait la clé active (« Hi <compte> ») alors que GitHub n'en portait aucune, ce que la création, qui lit les
   clés du dépôt, disait bien. Cause : VS Code transmet l'agent SSH de l'hôte au conteneur (`SSH_AUTH_SOCK`, vu aussi
