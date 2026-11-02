@@ -26,7 +26,10 @@
   dépôt distant (5,5 s), sans script modifié ni fichier intermédiaire ; le dépôt du disque externe se dit non
   disponible, avec la cause. Le socle étant public, ces lignes ne nomment ni outil ni chemin. Choix de l'auteur
   (cliquables, recommandations suivies) : seuils gardés, alerte gardée quand le disque externe ne se lit pas (plutôt que
-  la tolérer, ou lire le fichier d'état du script, contraire au critère), envoi des trois dépôts.
+  la tolérer, ou lire le fichier d'état du script, contraire au critère), envoi des trois dépôts. Poussés : le socle et
+  le dépôt de la capsule (aucune intégration continue) ; le profil porte 3 commits non poussés, dont 2 de la création du
+  projet, que l'accord ne couvrait pas : question laissée sans réponse, envoi en attente. Disque externe rebranché
+  (essai de l'auteur, par le pont d'une session neuve) : les deux dépôts ok, critère tenu pour les deux.
 
 * **Projet `capsules` créé par la commande** (poste, `node bin/holarch.js projet creer capsules` : `holarch` n'est pas
   dans le `PATH` du poste, commande d'abord donnée par l'agent sans le vérifier) : dépôt privé, contexte perso,
