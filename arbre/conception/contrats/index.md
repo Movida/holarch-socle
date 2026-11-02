@@ -8,3 +8,4 @@ Clés des données en anglais (outillage et partage), textes en français.
 - [`fiche-catalogue.md`](fiche-catalogue.md) - une fiche du catalogue : tout élément en place
 - [`evenement.md`](evenement.md) - un événement du journal : tout ce qui se passe
 - [`acteurs.md`](acteurs.md) - la notation des acteurs (humains, agents, système)
+- [`etat-de-membre.md`](etat-de-membre.md) - l'état d'un membre du hub : la sortie commune de l'outil `etat`
