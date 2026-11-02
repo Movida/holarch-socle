@@ -1443,6 +1443,11 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   le dépôt distant, 168 h et 720 h pour le disque externe), alerte gardée quand le disque externe ne se lit pas (gêne à
   mesurer sur une semaine). Reste : inventaire des cibles de la passerelle (« Catalogue »), puis
   tâches planifiées et contrôle de santé.
+- **Fait (2026-11-03, poste)** : retour d'essai de la capsule des sauvegardes (fil claude.ai). Chaque source compte par
+  son dernier instantané (statut de la pire source, sources à regarder nommées, source couverte ou retirée exclue),
+  erreurs comptées par source, `null` documenté ; version 0.2.0, zod 4.6.7, copie de service reposée. Disque externe
+  débranché, mesuré : non disponible et alerte globale, gardée par l'auteur. À reprendre dans le socle : zod 4.6.5 à
+  son lockfile (GHSA-mrhx-c7xc-m3w5).
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

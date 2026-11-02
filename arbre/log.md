@@ -1,5 +1,22 @@
 # Journal de l'arbre
 
+## 2026-11-03
+
+* **Capsule des sauvegardes, retour d'essai** (poste, dépôt de la capsule, sur un retour d'essai rédigé dans un fil
+  claude.ai ; trois pistes, avis de l'agent, recommandations suivies). Mesuré sur les deux dépôts : toutes les sources
+  sont sauvegardées (29 par dépôt), la capsule ne montrait que le dernier instantané du passage. Fait : chaque source
+  (chemin sauvegardé) compte par son dernier instantané, le dépôt prend le statut de sa pire source et nomme celles à
+  regarder ; une source comprise dans une autre sauvegardée depuis ne compte pas, une source retirée se déclare dans la
+  configuration ; les erreurs comptent par source (seules celles du dernier instantané du dépôt comptaient, une source
+  sur trente) ; `erreurs` à `null` dit dans la description de l'outil (la documentation de l'outil du dépôt distant ne
+  donne aucun champ d'erreur à un instantané). 12 tests, version 0.2.0, zod passé à 4.6.7 (GHSA-mrhx-c7xc-m3w5,
+  haute) ; copie de service reposée, servie par la passerelle dès l'appel suivant, dans la même session (la description
+  de l'outil ne change qu'à la connexion d'une session). Disque externe débranché, mesure de l'auteur : l'outil ne lit
+  rien, même de son cache ; dépôt non disponible, état global en alerte. L'auteur garde l'alerte, son choix de la
+  veille, noté au profil. **Écart** : ce choix a été réanalysé sans relire ce journal, qui le portait déjà. **Constat
+  pour le socle** : son lockfile fige zod à 4.6.5, sous le même avis. Poussés : dépôt de la capsule et profil (aucune
+  intégration continue).
+
 ## 2026-11-02
 
 * **Capsule des sauvegardes, membre du hub** (poste, tranche 1 de `membres-du-hub`, déroulé donné par l'auteur ; code
