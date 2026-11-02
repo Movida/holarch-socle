@@ -3,7 +3,7 @@ type: decision
 title: Les services du poste, membres du hub par des capsules
 description: "Comment un service du poste qui ne parle pas MCP devient lisible depuis une session ou une page : une capsule en lecture seule, fédérée par la passerelle comme holarch et okf-hub ; un seul contrat commun, l'outil `etat` à sortie déclarée."
 status: stable
-approved: { by: human:auteur, at: 2026-11-02, ref: "choix cliquable du 2026-11-02 : « Approuver telle quelle » (recommandation de l'agent), version avec la portabilité" }
+approved: { by: human:auteur, at: 2026-11-02, ref: "choix cliquable du 2026-11-02 : « Approuver telle quelle » (recommandation de l'agent), version avec la portabilité ; même jour, « indisponible » pour le statut, seuils de holarch, puis « Les nommer » pour les autres types MCP" }
 links:
   derives_from: [/arbre/conception/etape-2-point-entree.md]
   constrained_by: [/arbre/fondations/principes.md, /arbre/decisions/2026-10-03-passerelle-par-site.md, /arbre/decisions/2026-10-03-sources-hote.md, /arbre/decisions/2026-10-14-sorties-mcp-des-chiffres.md]
@@ -50,21 +50,38 @@ changer »).
 | Capsule | un serveur MCP qui parle à **un** service par son interface native (commande à sortie JSON, API, journal lu) et ne fait rien d'autre : elle ne stocke rien, ne modifie ni le service ni sa configuration, se retire sans qu'il le remarque ; lecture seule sur les disques de l'hôte (`sources-hote`) |
 | Contrat commun | chaque membre expose un outil `etat` (préfixé par la passerelle : `<membre>_etat`), sortie déclarée par `outputSchema`, rendue en `structuredContent` et en texte JSON pour les clients qui ne lisent que le texte : `statut` (`ok`, `alerte`, `panne`, `indisponible` : le mot que le code du socle emploie déjà pour un état qu'il ne peut pas établir, choix de l'auteur le 2026-11-02, « non disponible » dans les textes), `derniere_activite` (horodatage ISO ou `null`), `resume` (une phrase) ; tout autre champ est libre, propre au membre. Contrat `etat-de-membre` 0.1.0, écrit à l'approbation |
 | Description | aucune description maison : nom et version viennent de l'initialisation MCP, le risque des annotations des outils, que la passerelle transmet telles quelles |
-| Composition | chez le client (agent, page) ; un membre n'en appelle jamais un autre ; la passerelle reste le seul point de politique et de journal (P4, P6). Une capsule qui agrège d'autres membres seulement quand une même composition revient, mesurée |
+| Composition | chez le client (agent, page) ; un membre n'en appelle jamais un autre ; la passerelle reste le seul point de politique et de journal (P4, P6). Une composition qui revient, mesurée, devient une invite MCP (par exemple un bilan qui appelle les `*_etat`), pas une capsule qui agrège |
 | `holarch` | `etat` garde sa forme, gagne `statut`, `derniere_activite`, `resume` (ajout de champs) et son schéma de sortie ; le statut se tire de ce que `etat` calcule déjà : alerte au-delà de 2 h depuis le dernier inventaire ou quand la passerelle a ignoré une cible dans l'heure, panne au-delà de 24 h, sans inventaire `indisponible` ; seuils déduits de la minuterie (horaire, avec rattrapage au réveil), réglables (`etat` de la configuration du site), à confirmer par une mesure des intervalles sur le poste (choix de l'auteur, 2026-11-02) |
 | `okf-hub` | autre projet : l'outil `etat` lui est proposé dans son dépôt, hors de cette décision |
 | Code des capsules | un dépôt dédié **privé** (choix de l'auteur, 2026-11-02), créé par `holarch projet creer` ; ce qui est propre au poste (chemins, dépôts de sauvegarde) dans la configuration du profil (P3, P7) ; Node ≥ 22.13 et le SDK MCP du socle, déjà sur le poste (P12) |
-| Portabilité | une capsule ne dépend que de l'interface de son outil (commande et sortie JSON) : son code est le même sous Windows, Linux, macOS, ou de WSL vers Windows ; ce qui varie d'un système à l'autre (emplacement du programme, dossier de lancement, source d'un secret) vit dans la configuration du site (P3, comme `sources-hote`) ; un service propre à un système (tâches planifiées) garde le contrat `etat` et a une mise en œuvre par système, choisie par la configuration, `non disponible` ailleurs ; les tests passent par un faux programme, sur tout système (choix de l'auteur, 2026-11-02) |
+| Portabilité | une capsule ne dépend que de l'interface de son outil (commande et sortie JSON) : son code est le même sous Windows, Linux, macOS, ou de WSL vers Windows ; ce qui varie d'un système à l'autre (emplacement du programme, dossier de lancement, source d'un secret) vit dans la configuration du site (P3, comme `sources-hote`) ; un service propre à un système (tâches planifiées) garde le contrat `etat` et a une mise en œuvre par système, choisie par la configuration, `indisponible` ailleurs ; les tests passent par un faux programme, sur tout système (choix de l'auteur, 2026-11-02) |
 | Ordre | les sauvegardes, puis les tâches planifiées et le contrôle de santé ; un squelette commun extrait au deuxième cas ; un moteur déclaratif (commande décrite → outil) seulement au troisième, si les cas se ressemblent |
 | Catalogue | les cibles de la passerelle s'inventorient depuis sa configuration (emplacement désigné par la configuration du site), ce qui ferme l'écart à P4 pour tous les membres ; après la première capsule |
-| Hors de ce lot | le gestionnaire de mots de passe : même sans valeurs, les titres de ses éléments sont des données personnelles, à classer (P6) avant toute exposition ; tout outil qui écrit (lancer une sauvegarde), refusé par son nom dans la passerelle ; l'exposition de la passerelle hors du poste (tunnel, OAuth). Chacun par une décision à part |
+| Hors de ce lot | le gestionnaire de mots de passe : même sans valeurs, les titres de ses éléments sont des données personnelles, à classer (P6) avant toute exposition ; tout outil qui écrit (lancer une sauvegarde), refusé par son nom dans la passerelle, dont la décision partira de la demande à l'utilisateur et des tâches (tableau suivant) ; l'exposition de la passerelle hors du poste (tunnel, OAuth). Chacun par une décision à part |
 | Secrets | jamais en argument ni dans une réponse ; un secret d'exécution vient d'un emplacement du profil ou du gestionnaire de mots de passe, jamais d'un dépôt |
+
+**Autres types MCP** (question de l'auteur, « a-t-on envisagé tous les types de données qu'un MCP peut offrir ? » ;
+nommés le 2026-11-02 à son choix, rien n'est construit d'avance). L'outil reste le contrat : c'est le seul type que
+tous les clients, pages comprises, savent appeler. Le SDK du socle sert chacun des types ci-dessous et la passerelle
+1.6.0 les relaie (ressources préfixées, abonnements, tâches, complétions, journal) ; leur usage dans Claude Code est
+celui de sa documentation.
+
+| Type | Ce qu'il apporterait | Entre en jeu |
+|---|---|---|
+| Ressources et modèles d'adresse | une donnée que le client joint au contexte (`@hub:…` dans Claude Code), par exemple la liste des instantanés | quand une donnée se lit plus qu'elle ne s'interroge |
+| Abonnement aux ressources | le membre prévient quand son état change, au lieu d'être interrogé | à la question d'historique ou d'alerte (« Ce qui le ferait changer ») |
+| Invites | une composition lancée par l'utilisateur (`/hub:…`), à la place d'une capsule qui agrège | quand une même composition revient |
+| Instructions du serveur | ce que la capsule sert et quand l'appeler, chargé au démarrage (4 096 caractères au plus dans Claude Code) ; les seuils restent dans la description de `etat` (contrat) | tranche 1 |
+| Tâches (expérimental) et demande à l'utilisateur | un appel long suivi (une sauvegarde), une confirmation demandée avant d'agir ; Claude Code ne sert la demande qu'en terminal interactif | décision sur les outils qui écrivent |
+| Applications MCP (`ui://`) | une carte d'état fournie par la capsule, affichée par l'hôte | après Q40 |
+| Complétions, journal, échantillonnage, racines | peu d'apport ici | — |
 
 **Raison.** La passerelle fait déjà la fédération, le filtrage et le journal (P2) ; le seul manque est une forme
 commune pour dire si un service va bien, et MCP sait déclarer cette forme.
 
 **Ce qui le ferait changer.** Une question d'historique (« depuis quand ») posée sur un membre : l'inventaire horaire
-appelle alors les `*_etat` au travers de la passerelle et les journalise, sans second adaptateur. Des identifiants
+appelle alors les `*_etat` au travers de la passerelle et les journalise, sans second adaptateur, ou le membre publie
+son état en ressource abonnable et prévient quand il change : les deux voies se comparent à ce moment. Des identifiants
 de la session Windows illisibles depuis WSL (Q39) : le même code tourne alors directement sous Windows, et la passerelle
 le joint en HTTP plutôt qu'en stdio (Node sous Windows, programme lancé à l'ouverture de session, port local protégé par
 une clé, chemin réseau de WSL vers Windows) ; la décision se revoit sur le lancement, pas sur le contrat.

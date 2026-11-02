@@ -2,6 +2,15 @@
 
 ## 2026-11-02
 
+* **Autres types MCP nommés dans `membres-du-hub`** (question de l'auteur, « a-t-on envisagé tous les types de données
+  qu'un MCP peut offrir ? » : non, seuls les outils l'étaient). Vérifié dans le SDK du socle, le code d'agentgateway
+  1.6.0 (qui relaie ressources, abonnements, invites, tâches, complétions, journal) et la documentation de Claude Code
+  (ressources par `@`, invites en commandes, instructions chargées au démarrage, demande à l'utilisateur en terminal
+  interactif seulement, applications `ui://`). Choix de l'auteur, recommandation suivie : l'outil `etat` reste le
+  contrat, les autres types sont nommés avec le moment où chacun entre ; une composition qui revient devient une
+  invite plutôt qu'une capsule qui agrège ; l'abonnement aux ressources s'ajoute à la voie de l'historique ; Q40 ouverte.
+  `0a2cdd7` et `da3a8db` poussés avant, accord de l'auteur.
+
 * **`membres-du-hub` approuvée, `holarch_etat` au contrat** (choix cliquables de l'auteur, recommandations suivies) :
   décision stable ; envoi autorisé des trois premiers commits, poussés (`68103cb`), aucune intégration continue dans le
   dépôt. Contrat `etat-de-membre` 0.1.0, valeur `indisponible` plutôt que « non disponible » (le mot du code) ; statut
