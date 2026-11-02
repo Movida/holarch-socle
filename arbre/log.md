@@ -24,7 +24,9 @@
   règle durcie le temps d'un appel, outil retiré de la liste et appel refusé, `holarch` (9 outils) et `okf-hub` (7)
   intacts. Critère : par le pont d'une session neuve, `sauvegardes_etat` rend la date et l'état du dernier instantané du
   dépôt distant (5,5 s), sans script modifié ni fichier intermédiaire ; le dépôt du disque externe se dit non
-  disponible, avec la cause. Le socle étant public, ces lignes ne nomment ni outil ni chemin.
+  disponible, avec la cause. Le socle étant public, ces lignes ne nomment ni outil ni chemin. Choix de l'auteur
+  (cliquables, recommandations suivies) : seuils gardés, alerte gardée quand le disque externe ne se lit pas (plutôt que
+  la tolérer, ou lire le fichier d'état du script, contraire au critère), envoi des trois dépôts.
 
 * **Projet `capsules` créé par la commande** (poste, `node bin/holarch.js projet creer capsules` : `holarch` n'est pas
   dans le `PATH` du poste, commande d'abord donnée par l'agent sans le vérifier) : dépôt privé, contexte perso,
