@@ -27,8 +27,8 @@
   disponible, avec la cause. Le socle étant public, ces lignes ne nomment ni outil ni chemin. Choix de l'auteur
   (cliquables, recommandations suivies) : seuils gardés, alerte gardée quand le disque externe ne se lit pas (plutôt que
   la tolérer, ou lire le fichier d'état du script, contraire au critère), envoi des trois dépôts. Poussés : le socle et
-  le dépôt de la capsule (aucune intégration continue) ; le profil porte 3 commits non poussés, dont 2 de la création du
-  projet, que l'accord ne couvrait pas : question laissée sans réponse, envoi en attente. Disque externe rebranché
+  le dépôt de la capsule (aucune intégration continue) ; le profil, qui portait aussi 2 commits de la création du projet
+  que l'accord ne couvrait pas, poussé ensuite sur l'accord de l'auteur (« pousse »). Disque externe rebranché
   (essai de l'auteur, par le pont d'une session neuve) : les deux dépôts ok, critère tenu pour les deux.
 
 * **Projet `capsules` créé par la commande** (poste, `node bin/holarch.js projet creer capsules` : `holarch` n'est pas

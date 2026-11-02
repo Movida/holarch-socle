@@ -1441,7 +1441,7 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   service, outil `etat` seul admis par `mcpAuthorization`. Critère tenu pour les deux dépôts (disque externe
   rebranché, essai de l'auteur par le pont). Choix de l'auteur, recommandations suivies : seuils gardés (48 h et 168 h pour
   le dépôt distant, 168 h et 720 h pour le disque externe), alerte gardée quand le disque externe ne se lit pas (gêne à
-  mesurer sur une semaine). Reste : envoi du profil (3 commits, en attente de l'auteur), inventaire des cibles de la passerelle (« Catalogue »), puis
+  mesurer sur une semaine). Reste : inventaire des cibles de la passerelle (« Catalogue »), puis
   tâches planifiées et contrôle de santé.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
