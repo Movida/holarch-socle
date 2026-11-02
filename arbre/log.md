@@ -2,6 +2,14 @@
 
 ## 2026-11-02
 
+* **Règle récoltée `boite-a-idees` écartée** (choix cliquable de l'auteur sur son récapitulatif, recommandation
+  suivie) : proposition de la récolte du 2026-10-26, non commitée, qui bloquait la pose de la copie de service. Déjà
+  portée par `arbre/idees.md` (son en-tête ; 46 idées, 14 commits depuis le 2026-10-09), le manifeste, la ligne du
+  CLAUDE.md et la reprise ; redites des 7 et 8 octobre seulement, quand la boîte se créait. Passée en `deprecated` avec
+  sa raison : la récolte ne la repropose plus. Question de l'auteur levée en route : écarter la règle ne retire pas les
+  idées. Pose remise au poste (`node bin/holarch.js service poser` depuis `~/holarch-socle`), qui seul porte
+  l'interface, les minuteurs et le serveur MCP du compte.
+
 * **Autres types MCP nommés dans `membres-du-hub`** (question de l'auteur, « a-t-on envisagé tous les types de données
   qu'un MCP peut offrir ? » : non, seuls les outils l'étaient). Vérifié dans le SDK du socle, le code d'agentgateway
   1.6.0 (qui relaie ressources, abonnements, invites, tâches, complétions, journal) et la documentation de Claude Code

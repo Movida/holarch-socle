@@ -50,3 +50,11 @@
   approved: { by: human:auteur, at: 2026-10-24, ref: "choix cliquable du 2026-10-24 sur son récapitulatif (ce qu'elle impose, pourquoi, ce que la pose change) : « Approuver »" }
   source: harvest
   harvest: { at: 2026-10-19, sessions: 3, projects: [ holarch-socle ], first: 2026-10-08, last: 2026-10-16, refs: [ 56cfd22a-6906-579e-a070-117d93110f66, 9823c4bd-742e-51b4-a2af-ebc148adad62, c3ba8dd3-e10e-45d3-bd02-09343f030c04 ] }
+- id: boite-a-idees
+  statement: Noter les idées hors phase dans une boîte à idées plutôt que les traiter tout de suite.
+  why: Les idées surgissent en cours de travail et ne doivent ni se perdre ni dévier la phase.
+  level: reminder
+  status: deprecated
+  deprecated: { by: human:auteur, at: 2026-11-02, why: "déjà portée par arbre/idees.md (son en-tête dit la consigne ; 46 idées au 2026-11-02), le manifeste, la ligne du CLAUDE.md et la reprise ; pas redite depuis le 2026-10-08. Choix cliquable du 2026-11-02 : « Écarter »" }
+  source: harvest
+  harvest: { at: 2026-10-26, sessions: 3, projects: [ holarch-socle ], first: 2026-10-07, last: 2026-10-08, refs: [ 91bb143f-363a-4d4c-814b-acdc5fa308bc, c3ba8dd3-e10e-45d3-bd02-09343f030c04, d5c73397-ada8-5ebf-9020-3539ab41f237 ] }
