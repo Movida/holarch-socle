@@ -2,6 +2,12 @@
 
 ## 2026-11-02
 
+* **Portabilité des capsules** (question de l'auteur, « une solution cross plateforme ? », recommandation suivie) : les
+  outils de sauvegarde et Node existent sur les trois systèmes avec les mêmes commandes ; emplacement du programme,
+  dossier de lancement et source d'un secret passent dans la configuration du site, le passage de WSL à Windows devient
+  une configuration ; un service propre à un système a une mise en œuvre par système ; repli en HTTP sous Windows si
+  les identifiants ne se lisent pas depuis WSL. Ajouté à `membres-du-hub`, toujours en brouillon.
+
 * **Q39 répondue en partie** (essai de l'auteur sur le poste, commande donnée par l'agent après lecture de la
   documentation de `systemd-run`) : depuis une unité transitoire du gestionnaire systemd de l'utilisateur, `cmd.exe`
   rend la version de Windows ; le dossier courant hérité (chemin de WSL) est refusé puis remplacé par celui de Windows,

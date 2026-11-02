@@ -53,6 +53,7 @@ changer »).
 | `holarch` | `etat` garde sa forme, gagne `statut`, `derniere_activite`, `resume` (ajout de champs) et son schéma de sortie ; le statut se tire de ce que `etat` calcule déjà (âge du dernier inventaire, dégradations de la passerelle), seuils fixés en tranche 1 sur une mesure |
 | `okf-hub` | autre projet : l'outil `etat` lui est proposé dans son dépôt, hors de cette décision |
 | Code des capsules | un dépôt dédié **privé** (choix de l'auteur, 2026-11-02), créé par `holarch projet creer` ; ce qui est propre au poste (chemins, dépôts de sauvegarde) dans la configuration du profil (P3, P7) ; Node ≥ 22.13 et le SDK MCP du socle, déjà sur le poste (P12) |
+| Portabilité | une capsule ne dépend que de l'interface de son outil (commande et sortie JSON) : son code est le même sous Windows, Linux, macOS, ou de WSL vers Windows ; ce qui varie d'un système à l'autre (emplacement du programme, dossier de lancement, source d'un secret) vit dans la configuration du site (P3, comme `sources-hote`) ; un service propre à un système (tâches planifiées) garde le contrat `etat` et a une mise en œuvre par système, choisie par la configuration, `non disponible` ailleurs ; les tests passent par un faux programme, sur tout système (choix de l'auteur, 2026-11-02) |
 | Ordre | les sauvegardes, puis les tâches planifiées et le contrôle de santé ; un squelette commun extrait au deuxième cas ; un moteur déclaratif (commande décrite → outil) seulement au troisième, si les cas se ressemblent |
 | Catalogue | les cibles de la passerelle s'inventorient depuis sa configuration (emplacement désigné par la configuration du site), ce qui ferme l'écart à P4 pour tous les membres ; après la première capsule |
 | Hors de ce lot | le gestionnaire de mots de passe : même sans valeurs, les titres de ses éléments sont des données personnelles, à classer (P6) avant toute exposition ; tout outil qui écrit (lancer une sauvegarde), refusé par son nom dans la passerelle ; l'exposition de la passerelle hors du poste (tunnel, OAuth). Chacun par une décision à part |
@@ -62,9 +63,10 @@ changer »).
 commune pour dire si un service va bien, et MCP sait déclarer cette forme.
 
 **Ce qui le ferait changer.** Une question d'historique (« depuis quand ») posée sur un membre : l'inventaire horaire
-appelle alors les `*_etat` au travers de la passerelle et les journalise, sans second adaptateur. Un service qu'une
-capsule lancée par la passerelle du poste ne peut pas joindre (Q39) : la capsule tourne alors côté Windows, et cette
-décision se revoit sur le lancement.
+appelle alors les `*_etat` au travers de la passerelle et les journalise, sans second adaptateur. Des identifiants
+de la session Windows illisibles depuis WSL (Q39) : le même code tourne alors directement sous Windows, et la passerelle
+le joint en HTTP plutôt qu'en stdio (Node sous Windows, programme lancé à l'ouverture de session, port local protégé par
+une clé, chemin réseau de WSL vers Windows) ; la décision se revoit sur le lancement, pas sur le contrat.
 
 **Vérifications (tranche 0, 2026-11-02).** Faits tirés de pages ouvertes et du code d'agentgateway au tag v1.6.0, par
 deux sous-agents ; les trois points sur la passerelle relus dans le code par l'agent principal.
