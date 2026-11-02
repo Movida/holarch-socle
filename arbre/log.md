@@ -11,8 +11,10 @@
   écart. Aux deux reprises, le service d'accès distant de `capsules` était arrêté et a été rallumé : cause non cherchée.
 * **Accès distants en échec, connexion expirée** (suite de l'entrée qui précède, relevés de l'auteur) : les deux services
   `holarch-distant-*` (socle et `capsules`) tombaient aussitôt, « You must be logged in to use Remote Control », relancés
-  toutes les 30 s ; `claude auth status` dit la connexion expirée, dans le terminal comme sous systemd. Premier échec au
-  journal du service du socle : 2026-11-02 22:26. Geste réservé : `claude auth login`. Défaut du socle corrigé, avec
+  toutes les 30 s ; `claude auth status` dit la connexion expirée, dans le terminal comme sous systemd. Premier « must
+  be logged in » au journal du service du socle : 22:26 ; mais 564 relances à 22:49, soit des échecs depuis environ
+  18:15 (message d'avant 22:26 non lu). Geste réservé : `claude auth login` ; les deux services ont repris seuls, même
+  dossier de configuration et même connexion dans le terminal et sous systemd (`configDirectory`). Défaut du socle corrigé, avec
   un test : `distant activer` et l'étape `distant` de la création posaient le service sans regarder s'il tiendrait, et
   la création le disait « rallumé » ; `connexionClaude` (module commun) lit `claude auth status` (code et `authMethod`,
   documentés), la création en fait un geste réservé et `distant activer` le dit. Reste non couvert : une connexion qui
