@@ -2,6 +2,13 @@
 
 ## 2026-11-02
 
+* **Q39 répondue en partie** (essai de l'auteur sur le poste, commande donnée par l'agent après lecture de la
+  documentation de `systemd-run`) : depuis une unité transitoire du gestionnaire systemd de l'utilisateur, `cmd.exe`
+  rend la version de Windows ; le dossier courant hérité (chemin de WSL) est refusé puis remplacé par celui de Windows,
+  les messages sortent en page de codes OEM ; les deux outils de sauvegarde ne sont pas dans le `PATH`. Restent leurs
+  chemins, l'accès aux identifiants de la session Windows et la source du mot de passe du dépôt distant, à lire sur le
+  poste par la session qui construira la capsule.
+
 * **Capsules : idée, décision en brouillon, vérifications d'ici** (conteneur du socle) : proposition rédigée dans un
   fil claude.ai, remise par l'auteur en fichier (le lien du fil ne se lit pas depuis le conteneur). Avis de l'agent sur
   sa demande (« qu'en penses-tu ? ») : le principe tient, et il s'applique à l'existant à condition de parler de
