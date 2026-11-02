@@ -311,6 +311,19 @@ export const binaireClaude = (config) => trouverOutil('claude', config?.acces_di
 export const claudeIntrouvable = (config) => (config?.acces_distant?.claude
   ? `claude introuvable : acces_distant.claude (${config.acces_distant.claude}) n'existe pas ou n'est pas un fichier exécutable`
   : 'claude introuvable dans le PATH ni ~/.local/bin (acces_distant.claude pour le préciser)');
+/**
+ * La connexion du compte que prendra Claude Code (`claude auth status`, documenté : code 0 connecté, 1 non ; `authMethod`
+ * vaut `claude.ai` pour un abonnement, le seul que Remote Control accepte). Constaté le 2026-11-02 : une connexion expirée
+ * laissait les accès distants en échec, relancés toutes les 30 s, et la création les disait rallumés. `{ ok: true }`,
+ * `{ ok: false, raison }`, ou `{ ok: null, raison }` quand rien ne se vérifie (binaire absent, réponse inattendue).
+ */
+export function connexionClaude(binaire, executer = (b, a) => spawnSync(b, a, { encoding: 'utf8', timeout: 20000 })) {
+  const r = executer(binaire, ['auth', 'status']);
+  if (r.error || (r.status !== 0 && r.status !== 1)) return { ok: null, raison: `connexion de Claude Code non vérifiée (claude auth status : ${r.error?.message || `code ${r.status}`})` };
+  if (r.status === 1) return { ok: false, raison: 'Claude Code n’est pas connecté, ou sa connexion a expiré' };
+  let methode = null; try { methode = JSON.parse(r.stdout).authMethod ?? null; } catch { /* réponse non JSON : connecté, sans plus */ }
+  return methode && methode !== 'claude.ai' ? { ok: false, raison: `Claude Code est connecté par ${methode} : Remote Control demande un abonnement claude.ai` } : { ok: true };
+}
 
 /** Noms des tests en échec dans la sortie de `node --test` (rapport spec) : la liste qui suit « ✖ failing tests: ». */
 export function testsEnEchec(sortie) {

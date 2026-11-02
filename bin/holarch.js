@@ -128,7 +128,8 @@ switch (cmd) {
   case 'distant': {
     const d = creerDistant(chargerConfig()); const [action, projet] = args.filter((a) => !a.startsWith('--'));
     try {
-      if (action === 'activer') { const r = d.activer(projet); afficher(json ? r : `accès distant actif : ${r.nom} (${r.chemin}), service ${r.unite}${r.confiance_declaree ? ' ; dossier déclaré de confiance pour Claude Code' : ''}${r.reveil === 'posé' ? '' : ` ; minuteur de reprise après une veille ${r.reveil}`}`); }
+      if (action === 'activer') { const r = d.activer(projet); if (!json && r.connexion?.ok === false) console.error(`ATTENTION ${r.connexion.raison} : le service tombera jusqu'à \`claude auth login\` (il reprend seul ensuite)`);
+        afficher(json ? r : `accès distant actif : ${r.nom} (${r.chemin}), service ${r.unite}${r.confiance_declaree ? ' ; dossier déclaré de confiance pour Claude Code' : ''}${r.reveil === 'posé' ? '' : ` ; minuteur de reprise après une veille ${r.reveil}`}`); }
       else if (action === 'desactiver') { const r = d.desactiver(projet); afficher(json ? r : `accès distant retiré : ${r.nom}${r.copies.map((c) => ` ; ${c.unite} ${retireeModifiee(c.copie)}`).join('')}`); }
       else if (action === 'reveil') {
         const r = d.reveil();

@@ -9,6 +9,14 @@
   `montage-sensible`, levé par une exception `acces-distant:capsules` au contexte perso, même raison que pour le socle
   (choix de l'auteur, recommandation suivie ; commit du profil). Rejouée, la commande dit tout en place et l'audit sans
   écart. Aux deux reprises, le service d'accès distant de `capsules` était arrêté et a été rallumé : cause non cherchée.
+* **Accès distants en échec, connexion expirée** (suite de l'entrée qui précède, relevés de l'auteur) : les deux services
+  `holarch-distant-*` (socle et `capsules`) tombaient aussitôt, « You must be logged in to use Remote Control », relancés
+  toutes les 30 s ; `claude auth status` dit la connexion expirée, dans le terminal comme sous systemd. Premier échec au
+  journal du service du socle : 2026-11-02 22:26. Geste réservé : `claude auth login`. Défaut du socle corrigé, avec
+  un test : `distant activer` et l'étape `distant` de la création posaient le service sans regarder s'il tiendrait, et
+  la création le disait « rallumé » ; `connexionClaude` (module commun) lit `claude auth status` (code et `authMethod`,
+  documentés), la création en fait un geste réservé et `distant activer` le dit. Reste non couvert : une connexion qui
+  expire après la pose, que rien ne signale (proposition à faire : un contrôle ou le statut de membre de holarch).
 
 * **Clé de déploiement : faux succès corrigé** (défaut à l'usage, création du projet `capsules`) : le script du
   conteneur disait la clé active (« Hi <compte> ») alors que GitHub n'en portait aucune, ce que la création, qui lit les

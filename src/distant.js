@@ -10,7 +10,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { Catalogue } from './stockage/catalogue.js';
 import { projetsDe, localiserProjet, resoudreProjet } from './projets.js';
-import { shell, systemd, fichierMarque, modifierJson, ecrireSansLien, binaireClaude, configClaude, claudeIntrouvable, hacher } from './commun.js';
+import { shell, systemd, fichierMarque, modifierJson, ecrireSansLien, binaireClaude, configClaude, claudeIntrouvable, connexionClaude, hacher } from './commun.js';
 import { accueil as accueilParDefaut } from './config.js';
 import { binaireService } from './service.js';
 import { marquerRelance } from './veille.js';
@@ -325,7 +325,7 @@ export function creerDistant(config, {
   claude = null,
   projets = projetsDe(new Catalogue(config.donnees, config.site).lire({ site: config.site })),
   accueil = config.accueil || accueilParDefaut(), holarch = binaireService(accueil), node = process.execPath, maintenant = Date.now,
-  demarrage = idDemarrage, sousSystemd = SOUS_SYSTEMD,
+  demarrage = idDemarrage, sousSystemd = SOUS_SYSTEMD, connexion = connexionClaude,
 } = {}) {
   const sv = services({ unites, systemctl, sousSystemd });
   const fichierUnite = (nom) => path.join(unites, `${PREFIXE}${nom}.service`);
@@ -387,7 +387,8 @@ export function creerDistant(config, {
       const confiance = declarerConfiance(config.inventaire?.['claude-code']?.config || configClaude(path.join(os.homedir(), '.claude')), chemin);
       sv.poser(f, texte);
       const etatReveil = poserReveil();
-      return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance, reveil: etatReveil };
+      // Posé même sans connexion : le service reprend seul, dans les 30 s, une fois le compte connecté ; l'appelant le dit.
+      return { nom, chemin, projet: p.id, unite: path.basename(f), confiance_declaree: confiance, reveil: etatReveil, connexion: connexion(binaire) };
     },
     // Le service d'un projet sorti du catalogue doit rester retirable : à défaut de projet, la référence est son nom.
     // `copies` : les unités retirées (le service, et le réveil avec le dernier accès) qui étaient modifiées à la main.

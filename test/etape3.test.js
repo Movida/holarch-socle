@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { creerDistant, creerInterface, creerReveil, creerRecolte, declarerConfiance, nomDe } from '../src/distant.js';
-import { binaireClaude, ecrireSansLien, lireSansLien } from '../src/commun.js';
+import { binaireClaude, connexionClaude, ecrireSansLien, lireSansLien } from '../src/commun.js';
 
 import { tmp } from './temporaire.js';
 
@@ -2113,6 +2113,25 @@ test('R2 : rejouée, la création ne dit l’accès distant déjà là que s’i
   assert.deepEqual([await etape(true), activations.length], [['a-faire', 'service neuf arrêté : à rallumer'], 1], 'à blanc, rien n’est rallumé');
   assert.deepEqual([await etape(), activations.length], [['faite', 'service holarch-distant-neuf.service rallumé (il était arrêté)'], 2]);
   assert.deepEqual(await etape(), ['deja', 'service actif']);
+}));
+
+// Défaut à l'usage (2026-11-02, projet capsules) : la connexion claude.ai de l'hôte avait expiré ; les accès distants
+// tombaient aussitôt, relancés toutes les 30 s, et la création disait le service « rallumé ». `claude auth status`
+// (code 0 connecté, 1 non, `authMethod`) le dit avant ; un service posé sans connexion devient un geste réservé.
+test('Accès distant : une connexion de Claude Code expirée se dit, et la création en fait un geste réservé', () => gitIsole(async () => {
+  const repond = (status, stdout = '', error = null) => () => ({ status, stdout, error });
+  assert.deepEqual([connexionClaude('c', repond(0, '{"authMethod":"claude.ai"}')), connexionClaude('c', repond(0, 'Logged in'))], [{ ok: true }, { ok: true }]);
+  assert.equal(connexionClaude('c', repond(1, '{"authMethod":"none"}')).ok, false);
+  assert.match(connexionClaude('c', repond(0, '{"authMethod":"api_key"}')).raison, /connecté par api_key : Remote Control demande un abonnement claude\.ai/);
+  assert.equal(connexionClaude('/absent/claude', repond(null, '', new Error('ENOENT'))).ok, null, 'rien de vérifié : ni connecté ni déconnecté');
+  const { s } = await bancCreation({ creation: { etapes: { github: false, conteneur: false, distant: true } } });
+  let connexion = { ok: false, raison: 'Claude Code n’est pas connecté, ou sa connexion a expiré' }; const poses = [];
+  const distant = { liste: () => poses, activer: (id) => { poses.splice(0, 1, { nom: 'neuf', chemin: null, projet: id, actif: false }); return { unite: 'holarch-distant-neuf.service', connexion }; } };
+  const etape = async () => (await creerProjet(s, { nom: 'neuf', types: ['methode'] }, { distant })).etapes.find((x) => x.etape === 'distant');
+  const e = await etape();
+  assert.deepEqual([e.etat, e.detail, e.geste?.commande], ['geste', 'service holarch-distant-neuf.service, mais il ne tiendra pas : Claude Code n’est pas connecté, ou sa connexion a expiré', 'claude auth login']);
+  connexion = { ok: true };
+  assert.deepEqual([(await etape()).etat, (await etape()).detail], ['faite', 'service holarch-distant-neuf.service rallumé (il était arrêté)'], 'connecté, le service rallumé est fait');
 }));
 
 // Voisin du lot 1 : à blanc, sur un dépôt sans commit, la création disait attendre « l’inventaire », qui n'y peut rien :

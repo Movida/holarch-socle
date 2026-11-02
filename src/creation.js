@@ -422,7 +422,12 @@ export async function creerProjet(socle, { nom, contexte = null, types = [], des
       if (pose?.actif) noter('distant', 'deja', 'service actif');
       else if (pose?.coupee) noter('distant', 'geste', `service ${pose.nom} coupé à la main : laissé`, { quoi: 'le rallumer, si l’accès distant est voulu', commande: `holarch distant activer ${dossier}` });
       else if (aBlanc) noter('distant', 'a-faire', pose ? `service ${pose.nom} arrêté : à rallumer` : 'service Remote Control du projet');
-      else { const a = d.activer(projet.id); noter('distant', 'faite', pose ? `service ${a.unite} rallumé (il était arrêté)` : `service ${a.unite}`); }
+      else {
+        const a = d.activer(projet.id); const fait = pose ? `service ${a.unite} rallumé (il était arrêté)` : `service ${a.unite}`;
+        // Un service sans compte connecté tombe aussitôt, et systemd le relance en boucle : posé, il n'est pas « fait ».
+        if (a.connexion?.ok === false) noter('distant', 'geste', `${fait}, mais il ne tiendra pas : ${a.connexion.raison}`, { quoi: 'connecter Claude Code avec le compte claude.ai ; le service reprend seul dans les 30 s', commande: 'claude auth login' });
+        else noter('distant', 'faite', `${fait}${a.connexion?.ok === null ? ` ; ${a.connexion.raison}` : ''}`);
+      }
     } catch (e) { noter('distant', 'echec', e.message); }
   }
 
