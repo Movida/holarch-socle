@@ -140,13 +140,15 @@ export class Socle {
     const q = (sql, ...p) => this.index.requete(sql, ...p);
     const depuis = (j) => new Date(Date.now() - j * 864e5).toISOString();
     const d = depuis(jours = Math.min(Math.max(+jours || 30, 1), 3650));
+    const dernier = q("SELECT at, data FROM evenements WHERE kind='inventory.finished' ORDER BY at DESC LIMIT 1").map((r) => ({ at: r.at, ...JSON.parse(r.data) }))[0] || null;
     return {
+      ...this.etatDeMembre(dernier),
       site: this.config.site,
       donnees: this.config.donnees,
       tarifs_configures: tarifsConfigures(this.config.tarifs),
       tarifs: { source: this.config.tarifs?.source ?? null, releve: this.config.tarifs?.releve ?? null },
       fiches_par_type: q('SELECT kind, COUNT(*) n FROM fiches GROUP BY kind ORDER BY n DESC'),
-      dernier_inventaire: q("SELECT at, data FROM evenements WHERE kind='inventory.finished' ORDER BY at DESC LIMIT 1").map((r) => ({ at: r.at, ...JSON.parse(r.data) }))[0] || null,
+      dernier_inventaire: dernier,
       sessions: {
         total: q("SELECT COUNT(DISTINCT correlation) n FROM evenements WHERE kind='session.finished' AND json_extract(data,'$.sous_agent')=0")[0].n,
       },
@@ -184,6 +186,22 @@ export class Socle {
       projets_sales: this.techniques().map(([f, t]) => ({ name: f.name, n: t.fichiers_modifies, lu_a: t.lu_a })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n),
       contexte: this.contexte(),
     };
+  }
+
+  // État de HOLARCH comme membre du hub (contrat etat-de-membre, décision membres-du-hub) : le dernier inventaire dit si
+  // le site s'observe encore. La minuterie passe toutes les heures et rattrape au réveil : au-delà de `etat.alerte_heures`
+  // un passage manque, au-delà de `etat.panne_heures` l'inventaire ne tourne plus ; une cible que la passerelle a ignorée
+  // dans l'heure est une alerte. Sans inventaire au journal, l'état ne s'établit pas (`indisponible`, jamais `ok`).
+  etatDeMembre(dernier, maintenant = Date.now()) {
+    if (!dernier) return { statut: 'indisponible', derniere_activite: null, resume: 'Aucun inventaire au journal de ce site.' };
+    const r = this.config.etat ?? {};
+    const alerte = +r.alerte_heures > 0 ? +r.alerte_heures : 2; const panne = +r.panne_heures > 0 ? +r.panne_heures : 24;
+    const h = (maintenant - Date.parse(dernier.at)) / 3600e3;
+    const ignorees = this.index.requete("SELECT DISTINCT json_extract(data,'$.serveur') s FROM evenements WHERE kind='system.degraded' AND json_extract(data,'$.composant')='passerelle' AND at>=? ORDER BY s",
+      new Date(maintenant - 3600e3).toISOString()).map((x) => x.s);
+    const statut = h > panne ? 'panne' : h > alerte || ignorees.length ? 'alerte' : 'ok';
+    const age = h < 1 ? `${Math.round(h * 60)} min` : `${Math.round(h)} h`;
+    return { statut, derniere_activite: dernier.at, resume: `Dernier inventaire il y a ${age}${h > alerte ? ` (seuil ${h > panne ? panne : alerte} h)` : ''}${ignorees.length ? ` ; la passerelle a ignoré ${ignorees.join(', ')} dans l'heure` : ''}.` };
   }
 
   // Contexte relu par tour (décision passation-sereine) : la mesure de l'économie (moyenne pondérée par les tours, donc

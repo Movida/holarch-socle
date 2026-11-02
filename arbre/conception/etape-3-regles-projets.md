@@ -1420,6 +1420,15 @@ sur mesure ; un pare-feu du conteneur, tant que les domaines de Remote Control s
   sortie déclarée, aucune description maison, gestionnaire de mots de passe hors du premier lot ; code dans un dépôt
   dédié privé (choix de l'auteur). Décision `membres-du-hub` proposée, en brouillon ; tranche 0 faite d'ici (serveurs
   existants, identifiants des outils de sauvegarde, code d'agentgateway 1.6.0) ; l'essai sur le poste reste (Q39).
+- **Fait (2026-11-02)** : décision `membres-du-hub` approuvée (avec la portabilité, ajoutée sur la question de l'auteur),
+  premier temps de la tranche 1 d'ici. Contrat `etat-de-membre` 0.1.0 (`statut` : `ok`, `alerte`, `panne`,
+  `indisponible`, le mot du code, choix de l'auteur ; `derniere_activite` ; `resume`). `holarch_etat` tient le contrat :
+  champs ajoutés à la lecture commune `etat()` (interface, MCP, `holarch etat` qui les affiche en tête), sortie
+  déclarée (`outputSchema`, `structuredContent`) ; alerte au-delà de 2 h depuis le dernier inventaire ou quand la
+  passerelle a ignoré une cible dans l'heure, panne au-delà de 24 h, `indisponible` sans inventaire ; réglage `etat`
+  de la configuration du site (seuils de la minuterie, choix de l'auteur, mesure à faire sur le poste). 5 tests
+  (`test/membres-du-hub.test.js`). Reste sur le poste : copie de service posée, mesure des intervalles d'inventaire,
+  dépôt `capsules` créé, fin de Q39, capsule des sauvegardes.
 - **Reste** :
   0. **Contre-épreuve de la décision `profil-designe`, close le 2026-10-10** (pas 1 à 7, `7caa89c` à `ff8a6f2` du socle, `9ba93e7` du profil,
      `6ca5ac6` d'okf-bundle-template, clé `profil` du poste), lancée le 2026-10-10 par une instance neuve (Opus 5.5

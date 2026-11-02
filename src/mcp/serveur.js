@@ -7,6 +7,10 @@ import * as z from 'zod/v4';
 
 const LECTURE = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const texte = (o) => ({ content: [{ type: 'text', text: JSON.stringify(o) }] });
+// Sortie de `etat` (contrat etat-de-membre, décision membres-du-hub) : les trois champs communs aux membres du hub,
+// déclarés et vérifiés par le SDK ; le reste est propre à HOLARCH. Rendue aussi en texte, pour les clients qui ne
+// lisent que lui.
+const ETAT = z.looseObject({ statut: z.enum(['ok', 'alerte', 'panne', 'indisponible']), derniere_activite: z.string().nullable(), resume: z.string() });
 const jours = z.number().int().min(1).max(3650).optional().describe('Période en jours (30 par défaut)');
 const limite = (n, max) => z.number().int().min(1).max(max).optional().describe(`Nombre maximal de résultats (${n} par défaut, ${max} au plus)`);
 // Une fiche résumée : ce qu'il faut pour choisir, le détail passe par `fiche`.
@@ -18,9 +22,9 @@ export function creerServeurMcp(socle, version) {
   const s = new McpServer({ name: 'holarch', version });
 
   s.registerTool('etat', {
-    description: 'État du site HOLARCH sur une période : éléments en place par type, sessions, tokens et coût liste, modèles sans tarif, refus d’outil, usage de l’interface, anomalies à regarder.',
-    inputSchema: z.object({ jours }), annotations: LECTURE,
-  }, async ({ jours: j }) => { const e = socle.etat({ jours: j ?? 30 }); delete e.tokens; return texte(e); });
+    description: 'État du site HOLARCH sur une période : statut de membre du hub (`statut` ok, alerte, panne ou indisponible, `derniere_activite`, `resume`, d’après l’âge du dernier inventaire et les cibles ignorées par la passerelle), éléments en place par type, sessions, tokens et coût liste, modèles sans tarif, refus d’outil, usage de l’interface, anomalies à regarder.',
+    inputSchema: z.object({ jours }), outputSchema: ETAT, annotations: LECTURE,
+  }, async ({ jours: j }) => { const e = socle.etat({ jours: j ?? 30 }); delete e.tokens; return { ...texte(e), structuredContent: e }; });
 
   s.registerTool('catalogue', {
     description: 'Éléments en place (skills, hooks, mémoires, connecteurs, projets, nœuds de l’arbre, conteneurs…), filtrés par type ou par texte. Ce qui n’y figure pas n’existe pas pour le système.',

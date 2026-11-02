@@ -2,6 +2,13 @@
 
 ## 2026-11-02
 
+* **`membres-du-hub` approuvée, `holarch_etat` au contrat** (choix cliquables de l'auteur, recommandations suivies) :
+  décision stable ; envoi autorisé des trois premiers commits, poussés (`68103cb`), aucune intégration continue dans le
+  dépôt. Contrat `etat-de-membre` 0.1.0, valeur `indisponible` plutôt que « non disponible » (le mot du code) ; statut
+  de holarch tiré de l'âge du dernier inventaire (2 h, 24 h, déduits de la minuterie horaire avec rattrapage, réglables)
+  et des cibles ignorées par la passerelle dans l'heure ; la mesure n'a pas pu se faire d'ici (le site du conteneur est
+  vide), elle revient au poste. Dépôt des capsules nommé `capsules`, à créer sur le poste (`gh` absent du conteneur).
+
 * **Portabilité des capsules** (question de l'auteur, « une solution cross plateforme ? », recommandation suivie) : les
   outils de sauvegarde et Node existent sur les trois systèmes avec les mêmes commandes ; emplacement du programme,
   dossier de lancement et source d'un secret passent dans la configuration du site, le passage de WSL à Windows devient

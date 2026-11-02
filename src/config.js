@@ -49,6 +49,9 @@ const DEFAUTS = () => ({
   // écart, taille maximale d'un fichier lu, délais, sources.
   controles: { gitleaks: null, osv_scanner: null, cache_heures: 24, journal_jours: 30, non_pousses_heures: 4, taille_max_mo: 2, delai_osv_s: 300, delai_http_s: 20,
     url_github: 'https://api.github.com', url_node: 'https://nodejs.org/dist/index.json', url_npm: 'https://registry.npmjs.org' },
+  // État de HOLARCH comme membre du hub (contrat etat-de-membre) : âge du dernier inventaire, en heures, au-delà duquel
+  // l'état passe en alerte, puis en panne (minuterie horaire avec rattrapage ; à confirmer par une mesure sur le site).
+  etat: { alerte_heures: 2, panne_heures: 24 },
   // Grille de tarifs, relevée sur la page officielle du fournisseur : { source, releve, modeles }, où chaque modèle porte
   // { entree, cache_ecrit, cache_ecrit_1h, cache_lu, sortie } en USD par million de tokens (src/tarifs.js).
   // Vide par défaut : aucun tarif n'est inventé ; sans tarif, le coût reste inconnu et seuls les tokens sont comptés.
@@ -135,6 +138,7 @@ inventaire:
 # controles:              # audit : outils (chemins), mémoire des sources (cache_heures), fenêtre du journal tenu
 #   gitleaks: null        # (journal_jours), non_pousses_heures, taille_max_mo, delai_osv_s, delai_http_s, url_github, url_node,
 #                         # url_npm
+# etat: { alerte_heures: 2, panne_heures: 24 }   # âge du dernier inventaire au-delà duquel l'état passe en alerte, en panne
 # Un autre site qui partage ce répertoire (HOLARCH_SITE=<nom>) lit aussi config.<nom>.yaml, qui l'emporte sur ce fichier.
 # tarifs:                 # à relever sur la grille officielle du fournisseur, jamais de mémoire
 #   source: https://…     # page relevée
