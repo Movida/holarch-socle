@@ -1,0 +1,28 @@
+# SENSIBLES de holarch-socle (Movida/holarch-socle), posé par briques/integrateur/basculer.sh miroir
+# (D-2026-11-15-actions-03 : ses essais passent par le banc de l'hôte) depuis
+# Movida/architecte : briques/integrateur/sensibles/holarch-socle.
+#
+# L'intégrateur le lit sur main : un changement qui touche un chemin listé ici
+# demande le go de David. Tout le reste entre sur ses essais verts (.github/essais.sh).
+# Le dépôt est PUBLIC : ce qui crée ou pose une clé (le conteneur de développement) est verrouillé.
+
+[verrou]
+# Ce qui décide de la garde : la liste elle-même et les essais qui jugent.
+/SENSIBLES
+/.github/
+# Le conteneur de développement crée et déclare la clé de déploiement du projet.
+/.devcontainer/
+
+[lot]
+# Les consignes des sessions : CLAUDE.md, les règles embarquées et leur source dans l'arbre, les outils MCP.
+/CLAUDE.md
+/.claude/
+/.mcp.json
+/arbre/rules.yaml
+/arbre/types-transverses/
+# Les décisions et les fondations : un changement de but.
+/arbre/decisions/
+/arbre/fondations/
+# Les dépendances qui tournent sur le poste.
+/package.json
+/package-lock.json
